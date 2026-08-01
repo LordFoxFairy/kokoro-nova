@@ -1,0 +1,216 @@
+@import 'tailwindcss';
+@import '@xyflow/react/dist/style.css';
+
+/*
+ * Design tokens.
+ *
+ * The editor is a light, low-chroma surface so that generated media carries
+ * all the colour: near-white chrome, one neutral ink ramp, a single accent
+ * reserved for selection and running state, and floating panels lifted with
+ * soft shadows rather than borders.
+ */
+@theme {
+  --color-ink-900: oklch(0.18 0.01 260);
+  --color-ink-700: oklch(0.36 0.01 260);
+  --color-ink-500: oklch(0.55 0.008 260);
+  --color-ink-400: oklch(0.66 0.006 260);
+  --color-ink-300: oklch(0.79 0.005 260);
+  --color-ink-200: oklch(0.89 0.004 260);
+  --color-ink-100: oklch(0.945 0.003 260);
+  --color-ink-50: oklch(0.975 0.002 260);
+
+  --color-canvas: oklch(0.965 0.002 260);
+  --color-surface: oklch(1 0 0);
+
+  --color-accent: oklch(0.62 0.19 258);
+  --color-accent-soft: oklch(0.94 0.04 258);
+  --color-accent-ink: oklch(0.45 0.16 258);
+
+  --color-running: oklch(0.72 0.16 85);
+  --color-danger: oklch(0.58 0.2 25);
+  --color-success: oklch(0.65 0.15 155);
+
+  --radius-card: 14px;
+  --radius-panel: 18px;
+  --radius-pill: 999px;
+
+  --shadow-float: 0 1px 2px oklch(0.2 0.02 260 / 0.06), 0 8px 24px oklch(0.2 0.02 260 / 0.1);
+  --shadow-panel: 0 2px 6px oklch(0.2 0.02 260 / 0.07), 0 18px 48px oklch(0.2 0.02 260 / 0.14);
+  --shadow-node: 0 1px 2px oklch(0.2 0.02 260 / 0.05), 0 4px 16px oklch(0.2 0.02 260 / 0.08);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* The editor owns the whole viewport; only inner panels scroll. */
+body:has([data-app-shell='editor']) {
+  overflow: hidden;
+}
+
+@layer utilities {
+  .panel {
+    background: var(--color-surface);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  /*
+   * Named `chip-bar`, not `float`: a `.float` utility collides with Tailwind's
+   * own float-* group, and because this layer is emitted after Tailwind's, its
+   * background silently beat any bg-* override at the call site.
+   * Background is intentionally left to the caller so bg-* still wins.
+   */
+  .chip-bar {
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-float);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-ink-200);
+    border-radius: 999px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * React Flow overrides
+ * ------------------------------------------------------------------ */
+
+.react-flow {
+  --xy-background-color: var(--color-canvas);
+  --xy-edge-stroke: var(--color-ink-300);
+  --xy-edge-stroke-selected: var(--color-accent);
+  --xy-edge-stroke-width: 1.5;
+}
+
+.react-flow__node {
+  cursor: default;
+}
+
+.react-flow__handle {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-ink-200);
+  box-shadow: var(--shadow-float);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+/* Ports appear on hover or while a connection is in progress. */
+.react-flow__node:hover .react-flow__handle,
+.react-flow.connecting .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+}
+
+.react-flow__handle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 9px;
+  height: 1.5px;
+  background: var(--color-ink-400);
+  border-radius: 2px;
+}
+
+.react-flow__handle-left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.5px;
+  height: 9px;
+  background: var(--color-ink-400);
+  border-radius: 2px;
+}
+
+.react-flow__handle.connectionindicator:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__minimap {
+  border-radius: 12px;
+  box-shadow: var(--shadow-float);
+  background: var(--color-surface);
+}
+
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+/* Hide edges without unmounting them, so 连线显隐 keeps the graph intact. */
+.edges-hidden .react-flow__edges {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.72 0.16 85 / 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px oklch(0.72 0.16 85 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.72 0.16 85 / 0);
+  }
+}
+
+.running-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-ink-100) 25%,
+    var(--color-ink-50) 37%,
+    var(--color-ink-100) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}

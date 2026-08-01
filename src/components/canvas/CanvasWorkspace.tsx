@@ -1,0 +1,732 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
+import { createEdge, createNode } from '@/domain/factory'
+import { SLASH_PRESETS, type CharacterPreset } from '@/domain/libraries'
+import { instantiatePreset, PRESETS_BY_ID, type ToolboxPreset } from '@/domain/presets'
+import { ids } from '@/domain/ids'
+import type {
+  Artifact,
+  Asset,
+  CanvasMutation,
+  GenerationJob,
+  NodeData,
+  NodeType,
+  WorkflowGroup,
+} from '@/domain/types'
+import { api } from '@/lib/api'
+import { useEditor } from '@/lib/editor-store'
+import { AgentPanel } from '../agent/AgentPanel'
+import { AssetLibraryPanel } from '../assets/AssetLibraryPanel'
+import { DirectorStudio, type CapturedShot, type DirectorScene } from '../director/DirectorStudio'
+import { ScriptWizard } from '../script/ScriptWizard'
+import type { ScriptDraft } from '../script/script-model'
+import { StoryboardView } from '../storyboard/StoryboardView'
+import { Menu } from '../ui/Menu'
+import { Spinner } from '../ui/controls'
+import { AssetSidebar } from './AssetSidebar'
+import { PresenceLayer } from './PresenceLayer'
+import { BottomToolbar } from './BottomToolbar'
+import { CharacterPanel, HistoryPanel, MaterialPanel, ToolboxPanel } from './LibraryPanels'
+import { NodeInspector } from './NodeInspector'
+import { ShortcutsPanel, useCanvasShortcuts } from './shortcuts'
+import { TopBar } from './TopBar'
+import { ConfirmGate } from './ConfirmGate'
+import { Toasts } from './Toasts'
+import { WorkflowCanvas, useCanvasCommands, nextFreeSpot } from './WorkflowCanvas'
+import { NODE_SIZE } from '@/domain/factory'
+
+/** Poll interval while at least one job is in flight. */
+const POLL_MS = 1200
+
+function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?: string }) {
+  const flow = useReactFlow()
+  const load = useEditor((s) => s.load)
+  const loading = useEditor((s) => s.loading)
+  const viewMode = useEditor((s) => s.viewMode)
+  const document = useEditor((s) => s.document)
+  const jobs = useEditor((s) => s.jobs)
+  const leftPanel = useEditor((s) => s.leftPanel)
+  const setLeftPanel = useEditor((s) => s.setLeftPanel)
+  const inspectedNodeId = useEditor((s) => s.inspectedNodeId)
+  const inspect = useEditor((s) => s.inspect)
+  const commit = useEditor((s) => s.commit)
+  const commitWith = useEditor((s) => s.commitWith)
+  const upsertJob = useEditor((s) => s.upsertJob)
+  const setBalance = useEditor((s) => s.setBalance)
+  const applyServerDocument = useEditor((s) => s.applyServerDocument)
+  const select = useEditor((s) => s.select)
+  const toast = useEditor((s) => s.toast)
+
+  const commands = useCanvasCommands()
+  const [materialKind, setMaterialKind] = useState<'style' | 'effect'>('style')
+  const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null)
+  /** Node whose full-screen editor is open; its type selects which one. */
+  const [studioNodeId, setStudioNodeId] = useState<string | null>(null)
+  const [assetLibraryOpen, setAssetLibraryOpen] = useState(false)
+  const [storyboardConfig, setStoryboardConfig] = useState<{ groupId: string; anchor: { x: number; y: number } } | null>(
+    null,
+  )
+
+  useEffect(() => {
+    void load(projectId, canvasId)
+  }, [projectId, canvasId, load])
+
+  /* ---------------- generation ---------------- */
+
+  const runNode = useCallback(
+    async (nodeId: string) => {
+      const currentCanvasId = useEditor.getState().canvasId
+      if (!currentCanvasId) return
+      try {
+        const { job } = await api.post<{ job: GenerationJob }>('/api/jobs', {
+          canvasId: currentCanvasId,
+          nodeId,
+        })
+        upsertJob(job)
+        // Confirm gate: a quoted job waits for explicit approval.
+        setPendingJob(job)
+      } catch (error) {
+        toast(error instanceof Error ? error.message : '无法提交生成', 'error')
+      }
+    },
+    [upsertJob, toast],
+  )
+
+  const confirmJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const { job, balance } = await api.post<{ job: GenerationJob; balance: number }>(`/api/jobs/${jobId}`, {
+          action: 'confirm',
+        })
+        upsertJob(job)
+        setBalance(balance)
+        setPendingJob(null)
+      } catch (error) {
+        toast(error instanceof Error ? error.message : '确认失败', 'error')
+        setPendingJob(null)
+      }
+    },
+    [upsertJob, setBalance, toast],
+  )
+
+  const cancelJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const { job, balance } = await api.post<{ job: GenerationJob; balance: number }>(`/api/jobs/${jobId}`, {
+          action: 'cancel',
+        })
+        upsertJob(job)
+        setBalance(balance)
+        setPendingJob(null)
+      } catch (error) {
+        toast(error instanceof Error ? error.message : '取消失败', 'error')
+      }
+    },
+    [upsertJob, setBalance, toast],
+  )
+
+  // Poll in-flight jobs; terminal states rewrite the document server-side.
+  const activeJobIds = useMemo(
+    () => jobs.filter((j) => j.status === 'queued' || j.status === 'running').map((j) => j.id),
+    [jobs],
+  )
+  const pollRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (activeJobIds.length === 0) return
+    const timer = setInterval(async () => {
+      for (const jobId of activeJobIds) {
+        if (pollRef.current.has(jobId)) continue
+        pollRef.current.add(jobId)
+        try {
+          const result = await api.get<{
+            job: GenerationJob
+            document: typeof document | null
+            revision: number | null
+            balance: number
+          }>(`/api/jobs/${jobId}`)
+          upsertJob(result.job)
+          setBalance(result.balance)
+          if (result.document && result.revision !== null) {
+            applyServerDocument(result.document, result.revision)
+          }
+          if (result.job.status === 'failed' || result.job.status === 'compliance_blocked') {
+            toast(result.job.error ?? '生成失败', 'error')
+          }
+        } catch {
+          // Transient failures are retried on the next tick.
+        } finally {
+          pollRef.current.delete(jobId)
+        }
+      }
+    }, POLL_MS)
+    return () => clearInterval(timer)
+  }, [activeJobIds, upsertJob, setBalance, applyServerDocument, toast])
+
+  /* ---------------- node helpers ---------------- */
+
+  const patchNode = useCallback(
+    (nodeId: string, patch: Partial<NodeData>) => {
+      const node = useEditor.getState().document.nodes.find((n) => n.id === nodeId)
+      if (!node) return
+      void commit([{ op: 'updateNode', nodeId, patch: { data: { ...node.data, ...patch } } }], '编辑节点')
+    },
+    [commit],
+  )
+
+  const locateNode = useCallback(
+    (nodeId: string) => {
+      const node = useEditor.getState().document.nodes.find((n) => n.id === nodeId)
+      if (!node) return
+      select([nodeId])
+      flow.setCenter(node.position.x + node.size.width / 2, node.position.y + node.size.height / 2, {
+        zoom: Math.max(0.7, flow.getZoom()),
+        duration: 320,
+      })
+    },
+    [flow, select],
+  )
+
+  /** Pan so a rect in flow coordinates sits inside the visible canvas area. */
+  const ensureVisible = useCallback(
+    (position: { x: number; y: number }, size: { width: number; height: number }) => {
+      const topLeft = flow.flowToScreenPosition({ x: position.x, y: position.y })
+      const bottomRight = flow.flowToScreenPosition({
+        x: position.x + size.width,
+        y: position.y + size.height,
+      })
+
+      // Reserve room for the top bar and the right-hand drawers.
+      const inside =
+        topLeft.x > 32 &&
+        topLeft.y > 80 &&
+        bottomRight.x < window.innerWidth - 32 &&
+        bottomRight.y < window.innerHeight - 100
+
+      if (!inside) {
+        flow.setCenter(position.x + size.width / 2, position.y + size.height / 2, {
+          zoom: flow.getZoom(),
+          duration: 260,
+        })
+      }
+    },
+    [flow],
+  )
+
+  const addNodeAtViewportCenter = useCallback(
+    async (type: NodeType) => {
+      const center = flow.screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      })
+      const size = NODE_SIZE[type]
+      // The store resolves the final, non-overlapping spot near this hint.
+      const node = await commands.addNode(type, {
+        x: center.x - size.width / 2,
+        y: center.y - size.height / 2,
+      })
+      // Avoidance can push the node past the edge of the viewport; follow it so
+      // a freshly created node is never left off-screen.
+      if (node) ensureVisible(node.position, node.size)
+    },
+    [flow, commands, ensureVisible],
+  )
+
+  /* ---------------- library actions ---------------- */
+
+  const usePreset = useCallback(
+    async (preset: ToolboxPreset) => {
+      const doc = useEditor.getState().document
+      const origin = nextFreeSpot(doc.nodes)
+      const { mutations, nodes } = instantiatePreset(preset, origin, doc.nodes)
+      const ok = await commit(mutations, `使用模板 ${preset.name}`)
+      if (ok) {
+        select(nodes.map((n) => n.id))
+        flow.fitView({ nodes: nodes.map((n) => ({ id: n.id })), duration: 400, padding: 0.35 })
+      }
+    },
+    [commit, select, flow],
+  )
+
+  const applyMaterial = useCallback(
+    async (preset: { id: string; name: string; hue: number }, kind: 'style' | 'effect') => {
+      const doc = useEditor.getState().document
+      const node = createNode(kind, nextFreeSpot(doc.nodes), doc.nodes, { name: preset.name })
+      node.data.extra = { presetId: preset.id, presetName: preset.name, hue: preset.hue }
+      await commit([{ op: 'addNode', node }], `添加${kind === 'style' ? '风格' : '特效'}节点`)
+    },
+    [commit],
+  )
+
+  /** Applying a character creates four independent reference image nodes. */
+  const applyCharacter = useCallback(
+    async (character: CharacterPreset) => {
+      const doc = useEditor.getState().document
+      const origin = nextFreeSpot(doc.nodes)
+      const pool = [...doc.nodes]
+      const mutations: CanvasMutation[] = []
+
+      character.references.forEach((reference, index) => {
+        const node = createNode(
+          'image',
+          { x: origin.x + (index % 2) * 440, y: origin.y + Math.floor(index / 2) * 400 },
+          pool,
+          { name: `${character.name} · ${reference.label}` },
+        )
+        node.data.prompt = `${character.name}的${reference.label}`
+        node.data.artifacts = [
+          {
+            id: ids.artifact(),
+            jobId: 'character-library',
+            kind: 'image',
+            url: `/api/preview/character?hue=${reference.hue}&label=${encodeURIComponent(reference.label)}`,
+            thumbnailUrl: `/api/preview/character?hue=${reference.hue}&label=${encodeURIComponent(reference.label)}`,
+            width: 1024,
+            height: 1024,
+            durationSeconds: null,
+            createdAt: new Date().toISOString(),
+            modelId: 'lib-image-2',
+            assetId: null,
+          },
+        ]
+        pool.push(node)
+        mutations.push({ op: 'addNode', node })
+      })
+
+      await commit(mutations, `应用角色 ${character.name}`)
+    },
+    [commit],
+  )
+
+  /** Drop a library asset onto the canvas as a media node already bound to it. */
+  const insertAsset = useCallback(
+    async (asset: Asset) => {
+      const type: NodeType = asset.kind === 'video' ? 'video' : asset.kind === 'audio' ? 'audio' : 'image'
+      await commitWith((doc) => {
+        const node = createNode(type, nextFreeSpot(doc.nodes), doc.nodes, { name: asset.name })
+        node.data.artifacts = [
+          {
+            id: ids.artifact(),
+            jobId: 'asset-library',
+            kind: asset.kind,
+            url: asset.url,
+            thumbnailUrl: asset.thumbnailUrl,
+            width: asset.width,
+            height: asset.height,
+            durationSeconds: asset.durationSeconds,
+            createdAt: new Date().toISOString(),
+            modelId: 'lib-image-2',
+            assetId: asset.id,
+          },
+        ]
+        return [{ op: 'addNode', node }]
+      }, '从资产库添加')
+    },
+    [commitWith],
+  )
+
+  /**
+   * Turn a confirmed shot list into one node per shot, each wired to the script
+   * node so the storyboard shows where every frame came from.
+   */
+  const batchFromShots = useCallback(
+    async (scriptNodeId: string, draft: ScriptDraft, kind: 'image' | 'video') => {
+      const shots = draft.shots.filter((shot) => shot.finalPrompt.trim())
+      if (shots.length === 0) {
+        toast('没有可用的最终提示词', 'error')
+        return
+      }
+
+      await commitWith((doc) => {
+        const source = doc.nodes.find((n) => n.id === scriptNodeId)
+        if (!source) return []
+        const pool = [...doc.nodes]
+        const mutations: CanvasMutation[] = []
+
+        shots.forEach((shot, index) => {
+          const node = createNode(
+            kind,
+            { x: source.position.x + source.size.width + 160, y: source.position.y + index * 420 },
+            pool,
+            { name: `镜头 ${index + 1}` },
+          )
+          node.data.prompt = shot.finalPrompt
+          if (kind === 'video') {
+            node.data.output = { ...node.data.output, durationSeconds: shot.durationSeconds as 5 | 10 | 15 }
+          }
+          pool.push(node)
+          mutations.push({ op: 'addNode', node })
+          mutations.push({ op: 'addEdge', edge: createEdge(source.id, node.id) })
+        })
+        return mutations
+      }, kind === 'video' ? '批量生视频' : '批量生图')
+
+      toast(`已创建 ${shots.length} 个待确认${kind === 'video' ? '视频' : '图片'}节点`, 'success')
+    },
+    [commitWith, toast],
+  )
+
+  const insertArtifact = useCallback(
+    async (artifact: Artifact) => {
+      const doc = useEditor.getState().document
+      const type: NodeType = artifact.kind === 'video' ? 'video' : artifact.kind === 'audio' ? 'audio' : 'image'
+      const node = createNode(type, nextFreeSpot(doc.nodes), doc.nodes)
+      node.data.artifacts = [artifact]
+      await commit([{ op: 'addNode', node }], '从生成历史添加')
+    },
+    [commit],
+  )
+
+  /** Slash presets create a pending node wired to the source as a reference. */
+  const applySlash = useCallback(
+    async (sourceNodeId: string, presetId: string) => {
+      const preset = SLASH_PRESETS.find((p) => p.id === presetId) ?? SLASH_PRESETS[0]
+      const doc = useEditor.getState().document
+      const source = doc.nodes.find((n) => n.id === sourceNodeId)
+      if (!source) return
+
+      const node = createNode(
+        'image',
+        { x: source.position.x + source.size.width + 120, y: source.position.y },
+        doc.nodes,
+        { name: preset.name },
+      )
+      node.data.prompt = preset.promptTemplate
+      node.data.output = { ...node.data.output, ...preset.output }
+
+      const ok = await commit(
+        [
+          { op: 'addNode', node },
+          { op: 'addEdge', edge: createEdge(source.id, node.id) },
+        ],
+        `应用预设 ${preset.name}`,
+      )
+      if (ok) {
+        select([node.id])
+        inspect(node.id)
+      }
+    },
+    [commit, select, inspect],
+  )
+
+  /** 拼接 creates a new stitched image node from the storyboard group. */
+  const stitchGroup = useCallback(
+    async (groupId: string) => {
+      const doc = useEditor.getState().document
+      const group = doc.groups.find((g) => g.id === groupId)
+      if (!group?.storyboard) return
+      const members = doc.nodes.filter((n) => group.nodeIds.includes(n.id))
+      const bottom = Math.max(...members.map((n) => n.position.y + n.size.height))
+      const left = Math.min(...members.map((n) => n.position.x))
+
+      const node = createNode('image', { x: left, y: bottom + 140 }, doc.nodes, { name: '分镜拼接-2k' })
+      node.data.artifacts = [
+        {
+          id: ids.artifact(),
+          jobId: 'storyboard-stitch',
+          kind: 'image',
+          url: `/api/preview/stitch?rows=${group.storyboard.grid.rows}&cols=${group.storyboard.grid.cols}&seq=${group.storyboard.showSequenceNumbers ? 1 : 0}`,
+          thumbnailUrl: `/api/preview/stitch?rows=${group.storyboard.grid.rows}&cols=${group.storyboard.grid.cols}&seq=${group.storyboard.showSequenceNumbers ? 1 : 0}`,
+          width: 2048,
+          height: 1152,
+          durationSeconds: null,
+          createdAt: new Date().toISOString(),
+          modelId: 'lib-image-2',
+          assetId: null,
+        },
+      ]
+      await commit([{ op: 'addNode', node }], '分镜拼接')
+    },
+    [commit],
+  )
+
+  /* ---------------- shortcuts ---------------- */
+
+  const runSelection = useCallback(() => {
+    for (const nodeId of useEditor.getState().selection) void runNode(nodeId)
+  }, [runNode])
+
+  useCanvasShortcuts(
+    {
+      onGroup: () => void commands.groupSelection(),
+      onMergeStoryboard: () => void commands.mergeStoryboardGroups(),
+      onUngroup: () => void commands.ungroupSelection(),
+      onConnect: () => void commands.connectSelection(),
+      onDuplicate: () => void commands.duplicateSelection(),
+      onRunSelection: runSelection,
+      onNewNode: () => void addNodeAtViewportCenter('text'),
+      onDelete: () => void commands.deleteSelection(),
+      onArrange: () => void commands.autoArrange(),
+    },
+    viewMode === 'workflow' && !pendingJob,
+  )
+
+  const studioNode = document.nodes.find((n) => n.id === studioNodeId) ?? null
+  const inspectedNode = document.nodes.find((n) => n.id === inspectedNodeId) ?? null
+  const inspectedJob = inspectedNode?.data.jobId
+    ? jobs.find((j) => j.id === inspectedNode.data.jobId) ?? null
+    : null
+
+  const storyboardGroup: WorkflowGroup | null = storyboardConfig
+    ? document.groups.find((g) => g.id === storyboardConfig.groupId) ?? null
+    : null
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center gap-2 text-ink-400">
+        <Spinner /> 正在加载画布
+      </div>
+    )
+  }
+
+  return (
+    <div data-app-shell="editor" className="relative flex h-screen w-screen overflow-hidden bg-canvas">
+      <AssetSidebar
+        onLocateNode={locateNode}
+        onRenameNode={(nodeId, name) => void commit([{ op: 'updateNode', nodeId, patch: { name } }], '重命名节点')}
+        onDuplicateNode={(nodeId) => {
+          const source = document.nodes.find((n) => n.id === nodeId)
+          if (!source) return
+          const copy = createNode(
+            source.type,
+            { x: source.position.x + 60, y: source.position.y + 60 },
+            document.nodes,
+            { name: `${source.name}副本`, data: JSON.parse(JSON.stringify(source.data)) },
+          )
+          void commit([{ op: 'addNode', node: copy }], '创建副本')
+        }}
+      />
+
+      <main className="relative min-w-0 flex-1">
+        <TopBar />
+
+        {viewMode === 'workflow' ? (
+          <>
+            <WorkflowCanvas
+              onRun={runNode}
+              onCancelJob={cancelJob}
+              onOpenNode={inspect}
+              onStitch={stitchGroup}
+              onOpenStoryboardConfig={(groupId, anchor) => setStoryboardConfig({ groupId, anchor })}
+            />
+            <PresenceLayer canvasId={canvasId ?? null} />
+            <BottomToolbar
+              onAddNode={addNodeAtViewportCenter}
+              onAutoArrange={() => void commands.autoArrange()}
+              onOpenMaterial={(kind) => {
+                setMaterialKind(kind)
+                setLeftPanel('material')
+              }}
+              onOpenAssetLibrary={() => setAssetLibraryOpen(true)}
+            />
+          </>
+        ) : (
+          <StoryboardView />
+        )}
+
+        {viewMode === 'workflow' && inspectedNode && (
+          <NodeInspector
+            node={inspectedNode}
+            job={inspectedJob}
+            onClose={() => inspect(null)}
+            onPatch={patchNode}
+            onRun={runNode}
+            onCancel={cancelJob}
+            onAddToAgent={(nodeId) => {
+              const node = document.nodes.find((n) => n.id === nodeId)
+              if (node) useEditor.getState().pushAgentRef({ id: node.id, label: node.name, kind: 'node' })
+            }}
+            onApplySlash={applySlash}
+            onOpenStudio={setStudioNodeId}
+          />
+        )}
+      </main>
+
+      <AgentPanel />
+
+      {/* Panels */}
+      <ToolboxPanel open={leftPanel === 'toolbox'} onClose={() => setLeftPanel(null)} onUse={usePreset} />
+      <MaterialPanel
+        open={leftPanel === 'material'}
+        kind={materialKind}
+        onClose={() => setLeftPanel(null)}
+        onApply={applyMaterial}
+      />
+      <CharacterPanel open={leftPanel === 'character'} onClose={() => setLeftPanel(null)} onApply={applyCharacter} />
+      <HistoryPanel open={leftPanel === 'history'} onClose={() => setLeftPanel(null)} onInsert={insertArtifact} />
+      <ShortcutsPanel open={leftPanel === 'shortcuts'} onClose={() => setLeftPanel(null)} />
+
+      {/* Full-screen editors owned by a specific node type. */}
+      <DirectorStudio
+        open={studioNode?.type === 'director'}
+        onClose={() => setStudioNodeId(null)}
+        initialScene={studioNode?.data.extra?.scene as DirectorScene | undefined}
+        initialShots={studioNode?.data.extra?.shots as CapturedShot[] | undefined}
+        onSave={(scene, shots) => {
+          if (!studioNode) return
+          patchNode(studioNode.id, { extra: { ...studioNode.data.extra, scene, shots } })
+          setStudioNodeId(null)
+          toast(`已保存导演台场景与 ${shots.length} 个镜头`, 'success')
+        }}
+      />
+
+      <ScriptWizard
+        open={studioNode?.type === 'script' || studioNode?.type === 'scriptLegacy'}
+        onClose={() => setStudioNodeId(null)}
+        initialDraft={studioNode?.data.extra?.draft as ScriptDraft | undefined}
+        onApply={(draft, action) => {
+          if (!studioNode) return
+          patchNode(studioNode.id, { extra: { ...studioNode.data.extra, draft, shots: draft.shots } })
+          setStudioNodeId(null)
+          if (action === 'save') {
+            toast(`已保存 ${draft.shots.length} 个镜头`, 'success')
+            return
+          }
+          // Batch actions materialise one node per shot; the user still passes
+          // through the confirm gate for each generation.
+          void batchFromShots(studioNode.id, draft, action === 'batch-video' ? 'video' : 'image')
+        }}
+      />
+
+      <AssetLibraryPanel
+        open={assetLibraryOpen}
+        onClose={() => setAssetLibraryOpen(false)}
+        onInsert={(asset) => {
+          void insertAsset(asset)
+          setAssetLibraryOpen(false)
+        }}
+      />
+
+      <ConfirmGate job={pendingJob} onConfirm={confirmJob} onCancel={cancelJob} onClose={() => setPendingJob(null)} />
+
+      {storyboardConfig && storyboardGroup?.storyboard && (
+        <Menu
+          anchor={storyboardConfig.anchor}
+          onClose={() => setStoryboardConfig(null)}
+          width={196}
+          sections={[
+            {
+              title: '画幅',
+              items: (['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'] as const).map((ratio) => ({
+                id: `aspect-${ratio}`,
+                label: ratio,
+                checked: storyboardGroup.storyboard?.aspectRatio === ratio,
+                onSelect: () =>
+                  void commit(
+                    [
+                      {
+                        op: 'updateGroup',
+                        groupId: storyboardGroup.id,
+                        patch: { storyboard: { ...storyboardGroup.storyboard!, aspectRatio: ratio } },
+                      },
+                    ],
+                    '设置分镜画幅',
+                  ),
+              })),
+            },
+            {
+              title: '宫格',
+              items: [2, 3, 4, 5].map((n) => ({
+                id: `grid-${n}`,
+                label: `${n}×${n}`,
+                checked: storyboardGroup.storyboard?.grid.rows === n,
+                onSelect: () =>
+                  void commit(
+                    [
+                      {
+                        op: 'updateGroup',
+                        groupId: storyboardGroup.id,
+                        patch: { storyboard: { ...storyboardGroup.storyboard!, grid: { rows: n, cols: n } } },
+                      },
+                    ],
+                    '设置宫格',
+                  ),
+              })),
+            },
+            {
+              items: [
+                {
+                  id: 'sequence',
+                  label: '显示序号',
+                  checked: storyboardGroup.storyboard?.showSequenceNumbers,
+                  onSelect: () =>
+                    void commit(
+                      [
+                        {
+                          op: 'updateGroup',
+                          groupId: storyboardGroup.id,
+                          patch: {
+                            storyboard: {
+                              ...storyboardGroup.storyboard!,
+                              showSequenceNumbers: !storyboardGroup.storyboard!.showSequenceNumbers,
+                            },
+                          },
+                        },
+                      ],
+                      '切换序号',
+                    ),
+                },
+                {
+                  id: 'to-normal',
+                  label: '转普通组',
+                  onSelect: () =>
+                    void commit(
+                      [
+                        {
+                          op: 'updateGroup',
+                          groupId: storyboardGroup.id,
+                          patch: { kind: 'normal', name: `分组 ${storyboardGroup.nodeIds.length} 个节点` },
+                        },
+                      ],
+                      '转普通组',
+                    ),
+                },
+              ],
+            },
+          ]}
+        />
+      )}
+
+      <Toasts />
+
+      {/* Selection hint used by the empty-canvas starter shortcuts */}
+      {document.nodes.length === 0 && viewMode === 'workflow' && <EmptyCanvasStarters onPick={usePreset} />}
+    </div>
+  )
+}
+
+function EmptyCanvasStarters({ onPick }: { onPick: (preset: ToolboxPreset) => void }) {
+  const starters = ['preset-shot-breakdown', 'preset-character-turnaround', 'preset-arc-left', 'preset-product-360']
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-5">
+      <p className="text-[13px] text-ink-400">双击画布空白处可快速新建节点</p>
+      <div className="pointer-events-auto flex gap-2.5">
+        {starters.map((id) => {
+          const preset = PRESETS_BY_ID.get(id)
+          if (!preset) return null
+          return (
+            <button
+              key={id}
+              type="button"
+              data-testid={`starter-${id}`}
+              onClick={() => onPick(preset)}
+              className="rounded-xl bg-surface px-3.5 py-2.5 text-[12px] text-ink-700 shadow-[var(--shadow-float)] transition-transform hover:-translate-y-0.5"
+            >
+              {preset.name}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function CanvasWorkspace(props: { projectId: string; canvasId?: string }) {
+  return (
+    <ReactFlowProvider>
+      <WorkspaceInner {...props} />
+    </ReactFlowProvider>
+  )
+}

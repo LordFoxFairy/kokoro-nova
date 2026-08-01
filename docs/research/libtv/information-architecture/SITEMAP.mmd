@@ -1,0 +1,55 @@
+flowchart TD
+  ENTRY["访问 LibTV"] --> HOME["首页 / 创作启动"]
+  ENTRY --> SKILLS["Skill 广场"]
+  ENTRY --> SHOW["TV Show 作品广场"]
+
+  HOME --> LOGIN["登录 / 首次引导"]
+  HOME --> PROMPT["提示词 + 附件 + 模型 + Skill + 生成模式"]
+  PROMPT --> PROJECT["Project 项目工作台"]
+
+  SKILLS --> SKILL_DETAIL["Skill 详情 / 示例 / 可执行规范"]
+  SKILL_DETAIL --> AGENT["Agent 会话"]
+
+  SHOW --> SHOW_DETAIL["作品详情 / 观看"]
+  SHOW_DETAIL --> PUBLIC_PROCESS["公开制作过程"]
+  PUBLIC_PROCESS --> READONLY_FLOW["只读工作流"]
+  PUBLIC_PROCESS --> READONLY_BOARD["只读故事板"]
+  PUBLIC_PROCESS --> CLONE["复制项目"]
+  CLONE --> LOGIN
+  CLONE --> PROJECT
+
+  LOGIN --> ONBOARDING["获客问卷"]
+  ONBOARDING --> HOME
+
+  PROJECT --> CANVAS["Canvas 画布"]
+  PROJECT --> AGENT
+  PROJECT --> ASSETS["资产 / 生成历史"]
+  PROJECT --> SHARE["分享 / 发布"]
+
+  CANVAS --> WORKFLOW["工作流：节点 / 分组 / 连线"]
+  CANVAS --> STORYBOARD["故事板：文本 / 图片 / 视频 / 音频"]
+  WORKFLOW --> JOB["Generation Job"]
+  AGENT --> JOB
+  JOB --> RESULT["Artifact / Asset"]
+  RESULT --> WORKFLOW
+  RESULT --> ASSETS
+  SHARE --> SNAPSHOT["Published Project Snapshot"]
+  SNAPSHOT --> SHOW_DETAIL
+
+  HOME --> ACCOUNT["账户菜单"]
+  ACCOUNT --> WORKSPACE["个人 / 团队 Workspace"]
+  ACCOUNT --> BILLING["会员 / 积分 / 账单"]
+  ACCOUNT --> PROFILE["个人中心：发布 / 点赞 / 资料"]
+  ACCOUNT --> ASSET_LIBRARY["共享资产库"]
+  ACCOUNT --> POINTS["积分明细：获取 / 消耗 / 返还"]
+  ACCOUNT --> TRANSACTION["订阅计划 / 购买记录 / 发票"]
+  HOME --> MEMBERSHIP["开通会员：个人 / 团队"]
+  HOME --> MODEL_STORE["会员超市：模型专享积分"]
+  MEMBERSHIP --> BILLING
+  MODEL_STORE --> BILLING
+  BILLING --> POINTS
+  BILLING --> TRANSACTION
+  ASSET_LIBRARY --> ASSETS
+  ACCOUNT --> SETTINGS["个人设置 / 通知 / 合规"]
+  ACCOUNT --> CREDENTIALS["Access Key / CLI"]
+  CREDENTIALS --> AGENT

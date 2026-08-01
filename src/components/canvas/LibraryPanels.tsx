@@ -1,0 +1,493 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import {
+  CHARACTER_FILTERS,
+  CHARACTER_PRESETS,
+  EFFECT_CATEGORIES,
+  EFFECT_PRESETS,
+  STYLE_CATEGORIES,
+  STYLE_PRESETS,
+  type CharacterPreset,
+} from '@/domain/libraries'
+import { PRESET_CATEGORIES, TOOLBOX_PRESETS, type ToolboxPreset } from '@/domain/presets'
+import type { Artifact, WorkflowNode } from '@/domain/types'
+import { cn } from '@/lib/cn'
+import { useEditor } from '@/lib/editor-store'
+import { Dialog } from '../ui/Dialog'
+import { EmptyState, SegmentedControl } from '../ui/controls'
+import { IconCheck, IconHistory, IconSearch } from '../icons'
+
+/* ------------------------------------------------------------------ *
+ * Toolbox
+ * ------------------------------------------------------------------ */
+
+export function ToolboxPanel({
+  open,
+  onClose,
+  onUse,
+}: {
+  open: boolean
+  onClose: () => void
+  onUse: (preset: ToolboxPreset) => void
+}) {
+  const [tab, setTab] = useState<'presets' | 'mine'>('presets')
+  const [category, setCategory] = useState<string>('全部')
+  const [detail, setDetail] = useState<ToolboxPreset | null>(null)
+
+  const filtered = useMemo(
+    () => (category === '全部' ? TOOLBOX_PRESETS : TOOLBOX_PRESETS.filter((p) => p.category === category)),
+    [category],
+  )
+
+  return (
+    <Dialog open={open} onClose={onClose} variant="panel" width={880} hideHeader testId="toolbox-panel">
+      <div className="flex items-center justify-between gap-4 border-b border-ink-100 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[15px] font-semibold text-ink-900">工具箱</h2>
+          <SegmentedControl
+            size="sm"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'presets', label: '预设目录' },
+              { value: 'mine', label: '我的工具' },
+            ]}
+          />
+        </div>
+      </div>
+
+      {tab === 'mine' ? (
+        <EmptyState
+          title="还没有自定义工具"
+          description="在画布中选中一个分组后，使用「添加到工具箱」把它保存为可复用模板。"
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-1.5 px-6 py-3">
+            {['全部', ...PRESET_CATEGORIES].map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-[12px] transition-colors',
+                  c === category ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <div className="thin-scrollbar grid max-h-[54vh] grid-cols-3 gap-4 overflow-y-auto px-6 pb-6">
+            {filtered.map((preset, index) => (
+              <div
+                key={preset.id}
+                data-testid={`preset-${preset.id}`}
+                className="group overflow-hidden rounded-2xl ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
+              >
+                <div
+                  className="relative h-32"
+                  style={{
+                    background: `linear-gradient(${140 + index * 24}deg, hsl(${(index * 47) % 360} 58% 62%), hsl(${(index * 47 + 55) % 360} 55% 42%))`,
+                  }}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      data-testid={`preset-use-${preset.id}`}
+                      onClick={() => {
+                        onUse(preset)
+                        onClose()
+                      }}
+                      className="rounded-lg bg-white/95 px-3 py-1.5 text-[12px] font-medium text-ink-900 shadow-sm"
+                    >
+                      使用
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDetail(preset)}
+                      className="rounded-lg bg-white/80 px-3 py-1.5 text-[12px] text-ink-700 shadow-sm"
+                    >
+                      详情
+                    </button>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <div className="text-[13px] font-medium text-ink-900">{preset.name}</div>
+                  <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-400">
+                    {preset.summary}
+                  </div>
+                  <div className="mt-2 text-[10px] text-ink-400">
+                    {preset.nodes.length} 个节点 · {preset.edges.length} 条连线
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <Dialog open={Boolean(detail)} onClose={() => setDetail(null)} title={detail?.name} width={420}>
+        <div className="space-y-3 text-[13px] leading-relaxed text-ink-600">
+          <p>{detail?.summary}</p>
+          <div className="rounded-xl bg-ink-50 p-3 text-[12px]">
+            <div className="mb-1.5 font-medium text-ink-700">模板会创建</div>
+            <ul className="space-y-1 text-ink-500">
+              {detail?.nodes.map((n) => (
+                <li key={n.name}>· {n.name}</li>
+              ))}
+            </ul>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (detail) onUse(detail)
+              setDetail(null)
+              onClose()
+            }}
+            className="w-full rounded-lg bg-ink-900 py-2 text-[13px] font-medium text-white"
+          >
+            使用该模板
+          </button>
+        </div>
+      </Dialog>
+    </Dialog>
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * Style / effect market
+ * ------------------------------------------------------------------ */
+
+export function MaterialPanel({
+  open,
+  kind,
+  onClose,
+  onApply,
+}: {
+  open: boolean
+  kind: 'style' | 'effect'
+  onClose: () => void
+  onApply: (preset: { id: string; name: string; hue: number }, kind: 'style' | 'effect') => void
+}) {
+  const [category, setCategory] = useState('全部')
+  const [commercialOnly, setCommercialOnly] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const categories = kind === 'style' ? STYLE_CATEGORIES : EFFECT_CATEGORIES
+  const items = kind === 'style' ? STYLE_PRESETS : EFFECT_PRESETS
+
+  const filtered = items.filter((item) => {
+    if (category !== '全部' && item.category !== category) return false
+    if (commercialOnly && !item.commercial) return false
+    if (query && !item.name.includes(query)) return false
+    return true
+  })
+
+  return (
+    <Dialog open={open} onClose={onClose} variant="panel" width={880} hideHeader testId="material-panel">
+      <div className="flex items-center justify-between gap-4 border-b border-ink-100 px-6 py-4">
+        <h2 className="text-[15px] font-semibold text-ink-900">{kind === 'style' ? '风格库' : '特效库'}</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
+            <IconSearch size={14} className="text-ink-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜索"
+              className="w-32 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setCommercialOnly(!commercialOnly)}
+            className={cn(
+              'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
+              commercialOnly ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
+            )}
+          >
+            {commercialOnly && <IconCheck size={12} />}
+            可商用
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 px-6 py-3">
+        {categories.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setCategory(c)}
+            className={cn(
+              'rounded-full px-3 py-1 text-[12px] transition-colors',
+              c === category ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
+            )}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="thin-scrollbar grid max-h-[54vh] grid-cols-4 gap-3.5 overflow-y-auto px-6 pb-6">
+        {filtered.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            data-testid={`material-${item.id}`}
+            onClick={() => {
+              onApply({ id: item.id, name: item.name, hue: item.hue }, kind)
+              onClose()
+            }}
+            className="overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
+          >
+            <div
+              className="h-28"
+              style={{
+                background: `linear-gradient(140deg, hsl(${item.hue} 62% 62%), hsl(${(item.hue + 45) % 360} 58% 42%))`,
+              }}
+            />
+            <div className="p-2.5">
+              <div className="truncate text-[12px] font-medium text-ink-900">{item.name}</div>
+              <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-ink-400">
+                <span className="truncate">{item.author}</span>
+                {item.commercial && (
+                  <span className="rounded bg-success/12 px-1 text-success">可商用</span>
+                )}
+              </div>
+            </div>
+          </button>
+        ))}
+        {filtered.length === 0 && (
+          <div className="col-span-4">
+            <EmptyState title="没有匹配的结果" description="调整分类、商用筛选或搜索词后重试。" />
+          </div>
+        )}
+      </div>
+    </Dialog>
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * Character library
+ * ------------------------------------------------------------------ */
+
+export function CharacterPanel({
+  open,
+  onClose,
+  onApply,
+}: {
+  open: boolean
+  onClose: () => void
+  onApply: (character: CharacterPreset) => void
+}) {
+  const [selected, setSelected] = useState<CharacterPreset>(CHARACTER_PRESETS[0])
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState<Record<string, string>>({})
+
+  const visible = CHARACTER_PRESETS.filter((c) =>
+    Object.entries(filters).every(([key, value]) => {
+      if (!value || value === '全部') return true
+      const field = { 性别: c.gender, 年龄: c.age, 种族: c.ethnicity, 时代: c.era, 文化区域: c.culture, 体型: c.build, 发色: c.hair }[key]
+      return field === value
+    }),
+  )
+
+  return (
+    <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="character-panel">
+      <div className="flex items-center justify-between border-b border-ink-100 px-6 py-4">
+        <h2 className="text-[15px] font-semibold text-ink-900">角色库</h2>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={cn(
+            'rounded-lg px-3 py-1.5 text-[12px] transition-colors',
+            filtersOpen ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
+          )}
+        >
+          筛选
+        </button>
+      </div>
+
+      {filtersOpen && (
+        <div className="thin-scrollbar max-h-56 overflow-y-auto border-b border-ink-100 bg-ink-50 px-6 py-3">
+          {Object.entries(CHARACTER_FILTERS).map(([label, options]) => (
+            <div key={label} className="flex items-start gap-3 py-1.5">
+              <span className="w-16 shrink-0 pt-1 text-[12px] text-ink-500">{label}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {options.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setFilters((f) => ({ ...f, [label]: option }))}
+                    className={cn(
+                      'rounded-full px-2.5 py-1 text-[11px] transition-colors',
+                      (filters[label] ?? '全部') === option
+                        ? 'bg-ink-900 text-white'
+                        : 'bg-surface text-ink-600 hover:bg-ink-100',
+                    )}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Detail: the four reference categories that应用 creates as nodes. */}
+      <div className="px-6 py-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <div className="text-[14px] font-semibold text-ink-900">{selected.name}</div>
+            <div className="mt-0.5 flex gap-1.5">
+              {selected.tags.map((tag) => (
+                <span key={tag} className="rounded bg-ink-100 px-1.5 py-px text-[10px] text-ink-500">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="character-apply"
+            onClick={() => {
+              onApply(selected)
+              onClose()
+            }}
+            className="rounded-lg bg-ink-900 px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+          >
+            应用至画布
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          {selected.references.map((ref) => (
+            <div key={ref.key} className="overflow-hidden rounded-xl ring-1 ring-ink-100">
+              <div
+                className="h-32"
+                style={{
+                  background: `linear-gradient(150deg, hsl(${ref.hue} 55% 66%), hsl(${(ref.hue + 40) % 360} 50% 44%))`,
+                }}
+              />
+              <div className="p-2 text-[11px] text-ink-600">{ref.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="thin-scrollbar flex gap-3 overflow-x-auto border-t border-ink-100 px-6 py-4">
+        {visible.map((character) => (
+          <button
+            key={character.id}
+            type="button"
+            onClick={() => setSelected(character)}
+            className={cn(
+              'shrink-0 overflow-hidden rounded-xl text-left ring-1 transition-shadow',
+              character.id === selected.id ? 'ring-2 ring-accent' : 'ring-ink-100 hover:shadow-[var(--shadow-float)]',
+            )}
+            style={{ width: 108 }}
+          >
+            <div
+              className="h-24"
+              style={{
+                background: `linear-gradient(150deg, hsl(${character.references[0].hue} 55% 66%), hsl(${(character.references[0].hue + 40) % 360} 50% 44%))`,
+              }}
+            />
+            <div className="truncate p-1.5 text-[11px] text-ink-700">{character.name}</div>
+          </button>
+        ))}
+      </div>
+    </Dialog>
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * Generation history (assets produced by jobs, not workflow revisions)
+ * ------------------------------------------------------------------ */
+
+export function HistoryPanel({
+  open,
+  onClose,
+  onInsert,
+}: {
+  open: boolean
+  onClose: () => void
+  onInsert: (artifact: Artifact) => void
+}) {
+  const jobs = useEditor((s) => s.jobs)
+  const [tab, setTab] = useState<'image' | 'video' | 'audio'>('image')
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
+
+  const artifacts = useMemo(() => {
+    const all = jobs.flatMap((job) => job.artifacts).filter((a) => a.kind === tab)
+    return all.sort((a, b) =>
+      sort === 'newest' ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt),
+    )
+  }, [jobs, tab, sort])
+
+  return (
+    <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="history-panel">
+      <div className="flex items-center justify-between border-b border-ink-100 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[15px] font-semibold text-ink-900">生成历史</h2>
+          <SegmentedControl
+            size="sm"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'image', label: '图片' },
+              { value: 'video', label: '视频' },
+              { value: 'audio', label: '音频' },
+            ]}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setSort(sort === 'newest' ? 'oldest' : 'newest')}
+          className="rounded-lg bg-ink-100 px-2.5 py-1.5 text-[12px] text-ink-600"
+        >
+          {sort === 'newest' ? '最新在前' : '最早在前'}
+        </button>
+      </div>
+
+      <div className="thin-scrollbar max-h-[56vh] overflow-y-auto p-6">
+        {artifacts.length === 0 ? (
+          <EmptyState
+            icon={<IconHistory size={30} />}
+            title="暂无生成记录"
+            description="这里记录图片、视频和音频的生成资产，与工作流版本历史是两回事。"
+          />
+        ) : (
+          <div className="grid grid-cols-4 gap-3.5">
+            {artifacts.map((artifact) => (
+              <button
+                key={artifact.id}
+                type="button"
+                onClick={() => {
+                  onInsert(artifact)
+                  onClose()
+                }}
+                className="overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
+              >
+                {artifact.thumbnailUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={artifact.thumbnailUrl} alt="" className="h-28 w-full object-cover" />
+                ) : (
+                  <div className="h-28 w-full bg-ink-100" />
+                )}
+                <div className="p-2 text-[10px] text-ink-400">
+                  {artifact.width && artifact.height ? `${artifact.width}×${artifact.height}` : '音频'}
+                  {artifact.durationSeconds ? ` · ${artifact.durationSeconds}s` : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Dialog>
+  )
+}
+
+export type { WorkflowNode }

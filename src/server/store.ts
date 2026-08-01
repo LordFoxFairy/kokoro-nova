@@ -1,0 +1,215 @@
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
+import { ids } from '@/domain/ids'
+import { createCanvas } from '@/domain/factory'
+import type {
+  AgentMessage,
+  AgentSession,
+  Asset,
+  Canvas,
+  Folder,
+  GenerationJob,
+  LedgerEntry,
+  Project,
+  Space,
+} from '@/domain/types'
+
+/**
+ * File-backed workspace store.
+ *
+ * This is deliberately the *only* module that knows how state is persisted.
+ * The integration target is Postgres (see architecture/orchestration-options.md);
+ * swapping it means reimplementing this interface, not touching callers.
+ *
+ * Writes are serialised through a promise chain so concurrent route handlers
+ * cannot interleave a read-modify-write.
+ */
+
+export interface WorkspaceState {
+  spaces: Space[]
+  folders: Folder[]
+  projects: Project[]
+  canvases: Canvas[]
+  assets: Asset[]
+  jobs: GenerationJob[]
+  ledger: LedgerEntry[]
+  sessions: AgentSession[]
+  messages: AgentMessage[]
+  /** Credit balance per space, kept in sync with the ledger tail. */
+  balances: Record<string, number>
+}
+
+const DATA_DIR = path.join(process.cwd(), '.data')
+const STATE_FILE = path.join(DATA_DIR, 'workspace.json')
+export const MEDIA_DIR = path.join(DATA_DIR, 'media')
+
+export const DEFAULT_SPACE_ID = 'sp_default'
+const INITIAL_CREDITS = 100
+
+function seedState(): WorkspaceState {
+  const now = new Date().toISOString()
+  const space: Space = { id: DEFAULT_SPACE_ID, name: '我的空间', createdAt: now }
+
+  const project: Project = {
+    id: ids.project(),
+    spaceId: space.id,
+    folderId: null,
+    name: '示例项目',
+    coverUrl: null,
+    createdAt: now,
+    updatedAt: now,
+    canvasIds: [],
+  }
+  const canvas = createCanvas(project.id, '画布 1')
+  project.canvasIds = [canvas.id]
+
+  return {
+    spaces: [space],
+    folders: [],
+    projects: [project],
+    canvases: [canvas],
+    assets: [],
+    jobs: [],
+    ledger: [
+      {
+        id: ids.ledger(),
+        spaceId: space.id,
+        type: 'grant',
+        credits: INITIAL_CREDITS,
+        balanceAfter: INITIAL_CREDITS,
+        logicalChargeId: 'seed-grant',
+        jobId: null,
+        note: '初始赠送积分',
+        createdAt: now,
+      },
+    ],
+    sessions: [],
+    messages: [],
+    balances: { [space.id]: INITIAL_CREDITS },
+  }
+}
+
+let cache: WorkspaceState | null = null
+let writeChain: Promise<unknown> = Promise.resolve()
+
+async function ensureDirs() {
+  await fs.mkdir(DATA_DIR, { recursive: true })
+  await fs.mkdir(MEDIA_DIR, { recursive: true })
+}
+
+async function load(): Promise<WorkspaceState> {
+  if (cache) return cache
+  await ensureDirs()
+  try {
+    const raw = await fs.readFile(STATE_FILE, 'utf8')
+    cache = JSON.parse(raw) as WorkspaceState
+  } catch {
+    cache = seedState()
+    await fs.writeFile(STATE_FILE, JSON.stringify(cache, null, 2), 'utf8')
+  }
+  return cache
+}
+
+async function persist(state: WorkspaceState) {
+  await ensureDirs()
+  // Atomic-ish replace: write a temp file then rename, so a crash mid-write
+  // cannot truncate the authoritative document.
+  const tmp = `${STATE_FILE}.${process.pid}.tmp`
+  await fs.writeFile(tmp, JSON.stringify(state, null, 2), 'utf8')
+  await fs.rename(tmp, STATE_FILE)
+}
+
+export async function readState(): Promise<WorkspaceState> {
+  return load()
+}
+
+/**
+ * Serialised read-modify-write. The mutator receives the live state object and
+ * may mutate it in place; the return value is passed back to the caller.
+ */
+export async function withState<T>(mutator: (state: WorkspaceState) => T | Promise<T>): Promise<T> {
+  const run = async (): Promise<T> => {
+    const state = await load()
+    const result = await mutator(state)
+    await persist(state)
+    return result
+  }
+  const next = writeChain.then(run, run)
+  // Keep the chain alive even if this link rejects.
+  writeChain = next.catch(() => undefined)
+  return next
+}
+
+/** Test/dev helper: drop the in-memory cache so the next read re-reads disk. */
+export function invalidateCache() {
+  cache = null
+}
+
+export async function resetStore() {
+  await ensureDirs()
+  cache = seedState()
+  await persist(cache)
+  return cache
+}
+
+/* ------------------------------------------------------------------ *
+ * Selectors — pure lookups shared by route handlers
+ * ------------------------------------------------------------------ */
+
+export function findProject(state: WorkspaceState, projectId: string): Project | undefined {
+  return state.projects.find((p) => p.id === projectId)
+}
+
+export function findCanvas(state: WorkspaceState, canvasId: string): Canvas | undefined {
+  return state.canvases.find((c) => c.id === canvasId)
+}
+
+export function canvasesOfProject(state: WorkspaceState, projectId: string): Canvas[] {
+  const project = findProject(state, projectId)
+  if (!project) return []
+  return project.canvasIds
+    .map((id) => state.canvases.find((c) => c.id === id))
+    .filter((c): c is Canvas => Boolean(c))
+}
+
+export function balanceOf(state: WorkspaceState, spaceId: string): number {
+  return state.balances[spaceId] ?? 0
+}
+
+/* ------------------------------------------------------------------ *
+ * Cascading deletes
+ *
+ * Three routes can remove a project — directly, via its folder, or as part of
+ * a workspace teardown. They used to each re-derive the cascade and had drifted
+ * apart, leaving orphaned sessions and messages behind. Deletion order lives
+ * here so every caller sheds exactly the same subtree.
+ * ------------------------------------------------------------------ */
+
+/** Remove sessions and, with them, their message history. */
+export function deleteSessions(state: WorkspaceState, sessionIds: string[]): number {
+  if (sessionIds.length === 0) return 0
+  const doomed = new Set(sessionIds)
+  const before = state.sessions.length
+  state.sessions = state.sessions.filter((s) => !doomed.has(s.id))
+  state.messages = state.messages.filter((m) => !doomed.has(m.sessionId))
+  return before - state.sessions.length
+}
+
+/**
+ * Remove projects together with their canvases, agent sessions and messages.
+ * Returns the ids actually removed so callers can report a count.
+ */
+export function deleteProjects(state: WorkspaceState, projectIds: string[]): string[] {
+  if (projectIds.length === 0) return []
+  const doomed = new Set(projectIds)
+  const removed = state.projects.filter((p) => doomed.has(p.id)).map((p) => p.id)
+  if (removed.length === 0) return []
+
+  state.projects = state.projects.filter((p) => !doomed.has(p.id))
+  state.canvases = state.canvases.filter((c) => !doomed.has(c.projectId))
+  deleteSessions(
+    state,
+    state.sessions.filter((s) => s.projectId !== null && doomed.has(s.projectId)).map((s) => s.id),
+  )
+  return removed
+}

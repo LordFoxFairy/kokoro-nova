@@ -48,8 +48,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       data-testid="libtv-sidebar"
       data-collapsed={collapsed ? 'true' : 'false'}
       className={cn(
-        'sticky top-0 flex h-[calc(100vh-64px)] shrink-0 flex-col border-r border-white/[0.08] bg-[#111] transition-[width] duration-200',
-        collapsed ? 'w-[var(--libtv-sidebar-collapsed)]' : 'w-[var(--libtv-sidebar-expanded)]',
+        'sticky top-0 flex h-[calc(100vh-64px)] shrink-0 flex-col border-r border-white/[0.08] bg-[#111] transition-[width,margin] duration-200',
+        collapsed ? 'ml-0 w-[var(--libtv-sidebar-collapsed)]' : 'ml-2 w-[var(--libtv-sidebar-expanded)]',
       )}
     >
       <button

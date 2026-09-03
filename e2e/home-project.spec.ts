@@ -63,6 +63,60 @@ test('project route keeps the same shell and highlights 项目', async ({ page }
   await expect(page.getByRole('link', { name: '首页', exact: true })).not.toHaveAttribute('aria-current', 'page')
 })
 
+test('project manager matches the four-card desktop layout and local interactions', async ({ page }) => {
+  await page.goto('/project')
+
+  const toolbar = page.getByTestId('project-toolbar')
+  await expect(toolbar).toBeVisible()
+  expect(await toolbar.locator('[data-toolbar-item]').evaluateAll((items) => items.map((item) => item.getAttribute('data-toolbar-item')))).toEqual([
+    'back',
+    'title',
+    'search',
+    'recycle-bin',
+    'new-folder',
+  ])
+
+  await expect(page.getByTestId('project-grid-item')).toHaveCount(4)
+  await expect(page.locator('[data-testid^="project-card-"]')).toHaveCount(3)
+  const firstCard = await page.getByTestId('project-grid-item').first().boundingBox()
+  expect(firstCard?.x).toBeGreaterThanOrEqual(276)
+  expect(firstCard?.x).toBeLessThanOrEqual(284)
+  expect(firstCard?.width).toBeGreaterThanOrEqual(210)
+  expect(firstCard?.width).toBeLessThanOrEqual(214)
+  await page.screenshot({ path: 'docs/screenshots/libtv-project-local-1440x900.png', scale: 'css' })
+
+  const search = page.getByRole('searchbox', { name: '搜索项目' })
+  await search.fill('Doro')
+  await expect(page.locator('[data-testid^="project-card-"]')).toHaveCount(1)
+  await expect(page.getByText('咕嘎Doro', { exact: true })).toBeVisible()
+  await search.fill('')
+
+  await page.getByRole('button', { name: '回收站' }).click()
+  const recycleBin = page.getByTestId('recycle-bin-dialog')
+  await expect(recycleBin).toContainText('回收站为空')
+  await recycleBin.getByRole('button', { name: '关闭' }).last().click()
+
+  await page.getByTestId('new-folder').click()
+  await expect(page.getByText('未命名文件夹', { exact: true })).toBeVisible()
+  await page.locator('[data-testid^="folder-more-"]').first().click()
+  await expect(page.getByRole('menuitem', { name: '删除文件夹' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  const projectMore = page.locator('[data-testid^="project-more-"]').first()
+  await projectMore.click()
+  await expect(page.getByRole('menuitem', { name: '重命名' })).toBeVisible()
+  await page.getByRole('menuitem', { name: '重命名' }).click()
+  const rename = page.getByTestId('project-rename-input')
+  await rename.fill('项目重命名验证')
+  await rename.press('Enter')
+  await expect(page.getByText('项目重命名验证', { exact: true })).toBeVisible()
+
+  await page.locator('[data-testid^="project-more-"]').first().click()
+  await page.getByRole('menuitem', { name: '删除项目' }).click()
+  await expect(page.getByTestId('confirm-dialog')).toContainText('项目重命名验证')
+  await page.getByTestId('confirm-dialog').getByRole('button', { name: '取消' }).click()
+})
+
 test('home reproduces the campaign, creation, recent, Agent and TV Show hierarchy', async ({ page }) => {
   await page.goto('/')
 

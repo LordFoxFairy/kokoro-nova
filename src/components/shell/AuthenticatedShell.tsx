@@ -49,7 +49,7 @@ export function AuthenticatedShell({ children }: { children: React.ReactNode }) 
         <div className="px-2 pt-2">
           <PromoStrip campaign={home?.campaign ?? null} />
         </div>
-        <div className="mt-2 flex min-h-[calc(100vh-64px)] pl-2">
+        <div className="mt-2 flex min-h-[calc(100vh-64px)]">
           <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
           <section
             data-testid="libtv-shell-content"

@@ -308,37 +308,40 @@ git commit -m "feat: replicate LibTV authenticated home"
 - Create: `src/components/project/RecycleBinDialog.tsx`
 - Modify: `e2e/home-project.spec.ts`
 - Modify: `e2e/workflow.spec.ts`
+- Modify: `src/components/shell/AppSidebar.tsx`
+- Modify: `src/components/shell/AuthenticatedShell.tsx`
+- Modify: `src/mocks/scenarios/video-project.ts`
 
-- [ ] **Step 1: Write failing project layout and interaction tests**
+- [x] **Step 1: Write failing project layout and interaction tests**
 
 Assert exact toolbar order, four cards at desktop, search filtering, recycle-bin empty dialog, immediate unnamed folder creation, project/folder menus and sidebar collapse without breaking content.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm playwright test e2e/home-project.spec.ts --grep "project"
 ```
 
-- [ ] **Step 3: Implement dark four-column manager**
+- [x] **Step 3: Implement dark four-column manager**
 
 Keep create tile first. At expanded 1440px use 212px cards and 16px gaps inside a content area beginning near x=280. Cover height is about 120px; title/date sit below. Empty folder/project states retain the same grid.
 
-- [ ] **Step 4: Implement toolbar behavior**
+- [x] **Step 4: Implement toolbar behavior**
 
 Search filters without a network round trip. Recycle bin opens a deterministic empty dialog. New folder keeps the observed immediate-create behavior. Return navigates home.
 
-- [ ] **Step 5: Preserve destructive and rename flows**
+- [x] **Step 5: Preserve destructive and rename flows**
 
 Retain all existing stable test IDs and exact-name folder delete confirmation. Menus use dark tokens and remain anchored to the trigger.
 
-- [ ] **Step 6: Run both new and legacy E2E**
+- [x] **Step 6: Run both new and legacy E2E**
 
 ```bash
 pnpm playwright test e2e/home-project.spec.ts
 pnpm playwright test e2e/workflow.spec.ts --grep "project list"
 ```
 
-- [ ] **Step 7: Commit project UI**
+- [x] **Step 7: Commit project UI**
 
 ```bash
 git add src/components/project e2e docs/screenshots/libtv-project-local-1440x900.png

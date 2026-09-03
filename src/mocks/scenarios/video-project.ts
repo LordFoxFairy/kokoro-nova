@@ -5,7 +5,6 @@ import type {
   Artifact,
   Asset,
   Canvas,
-  Folder,
   GenerationJob,
   JobStatus,
   LedgerEntry,
@@ -346,14 +345,6 @@ function ledger(status: VideoScenarioStatus): LedgerEntry[] {
 
 export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): WorkspaceState {
   const space: Space = { id: SPACE_ID, name: '我的空间', createdAt: isoAt(-7_200) }
-  const folder: Folder = {
-    id: 'fld_campaigns',
-    spaceId: SPACE_ID,
-    name: '广告短片',
-    coverUrl: '/fixtures/libtv/project/folder-cover.svg',
-    createdAt: isoAt(-7_100),
-    updatedAt: isoAt(-30),
-  }
   const project: Project = {
     id: PROJECT_ID,
     spaceId: SPACE_ID,
@@ -517,7 +508,7 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
   const entries = ledger(status)
   return {
     spaces: [space],
-    folders: [folder],
+    folders: [],
     projects: [untitled.project, doro.project, project],
     canvases: [canvas, doro.canvas, untitled.canvas],
     assets: [asset],

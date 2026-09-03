@@ -4,14 +4,15 @@
 /*
  * Design tokens.
  *
- * The editor is a light, low-chroma surface so that generated media carries
- * all the colour: near-white chrome, one neutral ink ramp, a single accent
- * reserved for selection and running state, and floating panels lifted with
- * soft shadows rather than borders.
+ * The global fallback stays light for public documents. Authenticated
+ * discovery and editor surfaces override the same semantic tokens locally so
+ * components never need hard-coded theme branches.
  */
 @theme {
   --color-ink-900: oklch(0.18 0.01 260);
+  --color-ink-800: oklch(0.27 0.01 260);
   --color-ink-700: oklch(0.36 0.01 260);
+  --color-ink-600: oklch(0.46 0.009 260);
   --color-ink-500: oklch(0.55 0.008 260);
   --color-ink-400: oklch(0.66 0.006 260);
   --color-ink-300: oklch(0.79 0.005 260);
@@ -48,8 +49,7 @@ body {
   height: 100%;
 }
 
-/* Authenticated discovery surfaces mirror LibTV's dark desktop chrome while
- * the canvas keeps its independent light editing token set. */
+/* Authenticated discovery surfaces mirror LibTV's dark desktop chrome. */
 [data-app-shell='authenticated'] {
   --libtv-bg: #111111;
   --libtv-panel: #181818;
@@ -82,10 +82,50 @@ body:has([data-app-shell='authenticated']) {
   background: #111111;
 }
 
+/* The current editor is an independent charcoal workspace. Keep this scope
+ * separate from the discovery shell: the two products share semantics, not
+ * chrome geometry or surface elevation. */
+[data-app-shell='editor'] {
+  --color-canvas: #141414;
+  --color-surface: #242424;
+  --color-ink-900: rgba(255, 255, 255, 0.94);
+  --color-ink-800: rgba(255, 255, 255, 0.86);
+  --color-ink-700: rgba(255, 255, 255, 0.76);
+  --color-ink-600: rgba(255, 255, 255, 0.66);
+  --color-ink-500: rgba(255, 255, 255, 0.54);
+  --color-ink-400: rgba(255, 255, 255, 0.4);
+  --color-ink-300: rgba(255, 255, 255, 0.25);
+  --color-ink-200: rgba(255, 255, 255, 0.14);
+  --color-ink-100: rgba(255, 255, 255, 0.08);
+  --color-ink-50: rgba(255, 255, 255, 0.045);
+  --color-accent: #67d1f3;
+  --color-accent-soft: rgba(103, 209, 243, 0.14);
+  --color-accent-ink: #8adef7;
+  --color-running: #ffd05a;
+  --color-danger: #f16f74;
+  --color-success: #62d49b;
+
+  --radius-card: 12px;
+  --radius-panel: 14px;
+  --shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.24);
+  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 18px 48px rgba(0, 0, 0, 0.32);
+  --shadow-node: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.22);
+
+  color-scheme: dark;
+  color: var(--color-ink-900);
+}
+
+body:has([data-app-shell='editor']) {
+  background: #141414;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-app-shell='authenticated'] *,
   [data-app-shell='authenticated'] *::before,
-  [data-app-shell='authenticated'] *::after {
+  [data-app-shell='authenticated'] *::after,
+  [data-app-shell='editor'] *,
+  [data-app-shell='editor'] *::before,
+  [data-app-shell='editor'] *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;

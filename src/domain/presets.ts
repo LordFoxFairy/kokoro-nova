@@ -224,7 +224,39 @@ export const TOOLBOX_PRESETS: ToolboxPreset[] = [
   },
 ]
 
-export const PRESETS_BY_ID = new Map(TOOLBOX_PRESETS.map((p) => [p.id, p]))
+/**
+ * Home-on-canvas starters are product entry points rather than toolbox
+ * catalogue cards. Keep their graph templates out of the browseable toolbox
+ * while compiling them through the same deterministic mutation path.
+ */
+export const CANVAS_STARTER_PRESETS: ToolboxPreset[] = [
+  {
+    id: 'preset-first-frame-video',
+    name: '首帧图生视频',
+    category: '快捷开始',
+    summary: '准备一张首帧图片，并把它直接连接到视频生成节点。',
+    tutorialUrl: null,
+    nodes: [
+      { type: 'image', name: '首帧图片', offset: { x: 0, y: 0 } },
+      { type: 'video', name: '视频生成', offset: { x: 480, y: 0 } },
+    ],
+    edges: [[0, 1]],
+  },
+  {
+    id: 'preset-audio-video',
+    name: '音频生视频',
+    category: '快捷开始',
+    summary: '准备一段参考音频，并把节奏与声音直接交给视频生成节点。',
+    tutorialUrl: null,
+    nodes: [
+      { type: 'audio', name: '参考音频', offset: { x: 0, y: 0 } },
+      { type: 'video', name: '视频生成', offset: { x: 480, y: 0 } },
+    ],
+    edges: [[0, 1]],
+  },
+]
+
+export const PRESETS_BY_ID = new Map([...TOOLBOX_PRESETS, ...CANVAS_STARTER_PRESETS].map((preset) => [preset.id, preset]))
 
 /**
  * Compile a preset into mutations. Returns the created nodes so the caller can

@@ -698,23 +698,32 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 }
 
 function EmptyCanvasStarters({ onPick }: { onPick: (preset: ToolboxPreset) => void }) {
-  const starters = ['preset-shot-breakdown', 'preset-character-turnaround', 'preset-arc-left', 'preset-product-360']
+  const starters = [
+    { id: 'preset-shot-breakdown', label: '故事脚本生成', accent: 'from-slate-700/70 via-slate-900 to-black' },
+    { id: 'preset-character-turnaround', label: '角色三视图', accent: 'from-rose-950/80 via-zinc-900 to-black' },
+    { id: 'preset-first-frame-video', label: '首帧图生视频', accent: 'from-cyan-950/70 via-zinc-900 to-black' },
+    { id: 'preset-audio-video', label: '音频生视频', accent: 'from-amber-950/70 via-zinc-900 to-black' },
+  ]
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-5">
-      <p className="text-[13px] text-ink-400">双击画布空白处可快速新建节点</p>
-      <div className="pointer-events-auto flex gap-2.5">
-        {starters.map((id) => {
-          const preset = PRESETS_BY_ID.get(id)
+    <div
+      data-testid="empty-canvas-starters"
+      className="pointer-events-none absolute inset-x-0 bottom-24 top-14 z-10 flex flex-col items-center justify-center gap-6"
+    >
+      <p className="text-[13px] text-ink-400">双击画布 自由生成节点</p>
+      <div className="pointer-events-auto flex max-w-[calc(100%_-_32px)] gap-2 overflow-hidden">
+        {starters.map((starter) => {
+          const preset = PRESETS_BY_ID.get(starter.id)
           if (!preset) return null
           return (
             <button
-              key={id}
+              key={starter.id}
               type="button"
-              data-testid={`starter-${id}`}
+              data-testid={`starter-${starter.id}`}
               onClick={() => onPick(preset)}
-              className="rounded-xl bg-surface px-3.5 py-2.5 text-[12px] text-ink-700 shadow-[var(--shadow-float)] transition-transform hover:-translate-y-0.5"
+              className={`group relative flex h-14 w-52 shrink-0 items-center overflow-hidden rounded-lg border border-white/8 bg-gradient-to-r px-3.5 text-left text-[13px] font-medium text-white/88 shadow-[var(--shadow-float)] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-white/16 ${starter.accent}`}
             >
-              {preset.name}
+              <span className="relative z-10">{starter.label}</span>
+              <span className="absolute -right-5 h-20 w-20 rounded-full bg-white/8 blur-xl transition-transform group-hover:scale-125" />
             </button>
           )
         })}

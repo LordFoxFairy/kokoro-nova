@@ -51,16 +51,38 @@ export function StoryboardView() {
   )
 
   const videoCards = filterVideoCards(projection.video, videoFilter)
+  const hasLeftRail = projection.audio.length > 0 || projection.text.length > 0
+  const showImage = projection.image.length > 0 && expanded !== 'video'
+  const showVideo = projection.video.length > 0 && expanded !== 'image'
+  const mediaColumnCount = Number(showImage) + Number(showVideo)
+
+  const gridTemplateColumns = hasLeftRail
+    ? mediaColumnCount === 2
+      ? '33.38% minmax(0, 1fr) minmax(0, 1fr)'
+      : mediaColumnCount === 1
+        ? '33.38% minmax(0, 1fr)'
+        : 'minmax(0, 1fr)'
+    : mediaColumnCount === 2
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'minmax(0, 1fr)'
 
   return (
-    <div className="flex h-full gap-3.5 overflow-hidden p-3.5 pt-16" data-testid="storyboard-view">
-      {/* Audio + text stack stays a fixed-width rail. */}
-      {expanded === null && (
-        <div className="flex w-[260px] shrink-0 flex-col gap-3.5">
-          <ColumnShell title="音频" icon={<IconAudio size={14} />} testId="storyboard-audio" grow={false}>
-            {projection.audio.length === 0 ? (
-              <EmptyState compact title="暂无音频节点" />
-            ) : (
+    <div
+      className="relative grid h-full gap-3 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-[72px]"
+      data-testid="storyboard-view"
+      style={{ gridTemplateColumns }}
+    >
+      {/* Audio and text share one responsive column and survive media expansion. */}
+      {hasLeftRail && (
+        <div data-testid="storyboard-left-rail" className="flex min-w-0 flex-col gap-3">
+          {projection.audio.length > 0 && (
+            <ColumnShell
+              title="音频"
+              icon={<IconAudio size={14} />}
+              testId="storyboard-audio"
+              className={projection.text.length > 0 ? 'h-[152px]' : 'h-full'}
+              grow={false}
+            >
               <div className="space-y-2.5">
                 {projection.audio.map((card) => (
                   <button
@@ -81,13 +103,11 @@ export function StoryboardView() {
                   </button>
                 ))}
               </div>
-            )}
-          </ColumnShell>
+            </ColumnShell>
+          )}
 
-          <ColumnShell title="文本" icon={<IconText size={14} />} testId="storyboard-text">
-            {projection.text.length === 0 ? (
-              <EmptyState compact title="暂无文本节点" />
-            ) : (
+          {projection.text.length > 0 && (
+            <ColumnShell title="文本" icon={<IconText size={14} />} testId="storyboard-text">
               <div className="space-y-1">
                 {projection.text.map((card) => (
                   <button
@@ -103,18 +123,17 @@ export function StoryboardView() {
                   </button>
                 ))}
               </div>
-            )}
-          </ColumnShell>
+            </ColumnShell>
+          )}
         </div>
       )}
 
       {/* Image column */}
-      {expanded !== 'video' && (
+      {showImage && (
         <ColumnShell
           title="图片"
           icon={<IconImage size={14} />}
           testId="storyboard-image"
-          className="flex-1"
           actions={
             <button
               type="button"
@@ -127,26 +146,21 @@ export function StoryboardView() {
             </button>
           }
         >
-          {projection.image.length === 0 ? (
-            <EmptyState compact title="暂无图片节点" />
-          ) : (
-            <MediaGrid
-              cards={projection.image}
-              dense={expanded === 'image'}
-              kind="image"
-              onOpen={setDetail}
-            />
-          )}
+          <MediaGrid
+            cards={projection.image}
+            dense={expanded === 'image'}
+            kind="image"
+            onOpen={setDetail}
+          />
         </ColumnShell>
       )}
 
       {/* Video column */}
-      {expanded !== 'image' && (
+      {showVideo && (
         <ColumnShell
           title="视频"
           icon={<IconVideo size={14} />}
           testId="storyboard-video"
-          className="flex-1"
           actions={
             <>
               <button

@@ -1,7 +1,7 @@
 'use client'
 
 import { useReactFlow } from '@xyflow/react'
-import { NODE_META, NODE_TYPES } from '@/domain/nodes'
+import { NODE_META } from '@/domain/nodes'
 import type { NodeType } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -13,7 +13,6 @@ import {
   IconClose,
   IconCursor,
   IconEdges,
-  IconHand,
   IconHelp,
   IconHistory,
   IconKeyboard,
@@ -67,29 +66,26 @@ export function BottomToolbar({
   const materialMenu = useMenuAnchor()
   const helpMenu = useMenuAnchor()
 
-  // Top-level node entries, then the two submenu groups (脚本 / 素材库).
+  // Product names track the current menu while serialized node types remain
+  // stable for local documents and the future backend contract.
   const addNodeItems: MenuItem[] = [
-    ...NODE_TYPES.filter((t) => NODE_META[t].menu === 'node').map((type) => ({
-      id: type,
-      label: NODE_META[type].label,
-      badge: NODE_META[type].badge,
-      icon: <NodeIcon type={type} />,
-      onSelect: () => onAddNode(type),
-    })),
+    nodeMenuItem('text', onAddNode),
+    nodeMenuItem('image', onAddNode),
+    nodeMenuItem('video', onAddNode),
+    nodeMenuItem('videoComposite', onAddNode, { label: '智能剪辑' }),
+    nodeMenuItem('director', onAddNode),
+    nodeMenuItem('scriptLegacy', onAddNode, { label: '逐帧拉片', badge: 'SD 2.5' }),
+    nodeMenuItem('audio', onAddNode),
     {
       id: 'script-group',
       label: '脚本',
       icon: <NodeIcon type="script" />,
-      submenu: [
-        { id: 'script', label: '脚本 V2', onSelect: () => onAddNode('script') },
-        { id: 'scriptLegacy', label: '旧版脚本 Beta', onSelect: () => onAddNode('scriptLegacy') },
-      ],
+      submenu: [{ id: 'script', label: '脚本 V2', onSelect: () => onAddNode('script') }],
     },
     {
       id: 'material-group',
       label: '素材库',
       icon: <NodeIcon type="style" />,
-      badge: 'NEW',
       submenu: [
         { id: 'style', label: '风格库', onSelect: () => onOpenMaterial('style') },
         { id: 'effect', label: '特效库', onSelect: () => onOpenMaterial('effect') },
@@ -116,13 +112,16 @@ export function BottomToolbar({
   return (
     <>
       {/* Left status cluster */}
-      <div className="pointer-events-auto absolute bottom-4 left-4 z-30 flex items-center gap-1 text-ink-600">
+      <div
+        data-testid="canvas-status-rail"
+        className="pointer-events-auto absolute bottom-[18px] left-[22px] z-30 flex h-7 items-center gap-1 text-ink-600"
+      >
         <button
           type="button"
           data-testid="asset-sidebar-toggle"
           onClick={() => setAssetSidebar(!assetSidebarOpen)}
           className={cn(
-            'flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] transition-colors hover:bg-ink-100',
+            'flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] transition-colors hover:bg-ink-100',
             assetSidebarOpen && 'bg-ink-100 text-ink-900',
           )}
         >
@@ -154,21 +153,24 @@ export function BottomToolbar({
           type="button"
           data-testid="zoom-readout"
           onClick={() => flow.zoomTo(1, { duration: 200 })}
-          className="rounded-lg px-2 py-1.5 text-[12px] tabular-nums transition-colors hover:bg-ink-100"
+          className="h-7 rounded-lg px-2 text-[12px] tabular-nums transition-colors hover:bg-ink-100"
         >
           {Math.round(zoom * 100)}%
         </button>
       </div>
 
       {/* Center rail */}
-      <div className="pointer-events-auto absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-2xl bg-surface p-1.5 shadow-[var(--shadow-panel)]">
+      <div
+        data-testid="canvas-primary-rail"
+        className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex h-12 -translate-x-1/2 items-center gap-2 rounded-[13px] border border-white/8 bg-surface p-2 shadow-[var(--shadow-panel)]"
+      >
         <button
           type="button"
           data-testid="add-node-button"
           onClick={(e) => (addMenu.anchor ? addMenu.close() : addMenu.openFrom(e, 'above'))}
           className={cn(
-            'rounded-xl p-2.5 text-white transition-colors',
-            addMenu.anchor ? 'bg-ink-700' : 'bg-ink-900 hover:opacity-85',
+            'flex h-8 w-8 items-center justify-center rounded-lg text-white transition-colors focus-visible:outline-2 focus-visible:outline-accent',
+            addMenu.anchor ? 'bg-ink-500' : 'bg-[#d5d7d9] text-[#242424] hover:bg-white',
           )}
           aria-label="添加节点"
         >
@@ -176,16 +178,10 @@ export function BottomToolbar({
         </button>
 
         <RailButton
-          label="选择工具 (V)"
+          label="移动工具 (V)"
           icon={<IconCursor size={18} />}
           active={toolMode === 'select'}
           onClick={() => setToolMode('select')}
-        />
-        <RailButton
-          label="抓手工具 (H)"
-          icon={<IconHand size={18} />}
-          active={toolMode === 'hand'}
-          onClick={() => setToolMode('hand')}
         />
         <RailButton
           label="工具箱"
@@ -216,7 +212,7 @@ export function BottomToolbar({
           testId="open-history"
         />
 
-        <span className="mx-0.5 h-5 w-px bg-ink-200" />
+        <span className="h-5 w-px bg-ink-200" />
 
         <RailButton
           label="快捷键"
@@ -279,6 +275,20 @@ function NodeIcon({ type }: { type: NodeType }) {
   return <Icon size={15} />
 }
 
+function nodeMenuItem(
+  type: NodeType,
+  onAddNode: (type: NodeType) => void,
+  override?: { label?: string; badge?: string },
+): MenuItem {
+  return {
+    id: type,
+    label: override?.label ?? NODE_META[type].label,
+    badge: override?.badge ?? NODE_META[type].badge,
+    icon: <NodeIcon type={type} />,
+    onSelect: () => onAddNode(type),
+  }
+}
+
 function ToolbarToggle({
   label,
   icon,
@@ -301,7 +311,7 @@ function ToolbarToggle({
         aria-label={label}
         aria-pressed={active}
         className={cn(
-          'rounded-lg p-2 transition-colors hover:bg-ink-100',
+          'flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-accent',
           active ? 'text-ink-900' : 'text-ink-400',
         )}
       >
@@ -332,7 +342,7 @@ function RailButton({
         onClick={onClick}
         aria-label={label}
         className={cn(
-          'rounded-xl p-2.5 transition-colors',
+          'flex h-8 w-8 items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-accent',
           active ? 'bg-ink-100 text-ink-900' : 'text-ink-600 hover:bg-ink-50',
         )}
       >

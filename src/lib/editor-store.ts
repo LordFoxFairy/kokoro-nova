@@ -133,7 +133,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
   agentOpen: false,
   showEdges: true,
   snapToGrid: false,
-  showMinimap: true,
+  showMinimap: false,
   zoom: 1,
   toolMode: 'select',
 

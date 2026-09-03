@@ -49,7 +49,7 @@ function withPublicSnapshot(state: WorkspaceState): WorkspaceState {
       canvasId: 'can_video_main',
       title: '雨夜霓虹城市',
       summary: '从故事梗概、首帧到视频成片的公开制作过程。',
-      coverUrl: '/fixtures/libtv/media/city-night-poster.svg',
+      coverUrl: '/fixtures/libtv/media/city-night-poster.webp',
       publishedAt: isoAt(-30),
       state: 'listed',
       document: structuredClone(source.document),

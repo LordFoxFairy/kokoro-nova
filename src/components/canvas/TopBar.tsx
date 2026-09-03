@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
@@ -9,7 +9,9 @@ import type { Canvas } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
 import { ConfirmDialog, Dialog } from '../ui/Dialog'
-import { Field, InlineRename, SegmentedControl } from '../ui/controls'
+import { Field, InlineRename } from '../ui/controls'
+import { Tooltip } from '../ui/Tooltip'
+import { LibTvLogo } from '../shell/LibTvLogo'
 import {
   IconAgent,
   IconChevronDown,
@@ -22,10 +24,52 @@ import {
   IconWorkflow,
 } from '../icons'
 
+function ViewModeButton({
+  label,
+  active,
+  testId,
+  onClick,
+  children,
+}: {
+  label: string
+  active: boolean
+  testId: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <Tooltip label={label} side="bottom">
+      <button
+        type="button"
+        data-testid={testId}
+        aria-label={label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(
+          'flex h-7 w-7 items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-accent',
+          active ? 'bg-ink-100 text-ink-900' : 'text-ink-400 hover:bg-ink-50 hover:text-ink-700',
+        )}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  )
+}
+
+function StoreGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 9.5h16l-1.2-4H5.2L4 9.5Z" fill="currentColor" />
+      <path d="M5.5 10.5v7.2A1.8 1.8 0 0 0 7.3 19.5h9.4a1.8 1.8 0 0 0 1.8-1.8v-7.2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9.2 13.2h5.6v6.3H9.2z" fill="currentColor" opacity=".5" />
+    </svg>
+  )
+}
+
 /**
- * Top chrome: project identity + canvas switcher on the left, the
- * workflow/storyboard segmented control centered, account state and the Agent
- * toggle on the right.
+ * Current editor chrome: one compact identity control and adjacent icon-only
+ * view switch on the left; sharing, account benefits and Agent live on the
+ * right. Every control is 32px high at the canonical desktop viewport.
  */
 export function TopBar() {
   const router = useRouter()
@@ -115,126 +159,158 @@ export function TopBar() {
 
   return (
     <>
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3.5">
-      {/* Left: project + canvas */}
-      <div className="chip-bar pointer-events-auto flex items-center gap-1 bg-surface p-1 pr-2">
-        <Link
-          href="/project"
-          aria-label="返回全部项目"
-          className="rounded-full p-2 text-ink-700 transition-colors hover:bg-ink-50"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 7.5 8 5l6 2.5L20 5v11.5L14 19l-6-2.5L4 19z" />
-          </svg>
-        </Link>
-        <span className="max-w-[160px] truncate px-1.5 text-[13px] font-medium text-ink-900">
-          {project?.name ?? '加载中'}
-        </span>
-        <span className="h-4 w-px bg-ink-200" />
-        {renamingCanvas && current ? (
-          <div className="w-28 px-1">
-            <InlineRename
-              value={current.name}
-              testId="canvas-rename-input"
-              onCancel={() => setRenamingCanvas(false)}
-              onCommit={async (name) => {
-                setRenamingCanvas(false)
-                if (name === current.name) return
-                await api.patch(`/api/canvases/${current.id}`, { name })
-                await refreshProject()
-              }}
-            />
+      <header
+        data-testid="editor-topbar"
+        className="pointer-events-none absolute left-4 right-4 top-4 z-30 flex h-8 items-center justify-between"
+      >
+        <div className="pointer-events-auto flex h-8 items-center gap-2">
+          <div
+            data-testid="project-canvas-control"
+            className="flex h-8 items-center rounded-[10px] border border-white/8 bg-surface px-1 shadow-[var(--shadow-float)]"
+          >
+            <Link
+              href="/project"
+              aria-label="返回全部项目"
+              className="flex h-7 w-9 items-center justify-center rounded-lg text-ink-900 transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <LibTvLogo compact className="h-[18px] w-[23px]" />
+              <IconChevronDown size={9} className="ml-0.5 text-ink-400" />
+            </Link>
+            <span className="max-w-[154px] truncate px-2 text-[13px] font-medium text-ink-900">
+              {project?.name ?? '加载中'}
+            </span>
+            <span className="h-5 w-px bg-ink-200" />
+            {renamingCanvas && current ? (
+              <div className="w-28 px-1.5">
+                <InlineRename
+                  value={current.name}
+                  testId="canvas-rename-input"
+                  className="h-6 border-ink-300 bg-ink-50 py-0"
+                  onCancel={() => setRenamingCanvas(false)}
+                  onCommit={async (name) => {
+                    setRenamingCanvas(false)
+                    if (name === current.name) return
+                    await api.patch(`/api/canvases/${current.id}`, { name })
+                    await refreshProject()
+                  }}
+                />
+              </div>
+            ) : creatingCanvas ? (
+              <div className="w-28 px-1.5">
+                <InlineRename
+                  value={`画布 ${canvases.length + 1}`}
+                  testId="canvas-new-input"
+                  className="h-6 border-ink-300 bg-ink-50 py-0"
+                  onCancel={() => setCreatingCanvas(false)}
+                  onCommit={async (name) => {
+                    setCreatingCanvas(false)
+                    await createCanvas(name)
+                  }}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-testid="canvas-switcher"
+                onClick={(event) => switcher.openFrom(event)}
+                className="flex h-7 max-w-[150px] items-center gap-1 rounded-lg px-2 text-[13px] text-ink-700 transition-colors hover:bg-ink-100 hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <span className="truncate">{current?.name ?? '画布'}</span>
+                <IconChevronDown size={11} className="shrink-0 text-ink-400" />
+              </button>
+            )}
           </div>
-        ) : creatingCanvas ? (
-          <div className="w-28 px-1">
-            <InlineRename
-              value={`画布 ${canvases.length + 1}`}
-              testId="canvas-new-input"
-              onCancel={() => setCreatingCanvas(false)}
-              onCommit={async (name) => {
-                setCreatingCanvas(false)
-                await createCanvas(name)
+
+          <nav
+            data-testid="view-mode-switch"
+            aria-label="画布视图"
+            className="flex h-8 items-center gap-0.5 rounded-[10px] border border-white/8 bg-surface p-0.5 shadow-[var(--shadow-float)]"
+          >
+            <ViewModeButton
+              label="工作流"
+              active={viewMode === 'workflow'}
+              testId="view-workflow"
+              onClick={() => setViewMode('workflow')}
+            >
+              <IconWorkflow size={16} />
+            </ViewModeButton>
+            <ViewModeButton
+              label="故事板"
+              active={viewMode === 'storyboard'}
+              testId="view-storyboard"
+              onClick={() => setViewMode('storyboard')}
+            >
+              <IconStoryboard size={16} />
+            </ViewModeButton>
+          </nav>
+        </div>
+
+        <div data-testid="editor-account-actions" className="pointer-events-auto flex h-8 items-center gap-2">
+          <Tooltip label="发布与分享" side="bottom">
+            <button
+              type="button"
+              aria-label="发布与分享"
+              data-testid="share-button"
+              onClick={() => {
+                setPublishTitle(project?.name ?? '')
+                setPublishSummary('')
+                setPublishOpen(true)
               }}
-            />
-          </div>
-        ) : (
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/8 bg-surface text-ink-700 shadow-[var(--shadow-float)] transition-colors hover:bg-ink-100 hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <IconShare size={15} />
+            </button>
+          </Tooltip>
+          <Tooltip label="积分超市" side="bottom">
+            <Link
+              href="/account?tab=store"
+              aria-label="积分超市"
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/8 bg-surface text-[#60d4ef] shadow-[var(--shadow-float)] transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <StoreGlyph />
+            </Link>
+          </Tooltip>
+          <Link
+            href="/account?tab=membership"
+            aria-label="会员权益"
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-white/8 bg-surface px-2.5 text-[12px] text-ink-700 shadow-[var(--shadow-float)] transition-colors hover:bg-ink-100 hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <span className="text-running">◆</span>
+            会员权益
+          </Link>
+          <Link
+            href="/account"
+            aria-label={`积分 ${balance}`}
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-white/8 bg-surface px-2.5 text-[12px] font-medium text-ink-800 shadow-[var(--shadow-float)] transition-colors hover:bg-ink-100 hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <IconCredit size={13} className="text-running" />
+            <span data-testid="credit-balance">{balance}</span>
+          </Link>
+          <Link
+            href="/account"
+            aria-label="账户"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-gradient-to-br from-sky-100 via-blue-300 to-indigo-500 text-[11px] font-bold text-slate-900 shadow-[var(--shadow-float)] focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            L
+          </Link>
           <button
             type="button"
-            data-testid="canvas-switcher"
-            onClick={(e) => switcher.openFrom(e)}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] text-ink-700 transition-colors hover:bg-ink-50"
+            data-testid="agent-toggle"
+            onClick={() => setAgentOpen(!agentOpen)}
+            className={cn(
+              'flex h-8 items-center gap-1.5 rounded-[10px] border border-white/8 px-3 text-[12px] font-medium shadow-[var(--shadow-float)] transition-colors focus-visible:outline-2 focus-visible:outline-accent',
+              agentOpen ? 'bg-ink-100 text-ink-900' : 'bg-surface text-ink-800 hover:bg-ink-100',
+            )}
           >
-            {current?.name ?? '画布'}
-            <IconChevronDown size={13} className="text-ink-400" />
+            <IconAgent size={15} />
+            Agent
           </button>
-        )}
-      </div>
-
-      {/* Center: view switch */}
-      <div className="pointer-events-auto">
-        <SegmentedControl
-          value={viewMode}
-          onChange={setViewMode}
-          options={[
-            {
-              value: 'workflow',
-              label: (
-                <>
-                  <IconWorkflow size={14} /> 工作流
-                </>
-              ),
-              testId: 'view-workflow',
-            },
-            {
-              value: 'storyboard',
-              label: (
-                <>
-                  <IconStoryboard size={14} /> 故事板
-                </>
-              ),
-              testId: 'view-storyboard',
-            },
-          ]}
-        />
-      </div>
-
-      {/* Right: share, credits, agent */}
-      <div className="pointer-events-auto flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="分享"
-          data-testid="share-button"
-          onClick={() => {
-            setPublishTitle(project?.name ?? '')
-            setPublishSummary('')
-            setPublishOpen(true)
-          }}
-          className="chip-bar bg-surface p-2.5 text-ink-700 transition-colors hover:bg-ink-50 hover:text-ink-900"
-        >
-          <IconShare size={17} />
-        </button>
-        <div className="chip-bar flex items-center gap-1.5 bg-surface px-3 py-2 text-[13px] font-medium text-ink-800">
-          <IconCredit size={14} className="text-running" />
-          <span data-testid="credit-balance">{balance}</span>
         </div>
-        <button
-          type="button"
-          data-testid="agent-toggle"
-          onClick={() => setAgentOpen(!agentOpen)}
-          className={cn(
-            'chip-bar flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium transition-colors',
-            agentOpen ? 'bg-ink-900 text-white' : 'bg-surface text-ink-800 hover:bg-ink-50',
-          )}
-        >
-          <IconAgent size={16} />
-          Agent
-        </button>
-      </div>
 
-      {switcher.anchor && (
-        <Menu sections={switcherSections} anchor={switcher.anchor} onClose={switcher.close} width={196} />
-      )}
-    </div>
+        {switcher.anchor && (
+          <Menu sections={switcherSections} anchor={switcher.anchor} onClose={switcher.close} width={196} />
+        )}
+      </header>
 
 
       {/* Publishing freezes an immutable snapshot; the live canvas keeps moving. */}

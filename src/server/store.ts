@@ -48,6 +48,7 @@ export const MEDIA_DIR = path.join(DATA_DIR, 'media')
 export const DEFAULT_SPACE_ID = 'sp_default'
 
 let cache: WorkspaceState | null = null
+let cacheMtimeNs: bigint | null = null
 let activeScenarioCache: ScenarioId | null = null
 let writeChain: Promise<unknown> = Promise.resolve()
 
@@ -57,14 +58,17 @@ async function ensureDirs() {
 }
 
 async function load(): Promise<WorkspaceState> {
-  if (cache) return cache
   await ensureDirs()
   try {
+    const stat = await fs.stat(STATE_FILE, { bigint: true })
+    if (cache && cacheMtimeNs === stat.mtimeNs) return cache
     const raw = await fs.readFile(STATE_FILE, 'utf8')
     cache = JSON.parse(raw) as WorkspaceState
+    cacheMtimeNs = (await fs.stat(STATE_FILE, { bigint: true })).mtimeNs
   } catch {
     cache = buildScenario(await activeScenarioId())
     await fs.writeFile(STATE_FILE, JSON.stringify(cache, null, 2), 'utf8')
+    cacheMtimeNs = (await fs.stat(STATE_FILE, { bigint: true })).mtimeNs
   }
   return cache
 }
@@ -76,6 +80,7 @@ async function persist(state: WorkspaceState) {
   const tmp = `${STATE_FILE}.${process.pid}.tmp`
   await fs.writeFile(tmp, JSON.stringify(state, null, 2), 'utf8')
   await fs.rename(tmp, STATE_FILE)
+  cacheMtimeNs = (await fs.stat(STATE_FILE, { bigint: true })).mtimeNs
 }
 
 async function persistScenarioId(scenarioId: ScenarioId) {
@@ -130,6 +135,7 @@ export async function withState<T>(mutator: (state: WorkspaceState) => T | Promi
 /** Test/dev helper: drop the in-memory cache so the next read re-reads disk. */
 export function invalidateCache() {
   cache = null
+  cacheMtimeNs = null
   activeScenarioCache = null
 }
 

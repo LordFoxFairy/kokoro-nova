@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import { SCENARIO_IDS, type ScenarioId } from '@/contracts/scenario'
 import { FIXED_NOW, isoAt } from '@/mocks/clock'
@@ -146,6 +148,20 @@ describe('buildScenario', () => {
       expect(serialized, id).not.toContain('liblib.cloud')
       expect(serialized, id).not.toContain('liblib.art')
     }
+  })
+
+  it('keeps every static fixture URL backed by a committed public file', () => {
+    const missing = new Set<string>()
+
+    for (const id of REQUIRED) {
+      const serialized = JSON.stringify(buildScenario(id))
+      const fixtureUrls = serialized.match(/\/fixtures\/libtv\/[^"?]+/g) ?? []
+      for (const fixtureUrl of fixtureUrls) {
+        if (!existsSync(resolve(process.cwd(), 'public', fixtureUrl.slice(1)))) missing.add(fixtureUrl)
+      }
+    }
+
+    expect([...missing].sort()).toEqual([])
   })
 
   it('keeps balances equal to each space ledger tail', () => {

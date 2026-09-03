@@ -177,7 +177,7 @@ pnpm vitest run src/mocks/__tests__/scenarios.test.ts
 
 - [x] **Step 3: Add two lightweight projects and canvases**
 
-Use stable IDs and fixed timestamps. Keep the canonical full video project unchanged; the additional two canvases use empty documents and exist only to make recent/all-project surfaces realistic and navigable.
+Use stable IDs and fixed timestamps. Keep the canonical full video project's ID and workflow graph unchanged while aligning its surface name, cover and date to the captured list; the additional two canvases use empty documents and exist only to make recent/all-project surfaces realistic and navigable.
 
 - [x] **Step 4: Verify graph references and deterministic snapshots**
 
@@ -259,29 +259,29 @@ git commit -m "feat: replicate LibTV authenticated desktop shell"
 - Create: `src/components/home/TvShowFeed.tsx`
 - Modify: `e2e/home-project.spec.ts`
 
-- [ ] **Step 1: Write failing home hierarchy tests**
+- [x] **Step 1: Write failing home hierarchy tests**
 
 Assert campaign image, blank-canvas card, six creator tools, three recent projects, disabled empty composer send, valid-draft send, Skill chips, TV Show categories and six local cover images.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm playwright test e2e/home-project.spec.ts --grep "home"
 ```
 
-- [ ] **Step 3: Implement the first 900px viewport**
+- [x] **Step 3: Implement the first 900px viewport**
 
 At expanded 1440×900: main x≈240; content x≈280; banner x≈280/y≈114/w≈1120/h≈140; tool grid begins y≈278; recent project heading/card row follows; compact Agent composer begins near y≈660; TV Show heading enters near the lower fold.
 
-- [ ] **Step 4: Preserve creation semantics**
+- [x] **Step 4: Preserve creation semantics**
 
 Blank card creates a project. Tool cards create a project with deterministic intent in the `brief` query. Composer sends only valid trimmed text. Recent project opens existing canvas. Skill chip updates composer context without generating immediately.
 
-- [ ] **Step 5: Implement public discovery below the fold**
+- [x] **Step 5: Implement public discovery below the fold**
 
 Category strip and search filter the fixed feed client-side; cards show local cover, title, author/tier, like count and a process button state.
 
-- [ ] **Step 6: Run focused E2E and capture local screenshot**
+- [x] **Step 6: Run focused E2E and capture local screenshot**
 
 ```bash
 pnpm playwright test e2e/home-project.spec.ts --grep "home"
@@ -289,7 +289,7 @@ pnpm playwright test e2e/home-project.spec.ts --grep "home"
 
 Save `docs/screenshots/libtv-home-local-1440x900.png` for side-by-side inspection.
 
-- [ ] **Step 7: Commit home**
+- [x] **Step 7: Commit home**
 
 ```bash
 git add src/components/home e2e/home-project.spec.ts docs/screenshots/libtv-home-local-1440x900.png

@@ -97,9 +97,9 @@ function lightweightProject(
   id: string,
   canvasId: string,
   name: string,
-  coverUrl: string,
+  coverUrl: string | null,
   createdOffset: number,
-  updatedOffset: number,
+  updatedAt: string,
 ): { project: Project; canvas: Canvas } {
   const project: Project = {
     id,
@@ -108,7 +108,7 @@ function lightweightProject(
     name,
     coverUrl,
     createdAt: isoAt(createdOffset),
-    updatedAt: isoAt(updatedOffset),
+    updatedAt,
     canvasIds: [canvasId],
   }
   const canvas: Canvas = {
@@ -117,7 +117,7 @@ function lightweightProject(
     name: '画布 1',
     revision: 1,
     createdAt: isoAt(createdOffset + 30),
-    updatedAt: isoAt(updatedOffset),
+    updatedAt,
     document: {
       schemaVersion: WORKFLOW_SCHEMA_VERSION,
       nodes: [],
@@ -358,10 +358,10 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
     id: PROJECT_ID,
     spaceId: SPACE_ID,
     folderId: null,
-    name: '城市夜景短片',
-    coverUrl: '/fixtures/libtv/project/video-cover.svg',
-    createdAt: isoAt(-7_000),
-    updatedAt: isoAt(-30),
+    name: 'Seedance2.0体验',
+    coverUrl: '/fixtures/libtv/showcase/childhood-memoir.webp',
+    createdAt: '2026-07-14T08:00:00.000Z',
+    updatedAt: '2026-07-14T08:30:00.000Z',
     canvasIds: [CANVAS_ID],
   }
 
@@ -435,8 +435,8 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
     projectId: PROJECT_ID,
     name: '画布 1',
     revision,
-    createdAt: isoAt(-6_900),
-    updatedAt: isoAt(-30),
+    createdAt: '2026-07-14T08:05:00.000Z',
+    updatedAt: '2026-07-14T08:30:00.000Z',
     document: {
       schemaVersion: WORKFLOW_SCHEMA_VERSION,
       nodes,
@@ -452,15 +452,15 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
     '咕嘎Doro',
     '/fixtures/libtv/showcase/cloud-palace.webp',
     -6_700,
-    -60,
+    '2026-07-16T09:15:00.000Z',
   )
   const untitled = lightweightProject(
     UNTITLED_PROJECT_ID,
     UNTITLED_CANVAS_ID,
     '未命名',
-    '/fixtures/libtv/showcase/shanghai-chronicle.webp',
+    null,
     -6_500,
-    -90,
+    '2026-07-31T10:20:00.000Z',
   )
 
   const asset: Asset = {
@@ -487,7 +487,7 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
     spaceId: SPACE_ID,
     projectId: PROJECT_ID,
     canvasId: CANVAS_ID,
-    title: '城市夜景短片',
+    title: 'Seedance2.0体验',
     seq: 2,
     createdAt: isoAt(-900),
     updatedAt: isoAt(-300),
@@ -518,7 +518,7 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
   return {
     spaces: [space],
     folders: [folder],
-    projects: [project, doro.project, untitled.project],
+    projects: [untitled.project, doro.project, project],
     canvases: [canvas, doro.canvas, untitled.canvas],
     assets: [asset],
     jobs: [videoJob(status), imageJob()],

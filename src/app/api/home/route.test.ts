@@ -20,9 +20,9 @@ describe.sequential('GET /api/home', () => {
 
     expect(response.status).toBe(200)
     expect(parsed.recentProjects.map((project) => project.id)).toEqual([
-      'prj_video_demo',
-      'prj_doro_demo',
       'prj_untitled_demo',
+      'prj_doro_demo',
+      'prj_video_demo',
     ])
     expect(parsed.account.credits).toBe(408)
     expect(parsed.creatorTools).toHaveLength(6)

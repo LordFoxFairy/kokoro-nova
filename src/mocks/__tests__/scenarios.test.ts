@@ -56,10 +56,13 @@ describe('buildScenario', () => {
   it('returns a fresh object graph on every build', () => {
     const first = buildScenario('video-running')
     const second = buildScenario('video-running')
-    first.projects[0].name = 'mutated'
+    const firstCanonical = first.projects.find((project) => project.id === 'prj_video_demo')
+    const secondCanonical = second.projects.find((project) => project.id === 'prj_video_demo')
+    if (!firstCanonical || !secondCanonical) throw new Error('canonical video project missing')
+    firstCanonical.name = 'mutated'
     first.canvases[0].document.nodes[0].name = 'mutated node'
 
-    expect(second.projects[0].name).toBe('城市夜景短片')
+    expect(secondCanonical.name).toBe('Seedance2.0体验')
     expect(second.canvases[0].document.nodes[0].name).toBe('故事梗概')
   })
 
@@ -75,9 +78,9 @@ describe('buildScenario', () => {
     const canvases = new Map(state.canvases.map((canvas) => [canvas.id, canvas]))
 
     expect(projects.map((project) => project.id)).toEqual([
-      'prj_video_demo',
-      'prj_doro_demo',
       'prj_untitled_demo',
+      'prj_doro_demo',
+      'prj_video_demo',
     ])
     expect(projects.map((project) => project.updatedAt)).toEqual(
       projects
@@ -86,7 +89,7 @@ describe('buildScenario', () => {
         .sort()
         .reverse(),
     )
-    expect(projects.every((project) => project.coverUrl?.startsWith('/fixtures/libtv/'))).toBe(true)
+    expect(projects.every((project) => project.coverUrl === null || project.coverUrl.startsWith('/fixtures/libtv/'))).toBe(true)
     expect(projects.every((project) => project.canvasIds.length === 1)).toBe(true)
     expect(
       projects.every((project) => {
@@ -109,7 +112,7 @@ describe('buildScenario', () => {
 
     for (const id of states) {
       const state = buildScenario(id)
-      expect(state.projects[0].id).toBe('prj_video_demo')
+      expect(state.projects.find((project) => project.id === 'prj_video_demo')?.name).toBe('Seedance2.0体验')
       expect(state.canvases[0].id).toBe('can_video_main')
       expect(state.canvases[0].document.nodes.map((node) => node.id)).toEqual([
         'node_text_01',

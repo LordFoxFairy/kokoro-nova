@@ -25,7 +25,7 @@ describe.sequential('scenario-backed workspace store', () => {
     })
 
     const restored = await resetStore()
-    expect(restored.projects[0].id).toBe('prj_video_demo')
+    expect(restored.projects.some((project) => project.id === 'prj_video_demo')).toBe(true)
     expect(restored.jobs[0].status).toBe('running')
     expect(await activeScenarioId()).toBe('video-running')
   })

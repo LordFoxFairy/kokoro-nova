@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useStore as useFlowStore } from '@xyflow/react'
 import { availableVideoModes, videoModeOptions } from '@/domain/compile'
+import { newId } from '@/domain/ids'
 import { CAMERA_MOVES } from '@/domain/libraries'
 import {
   MODELS_BY_ID,
@@ -14,6 +16,12 @@ import {
   type VideoGenerationMode,
 } from '@/domain/models'
 import type { GenerationJob, NodeData, OutputSpec, WorkflowNode } from '@/domain/types'
+import {
+  orderedVideoReferences,
+  readVideoElementMarks,
+  readVideoMentions,
+  videoReferenceLabel,
+} from '@/domain/video-references'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import {
@@ -29,9 +37,9 @@ import {
   IconLink,
   IconLocate,
   IconPlay,
+  IconSearch,
   IconSparkle,
   IconStop,
-  IconStyle,
   IconVideo,
 } from '../icons'
 import { ProgressBar, Spinner, Toggle } from '../ui/controls'
@@ -47,6 +55,11 @@ interface VideoNodeEditorProps {
   job: GenerationJob | null
   onRun: (nodeId: string) => void
   onCancel: (jobId: string) => void
+  selectionMode: 'reference' | 'element' | null
+  onStartSelection: (kind: 'reference' | 'element', targetNodeId: string) => void
+  onExitSelection: () => void
+  onRemoveReference: (targetNodeId: string, sourceNodeId: string) => void
+  onLocateReference: (nodeId: string) => void
 }
 
 type OpenPopover = 'models' | 'modes' | 'output' | 'camera' | 'advanced' | null
@@ -56,7 +69,17 @@ type OpenPopover = 'models' | 'modes' | 'output' | 'camera' | 'advanced' | null
  * cancelling the graph zoom for the form itself. The graph remains spatial;
  * text, hit targets and menus stay readable at a stable screen size.
  */
-export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorProps) {
+export function VideoNodeEditor({
+  node,
+  job,
+  onRun,
+  onCancel,
+  selectionMode,
+  onStartSelection,
+  onExitSelection,
+  onRemoveReference,
+  onLocateReference,
+}: VideoNodeEditorProps) {
   const zoom = useFlowStore((state) => state.transform[2])
   const document = useEditor((state) => state.document)
   const commit = useEditor((state) => state.commit)
@@ -65,6 +88,7 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
   const toast = useEditor((state) => state.toast)
   const [prompt, setPrompt] = useState(node.data.prompt ?? '')
   const [popover, setPopover] = useState<OpenPopover>(null)
+  const [previewNodeId, setPreviewNodeId] = useState<string | null>(null)
 
   useEffect(() => setPrompt(node.data.prompt ?? ''), [node.id, node.data.prompt])
 
@@ -72,6 +96,14 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.stopPropagation()
+      if (selectionMode) {
+        onExitSelection()
+        return
+      }
+      if (previewNodeId) {
+        setPreviewNodeId(null)
+        return
+      }
       if (popover) {
         setPopover(null)
         return
@@ -82,7 +114,7 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [inspect, popover])
+  }, [inspect, onExitSelection, popover, previewNodeId, selectionMode])
 
   const patchNode = (patch: Partial<NodeData>) => {
     const current = useEditor.getState().document.nodes.find((item) => item.id === node.id)
@@ -101,15 +133,14 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
   const advanced = (node.data.extra?.advanced as
     | { webSearch?: boolean; autoCompliance?: boolean; autoLink?: boolean }
     | undefined) ?? { webSearch: false, autoCompliance: true, autoLink: true }
+  const cameraFavorites = Array.isArray(node.data.extra?.cameraFavorites)
+    ? node.data.extra.cameraFavorites.filter((id): id is string => typeof id === 'string')
+    : []
 
-  const references = useMemo(
-    () =>
-      document.edges
-        .filter((edge) => edge.target === node.id)
-        .map((edge) => document.nodes.find((item) => item.id === edge.source))
-        .filter((item): item is WorkflowNode => Boolean(item)),
-    [document.edges, document.nodes, node.id],
-  )
+  const references = useMemo(() => orderedVideoReferences(document, node.id), [document, node.id])
+  const mentions = readVideoMentions(node.data.extra)
+  const elementMarks = readVideoElementMarks(node.data.extra)
+  const previewReference = references.find((reference) => reference.node.id === previewNodeId)?.node ?? null
 
   const setOutput = (outputPatch: Partial<OutputSpec>) => {
     if (!node.data.modelId) return
@@ -136,6 +167,32 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
     })
   }
 
+  const insertMention = (reference: WorkflowNode, index: number) => {
+    const label = videoReferenceLabel(reference, index)
+    const nextMention = {
+      id: newId('vmn'),
+      nodeId: reference.id,
+      label,
+      ordinal: mentions.length + 1,
+    }
+    patchNode({
+      extra: {
+        ...node.data.extra,
+        videoMentions: [...mentions, nextMention],
+      },
+    })
+    setPreviewNodeId(reference.id)
+  }
+
+  const removeMention = (mentionId: string) => {
+    patchNode({
+      extra: {
+        ...node.data.extra,
+        videoMentions: mentions.filter((mention) => mention.id !== mentionId),
+      },
+    })
+  }
+
   return (
     <div
       data-testid="video-node-editor"
@@ -148,12 +205,17 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
       <section className="relative flex min-h-[254px] w-full flex-col overflow-visible rounded-2xl border border-white/10 bg-[#242424] shadow-[0_14px_45px_rgba(0,0,0,0.42)]">
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
           <div className="flex items-center gap-1.5">
-            <QuickAction label="参考" icon={<IconLink size={14} />} onClick={() => setLeftPanel('material')} />
+            <QuickAction
+              label="参考"
+              icon={<IconLink size={14} />}
+              active={selectionMode === 'reference'}
+              onClick={() => onStartSelection('reference', node.id)}
+            />
             <QuickAction
               label="标记"
               icon={<IconLocate size={14} />}
-              active={Boolean(node.data.extra?.marked)}
-              onClick={() => patchNode({ extra: { ...node.data.extra, marked: !node.data.extra?.marked } })}
+              active={selectionMode === 'element' || elementMarks.length > 0}
+              onClick={() => onStartSelection('element', node.id)}
             />
             <QuickAction label="角色库" icon={<IconCharacter size={14} />} onClick={() => setLeftPanel('character')} />
             <QuickAction
@@ -174,15 +236,17 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
           </div>
 
           {references.length > 0 && (
-            <div data-testid="video-reference-strip" className="flex min-h-9 items-center gap-1.5 overflow-hidden px-0.5">
-              {references.map((reference, index) => {
+            <div data-testid="video-reference-strip" className="flex min-h-12 items-center gap-1.5 overflow-x-auto px-0.5 pb-0.5">
+              {references.map(({ node: reference }, index) => {
                 const artifact = reference.data.artifacts?.[0]
+                const label = videoReferenceLabel(reference, index)
                 return (
                   <div
                     key={reference.id}
-                    className="flex h-9 min-w-0 max-w-[150px] items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.045] px-1.5"
+                    data-testid={`video-reference-card-${reference.id}`}
+                    className="group/reference relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-white/12 bg-white/[0.055]"
                   >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/8 text-ink-400">
+                    <span className="flex h-full w-full items-center justify-center overflow-hidden bg-white/8 text-ink-400">
                       {artifact?.thumbnailUrl || (artifact?.kind === 'image' && artifact.url) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={artifact.thumbnailUrl ?? artifact.url} alt="" className="h-full w-full object-cover" />
@@ -192,25 +256,81 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
                         <IconImage size={13} />
                       )}
                     </span>
-                    <span className="truncate text-[11px] text-ink-600">{index + 1} · {reference.name}</span>
-                    <IconAt size={11} className="shrink-0 text-ink-400" />
+                    <span className="absolute top-0.5 left-0.5 flex h-4 min-w-4 items-center justify-center rounded bg-black/72 px-1 text-[9px] font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`在提示词中引用 ${label}`}
+                      title={`在提示词中引用 ${label}`}
+                      onClick={() => insertMention(reference, index)}
+                      className="absolute right-0.5 bottom-0.5 flex h-4 w-4 items-center justify-center rounded bg-black/72 text-[9px] font-semibold text-white hover:bg-[#1769e8]"
+                    >
+                      @
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`移除参考 ${label}`}
+                      title={`移除参考 ${label}`}
+                      onClick={() => {
+                        setPreviewNodeId(null)
+                        onRemoveReference(node.id, reference.id)
+                      }}
+                      className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded bg-black/72 text-white opacity-0 transition-opacity hover:bg-[#b62d3a] group-hover/reference:opacity-100 focus-visible:opacity-100"
+                    >
+                      <IconClose size={9} />
+                    </button>
+                    <span className="sr-only">{label} · {reference.name}</span>
                   </div>
                 )
               })}
             </div>
           )}
 
-          <textarea
-            data-testid="video-prompt"
-            value={prompt}
-            rows={references.length > 0 ? 3 : 5}
-            placeholder="描述你想要生成的画面内容，@引用素材"
-            onChange={(event) => setPrompt(event.target.value)}
-            onBlur={() => {
-              if (prompt !== (node.data.prompt ?? '')) patchNode({ prompt })
-            }}
-            className="min-h-[76px] flex-1 resize-none rounded-xl border border-transparent bg-transparent px-2 py-2 text-[13px] leading-relaxed text-ink-800 outline-none placeholder:text-ink-400 focus:border-white/10 focus:bg-black/10"
-          />
+          <div className="min-h-[76px] flex-1 rounded-xl border border-transparent bg-transparent px-2 py-1.5 focus-within:border-white/10 focus-within:bg-black/10">
+            {(mentions.length > 0 || elementMarks.length > 0) && (
+              <div className="mb-1 flex flex-wrap items-center gap-1">
+                {mentions.map((mention) => (
+                  <span
+                    key={mention.id}
+                    data-testid="video-mention-chip"
+                    className="inline-flex h-5 items-center gap-1 rounded-md border border-[#4d8eff]/32 bg-[#1769e8]/20 px-1.5 text-[10px] font-medium text-[#90b9ff]"
+                  >
+                    <IconAt size={10} />
+                    {mention.label}
+                    <button
+                      type="button"
+                      aria-label={`删除引用 ${mention.label}`}
+                      onClick={() => removeMention(mention.id)}
+                      className="text-[#90b9ff]/65 hover:text-white"
+                    >
+                      <IconClose size={8} />
+                    </button>
+                  </span>
+                ))}
+                {elementMarks.map((mark) => (
+                  <span
+                    key={mark.id}
+                    data-testid="video-element-chip"
+                    className="inline-flex h-5 items-center gap-1 rounded-md border border-[#a683ff]/32 bg-[#7654d8]/18 px-1.5 text-[10px] font-medium text-[#c5b4ff]"
+                  >
+                    <IconLocate size={10} /> {mark.label}
+                  </span>
+                ))}
+              </div>
+            )}
+            <textarea
+              data-testid="video-prompt"
+              value={prompt}
+              rows={mentions.length > 0 || elementMarks.length > 0 ? 2 : references.length > 0 ? 3 : 5}
+              placeholder="描述你想要生成的画面内容，@引用素材"
+              onChange={(event) => setPrompt(event.target.value)}
+              onBlur={() => {
+                if (prompt !== (node.data.prompt ?? '')) patchNode({ prompt })
+              }}
+              className="min-h-[56px] w-full resize-none bg-transparent text-[13px] leading-relaxed text-ink-800 outline-none placeholder:text-ink-400"
+            />
+          </div>
 
           <div className="flex h-8 w-full items-center gap-1 border-t border-white/[0.06] pt-2">
             <button
@@ -306,6 +426,17 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
               <div className="flex-1"><ProgressBar value={job?.progress ?? 0} /></div>
             </div>
           )}
+
+          {previewReference && (
+            <ReferencePreview
+              reference={previewReference}
+              onClose={() => setPreviewNodeId(null)}
+              onLocate={() => {
+                setPreviewNodeId(null)
+                onLocateReference(previewReference.id)
+              }}
+            />
+          )}
         </div>
 
         {popover === 'models' && (
@@ -323,13 +454,26 @@ export function VideoNodeEditor({ node, job, onRun, onCancel }: VideoNodeEditorP
           <OutputPopover capabilities={capabilities} output={output} onChange={setOutput} />
         )}
         {popover === 'camera' && (
-          <CameraPopover
+          <CameraLibraryPortal
             current={(node.data.extra?.cameraMove as string | undefined) ?? null}
+            favorites={cameraFavorites}
             onChange={(cameraMove, promptSuffix) => {
-              patchNode({ extra: { ...node.data.extra, cameraMove } })
-              if (!prompt.includes(promptSuffix)) setPrompt((value) => (value ? `${value}\n${promptSuffix}` : promptSuffix))
+              const nextPrompt = prompt.includes(promptSuffix)
+                ? prompt
+                : prompt
+                  ? `${prompt}\n${promptSuffix}`
+                  : promptSuffix
+              setPrompt(nextPrompt)
+              patchNode({
+                prompt: nextPrompt,
+                extra: { ...node.data.extra, cameraMove },
+              })
               setPopover(null)
             }}
+            onFavoritesChange={(favorites) => {
+              patchNode({ extra: { ...node.data.extra, cameraFavorites: favorites } })
+            }}
+            onClose={() => setPopover(null)}
           />
         )}
         {popover === 'advanced' && (
@@ -539,35 +683,270 @@ function AdvancedPopover({
   )
 }
 
-function CameraPopover({
+function ReferencePreview({
+  reference,
+  onClose,
+  onLocate,
+}: {
+  reference: WorkflowNode
+  onClose: () => void
+  onLocate: () => void
+}) {
+  const artifact = reference.data.artifacts?.[0]
+  const previewUrl = artifact?.thumbnailUrl ?? artifact?.url ?? null
+
+  return (
+    <aside
+      data-testid="video-reference-preview"
+      className="absolute top-[68px] left-[76px] z-50 w-[250px] overflow-hidden rounded-2xl border border-white/12 bg-[#2b2b2b] shadow-[0_18px_46px_rgba(0,0,0,0.52)]"
+      onDoubleClick={onLocate}
+      title="双击可聚焦至节点"
+    >
+      <div className="relative h-[132px] bg-black/35">
+        {previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={previewUrl} alt={reference.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-ink-400">
+            {reference.type === 'video' ? <IconVideo size={28} /> : <IconImage size={28} />}
+          </div>
+        )}
+        <button
+          type="button"
+          aria-label="关闭参考预览"
+          onClick={onClose}
+          className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-white/75 hover:text-white"
+        >
+          <IconClose size={12} />
+        </button>
+      </div>
+      <div className="flex items-center gap-2 p-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[12px] font-medium text-ink-800">{reference.name}</div>
+          <div className="mt-0.5 text-[10px] text-ink-400">双击可聚焦至节点</div>
+        </div>
+        <button
+          type="button"
+          aria-label={`定位${reference.name}`}
+          onClick={onLocate}
+          className="flex h-7 items-center gap-1 rounded-lg bg-white/8 px-2 text-[10px] text-ink-700 hover:bg-white/12"
+        >
+          <IconLocate size={11} /> 定位
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+type CameraLibraryTab = 'plaza' | 'favorites' | 'mine'
+
+function CameraLibraryPortal({
   current,
+  favorites,
   onChange,
+  onFavoritesChange,
+  onClose,
 }: {
   current: string | null
+  favorites: string[]
   onChange: (id: string, prompt: string) => void
+  onFavoritesChange: (favorites: string[]) => void
+  onClose: () => void
 }) {
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <CameraLibrary
+      current={current}
+      favorites={favorites}
+      onChange={onChange}
+      onFavoritesChange={onFavoritesChange}
+      onClose={onClose}
+    />,
+    document.body,
+  )
+}
+
+function CameraLibrary({
+  current,
+  favorites,
+  onChange,
+  onFavoritesChange,
+  onClose,
+}: {
+  current: string | null
+  favorites: string[]
+  onChange: (id: string, prompt: string) => void
+  onFavoritesChange: (favorites: string[]) => void
+  onClose: () => void
+}) {
+  const [tab, setTab] = useState<CameraLibraryTab>('plaza')
+  const [query, setQuery] = useState('')
+  const normalized = query.trim().toLocaleLowerCase('zh-CN')
+  const source = tab === 'favorites' ? CAMERA_MOVES.filter((move) => favorites.includes(move.id)) : CAMERA_MOVES
+  const rows =
+    tab === 'mine'
+      ? []
+      : source.filter(
+          (move) =>
+            !normalized ||
+            move.name.toLocaleLowerCase('zh-CN').includes(normalized) ||
+            move.group.toLocaleLowerCase('zh-CN').includes(normalized),
+        )
+
+  const toggleFavorite = (id: string) => {
+    onFavoritesChange(
+      favorites.includes(id) ? favorites.filter((favorite) => favorite !== id) : [...favorites, id],
+    )
+  }
+
   return (
     <div
-      role="menu"
-      aria-label="运镜库"
-      className="absolute top-10 left-2 z-40 grid w-[370px] grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-[#292929] p-2 shadow-[0_14px_40px_rgba(0,0,0,0.5)]"
+      className="fixed inset-0 z-[140] bg-black/58"
+      onPointerDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
     >
-      {CAMERA_MOVES.map((move) => (
-        <button
-          key={move.id}
-          type="button"
-          role="menuitemradio"
-          aria-checked={move.id === current}
-          onClick={() => onChange(move.id, move.prompt)}
-          className={cn(
-            'flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[11px] text-ink-600 hover:bg-white/8',
-            move.id === current && 'bg-white/8 text-ink-900',
+      <button type="button" aria-label="关闭运镜库背景" className="absolute inset-0" onClick={onClose} />
+      <section
+        role="dialog"
+        aria-label="运镜库"
+        aria-modal="false"
+        data-testid="video-camera-library"
+        className="absolute top-[126px] bottom-[120px] left-1/2 flex w-[calc(100vw-32px)] max-w-[1420px] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#292929] shadow-[0_24px_80px_rgba(0,0,0,0.62)]"
+      >
+        <header className="flex h-[58px] shrink-0 items-center gap-2 border-b border-white/8 px-4">
+          <div role="tablist" aria-label="运镜分类" className="flex items-center gap-1">
+            {([
+              ['plaza', '运镜广场'],
+              ['favorites', '我的收藏'],
+              ['mine', '我的运镜'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => setTab(value)}
+                className={cn(
+                  'h-9 rounded-lg px-3 text-[12px] transition-colors',
+                  tab === value ? 'bg-white/9 font-medium text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/78',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <label className="ml-3 flex h-9 w-[336px] items-center gap-2 rounded-lg bg-white/[0.075] px-3 text-white/42 focus-within:bg-white/10 focus-within:text-white/68">
+            <IconSearch size={15} />
+            <input
+              type="search"
+              aria-label="搜索运镜名称"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && rows[0]) onChange(rows[0].id, rows[0].prompt)
+              }}
+              placeholder="搜索运镜名称"
+              className="min-w-0 flex-1 bg-transparent text-[12px] text-white/82 outline-none placeholder:text-white/32"
+            />
+          </label>
+
+          <span className="ml-auto text-[10px] tabular-nums text-white/32">
+            {tab === 'mine' ? '0 个运镜' : `${rows.length} 个运镜`}
+          </span>
+          <button
+            type="button"
+            aria-label="关闭运镜库"
+            onClick={onClose}
+            className="ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-white/45 hover:bg-white/8 hover:text-white"
+          >
+            <IconClose size={19} />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          {tab === 'mine' ? (
+            <CameraEmptyState title="还没有自定义运镜" detail="创建的个人运镜会保存在这里" />
+          ) : rows.length === 0 ? (
+            <CameraEmptyState
+              title={tab === 'favorites' ? '还没有收藏运镜' : '没有找到相关运镜'}
+              detail={tab === 'favorites' ? '在运镜广场点击星标即可收藏' : '试试搜索其他名称'}
+            />
+          ) : (
+            <div className="grid grid-cols-4 gap-x-1 gap-y-2">
+              {rows.map((move, index) => {
+                const favorite = favorites.includes(move.id)
+                return (
+                  <div key={move.id} className="group relative min-w-0">
+                    <button
+                      type="button"
+                      data-testid={`camera-move-card-${move.id}`}
+                      aria-label={move.name}
+                      aria-pressed={move.id === current}
+                      onClick={() => onChange(move.id, move.prompt)}
+                      className={cn(
+                        'block w-full overflow-hidden rounded-md border text-left transition-[border-color,transform] hover:-translate-y-px hover:border-white/28',
+                        move.id === current ? 'border-[#6a9eff]' : 'border-transparent',
+                      )}
+                    >
+                      <CameraMovePreview hue={move.hue} variant={move.previewVariant} index={index} />
+                      <span className="block truncate bg-[#292929] px-1 py-1 text-center text-[11px] text-white/82">
+                        {move.name}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${favorite ? '取消收藏' : '收藏'} ${move.name}`}
+                      aria-pressed={favorite}
+                      onClick={() => toggleFavorite(move.id)}
+                      className={cn(
+                        'absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-white/12 bg-black/52 text-[17px] shadow-md backdrop-blur transition-opacity hover:bg-black/72',
+                        favorite ? 'text-[#ffd36a]' : 'text-white/80 opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                      )}
+                    >
+                      <span aria-hidden="true">{favorite ? '★' : '☆'}</span>
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           )}
-        >
-          <IconStyle size={13} />
-          <span className="truncate">{move.group} · {move.name}</span>
-        </button>
-      ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function CameraMovePreview({ hue, variant, index }: { hue: number; variant: string; index: number }) {
+  const positions = ['50% 46%', '42% 50%', '58% 42%', '50% 58%']
+  return (
+    <span
+      className="relative block aspect-[1.78/1] overflow-hidden bg-[#111]"
+      style={{
+        backgroundImage: `linear-gradient(135deg, hsl(${hue} 45% 19% / .22), hsl(${(hue + 52) % 360} 42% 8% / .48)), url('/fixtures/libtv/media/city-night-poster.webp')`,
+        backgroundPosition: positions[index % positions.length],
+        backgroundSize: index % 3 === 0 ? 'cover' : `${112 + (index % 4) * 7}% auto`,
+      }}
+      data-preview-variant={variant}
+    >
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_36%,rgba(0,0,0,.42)_100%)]" />
+      <span
+        className="absolute top-1/2 left-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/45 bg-black/24 opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <span className="absolute top-1/2 left-1/2 -translate-x-[42%] -translate-y-1/2 text-[12px] text-white">▶</span>
+      </span>
+    </span>
+  )
+}
+
+function CameraEmptyState({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center">
+      <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/6 text-white/28">
+        <IconVideo size={22} />
+      </span>
+      <div className="text-[13px] font-medium text-white/65">{title}</div>
+      <div className="mt-1 text-[11px] text-white/30">{detail}</div>
     </div>
   )
 }

@@ -63,27 +63,35 @@ export interface CameraMovePreset {
   name: string
   group: string
   prompt: string
+  /** Local deterministic preview direction; never points at account media. */
+  hue: number
+  previewVariant: string
 }
 
 export const CAMERA_MOVES: CameraMovePreset[] = [
-  { id: 'cam-static', name: '固定', group: '固定', prompt: '机位固定，画面无位移。' },
-  { id: 'cam-follow', name: '跟随', group: '跟随', prompt: '镜头跟随主体移动，保持主体在画面同一位置。' },
-  { id: 'cam-orbit-l', name: '左环绕', group: '环绕', prompt: '镜头绕主体向左环绕。' },
-  { id: 'cam-orbit-r', name: '右环绕', group: '环绕', prompt: '镜头绕主体向右环绕。' },
-  { id: 'cam-push', name: '推', group: '推拉摇移', prompt: '镜头向主体匀速推近。' },
-  { id: 'cam-pull', name: '拉', group: '推拉摇移', prompt: '镜头从主体匀速拉远。' },
-  { id: 'cam-pan-l', name: '左摇', group: '推拉摇移', prompt: '机位不动，镜头向左摇。' },
-  { id: 'cam-pan-r', name: '右摇', group: '推拉摇移', prompt: '机位不动，镜头向右摇。' },
-  { id: 'cam-tilt-u', name: '上摇', group: '推拉摇移', prompt: '机位不动，镜头向上摇。' },
-  { id: 'cam-tilt-d', name: '下摇', group: '推拉摇移', prompt: '机位不动，镜头向下摇。' },
-  { id: 'cam-truck', name: '横移', group: '推拉摇移', prompt: '机位平行于主体横向移动。' },
-  { id: 'cam-zoom-in', name: '变焦推近', group: '变焦', prompt: '机位不动，焦距变长压缩空间。' },
-  { id: 'cam-zoom-out', name: '变焦拉远', group: '变焦', prompt: '机位不动，焦距变短扩展视野。' },
-  { id: 'cam-dolly-zoom', name: '滑动变焦', group: '变焦', prompt: '机位前推同时焦距变短，主体大小不变而背景透视改变。' },
-  { id: 'cam-handheld', name: '手持', group: '手持', prompt: '轻微不规则抖动的手持质感。' },
-  { id: 'cam-drone-rise', name: '无人机升起', group: '无人机', prompt: '镜头自低处垂直升起并逐渐俯视。' },
-  { id: 'cam-drone-flyover', name: '无人机掠过', group: '无人机', prompt: '镜头高速掠过场景上方。' },
-  { id: 'cam-fpv', name: '第一人称', group: '第一人称', prompt: '第一人称视角穿行，视线随动作起伏。' },
+  { id: 'cam-static', name: '固定镜头', group: '基础', prompt: '固定镜头，机位与焦距保持稳定。', hue: 216, previewVariant: 'static' },
+  { id: 'cam-follow', name: '跟随拍摄', group: '基础', prompt: '镜头跟随主体移动，保持主体在画面同一位置。', hue: 226, previewVariant: 'follow' },
+  { id: 'cam-orbit-rise', name: '盘旋抬升', group: '环绕', prompt: '镜头围绕主体盘旋并平滑抬升。', hue: 248, previewVariant: 'orbit-rise' },
+  { id: 'cam-orbit-fall', name: '盘旋下降', group: '环绕', prompt: '镜头围绕主体盘旋并平滑下降。', hue: 262, previewVariant: 'orbit-fall' },
+  { id: 'cam-tilt-up', name: '镜头上摇', group: '摇摄', prompt: '机位不动，镜头由下向上摇摄。', hue: 286, previewVariant: 'tilt-up' },
+  { id: 'cam-tilt-down', name: '镜头下摇', group: '摇摄', prompt: '机位不动，镜头由上向下摇摄。', hue: 300, previewVariant: 'tilt-down' },
+  { id: 'cam-pan-left', name: '镜头左摇', group: '摇摄', prompt: '机位不动，镜头向左摇摄。', hue: 322, previewVariant: 'pan-left' },
+  { id: 'cam-pan-right', name: '镜头右摇', group: '摇摄', prompt: '机位不动，镜头向右摇摄。', hue: 338, previewVariant: 'pan-right' },
+  { id: 'cam-rise', name: '镜头上升', group: '升降', prompt: '机位垂直上升，平稳扩大俯瞰范围。', hue: 356, previewVariant: 'rise' },
+  { id: 'cam-fall', name: '镜头下降', group: '升降', prompt: '机位垂直下降，逐步贴近主体。', hue: 12, previewVariant: 'fall' },
+  { id: 'cam-truck-left', name: '镜头左移', group: '横移', prompt: '镜头平行于主体向左移动。', hue: 28, previewVariant: 'truck-left' },
+  { id: 'cam-truck-right', name: '镜头右移', group: '横移', prompt: '镜头平行于主体向右移动。', hue: 42, previewVariant: 'truck-right' },
+  { id: 'cam-push', name: '镜头前推', group: '推拉', prompt: '镜头向主体匀速前推，空间透视自然增强。', hue: 58, previewVariant: 'push' },
+  { id: 'cam-pull', name: '镜头后移', group: '推拉', prompt: '镜头从主体匀速后移，逐步揭示环境。', hue: 74, previewVariant: 'pull' },
+  { id: 'cam-zoom-in', name: '变焦推进', group: '变焦', prompt: '机位不动，焦距变长并向主体推进。', hue: 92, previewVariant: 'zoom-in' },
+  { id: 'cam-zoom-out', name: '变焦拉远', group: '变焦', prompt: '机位不动，焦距变短并拉远视野。', hue: 112, previewVariant: 'zoom-out' },
+  { id: 'cam-dolly-zoom', name: '柯克变焦', group: '变焦', prompt: '机位与焦距反向联动，主体大小稳定而背景透视剧烈变化。', hue: 136, previewVariant: 'dolly-zoom' },
+  { id: 'cam-orbit', name: '环绕拍摄', group: '环绕', prompt: '镜头以主体为中心完成平滑环绕拍摄。', hue: 156, previewVariant: 'orbit' },
+  { id: 'cam-roll', name: '滚筒旋转', group: '旋转', prompt: '镜头沿光轴连续滚筒旋转。', hue: 174, previewVariant: 'roll' },
+  { id: 'cam-fpv', name: '第一视角', group: '视角', prompt: '使用第一视角穿行，视线随动作自然起伏。', hue: 190, previewVariant: 'fpv' },
+  { id: 'cam-drone', name: '无人机', group: '航拍', prompt: '无人机机位平滑穿越场景并保持宽阔视野。', hue: 202, previewVariant: 'drone' },
+  { id: 'cam-aerial', name: '高空航拍', group: '航拍', prompt: '高空俯瞰航拍，缓慢展示场景整体结构。', hue: 214, previewVariant: 'aerial' },
+  { id: 'cam-handheld', name: '手持拍摄', group: '质感', prompt: '使用轻微不规则抖动的手持拍摄质感。', hue: 232, previewVariant: 'handheld' },
 ]
 
 export interface VoicePreset {

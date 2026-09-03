@@ -5,7 +5,12 @@ import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { createEdge, createNode } from '@/domain/factory'
 import { SLASH_PRESETS, type CharacterPreset } from '@/domain/libraries'
 import { instantiatePreset, PRESETS_BY_ID, type ToolboxPreset } from '@/domain/presets'
-import { ids } from '@/domain/ids'
+import { ids, newId } from '@/domain/ids'
+import {
+  pruneVideoReferenceExtras,
+  readVideoElementMarks,
+  toggleVideoReference,
+} from '@/domain/video-references'
 import type {
   Artifact,
   Asset,
@@ -68,6 +73,10 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const [storyboardConfig, setStoryboardConfig] = useState<{ groupId: string; anchor: { x: number; y: number } } | null>(
     null,
   )
+  const [selectionMode, setSelectionMode] = useState<{
+    kind: 'reference' | 'element'
+    targetNodeId: string
+  } | null>(null)
 
   useEffect(() => {
     void load(projectId, canvasId)
@@ -178,6 +187,145 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       })
     },
     [flow, select],
+  )
+
+  const startVideoSelection = useCallback(
+    (kind: 'reference' | 'element', targetNodeId: string) => {
+      const target = useEditor.getState().document.nodes.find((node) => node.id === targetNodeId)
+      if (target?.type !== 'video') return
+      setLeftPanel(null)
+      setStoryboardConfig(null)
+      inspect(targetNodeId)
+      setSelectionMode({ kind, targetNodeId })
+    },
+    [inspect, setLeftPanel],
+  )
+
+  const returnFromSelection = useCallback(() => {
+    const targetNodeId = selectionMode?.targetNodeId
+    setSelectionMode(null)
+    if (!targetNodeId) return
+    inspect(targetNodeId)
+    window.requestAnimationFrame(() => locateNode(targetNodeId))
+  }, [inspect, locateNode, selectionMode])
+
+  const exitSelection = useCallback(() => {
+    setSelectionMode(null)
+    inspect(null)
+  }, [inspect])
+
+  const toggleSelectedReference = useCallback(
+    async (sourceNodeId: string) => {
+      const targetNodeId = selectionMode?.targetNodeId
+      if (!targetNodeId || selectionMode.kind !== 'reference') return
+      await commitWith((doc) => {
+        const removing = doc.edges.some(
+          (edge) => edge.source === sourceNodeId && edge.target === targetNodeId,
+        )
+        const mutations = toggleVideoReference(doc, targetNodeId, sourceNodeId)
+        if (!removing) return mutations
+        const target = doc.nodes.find((node) => node.id === targetNodeId)
+        if (!target) return mutations
+        return [
+          ...mutations,
+          {
+            op: 'updateNode' as const,
+            nodeId: targetNodeId,
+            patch: {
+              data: {
+                ...target.data,
+                extra: pruneVideoReferenceExtras(target.data.extra, sourceNodeId),
+              },
+            },
+          },
+        ]
+      }, '选择视频参考')
+    },
+    [commitWith, selectionMode],
+  )
+
+  const removeVideoReference = useCallback(
+    async (targetNodeId: string, sourceNodeId: string) => {
+      await commitWith((doc) => {
+        const target = doc.nodes.find((node) => node.id === targetNodeId)
+        if (!target) return []
+        const edge = doc.edges.find(
+          (candidate) => candidate.source === sourceNodeId && candidate.target === targetNodeId,
+        )
+        if (!edge) return []
+        return [
+          { op: 'removeEdge' as const, edgeId: edge.id },
+          {
+            op: 'updateNode' as const,
+            nodeId: targetNodeId,
+            patch: {
+              data: {
+                ...target.data,
+                extra: pruneVideoReferenceExtras(target.data.extra, sourceNodeId),
+              },
+            },
+          },
+        ]
+      }, '移除视频参考')
+    },
+    [commitWith],
+  )
+
+  const selectElementSource = useCallback(
+    async (sourceNodeId: string) => {
+      const targetNodeId = selectionMode?.targetNodeId
+      if (!targetNodeId || selectionMode.kind !== 'element') return
+
+      const markId = newId('elm')
+      const ok = await commitWith((doc) => {
+        const target = doc.nodes.find((node) => node.id === targetNodeId)
+        if (!target) return []
+        const marks = readVideoElementMarks(target.data.extra)
+        const referenceExists = doc.edges.some(
+          (edge) => edge.source === sourceNodeId && edge.target === targetNodeId,
+        )
+        const referenceMutations = referenceExists
+          ? []
+          : toggleVideoReference(doc, targetNodeId, sourceNodeId)
+        const nextMark = {
+          id: markId,
+          nodeId: sourceNodeId,
+          x: 0.22,
+          y: 0.18,
+          width: 0.44,
+          height: 0.58,
+          label: `元素 ${marks.length + 1}`,
+        }
+        return [
+          ...referenceMutations,
+          {
+            op: 'updateNode' as const,
+            nodeId: targetNodeId,
+            patch: {
+              data: {
+                ...target.data,
+                extra: { ...target.data.extra, elementMarks: [...marks, nextMark] },
+              },
+            },
+          },
+        ]
+      }, '标记视频参考元素')
+
+      if (ok) {
+        setSelectionMode(null)
+        inspect(targetNodeId)
+        window.requestAnimationFrame(() => locateNode(targetNodeId))
+      }
+    },
+    [commitWith, inspect, locateNode, selectionMode],
+  )
+
+  const selectCanvasCandidate = useCallback(
+    (sourceNodeId: string) => {
+      if (selectionMode?.kind === 'reference') void toggleSelectedReference(sourceNodeId)
+      if (selectionMode?.kind === 'element') void selectElementSource(sourceNodeId)
+    },
+    [selectElementSource, selectionMode, toggleSelectedReference],
   )
 
   /** Pan so a rect in flow coordinates sits inside the visible canvas area. */
@@ -474,7 +622,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 
   return (
     <div data-app-shell="editor" className="relative flex h-screen w-screen overflow-hidden bg-canvas">
-      <AssetSidebar
+      {!selectionMode && <AssetSidebar
         onLocateNode={locateNode}
         onRenameNode={(nodeId, name) => void commit([{ op: 'updateNode', nodeId, patch: { name } }], '重命名节点')}
         onDuplicateNode={(nodeId) => {
@@ -488,10 +636,17 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           )
           void commit([{ op: 'addNode', node: copy }], '创建副本')
         }}
-      />
+      />}
 
       <main className="relative min-w-0 flex-1">
-        <TopBar />
+        {!selectionMode && <TopBar />}
+        {selectionMode && (
+          <CanvasSelectionBanner
+            kind={selectionMode.kind}
+            onBack={returnFromSelection}
+            onExit={exitSelection}
+          />
+        )}
 
         {viewMode === 'workflow' ? (
           <>
@@ -502,17 +657,25 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
               openNodeId={inspectedNodeId}
               onStitch={stitchGroup}
               onOpenStoryboardConfig={(groupId, anchor) => setStoryboardConfig({ groupId, anchor })}
+              selectionMode={selectionMode}
+              onStartVideoSelection={startVideoSelection}
+              onExitVideoSelection={returnFromSelection}
+              onSelectCanvasCandidate={selectCanvasCandidate}
+              onRemoveVideoReference={removeVideoReference}
+              onLocateNode={locateNode}
             />
-            <PresenceLayer canvasId={canvasId ?? null} />
-            <BottomToolbar
-              onAddNode={addNodeAtViewportCenter}
-              onAutoArrange={() => void commands.autoArrange()}
-              onOpenMaterial={(kind) => {
-                setMaterialKind(kind)
-                setLeftPanel('material')
-              }}
-              onOpenAssetLibrary={() => setAssetLibraryOpen(true)}
-            />
+            {!selectionMode && <PresenceLayer canvasId={canvasId ?? null} />}
+            {!selectionMode && (
+              <BottomToolbar
+                onAddNode={addNodeAtViewportCenter}
+                onAutoArrange={() => void commands.autoArrange()}
+                onOpenMaterial={(kind) => {
+                  setMaterialKind(kind)
+                  setLeftPanel('material')
+                }}
+                onOpenAssetLibrary={() => setAssetLibraryOpen(true)}
+              />
+            )}
           </>
         ) : (
           <StoryboardView />
@@ -536,7 +699,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         )}
       </main>
 
-      <AgentPanel />
+      {!selectionMode && <AgentPanel />}
 
       {/* Panels */}
       <ToolboxPanel open={leftPanel === 'toolbox'} onClose={() => setLeftPanel(null)} onUse={usePreset} />
@@ -685,6 +848,54 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 
       {/* Selection hint used by the empty-canvas starter shortcuts */}
       {document.nodes.length === 0 && viewMode === 'workflow' && <EmptyCanvasStarters onPick={usePreset} />}
+    </div>
+  )
+}
+
+function CanvasSelectionBanner({
+  kind,
+  onBack,
+  onExit,
+}: {
+  kind: 'reference' | 'element'
+  onBack: () => void
+  onExit: () => void
+}) {
+  const title = kind === 'reference' ? '从画布选择参考' : '元素选择模式'
+  const instruction = kind === 'reference' ? '在当前画布中添加参考' : '点击图片选择局部元素'
+
+  return (
+    <div
+      data-testid="canvas-selection-banner"
+      className="pointer-events-none absolute inset-0 z-[80]"
+    >
+      <div className="pointer-events-auto absolute top-4 left-1/2 flex h-11 min-w-[520px] -translate-x-1/2 items-center rounded-xl border border-[#6ea4ff]/45 bg-[#1268e8] px-3 text-white shadow-[0_14px_40px_rgba(0,50,145,0.38)]">
+        <span className="mr-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/14 text-[15px]">
+          {kind === 'reference' ? '↗' : '⌖'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-semibold">{title}</div>
+          <div className="text-[10px] text-white/65">{instruction}</div>
+        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="h-7 rounded-lg bg-white px-3 text-[11px] font-medium text-[#1557bb] hover:bg-[#eef5ff]"
+        >
+          返回节点
+        </button>
+        <button
+          type="button"
+          onClick={onExit}
+          className="ml-1.5 h-7 rounded-lg px-3 text-[11px] text-white/80 hover:bg-white/12 hover:text-white"
+        >
+          退出
+        </button>
+      </div>
+
+      <div className="absolute top-[76px] left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/68 px-4 py-2 text-[11px] text-white/78 shadow-lg backdrop-blur-md">
+        {instruction}
+      </div>
     </div>
   )
 }

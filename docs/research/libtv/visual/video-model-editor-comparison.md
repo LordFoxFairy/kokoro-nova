@@ -10,6 +10,8 @@
 |---|---|---|
 | Video 节点编辑器 | [`video-node-default-seedance-controls-and-advanced-settings.png`](../pages/canvas/screenshots/video-node-default-seedance-controls-and-advanced-settings.png) | [`video-node-editor-dark-1440x900.png`](../../../screenshots/video-node-editor-dark-1440x900.png) |
 | Video 模型目录 | [`video-node-model-catalog-with-estimated-duration.png`](../pages/canvas/screenshots/video-node-model-catalog-with-estimated-duration.png) | [`video-model-catalog-dark-1440x900.png`](../../../screenshots/video-model-catalog-dark-1440x900.png) |
+| 画布参考模式 | 当前登录态蓝色选择条、节点覆盖动作与 DOM 记录 | [`video-reference-picker-dark-1440x900.png`](../../../screenshots/video-reference-picker-dark-1440x900.png) |
+| 运镜媒体库 | [`video-node-camera-movement-library-presets.png`](../pages/canvas/screenshots/video-node-camera-movement-library-presets.png) | [`video-camera-library-dark-1440x900.png`](../../../screenshots/video-camera-library-dark-1440x900.png) |
 | 输出规格 | [`video-node-output-aspect-resolution-duration-audio-count.png`](../pages/canvas/screenshots/video-node-output-aspect-resolution-duration-audio-count.png) | 同一节点编辑器的输出弹层，由模型能力动态生成 |
 | 输入驱动模式 | [`video-node-generation-modes-dependent-on-inputs.png`](../pages/canvas/screenshots/video-node-generation-modes-dependent-on-inputs.png) | E2E 覆盖全能参考、动作迁移和数字人的可用/禁用态 |
 
@@ -24,6 +26,9 @@
   `660px`；
 - 当前工具区包含参考、标记、角色库、运镜和特效；底栏包含模型、生成模式、输出摘要、
   辅助操作、积分和生成动作。
+- “参考”和“标记”会离开普通画布 chrome，切换到顶部蓝色模式条；前者直接编辑图边，
+  后者针对图片来源创建局部元素。
+- 运镜库占据画布中部的大区域，四列媒体卡、三标签和搜索位于同一层；不是节点内小菜单。
 
 本地 `e2e/video-editor.spec.ts` 分别在 `33% / 50% / 100%` 验证浮层宽度为
 `660±2px`，并验证 Video 双击不会打开通用 `NodeInspector`。
@@ -61,11 +66,25 @@ Canvas 的节点浮层与 Storyboard 的“再生成配置”复用同一个
 `WorkflowNode.data`，不存在 Storyboard 专属副本。E2E 会在 Storyboard 切换模型，再回到
 Workflow 双击同一节点确认模型和规格完全一致。
 
+## 参考、富 token 与元素状态
+
+工作流图边是 Video 输入的唯一事实来源。“从画布选择参考”不会复制一份私有输入数组：
+点击候选节点提交 `addEdge`，点击已选节点提交 `removeEdge`。因此 `videoModeOptions()`、
+`compileNode()` 和 Storyboard 投影在同一 revision 内立即看到相同输入。
+
+编辑器参考卡按边的创建顺序编号。点击 `@` 写入 `data.extra.videoMentions`，保留来源节点、
+显示标签和出现序号；token 是提示词编辑元数据，不代替图边。局部标记写入
+`data.extra.elementMarks` 的 `0..1` 归一化矩形。本地没有分割服务，当前以固定矩形模拟一次
+成功识别；删除来源边时，同一 mutation 事务清理该来源的 token 与局部标记，避免悬挂引用。
+
+运镜选择与收藏分别写入 `data.extra.cameraMove` 和 `cameraFavorites`。广场冻结当前官网观察到
+的 23 个名称；预览使用本地雨夜城市 fixture 与确定性裁切，运行时不读取官网媒体。
+
 ## 键盘与层级
 
 - 模型目录打开后搜索框自动聚焦；
 - 上/下方向键移动活动项，`Enter` 选择；
-- `Escape` 先关闭模型目录，再关闭节点编辑器；
+- `Escape` 先关闭模型目录/参考预览/运镜库或画布选择模式，再关闭节点编辑器；
 - 点击空画布关闭节点编辑器；
 - 浮层阻断节点拖拽、画布滚轮和平移事件。
 
@@ -77,6 +96,7 @@ Workflow 双击同一节点确认模型和规格完全一致。
 | `baseCredits` 与预计耗时是确定性 fixture | 官网价格和排队耗时会随账户、活动和供应动态变化。 |
 | 运行结果来自本地 mock provider | 当前仓库只负责前端；未来 provider 按 OpenAPI/ExecutionSpec 接入。 |
 | 登录项目媒体替换为原创本地雨夜城市素材 | 不把私有项目素材固化到公开 fixture。 |
+| 运镜卡预览复用本地城市夜景并确定性裁切 | 官网媒体属于动态内容；复刻名称、布局、状态机和命中区，不固化登录账户素材。 |
 
 ## 自动化证据
 
@@ -87,4 +107,8 @@ Workflow 双击同一节点确认模型和规格完全一致。
 3. Minimax 输出归一化与 AutoLink 持久化；
 4. 动作迁移/数字人的输入依赖、音频策略和错误提示；
 5. Storyboard 与 Canvas 的目录复用和单一节点状态；
-6. 两张像素截图由 Playwright snapshot 锁定。
+6. 画布选参考、边增删、循环/类型门、返回节点和 chrome 恢复；
+7. 编号参考卡、`@` token、来源预览/定位、删除边及关联元数据清理；
+8. 元素选择模式与确定性局部矩形持久化；
+9. 23 项运镜、三标签、搜索、收藏、选择持久化和 Escape 分层；
+10. 四张像素截图由 Playwright snapshot 锁定。

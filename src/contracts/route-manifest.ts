@@ -75,7 +75,10 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'revision-conflict',
     ...VIDEO_STATES,
   ]),
-  route('POST', '/api/canvases/{canvasId}', 'Workflow', 'mutateCanvas', ['节点、边、分组或视口提交'], [
+  route('POST', '/api/canvases/{canvasId}', 'Workflow', 'mutateCanvas', [
+    '节点、边、分组或视口提交',
+    'Video 参考增删、@ token、元素标记或运镜设置',
+  ], [
     'authenticated-populated',
     'revision-conflict',
   ]),

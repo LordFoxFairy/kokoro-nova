@@ -820,25 +820,25 @@ export function draftFromCharacter(name: string, description: string, premise: s
   const beats: { shotSize: ShotSize; cameraMove: string; description: string; duration: number }[] = [
     {
       shotSize: '大远景',
-      cameraMove: '无人机升起',
+      cameraMove: '无人机',
       description: `建立镜头：交代${story ? `「${story}」的` : ''}故事发生的环境与时间，@${who} 尚未入画。`,
       duration: 6,
     },
     {
       shotSize: '中景',
-      cameraMove: '跟随',
+      cameraMove: '跟随拍摄',
       description: `@${who} 从画面右侧入场，边走边观察四周，脚步节奏交代人物性格。`,
       duration: 8,
     },
     {
       shotSize: '近景',
-      cameraMove: '变焦推近',
+      cameraMove: '变焦推进',
       description: `@${who} 停下脚步，面对${story ? '眼前的变化' : '突如其来的状况'}，情绪由平静转为警觉。`,
       duration: 7,
     },
     {
       shotSize: '特写',
-      cameraMove: '固定',
+      cameraMove: '固定镜头',
       description: `@${who} 的眼神特写，做出决定，画面留白收束。`,
       duration: 5,
     },

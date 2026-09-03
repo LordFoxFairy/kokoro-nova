@@ -37,6 +37,18 @@ export interface NodeCardData extends Record<string, unknown> {
   onToggleKeyElement: (nodeId: string) => void
   onAddToAgent: (nodeId: string) => void
   onSetIntent: (nodeId: string, intent: string) => void
+  onStartVideoSelection: (kind: 'reference' | 'element', targetNodeId: string) => void
+  onExitVideoSelection: () => void
+  onSelectCanvasCandidate: (nodeId: string) => void
+  onRemoveVideoReference: (targetNodeId: string, sourceNodeId: string) => void
+  onLocateNode: (nodeId: string) => void
+  canvasSelection: {
+    kind: 'reference' | 'element'
+    targetNodeId: string
+    selected: boolean
+    selectable: boolean
+    reason: string | null
+  } | null
   open: boolean
 }
 
@@ -69,6 +81,12 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     onToggleKeyElement,
     onAddToAgent,
     onSetIntent,
+    onStartVideoSelection,
+    onExitVideoSelection,
+    onSelectCanvasCandidate,
+    onRemoveVideoReference,
+    onLocateNode,
+    canvasSelection,
     open,
   } = data as NodeCardData
 
@@ -308,7 +326,53 @@ function NodeCardImpl({ data, selected }: NodeProps) {
       )}
 
       {node.type === 'video' && open && (
-        <VideoNodeEditor node={node} job={job} onRun={onRun} onCancel={onCancel} />
+        <VideoNodeEditor
+          node={node}
+          job={job}
+          onRun={onRun}
+          onCancel={onCancel}
+          selectionMode={canvasSelection?.targetNodeId === node.id ? canvasSelection.kind : null}
+          onStartSelection={onStartVideoSelection}
+          onExitSelection={onExitVideoSelection}
+          onRemoveReference={onRemoveVideoReference}
+          onLocateReference={onLocateNode}
+        />
+      )}
+
+      {canvasSelection && canvasSelection.targetNodeId !== node.id && (
+        <button
+          type="button"
+          data-testid={`${canvasSelection.kind}-candidate-${node.id}`}
+          disabled={!canvasSelection.selectable}
+          title={canvasSelection.reason ?? undefined}
+          onPointerDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelectCanvasCandidate(node.id)
+          }}
+          className={cn(
+            'node-floating-ui nodrag nowheel nopan absolute inset-x-0 top-6 z-50 flex items-center justify-center rounded-2xl border text-[12px] font-medium shadow-[0_10px_32px_rgba(0,0,0,0.24)] backdrop-blur-[2px]',
+            canvasSelection.kind === 'reference' && canvasSelection.selected
+              ? 'border-[#2e77ff] bg-[#1265e8]/82 text-white'
+              : canvasSelection.selectable
+                ? 'border-[#4d8cff] bg-[#0e1728]/78 text-white hover:bg-[#245cae]/88'
+                : 'cursor-not-allowed border-white/8 bg-black/48 text-white/35',
+          )}
+          style={{ height: node.size.height }}
+        >
+          <span className="rounded-full border border-white/16 bg-black/28 px-3 py-1.5">
+            {canvasSelection.kind === 'element'
+              ? canvasSelection.selectable
+                ? `标记 ${node.name}`
+                : '仅可选择图片'
+              : canvasSelection.selected
+                ? '取消选择'
+                : canvasSelection.selectable
+                  ? '添加参考'
+                  : '不可用'}
+          </span>
+        </button>
       )}
     </div>
   )

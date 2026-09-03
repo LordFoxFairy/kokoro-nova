@@ -17,6 +17,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
+| [`VIDEO_REFERENCE_STATE.md`](VIDEO_REFERENCE_STATE.md) | Video 图引用、`@` token、局部元素与运镜持久化契约 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
 | `src/contracts/local.ts` / `src/contracts/home.ts` | 本地资源的 Zod 运行时 Schema |
@@ -31,7 +32,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.3.0-generation-contracts
+Contract version: 1.4.0-video-reference-state
 OpenAPI: 3.1.0
 ```
 
@@ -129,6 +130,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 文件夹 | `createFolder`, `renameFolder`, `deleteFolder` |
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |
+| Video 参考、元素、运镜 | `mutateCanvas`（同一 revision 的边与节点元数据事务） |
 | 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |

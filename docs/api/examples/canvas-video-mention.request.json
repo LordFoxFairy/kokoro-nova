@@ -1,0 +1,46 @@
+{
+  "canvasId": "can_video_main",
+  "expectedRevision": 8,
+  "mutations": [
+    {
+      "op": "updateNode",
+      "nodeId": "node_video_01",
+      "patch": {
+        "data": {
+          "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+          "modelId": "seedance-2",
+          "output": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "durationSeconds": 15,
+            "count": 1,
+            "withAudio": true,
+            "mode": "omni-reference"
+          },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "advanced": {
+              "webSearch": true,
+              "autoCompliance": true,
+              "autoLink": true
+            },
+            "cameraMove": "cam-push",
+            "cameraFavorites": [],
+            "videoMentions": [
+              {
+                "id": "vmn_fixture_01",
+                "nodeId": "node_image_01",
+                "label": "图片 1",
+                "ordinal": 1
+              }
+            ],
+            "elementMarks": []
+          }
+        }
+      }
+    }
+  ],
+  "label": "编辑视频节点"
+}

@@ -16,9 +16,15 @@ type OpenApiOperation = {
 }
 type OpenApiDocument = {
   openapi?: string
+  info?: { version?: string }
   paths?: Record<string, Partial<Record<Lowercase<HttpMethod>, OpenApiOperation>>>
   components?: {
-    schemas?: Record<string, { properties?: Record<string, { enum?: string[] }> }>
+    schemas?: Record<
+      string,
+      {
+        properties?: Record<string, { enum?: string[]; $ref?: string; items?: { $ref?: string } }>
+      }
+    >
   }
 }
 
@@ -114,5 +120,23 @@ describe('local API manifest and OpenAPI', () => {
       'confirm',
       'cancel',
     ])
+  })
+
+  it('versions and exposes the persisted Video reference metadata shape', () => {
+    const document = openApiDocument()
+
+    expect(document.info?.version).toBe('1.4.0-video-reference-state')
+    expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
+      '#/components/schemas/NodeData',
+    )
+    expect(document.components?.schemas?.NodeData?.properties?.extra?.$ref).toBe(
+      '#/components/schemas/NodeExtra',
+    )
+    expect(document.components?.schemas?.NodeExtra?.properties?.videoMentions?.items?.$ref).toBe(
+      '#/components/schemas/VideoReferenceMention',
+    )
+    expect(document.components?.schemas?.NodeExtra?.properties?.elementMarks?.items?.$ref).toBe(
+      '#/components/schemas/VideoElementMark',
+    )
   })
 })

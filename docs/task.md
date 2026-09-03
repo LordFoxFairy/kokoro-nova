@@ -235,6 +235,17 @@
 - [x] OpenAPI 升级到 `1.3.0-generation-contracts`，Jobs 不再引用 `GenericSuccess`；六份
       `jobs-*` 可执行样本、官网映射扩展和契约回归测试同步完成。
 
+## Video 参考选择、富引用与运镜库批次
+
+- [x] “参考”改为蓝色画布选择模式；候选节点显示添加/取消/不可用，边增删直接驱动
+      Video mode 与编译依赖，返回节点和退出保持独立语义。
+- [x] 编号参考卡支持 `@` token、来源预览/定位和删除；删边与清理 token/局部元素在同一
+      Canvas revision 中提交，不留下悬挂元数据。
+- [x] “标记”复刻元素选择模式，本地用归一化矩形 fixture 模拟分割结果并持久化。
+- [x] 运镜由 370px 文字菜单升级为四列媒体库，冻结官网当前 23 项、三标签、搜索、收藏、
+      空态、选择和 Escape 层级；预览只使用本地素材。
+- [x] 新增领域测试、4 条 E2E 和两张 1440×900 视觉状态；OpenAPI/专门状态文档同步。
+
 ## 交接注意
 
 - 真实模型接入只需实现 `src/server/generation/provider.ts` 的 `GenerationProvider`

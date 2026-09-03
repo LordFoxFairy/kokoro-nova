@@ -15,8 +15,9 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react'
 import { createEdge, createGroup, createNode, NODE_SIZE } from '@/domain/factory'
-import { NODE_META } from '@/domain/nodes'
+import { MEDIA_OF_NODE, NODE_META } from '@/domain/nodes'
 import { canConvertToStoryboardGroup } from '@/domain/mutations'
+import { videoReferenceCandidates } from '@/domain/video-references'
 import type { CanvasMutation, NodeType, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -42,6 +43,12 @@ interface WorkflowCanvasProps {
   openNodeId: string | null
   onStitch: (groupId: string) => void
   onOpenStoryboardConfig: (groupId: string, anchor: { x: number; y: number }) => void
+  selectionMode: { kind: 'reference' | 'element'; targetNodeId: string } | null
+  onStartVideoSelection: (kind: 'reference' | 'element', targetNodeId: string) => void
+  onExitVideoSelection: () => void
+  onSelectCanvasCandidate: (nodeId: string) => void
+  onRemoveVideoReference: (targetNodeId: string, sourceNodeId: string) => void
+  onLocateNode: (nodeId: string) => void
 }
 
 function CanvasInner({
@@ -51,6 +58,12 @@ function CanvasInner({
   openNodeId,
   onStitch,
   onOpenStoryboardConfig,
+  selectionMode,
+  onStartVideoSelection,
+  onExitVideoSelection,
+  onSelectCanvasCandidate,
+  onRemoveVideoReference,
+  onLocateNode,
 }: WorkflowCanvasProps) {
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
@@ -83,6 +96,20 @@ function CanvasInner({
     }
     return map
   }, [jobs])
+
+  const referenceCandidateByNode = useMemo(() => {
+    if (!selectionMode) return new Map<string, ReturnType<typeof videoReferenceCandidates>[number]>()
+    try {
+      return new Map(
+        videoReferenceCandidates(document, selectionMode.targetNodeId).map((candidate) => [
+          candidate.node.id,
+          candidate,
+        ]),
+      )
+    } catch {
+      return new Map<string, ReturnType<typeof videoReferenceCandidates>[number]>()
+    }
+  }, [document, selectionMode])
 
   const handleDuplicate = useCallback(
     (nodeId: string) => {
@@ -154,6 +181,42 @@ function CanvasInner({
           onToggleKeyElement: handleToggleKeyElement,
           onAddToAgent: handleAddToAgent,
           onSetIntent: handleSetIntent,
+          onStartVideoSelection,
+          onExitVideoSelection,
+          onSelectCanvasCandidate,
+          onRemoveVideoReference,
+          onLocateNode,
+          canvasSelection: selectionMode
+            ? node.id === selectionMode.targetNodeId
+              ? {
+                  ...selectionMode,
+                  selected: false,
+                  selectable: false,
+                  reason: null,
+                }
+              : (() => {
+                  const candidate = referenceCandidateByNode.get(node.id)
+                  const media =
+                    node.type === 'assetLibrary'
+                      ? ((node.data.extra?.assetKind as 'image' | 'video' | 'audio' | undefined) ?? null)
+                      : MEDIA_OF_NODE[node.type]
+                  const elementSelectable = selectionMode.kind === 'element' && media === 'image'
+                  return {
+                    ...selectionMode,
+                    selected: candidate?.selected ?? false,
+                    selectable:
+                      selectionMode.kind === 'reference'
+                        ? (candidate?.selectable ?? false)
+                        : elementSelectable && (candidate?.selectable ?? false),
+                    reason:
+                      selectionMode.kind === 'reference'
+                        ? (candidate?.reason ?? '该节点不可作为参考')
+                        : elementSelectable
+                          ? (candidate?.reason ?? null)
+                          : '仅可选择图片节点',
+                  }
+                })()
+            : null,
           open: openNodeId === node.id,
         } satisfies NodeCardData,
       })),
@@ -169,6 +232,13 @@ function CanvasInner({
       handleToggleKeyElement,
       handleAddToAgent,
       handleSetIntent,
+      onStartVideoSelection,
+      onExitVideoSelection,
+      onSelectCanvasCandidate,
+      onRemoveVideoReference,
+      onLocateNode,
+      selectionMode,
+      referenceCandidateByNode,
       openNodeId,
     ],
   )
@@ -264,6 +334,7 @@ function CanvasInner({
    */
   const onCanvasDoubleClickCapture = useCallback(
     (event: React.MouseEvent) => {
+      if (selectionMode) return
       const target = event.target as HTMLElement
 
       // ReactFlow updates the controlled node after the first click. In a
@@ -302,7 +373,7 @@ function CanvasInner({
         return [{ op: 'addNode', node: createNode('text', at, doc.nodes) }]
       }, '新建文本节点')
     },
-    [flow, commitWith, onOpenNode],
+    [flow, commitWith, onOpenNode, selectionMode],
   )
 
   /**
@@ -424,6 +495,7 @@ function CanvasInner({
         }}
         onMove={(_, viewport) => setZoom(viewport.zoom)}
         onPaneClick={() => {
+          if (selectionMode) return
           select([])
           setSelectedGroupId(null)
           onOpenNode(null)
@@ -441,7 +513,7 @@ function CanvasInner({
         proOptions={PRO_OPTIONS}
         deleteKeyCode={null}
         multiSelectionKeyCode={MULTI_SELECT_KEYS}
-        nodesDraggable={toolMode === 'select'}
+        nodesDraggable={toolMode === 'select' && !selectionMode}
         elevateNodesOnSelect
         elevateEdgesOnSelect
       >

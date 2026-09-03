@@ -1,0 +1,43 @@
+{
+  "canvasId": "can_video_main",
+  "expectedRevision": 9,
+  "mutations": [
+    {
+      "op": "removeEdge",
+      "edgeId": "edge_image_video"
+    },
+    {
+      "op": "updateNode",
+      "nodeId": "node_video_01",
+      "patch": {
+        "data": {
+          "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+          "modelId": "seedance-2",
+          "output": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "durationSeconds": 15,
+            "count": 1,
+            "withAudio": true,
+            "mode": "omni-reference"
+          },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "advanced": {
+              "webSearch": true,
+              "autoCompliance": true,
+              "autoLink": true
+            },
+            "cameraMove": "cam-push",
+            "cameraFavorites": [],
+            "videoMentions": [],
+            "elementMarks": []
+          }
+        }
+      }
+    }
+  ],
+  "label": "移除视频参考"
+}

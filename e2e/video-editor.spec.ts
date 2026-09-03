@@ -220,3 +220,180 @@ test('storyboard regeneration reuses the same model catalogue, capability clamp 
   await expect(editor.getByTestId('video-model-selector')).toContainText('Minimax H3 Max')
   await expect(editor.getByTestId('video-output-selector')).toContainText('16:9 · 720P · 5s · 1个 · 静音')
 })
+
+test('Video reference mode toggles graph edges and restores the node editor chrome', async ({ page, request }) => {
+  const editor = await openVideoEditor(page, request)
+
+  await editor.getByRole('button', { name: '参考', exact: true }).click()
+  const banner = page.getByTestId('canvas-selection-banner')
+  await expect(banner).toContainText('从画布选择参考')
+  await expect(banner).toContainText('在当前画布中添加参考')
+  await expect(page.getByTestId('editor-topbar')).toHaveCount(0)
+  await expect(page.getByTestId('canvas-primary-rail')).toHaveCount(0)
+
+  const imageCandidate = page.getByTestId('reference-candidate-node_image_01')
+  const textCandidate = page.getByTestId('reference-candidate-node_text_01')
+  const cyclicCandidate = page.getByTestId('reference-candidate-node_composite_01')
+  await expect(imageCandidate).toContainText('取消选择')
+  await expect(textCandidate).toContainText('添加参考')
+  await expect(cyclicCandidate).toBeDisabled()
+  await expect(cyclicCandidate).toHaveAttribute('title', '该连线会形成循环依赖')
+  await expectVisualBaseline(page, 'video-reference-picker-dark-1440x900.png')
+  await page.screenshot({
+    path: 'docs/screenshots/video-reference-picker-dark-1440x900.png',
+    scale: 'css',
+    animations: 'disabled',
+  })
+
+  await imageCandidate.click()
+  await expect(imageCandidate).toContainText('添加参考')
+  await expect
+    .poll(async () => {
+      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      return body.canvas.document.edges.some(
+        (edge: { source: string; target: string }) => edge.source === 'node_image_01' && edge.target === 'node_video_01',
+      )
+    })
+    .toBe(false)
+
+  await textCandidate.click()
+  await expect(textCandidate).toContainText('取消选择')
+  await expect
+    .poll(async () => {
+      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      return body.canvas.document.edges.some(
+        (edge: { source: string; target: string }) => edge.source === 'node_text_01' && edge.target === 'node_video_01',
+      )
+    })
+    .toBe(true)
+
+  await banner.getByRole('button', { name: '返回节点' }).click()
+  await expect(banner).toHaveCount(0)
+  await expect(page.getByTestId('editor-topbar')).toBeVisible()
+  await expect(page.getByTestId('canvas-primary-rail')).toBeVisible()
+  await expect(editor).toBeVisible()
+})
+
+test('reference cards support rich @ mentions, source preview, locating and deletion cleanup', async ({ page, request }) => {
+  const editor = await openVideoEditor(page, request)
+  const strip = editor.getByTestId('video-reference-strip')
+  await expect(strip.getByTestId('video-reference-card-node_image_01')).toBeVisible()
+  await expect(strip).toContainText('图片 1')
+
+  await strip.getByRole('button', { name: '在提示词中引用 图片 1' }).click()
+  await expect(editor.getByTestId('video-mention-chip')).toHaveCount(1)
+  await expect(editor.getByTestId('video-mention-chip')).toContainText('图片 1')
+
+  const preview = page.getByTestId('video-reference-preview')
+  await expect(preview).toBeVisible()
+  await expect(preview).toContainText('首帧图片')
+  await preview.getByRole('button', { name: '定位首帧图片' }).click()
+  await expect(preview).toHaveCount(0)
+
+  await expect
+    .poll(async () => {
+      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
+      return video.data.extra.videoMentions
+    })
+    .toMatchObject([{ nodeId: 'node_image_01', label: '图片 1', ordinal: 1 }])
+
+  await strip.getByRole('button', { name: '移除参考 图片 1' }).click()
+  await expect(strip).toHaveCount(0)
+  await expect(editor.getByTestId('video-mention-chip')).toHaveCount(0)
+  await expect
+    .poll(async () => {
+      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
+      return {
+        linked: body.canvas.document.edges.some(
+          (edge: { source: string; target: string }) => edge.source === 'node_image_01' && edge.target === 'node_video_01',
+        ),
+        mentions: video.data.extra.videoMentions,
+      }
+    })
+    .toEqual({ linked: false, mentions: [] })
+})
+
+test('element selection persists a deterministic local image region', async ({ page, request }) => {
+  const editor = await openVideoEditor(page, request)
+
+  await editor.getByRole('button', { name: '标记', exact: true }).click()
+  const banner = page.getByTestId('canvas-selection-banner')
+  await expect(banner).toContainText('元素选择模式')
+  await expect(banner).toContainText('点击图片选择局部元素')
+  await page.getByTestId('element-candidate-node_image_01').click()
+
+  await expect(banner).toHaveCount(0)
+  await expect(editor.getByTestId('video-element-chip')).toContainText('元素 1')
+  await expect
+    .poll(async () => {
+      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
+      return video.data.extra.elementMarks
+    })
+    .toMatchObject([
+      { nodeId: 'node_image_01', x: 0.22, y: 0.18, width: 0.44, height: 0.58, label: '元素 1' },
+    ])
+})
+
+test('camera movement library mirrors the 23-card plaza, favorites and Escape layering', async ({ page, request }) => {
+  const editor = await openVideoEditor(page, request)
+
+  await editor.getByRole('button', { name: '运镜', exact: true }).click()
+  const library = page.getByTestId('video-camera-library')
+  await expect(library).toBeVisible()
+  await expect(library.getByRole('tab', { name: '运镜广场' })).toHaveAttribute('aria-selected', 'true')
+  await expect(library.getByRole('tab', { name: '我的收藏' })).toBeVisible()
+  await expect(library.getByRole('tab', { name: '我的运镜' })).toBeVisible()
+  await expect(library.locator('[data-testid^="camera-move-card-"]')).toHaveCount(23)
+  await expect(library).toContainText('23 个运镜')
+
+  await expectVisualBaseline(page, 'video-camera-library-dark-1440x900.png')
+  await page.screenshot({
+    path: 'docs/screenshots/video-camera-library-dark-1440x900.png',
+    scale: 'css',
+    animations: 'disabled',
+  })
+
+  const search = library.getByRole('searchbox', { name: '搜索运镜名称' })
+  await search.fill('柯克')
+  await expect(library.locator('[data-testid^="camera-move-card-"]')).toHaveCount(1)
+  await expect(library).toContainText('柯克变焦')
+  await search.clear()
+
+  await library.getByRole('button', { name: '收藏 固定镜头' }).click()
+  await library.getByRole('tab', { name: '我的收藏' }).click()
+  await expect(library.locator('[data-testid^="camera-move-card-"]')).toHaveCount(1)
+  await expect(library).toContainText('固定镜头')
+
+  await library.getByRole('tab', { name: '我的运镜' }).click()
+  await expect(library).toContainText('还没有自定义运镜')
+  await library.getByRole('tab', { name: '运镜广场' }).click()
+  await library.getByTestId('camera-move-card-cam-push').click()
+  await expect(library).toHaveCount(0)
+
+  await expect
+    .poll(async () => {
+      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
+      return {
+        cameraMove: video.data.extra.cameraMove,
+        cameraFavorites: video.data.extra.cameraFavorites,
+        prompt: video.data.prompt,
+      }
+    })
+    .toMatchObject({
+      cameraMove: 'cam-push',
+      cameraFavorites: ['cam-static'],
+      prompt: expect.stringContaining('镜头向主体匀速前推'),
+    })
+
+  await editor.getByRole('button', { name: '运镜', exact: true }).click()
+  await expect(library).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(library).toHaveCount(0)
+  await expect(editor).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(editor).toHaveCount(0)
+})

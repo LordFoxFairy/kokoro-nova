@@ -55,9 +55,22 @@ async function selectNode(page: Page, type: string, additive = false) {
   await node.click({ position: { x: 40, y: 8 }, modifiers: additive ? ['Shift'] : [] })
 }
 
-async function addNode(page: Page, label: string) {
+function waitForCanvasMutation(page: Page) {
+  return page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return (
+      response.request().method() === 'POST' &&
+      /^\/api\/canvases\/[^/]+$/.test(url.pathname) &&
+      response.ok()
+    )
+  })
+}
+
+async function addNode(page: Page, label: string | RegExp) {
   await page.getByTestId('add-node-button').click()
-  await page.getByRole('menuitem', { name: label, exact: true }).click()
+  const persisted = waitForCanvasMutation(page)
+  await page.getByRole('menuitem', { name: label, exact: typeof label === 'string' }).click()
+  await persisted
 }
 
 test('project list: create, rename, folder lifecycle', async ({ page }) => {
@@ -105,6 +118,9 @@ test('canvas: build a graph, connect nodes, generate, and project to storyboard'
   await expect(page.getByTestId('asset-sidebar')).toHaveCount(0)
 
   // Write a prompt through the inspector.
+  // The camera follows the latest (video) node, so refit before interacting
+  // with the first text node rather than relying on optimistic-write timing.
+  await fitView(page)
   const textNode = page.locator('[data-node-type="text"]').first()
   await textNode.dblclick()
   await expect(page.getByTestId('node-inspector')).toBeVisible()
@@ -264,7 +280,9 @@ test('canvas: double-clicking empty space creates a node, ⌥-drag leaves a copy
   await createProject(page)
 
   // The empty-canvas hint advertises this, so it has to actually work.
+  const created = waitForCanvasMutation(page)
   await page.locator('.react-flow__pane').dblclick({ position: { x: 500, y: 420 } })
+  await created
   await expect(page.locator('[data-node-type="text"]')).toHaveCount(1)
 
   // ⌥-drag pulls a duplicate out and leaves the original in place.
@@ -272,12 +290,14 @@ test('canvas: double-clicking empty space creates a node, ⌥-drag leaves a copy
   const box = await node.boundingBox()
   if (!box) throw new Error('node has no bounding box')
 
+  const duplicated = waitForCanvasMutation(page)
   await page.keyboard.down('Alt')
   await page.mouse.move(box.x + 40, box.y + 8)
   await page.mouse.down()
   await page.mouse.move(box.x + 320, box.y + 200, { steps: 12 })
   await page.mouse.up()
   await page.keyboard.up('Alt')
+  await duplicated
 
   await expect(page.locator('[data-node-type="text"]')).toHaveCount(2)
   await expect(page.getByText('副本', { exact: false }).first()).toBeVisible()
@@ -322,9 +342,8 @@ test('storyboard: image tools derive a new pending node from a generated still',
 
 test('导演台 studio renders its viewports in a real browser', async ({ page }) => {
   await createProject(page)
-  await page.getByTestId('add-node-button').click()
   // Menu item accessible names include their badge, so match loosely.
-  await page.getByRole('menuitem', { name: /导演台/ }).click()
+  await addNode(page, /导演台/)
   await page.locator('[data-node-type="director"]').first().dblclick()
   await page.getByTestId('open-studio').click()
 
@@ -342,7 +361,9 @@ test('脚本 V2 wizard renders its shot table in a real browser', async ({ page 
   await createProject(page)
   await page.getByTestId('add-node-button').click()
   await page.getByRole('menuitem', { name: '脚本', exact: true }).hover()
+  const persisted = waitForCanvasMutation(page)
   await page.getByRole('menuitem', { name: '脚本 V2', exact: true }).click()
+  await persisted
   await page.locator('[data-node-type="script"]').first().dblclick()
   await page.getByTestId('open-studio').click()
 

@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.3.0-generation-contracts",
-    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本收紧生成任务 Jobs 的请求、响应和状态边界。"
+    "version": "1.4.0-video-reference-state",
+    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Video 图引用、富 token、元素标记与运镜持久化结构。"
   },
   "servers": [
     {
@@ -1310,7 +1310,8 @@
         "summary": "节点、边、分组或视口提交",
         "operationId": "mutateCanvas",
         "x-ui-triggers": [
-          "节点、边、分组或视口提交"
+          "节点、边、分组或视口提交",
+          "Video 参考增删、@ token、元素标记或运镜设置"
         ],
         "x-mock-scenarios": [
           "authenticated-populated",
@@ -4619,6 +4620,179 @@
         },
         "additionalProperties": false
       },
+      "VideoReferenceMention": {
+        "type": "object",
+        "description": "提示词编辑器中的可视引用 token；真实输入仍由 WorkflowEdge 提供。",
+        "required": [
+          "id",
+          "nodeId",
+          "label",
+          "ordinal"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "必须对应当前 Video 节点一条入边的 source。"
+          },
+          "label": {
+            "type": "string",
+            "examples": [
+              "图片 1"
+            ]
+          },
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoElementMark": {
+        "type": "object",
+        "description": "图片来源上的归一化局部区域；后端可保留未知字段扩展 mask 资产。",
+        "required": [
+          "id",
+          "nodeId",
+          "x",
+          "y",
+          "width",
+          "height",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "label": {
+            "type": "string",
+            "examples": [
+              "元素 1"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "VideoAdvancedSettings": {
+        "type": "object",
+        "properties": {
+          "webSearch": {
+            "type": "boolean"
+          },
+          "autoCompliance": {
+            "type": "boolean"
+          },
+          "autoLink": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NodeExtra": {
+        "type": "object",
+        "description": "各节点共享的扩展袋；列出 Video 稳定字段并保留其他节点的未知扩展。",
+        "properties": {
+          "advanced": {
+            "$ref": "#/components/schemas/VideoAdvancedSettings"
+          },
+          "videoMentions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoReferenceMention"
+            }
+          },
+          "elementMarks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoElementMark"
+            }
+          },
+          "cameraMove": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cameraFavorites": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "customCameraMoves": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "NodeData": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "output": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            }
+          },
+          "jobId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extra": {
+            "$ref": "#/components/schemas/NodeExtra"
+          }
+        },
+        "additionalProperties": false
+      },
       "WorkflowNode": {
         "type": "object",
         "required": [
@@ -4708,8 +4882,7 @@
             "format": "date-time"
           },
           "data": {
-            "type": "object",
-            "additionalProperties": true
+            "$ref": "#/components/schemas/NodeData"
           }
         },
         "additionalProperties": false

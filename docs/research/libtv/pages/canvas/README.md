@@ -191,12 +191,19 @@
 | 输入驱动模式 | [video-node-generation-modes-dependent-on-inputs.png](screenshots/video-node-generation-modes-dependent-on-inputs.png) | 文生视频、首帧和首尾帧等模式随已连接输入变化。 |
 | 输出参数 | [video-node-output-aspect-resolution-duration-audio-count.png](screenshots/video-node-output-aspect-resolution-duration-audio-count.png) | 画幅、分辨率、时长、音频开关和生成数量构成一次视频任务的输出规格。 |
 | 高级设置 | [video-node-advanced-settings-web-search-and-auto-validation.png](screenshots/video-node-advanced-settings-web-search-and-auto-validation.png) | 高级设置包含联网搜索与自动合规校验开关。 |
+| 画布参考选择 | [图片节点同模式证据](screenshots/image-node-reference-select-from-canvas-mode.png) | 当前 Video 入口实测会进入蓝色“从画布选择参考”画布模式；既有来源显示“取消选择”，返回节点与退出是两条独立动作。 |
+| 局部元素标记 | 当前登录态 DOM 实测 | “标记”进入“元素选择模式”，提示“点击图片选择局部元素”，普通画布 chrome 暂时隐藏。 |
+| `@` 富引用 | 当前登录态 DOM 实测 | 参考卡按数字编号；点击 `@` 会把可辨识 token 插入提示词并打开来源预览，提示“双击可聚焦至节点”。 |
 | 特效市场 | [video-node-effects-market-recommended-commercial-catalog.png](screenshots/video-node-effects-market-recommended-commercial-catalog.png) | 视频节点可从推荐特效市场选取标记为可商用的预设。 |
-| 运镜库 | [video-node-camera-movement-library-presets.png](screenshots/video-node-camera-movement-library-presets.png) | 运镜拥有独立预设库，可与文本提示词共同构造运动意图。 |
+| 运镜库 | [video-node-camera-movement-library-presets.png](screenshots/video-node-camera-movement-library-presets.png) | 运镜是四列媒体卡大面板，含运镜广场/我的收藏/我的运镜、搜索和星标；当前实测共 23 项。 |
 
 当前深色版 DOM 进一步确认：Video 编辑器是节点内部的 `node-floating-ui`，原始宽度
 `660px`，通过画布 zoom 的倒数缩放保持稳定屏幕尺寸，并带 `nodrag / nowheel / nopan`
 事件边界。当前目录可见 36 个 Video 模型；模式和输出值同时受模型能力与已连接素材约束。
+当前运镜广场按顺序显示：固定镜头、跟随拍摄、盘旋抬升、盘旋下降、镜头上摇、镜头下摇、
+镜头左摇、镜头右摇、镜头上升、镜头下降、镜头左移、镜头右移、镜头前推、镜头后移、
+变焦推进、变焦拉远、柯克变焦、环绕拍摄、滚筒旋转、第一视角、无人机、高空航拍、手持拍摄。
+本地复刻以工作流边作为参考来源真相，选择/取消后生成模式和依赖门立即重新计算。
 本地逐项实现、代表模型和视觉差异见
 [`../../visual/video-model-editor-comparison.md`](../../visual/video-model-editor-comparison.md)。
 

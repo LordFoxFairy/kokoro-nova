@@ -171,7 +171,7 @@ function videoNode(status: VideoScenarioStatus): WorkflowNode {
       extra: {
         modeType: 'image2video',
         advanced: { webSearch: true, autoCompliance: true, autoLink: true },
-        cameraMove: '缓慢推进',
+        cameraMove: 'cam-push',
         effect: null,
       },
     },

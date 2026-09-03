@@ -15,6 +15,8 @@
    内容模型和导航规则。
 5. 在 `architecture/` 查看从产品行为推导出的服务边界。
 6. 在 `references/` 查看官方 Skills、OpenAPI、ComfyUI 和 NovaVideo 对照研究。
+7. Video 节点当前实现与官网几何、模型联动的逐项对照见
+   [`visual/video-model-editor-comparison.md`](visual/video-model-editor-comparison.md)。
 
 完整覆盖状态统一查看 [FEATURE_MATRIX.md](FEATURE_MATRIX.md)，不要仅凭页面有截图就判断能力已完成。
 

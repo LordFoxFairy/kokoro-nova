@@ -188,6 +188,12 @@
 | 特效市场 | [video-node-effects-market-recommended-commercial-catalog.png](screenshots/video-node-effects-market-recommended-commercial-catalog.png) | 视频节点可从推荐特效市场选取标记为可商用的预设。 |
 | 运镜库 | [video-node-camera-movement-library-presets.png](screenshots/video-node-camera-movement-library-presets.png) | 运镜拥有独立预设库，可与文本提示词共同构造运动意图。 |
 
+当前深色版 DOM 进一步确认：Video 编辑器是节点内部的 `node-floating-ui`，原始宽度
+`660px`，通过画布 zoom 的倒数缩放保持稳定屏幕尺寸，并带 `nodrag / nowheel / nopan`
+事件边界。当前目录可见 36 个 Video 模型；模式和输出值同时受模型能力与已连接素材约束。
+本地逐项实现、代表模型和视觉差异见
+[`../../visual/video-model-editor-comparison.md`](../../visual/video-model-editor-comparison.md)。
+
 ### 音频节点
 
 | 状态 | 截图 | 观察结论 |

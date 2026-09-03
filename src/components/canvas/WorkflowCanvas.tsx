@@ -38,7 +38,8 @@ const MULTI_SELECT_KEYS = ['Meta', 'Shift']
 interface WorkflowCanvasProps {
   onRun: (nodeId: string) => void
   onCancelJob: (jobId: string) => void
-  onOpenNode: (nodeId: string) => void
+  onOpenNode: (nodeId: string | null) => void
+  openNodeId: string | null
   onStitch: (groupId: string) => void
   onOpenStoryboardConfig: (groupId: string, anchor: { x: number; y: number }) => void
 }
@@ -47,6 +48,7 @@ function CanvasInner({
   onRun,
   onCancelJob,
   onOpenNode,
+  openNodeId,
   onStitch,
   onOpenStoryboardConfig,
 }: WorkflowCanvasProps) {
@@ -152,6 +154,7 @@ function CanvasInner({
           onToggleKeyElement: handleToggleKeyElement,
           onAddToAgent: handleAddToAgent,
           onSetIntent: handleSetIntent,
+          open: openNodeId === node.id,
         } satisfies NodeCardData,
       })),
     [
@@ -166,6 +169,7 @@ function CanvasInner({
       handleToggleKeyElement,
       handleAddToAgent,
       handleSetIntent,
+      openNodeId,
     ],
   )
 
@@ -258,10 +262,38 @@ function CanvasInner({
    * hint advertises this. Guarded on the pane so double-clicking a card still
    * opens its generator instead of dropping a node underneath it.
    */
-  const onPaneDoubleClick = useCallback(
+  const onCanvasDoubleClickCapture = useCallback(
     (event: React.MouseEvent) => {
       const target = event.target as HTMLElement
-      if (!target.classList.contains('react-flow__pane')) return
+
+      // ReactFlow updates the controlled node after the first click. In a
+      // native `dblclick` sequence that can make the second click land on the
+      // pane even though the pointer never left the card. Resolve the node
+      // from both the event target and the pointer coordinates before treating
+      // the gesture as an empty-canvas double click.
+      if (target.closest('.node-floating-ui')) return
+      const directNode = target.closest<HTMLElement>('[data-node-type]')
+      const hitNode = directNode ?? [...window.document.querySelectorAll<HTMLElement>('[data-node-type]')].find((element) => {
+        const rect = element.getBoundingClientRect()
+        return (
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        )
+      })
+
+      if (hitNode) {
+        const nodeId = hitNode.closest<HTMLElement>('.react-flow__node')?.dataset.id
+        if (nodeId) {
+          event.preventDefault()
+          event.stopPropagation()
+          onOpenNode(nodeId)
+        }
+        return
+      }
+
+      if (!target.closest('.react-flow__pane')) return
 
       const point = flow.screenToFlowPosition({ x: event.clientX, y: event.clientY })
       void commitWith((doc) => {
@@ -270,7 +302,7 @@ function CanvasInner({
         return [{ op: 'addNode', node: createNode('text', at, doc.nodes) }]
       }, '新建文本节点')
     },
-    [flow, commitWith],
+    [flow, commitWith, onOpenNode],
   )
 
   /**
@@ -376,8 +408,9 @@ function CanvasInner({
     <div
       className={cn('h-full w-full', !showEdges && 'edges-hidden')}
       data-testid="workflow-canvas"
-      // Bound here rather than on <ReactFlow>, which does not forward this prop.
-      onDoubleClick={onPaneDoubleClick}
+      // Capture before ReactFlow's controlled selection update can retarget the
+      // second click from a node to the pane.
+      onDoubleClickCapture={onCanvasDoubleClickCapture}
     >
       <ReactFlow
         nodes={nodes}
@@ -393,6 +426,7 @@ function CanvasInner({
         onPaneClick={() => {
           select([])
           setSelectedGroupId(null)
+          onOpenNode(null)
         }}
         snapToGrid={snapToGrid}
         snapGrid={SNAP_GRID}

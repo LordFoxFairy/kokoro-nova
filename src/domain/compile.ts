@@ -85,9 +85,10 @@ function requirementReason(requirement: VideoReferenceRequirement): string {
  * is retained for compile-time validation and callers that only need runnable
  * choices.
  */
-export function videoModeOptions(doc: WorkflowDocument, nodeId: string): VideoModeOption[] {
+export function videoModeOptions(doc: WorkflowDocument, nodeId: string, modelIdOverride?: string): VideoModeOption[] {
   const node = doc.nodes.find((item) => item.id === nodeId)
-  const capabilities = node?.data.modelId ? modelOutputOptions(node.data.modelId) : null
+  const modelId = modelIdOverride ?? node?.data.modelId
+  const capabilities = modelId ? modelOutputOptions(modelId) : null
   if (!node || !capabilities) return []
 
   const counts = countInputs(resolveInputs(doc, node))
@@ -98,8 +99,8 @@ export function videoModeOptions(doc: WorkflowDocument, nodeId: string): VideoMo
   })
 }
 
-export function availableVideoModes(doc: WorkflowDocument, nodeId: string): VideoGenerationMode[] {
-  return videoModeOptions(doc, nodeId)
+export function availableVideoModes(doc: WorkflowDocument, nodeId: string, modelIdOverride?: string): VideoGenerationMode[] {
+  return videoModeOptions(doc, nodeId, modelIdOverride)
     .filter((option) => option.available)
     .map((option) => option.mode)
 }

@@ -12,6 +12,8 @@ CDN，不保存私有项目素材。
 | 工作流有内容态 | [<code>canvas-authenticated-current-dark-desktop-1440x900-2026-09-03.png</code>](../pages/canvas/screenshots/canvas-authenticated-current-dark-desktop-1440x900-2026-09-03.png) | [<code>libtv-canvas-populated-local-1440x900.png</code>](../../../screenshots/libtv-canvas-populated-local-1440x900.png) |
 | 添加节点菜单 | [<code>canvas-add-node-current-dark-desktop-1440x900-2026-09-03.png</code>](../pages/canvas/screenshots/canvas-add-node-current-dark-desktop-1440x900-2026-09-03.png) | [<code>libtv-canvas-add-menu-local-1440x900.png</code>](../../../screenshots/libtv-canvas-add-menu-local-1440x900.png) |
 | 故事板 | [<code>storyboard-authenticated-current-dark-desktop-1440x900-2026-09-03.png</code>](../pages/canvas/screenshots/storyboard-authenticated-current-dark-desktop-1440x900-2026-09-03.png) | [<code>libtv-storyboard-local-1440x900.png</code>](../../../screenshots/libtv-storyboard-local-1440x900.png) |
+| Video 节点编辑器 | [<code>video-node-default-seedance-controls-and-advanced-settings.png</code>](../pages/canvas/screenshots/video-node-default-seedance-controls-and-advanced-settings.png) | [<code>video-node-editor-dark-1440x900.png</code>](../../../screenshots/video-node-editor-dark-1440x900.png) |
+| Video 模型目录 | [<code>video-node-model-catalog-with-estimated-duration.png</code>](../pages/canvas/screenshots/video-node-model-catalog-with-estimated-duration.png) | [<code>video-model-catalog-dark-1440x900.png</code>](../../../screenshots/video-model-catalog-dark-1440x900.png) |
 
 > 当前官网截图由应用内浏览器保存，宿主合成层对页面内容有放大与右侧裁切。所以配色、
 > 密度和层级以当前深色图为准，几何同时使用官网 DOM 实测与未裁切的
@@ -52,11 +54,15 @@ CDN，不保存私有项目素材。
   revision 和 document 逐字段一致。
 - 图片/视频列可展开与恢复，视频保留 <code>全部 / 成片 / 片段</code> 筛选；剪辑入口
   可打开本地 Clip Editor，<code>Escape</code> 可关闭。
+- Video 编辑器挂在节点底部，以画布 zoom 的倒数缩放，在 <code>33% / 50% / 100%</code>
+  下均保持 <code>660±2px</code> 屏幕宽度；36 项模型目录、输入依赖、输出联动和
+  Storyboard 复用详见
+  [<code>video-model-editor-comparison.md</code>](video-model-editor-comparison.md)。
 
 ## 确定性截图素材
 
 本地有内容 scenario 用原创的雨夜霓虹城市画面代替官网登录项目中的私有角色图，并使用
-与实际文件一致的 <code>1280×720</code> 元数据。本地 MP4 为 H.264、10 秒，故事板和
+与实际文件一致的 <code>1280×720</code> 元数据。本地 MP4 为 H.264、15 秒，故事板和
 工作流复用同一份 artifact，保证截图可重放且不需要外网。
 
 ## 保留差异与后续边界
@@ -65,7 +71,7 @@ CDN，不保存私有项目素材。
 |---|---|---|
 | 基线内容是 4 节点/3 条边，官网证据项目曾显示 7 节点/1 条边 | 本地 scenario 固定“故事→首帧→视频→合成”的可回放业务链，不复制私有项目数据。 | 节点目录专项为每一节点类型增加独立成功/空/失败基线。 |
 | 项目名、积分数和头像是 fixture 值 | 只复制布局与状态，不携带真实账户识别信息。 | 保持确定性，不做像素级文案伪装。 |
-| 模型选择器、条件参数和媒体详情工具未全部做完当前官网状态 | 这些是下一批次，不属于本次共享 shell 里程碑。 | 按图片/视频/音频/脚本模型目录分别增加依赖参数和状态 E2E。 |
+| Image/Audio/Text 模型目录仍未达到 Video 专项的能力粒度 | Video 已完成版本化目录、条件参数和 Storyboard 同状态复用；其余媒体仍是下一批次。 | 按图片/音频/文本/脚本模型目录分别增加依赖参数和状态 E2E。 |
 | Clip Editor 已可用，但未达到官网完整时间线的视觉和交互密度 | 本次只验收故事板入口、空时间线和已有 mock 合成链路不回归。 | 独立 Video 专项覆盖素材拖放、裁切、分割、变速、转场、字幕、音轨、预览和导出。 |
 | 系统字体的中文 glyph 可因 macOS/浏览器版本有小幅度量差 | 本地不引入未授权官网字体文件。 | 最终交付在固定 Chrome/macOS 基线上做视觉 diff。 |
 

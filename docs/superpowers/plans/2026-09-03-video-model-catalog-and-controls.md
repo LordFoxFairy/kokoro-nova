@@ -73,28 +73,28 @@ Video 模型增加以下能力元数据：
 
 ### 3. Video 节点浮层与模型目录（TDD/E2E）
 
-- [ ] 先写失败 E2E：双击 Video 节点打开浮层，右侧抽屉不出现。
-- [ ] 浮层跟随节点且逆缩放，屏幕宽度在 33%/50%/100% 下保持 `660±2px`。
-- [ ] 实现参考快捷动作、prompt、底栏输出摘要和高级设置。
-- [ ] 实现可搜索、可滚动、键盘可操作的模型目录；Escape 先关目录再关浮层。
-- [ ] 模型切换后动态渲染画幅、清晰度、时长、音频、数量和生成模式。
-- [ ] 数量单位在 Video 中统一为“个”。
-- [ ] 增加智能引用 AutoLink，并写回 `NodeData.extra.advanced.autoLink`。
-- [ ] 代表模型覆盖：Seedance 2.5、Minimax H3 Max、Kling3.0 动作迁移、OmniHuman 1.5。
+- [x] 先写失败 E2E：双击 Video 节点打开浮层，右侧抽屉不出现。
+- [x] 浮层跟随节点且逆缩放，屏幕宽度在 33%/50%/100% 下保持 `660±2px`。
+- [x] 实现参考快捷动作、prompt、底栏输出摘要和高级设置。
+- [x] 实现可搜索、可滚动、键盘可操作的模型目录；Escape 先关目录再关浮层。
+- [x] 模型切换后动态渲染画幅、清晰度、时长、音频、数量和生成模式。
+- [x] 数量单位在 Video 中统一为“个”。
+- [x] 增加智能引用 AutoLink，并写回 `NodeData.extra.advanced.autoLink`。
+- [x] 代表模型覆盖：Seedance 2.5、Minimax H3 Max、Kling3.0 动作迁移、OmniHuman 1.5。
 
 ### 4. 故事板复用
 
-- [ ] Media detail 的再生成区域复用同一能力 helper 和目录组件。
-- [ ] 模型切换后同样归一化参数，不产生 Canvas/Storyboard 双份状态。
+- [x] Media detail 的再生成区域复用同一能力 helper 和目录组件。
+- [x] 模型切换后同样归一化参数，不产生 Canvas/Storyboard 双份状态。
 
 ### 5. 验证与证据
 
-- [ ] 单元测试与路由测试通过。
-- [ ] Playwright 覆盖目录搜索、选择、依赖参数、AutoLink、Escape 层级与逆缩放。
-- [ ] 新增确定性 `1440×900` Video 浮层和模型目录截图基线。
-- [ ] `pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`、`pnpm e2e` 全部通过。
-- [ ] 更新 `FEATURE_MATRIX.md`、画布研究 README 和视觉对比记录。
-- [ ] 确认运行时只引用 `/api/*` 与本地 `/fixtures/*`/`/api/media/*`，没有官网域名依赖。
+- [x] 单元测试与路由测试通过。
+- [x] Playwright 覆盖目录搜索、选择、依赖参数、AutoLink、Escape 层级与逆缩放。
+- [x] 新增确定性 `1440×900` Video 浮层和模型目录截图基线。
+- [x] `pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`、`pnpm e2e` 全部通过。
+- [x] 更新 `FEATURE_MATRIX.md`、画布研究 README 和视觉对比记录。
+- [x] 确认运行时只引用 `/api/*` 与本地 `/fixtures/*`/`/api/media/*`，没有官网域名依赖。
 
 ## 完成边界
 

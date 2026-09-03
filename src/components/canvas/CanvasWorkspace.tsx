@@ -508,6 +508,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
               onRun={runNode}
               onCancelJob={cancelJob}
               onOpenNode={inspect}
+              openNodeId={inspectedNodeId}
               onStitch={stitchGroup}
               onOpenStoryboardConfig={(groupId, anchor) => setStoryboardConfig({ groupId, anchor })}
             />
@@ -526,7 +527,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           <StoryboardView />
         )}
 
-        {viewMode === 'workflow' && inspectedNode && (
+        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && (
           <NodeInspector
             node={inspectedNode}
             job={inspectedJob}

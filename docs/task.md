@@ -31,6 +31,8 @@
 - [x] 内置离线 provider（SVG 静帧、真实 WAV、ffmpeg MP4）
 - [x] 项目/文件夹管理页（重命名、副本、移动、删除、精确名删除文件夹）
 - [x] 积分账本（获取/消耗/返还，`logicalChargeId` 幂等）
+- [x] Video 专项：节点挂载式 660px 逆缩放编辑器、36 项版本化模型目录、能力/素材依赖
+      联动、AutoLink、Storyboard 同组件同状态复用与 Mock Models API/OpenAPI
 
 ## 修过的关键 bug
 

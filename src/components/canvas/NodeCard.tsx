@@ -24,6 +24,7 @@ import {
   IconWarning,
 } from '../icons'
 import { ArtifactPreview, MediaPlaceholder, NODE_ICON, TrySuggestions } from './node-visuals'
+import { VideoNodeEditor } from './VideoNodeEditor'
 
 export interface NodeCardData extends Record<string, unknown> {
   node: WorkflowNode
@@ -36,6 +37,7 @@ export interface NodeCardData extends Record<string, unknown> {
   onToggleKeyElement: (nodeId: string) => void
   onAddToAgent: (nodeId: string) => void
   onSetIntent: (nodeId: string, intent: string) => void
+  open: boolean
 }
 
 const JOB_STATUS_LABEL: Record<JobStatus, string> = {
@@ -67,6 +69,7 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     onToggleKeyElement,
     onAddToAgent,
     onSetIntent,
+    open,
   } = data as NodeCardData
 
   const meta = NODE_META[node.type]
@@ -132,7 +135,6 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onDoubleClick={() => onOpen(node.id)}
       data-testid={`node-${node.id}`}
       data-node-type={node.type}
       className="group relative"
@@ -303,6 +305,10 @@ function NodeCardImpl({ data, selected }: NodeProps) {
 
       {menu.anchor && (
         <Menu sections={menuSections} anchor={menu.anchor} onClose={menu.close} />
+      )}
+
+      {node.type === 'video' && open && (
+        <VideoNodeEditor node={node} job={job} onRun={onRun} onCancel={onCancel} />
       )}
     </div>
   )

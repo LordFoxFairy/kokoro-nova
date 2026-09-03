@@ -390,7 +390,7 @@ export function NodeInspector({
                     (output.count ?? 1) === count ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
                   )}
                 >
-                  {count} 张
+                  {count} {node.type === 'video' ? '个' : '张'}
                 </button>
               ))}
             </div>

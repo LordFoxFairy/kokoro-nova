@@ -163,6 +163,10 @@ Video 项的 `capabilities` 同时提供：
 归一化，避免导入旧草稿或直接 mutation 留下不可执行参数。完整响应样本见
 [`examples/models-video.response.json`](examples/models-video.response.json)。
 
+Canvas 节点编辑器与 Storyboard 再生成面板消费同一个 registry、目录组件和
+`WorkflowNode.data`。后端不需要维护“故事板参数”副本；任一入口的修改都通过
+`mutateCanvas` 增加 revision，另一入口重新投影同一文档即可看到结果。
+
 ## 分页、排序和查询
 
 项目官网证据确认两种查询：

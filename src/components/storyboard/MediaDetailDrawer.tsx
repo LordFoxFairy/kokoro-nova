@@ -2,10 +2,18 @@
 
 import { useState } from 'react'
 import { createEdge, createNode } from '@/domain/factory'
+import { availableVideoModes, videoModeOptions } from '@/domain/compile'
 import { CAMERA_MOVES, EFFECT_PRESETS, SLASH_PRESETS } from '@/domain/libraries'
-import { MODELS_BY_ID, modelsFor, quoteCredits } from '@/domain/models'
+import {
+  MODELS_BY_ID,
+  VIDEO_MODE_LABELS,
+  modelOutputOptions,
+  normalizeOutputForModel,
+  quoteCredits,
+  type ModelDefinition,
+} from '@/domain/models'
 import type { StoryboardCard, StoryboardReference } from '@/domain/storyboard'
-import type { WorkflowNode } from '@/domain/types'
+import type { OutputSpec, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import { Menu, useMenuAnchor } from '../ui/Menu'
@@ -22,6 +30,11 @@ import {
   IconTrash,
 } from '../icons'
 import { ArtifactPreview, MediaPlaceholder } from '../canvas/node-visuals'
+import {
+  formatVideoOutputSummary,
+  formatVideoResolution,
+  VideoModelCatalog,
+} from '../video/VideoModelCatalog'
 import {
   CropEditor,
   EmotionEditor,
@@ -457,16 +470,42 @@ function VideoRegenerationControls({
   node: WorkflowNode
   onPatch: (patch: Partial<WorkflowNode['data']>) => void
 }) {
-  const modelMenu = useMenuAnchor()
+  const document = useEditor((state) => state.document)
   const cameraMenu = useMenuAnchor()
   const effectMenu = useMenuAnchor()
+  const [catalogOpen, setCatalogOpen] = useState(false)
 
-  const output = node.data.output ?? {}
   const model = node.data.modelId ? MODELS_BY_ID.get(node.data.modelId) : null
+  const capabilities = node.data.modelId ? modelOutputOptions(node.data.modelId) : null
+  const output = capabilities
+    ? normalizeOutputForModel(node.data.modelId!, node.data.output, availableVideoModes(document, node.id))
+    : (node.data.output ?? {})
+  const modeRows = videoModeOptions(document, node.id)
   const cameraMoveId = (node.data.extra?.cameraMove as string | undefined) ?? null
   const effectId = (node.data.extra?.effect as string | undefined) ?? null
 
-  const setOutput = (patch: Partial<typeof output>) => onPatch({ output: { ...output, ...patch } })
+  const setOutput = (patch: Partial<OutputSpec>) => {
+    if (!node.data.modelId) return
+    onPatch({
+      output: normalizeOutputForModel(
+        node.data.modelId,
+        { ...output, ...patch },
+        availableVideoModes(document, node.id),
+      ),
+    })
+  }
+
+  const selectModel = (nextModel: ModelDefinition) => {
+    onPatch({
+      modelId: nextModel.id,
+      output: normalizeOutputForModel(
+        nextModel.id,
+        output,
+        availableVideoModes(document, node.id, nextModel.id),
+      ),
+    })
+    setCatalogOpen(false)
+  }
 
   return (
     <Section title="再生成配置">
@@ -474,29 +513,35 @@ function VideoRegenerationControls({
         <button
           type="button"
           data-testid="detail-model"
-          onClick={(e) => modelMenu.openFrom(e)}
+          aria-haspopup="dialog"
+          aria-expanded={catalogOpen}
+          onClick={() => setCatalogOpen((open) => !open)}
           className="flex w-full items-center justify-between rounded-xl border border-ink-200 px-3 py-2 text-[13px] transition-colors hover:border-ink-300"
         >
           <span className="font-medium text-ink-900">{model?.label ?? '选择模型'}</span>
           <span className="text-[11px] text-ink-400">{model?.latencyLabel}</span>
         </button>
 
+        <div data-testid="detail-video-output" className="text-[11px] tabular-nums text-ink-500">
+          {formatVideoOutputSummary(output)}
+        </div>
+
         <div className="flex flex-wrap gap-1.5">
-          {(['21:9', '16:9', '1:1', '9:16'] as const).map((ratio) => (
+          {(capabilities?.aspectRatios ?? []).map((ratio) => (
             <PillToggle
               key={ratio}
-              label={ratio}
+              label={ratio === 'auto' ? 'Auto' : ratio}
               active={output.aspectRatio === ratio}
               onClick={() => setOutput({ aspectRatio: ratio })}
             />
           ))}
         </div>
 
-        <div className="flex gap-1.5">
-          {(['480p', '720p', '1080p'] as const).map((resolution) => (
+        <div className="flex flex-wrap gap-1.5">
+          {(capabilities?.resolutions ?? []).map((resolution) => (
             <PillToggle
               key={resolution}
-              label={resolution}
+              label={formatVideoResolution(resolution)}
               grow
               active={output.resolution === resolution}
               onClick={() => setOutput({ resolution })}
@@ -504,11 +549,11 @@ function VideoRegenerationControls({
           ))}
         </div>
 
-        <div className="flex gap-1.5">
-          {([5, 10, 15] as const).map((seconds) => (
+        <div className="flex flex-wrap gap-1.5">
+          {(capabilities?.durationsSeconds ?? []).map((seconds) => (
             <PillToggle
               key={seconds}
-              label={`${seconds} 秒`}
+              label={`${seconds}s`}
               grow
               active={output.durationSeconds === seconds}
               onClick={() => setOutput({ durationSeconds: seconds })}
@@ -516,14 +561,45 @@ function VideoRegenerationControls({
           ))}
         </div>
 
-        <div className="flex gap-1.5">
-          {([1, 2, 4] as const).map((count) => (
+        {capabilities?.audio !== 'unsupported' && (
+          <div className="flex gap-1.5">
+            <PillToggle
+              label="有声"
+              grow
+              active={Boolean(output.withAudio)}
+              onClick={() => setOutput({ withAudio: true })}
+            />
+            <PillToggle
+              label="静音"
+              grow
+              active={!output.withAudio}
+              disabled={capabilities?.audio === 'required'}
+              onClick={() => setOutput({ withAudio: false })}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1.5">
+          {(capabilities?.counts ?? []).map((count) => (
             <PillToggle
               key={count}
-              label={`${count} 条`}
+              label={`${count}个`}
               grow
               active={(output.count ?? 1) === count}
               onClick={() => setOutput({ count })}
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {modeRows.map((row) => (
+            <PillToggle
+              key={row.mode}
+              label={VIDEO_MODE_LABELS[row.mode]}
+              active={output.mode === row.mode}
+              disabled={!row.available}
+              title={row.reason ?? undefined}
+              onClick={() => setOutput({ mode: row.mode })}
             />
           ))}
         </div>
@@ -546,23 +622,12 @@ function VideoRegenerationControls({
         </div>
       </div>
 
-      {modelMenu.anchor && (
-        <Menu
-          anchor={modelMenu.anchor}
-          onClose={modelMenu.close}
-          width={230}
-          sections={[
-            {
-              title: '视频模型',
-              items: modelsFor('video').map((m) => ({
-                id: m.id,
-                label: m.label,
-                shortcut: m.latencyLabel,
-                checked: m.id === node.data.modelId,
-                onSelect: () => onPatch({ modelId: m.id }),
-              })),
-            },
-          ]}
+      {catalogOpen && (
+        <VideoModelCatalog
+          currentId={node.data.modelId ?? null}
+          onSelect={selectModel}
+          onClose={() => setCatalogOpen(false)}
+          className="fixed right-2 top-[64px] bottom-[72px] z-[70] w-[404px]"
         />
       )}
       {cameraMenu.anchor && (
@@ -611,20 +676,27 @@ function PillToggle({
   active,
   onClick,
   grow,
+  disabled,
+  title,
 }: {
   label: string
   active: boolean
   onClick: () => void
   grow?: boolean
+  disabled?: boolean
+  title?: string
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
+      title={title}
       onClick={onClick}
       className={cn(
         'rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
         grow && 'flex-1',
         active ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
+        disabled && 'cursor-not-allowed opacity-35',
       )}
     >
       {label}

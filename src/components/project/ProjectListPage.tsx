@@ -8,13 +8,12 @@ import { api } from '@/lib/api'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
 import { ConfirmDialog } from '../ui/Dialog'
 import { EmptyState, InlineRename, Spinner } from '../ui/controls'
+import { AuthenticatedShell } from '../shell/AuthenticatedShell'
 import {
   IconChevronLeft,
   IconCopy,
-  IconCredit,
   IconFolder,
   IconFolderPlus,
-  IconHelp,
   IconImage,
   IconMore,
   IconPlus,
@@ -37,7 +36,6 @@ export function ProjectListPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [folders, setFolders] = useState<FolderRow[]>([])
-  const [balance, setBalance] = useState(0)
   const [loading, setLoading] = useState(true)
   const [openFolderId, setOpenFolderId] = useState<string | null>(null)
 
@@ -53,7 +51,6 @@ export function ProjectListPage() {
     const data = await api.get<{ projects: ProjectRow[]; folders: FolderRow[]; balance: number }>('/api/projects')
     setProjects(data.projects)
     setFolders(data.folders)
-    setBalance(data.balance)
     setLoading(false)
   }, [])
 
@@ -159,31 +156,8 @@ export function ProjectListPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="flex items-center justify-between px-8 py-5">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink-900 text-white">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 7.5 8 5l6 2.5L20 5v11.5L14 19l-6-2.5L4 19z" />
-            </svg>
-          </span>
-          <span className="text-[15px] font-semibold tracking-tight text-ink-900">NovaVideo</span>
-        </Link>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full bg-ink-50 px-3 py-2 text-[13px] font-medium text-ink-700">
-            <IconCredit size={14} className="text-running" />
-            {balance}
-          </div>
-          <button
-            type="button"
-            aria-label="帮助"
-            className="rounded-full bg-ink-50 p-2.5 text-ink-600 transition-colors hover:bg-ink-100"
-          >
-            <IconHelp size={16} />
-          </button>
-        </div>
-      </header>
-
+    <AuthenticatedShell>
+      <div className="min-h-[calc(100vh-106px)] bg-surface">
       <div className="flex items-center justify-between px-8 pb-5">
         <div className="flex items-center gap-3">
           {openFolder ? (
@@ -403,6 +377,7 @@ export function ProjectListPage() {
           await refresh()
         }}
       />
-    </div>
+      </div>
+    </AuthenticatedShell>
   )
 }

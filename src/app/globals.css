@@ -48,6 +48,51 @@ body {
   height: 100%;
 }
 
+/* Authenticated discovery surfaces mirror LibTV's dark desktop chrome while
+ * the canvas keeps its independent light editing token set. */
+[data-app-shell='authenticated'] {
+  --libtv-bg: #111111;
+  --libtv-panel: #181818;
+  --libtv-panel-raised: #232323;
+  --libtv-border: rgba(255, 255, 255, 0.09);
+  --libtv-text: rgba(255, 255, 255, 0.92);
+  --libtv-muted: rgba(255, 255, 255, 0.52);
+  --libtv-cyan: #60c9ef;
+  --libtv-sidebar-expanded: 232px;
+  --libtv-sidebar-collapsed: 68px;
+  --libtv-promo-height: 56px;
+
+  --color-canvas: #111111;
+  --color-surface: #111111;
+  --color-ink-900: rgba(255, 255, 255, 0.92);
+  --color-ink-700: rgba(255, 255, 255, 0.78);
+  --color-ink-600: rgba(255, 255, 255, 0.68);
+  --color-ink-500: rgba(255, 255, 255, 0.52);
+  --color-ink-400: rgba(255, 255, 255, 0.38);
+  --color-ink-300: rgba(255, 255, 255, 0.24);
+  --color-ink-200: rgba(255, 255, 255, 0.14);
+  --color-ink-100: rgba(255, 255, 255, 0.08);
+  --color-ink-50: rgba(255, 255, 255, 0.045);
+  --color-accent: #60c9ef;
+  --color-accent-soft: rgba(96, 201, 239, 0.12);
+  --color-accent-ink: #70d1f1;
+}
+
+body:has([data-app-shell='authenticated']) {
+  background: #111111;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-app-shell='authenticated'] *,
+  [data-app-shell='authenticated'] *::before,
+  [data-app-shell='authenticated'] *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink-900);

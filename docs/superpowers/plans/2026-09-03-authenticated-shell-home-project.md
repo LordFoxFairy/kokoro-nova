@@ -204,6 +204,9 @@ git commit -m "feat: seed populated LibTV project fixtures"
 - Create: `src/components/shell/AccountRail.tsx`
 - Create: `src/components/shell/AuthenticatedShell.tsx`
 - Modify: `src/app/globals.css`
+- Modify: `src/components/home/HomePage.tsx`
+- Modify: `src/components/project/ProjectListPage.tsx`
+- Create: `e2e/home-project.spec.ts`
 
 **Layout tokens:**
 
@@ -220,23 +223,23 @@ git commit -m "feat: seed populated LibTV project fixtures"
 --libtv-promo-height: 56px;
 ```
 
-- [ ] **Step 1: Add shell interaction E2E in failing form**
+- [x] **Step 1: Add shell interaction E2E in failing form**
 
 Assert active nav, collapse from 232px to 68px, content reflow, persistence after reload, and keyboard focus.
 
-- [ ] **Step 2: Implement semantic shell**
+- [x] **Step 2: Implement semantic shell**
 
 Use `aside`, `nav`, `header`, `main`; links navigate and buttons act. Persist only a boolean key `libtv.sidebar.collapsed`. Respect reduced motion.
 
-- [ ] **Step 3: Add exact global controls**
+- [x] **Step 3: Add exact global controls**
 
 Expanded sidebar: logo/toggle, cyan new-project action, 首页/项目/LibTV Agent/创作者挑战赛, bottom promo and help. Account rail: Blender 插件, 积分超市, membership, credits and avatar placeholder.
 
-- [ ] **Step 4: Verify shell tests and accessibility**
+- [x] **Step 4: Verify shell tests and accessibility**
 
 Run the focused Playwright file and assert the toggle has an accessible name in both states.
 
-- [ ] **Step 5: Commit shell**
+- [x] **Step 5: Commit shell**
 
 ```bash
 git add src/components/shell src/app/globals.css e2e/home-project.spec.ts

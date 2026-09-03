@@ -1,0 +1,74 @@
+# LibTV 官网 API 证据索引
+
+本目录只记录 LibTV 官网实际触发的网络请求。它不是对服务端内部实现的推断，
+也不是 NovaVideo 的最终 OpenAPI。正式 mock/后端契约位于 `docs/api/`，需在官网
+证据稳定后从这里归一化。
+
+## 证据规则
+
+- `network-confirmed`：由官网页面动作真实触发，并观察到方法、URL 与响应状态；
+- `shape-confirmed`：进一步读取了脱敏后的 request/response 字段结构；
+- `interaction-linked`：已经确认某项可见 UI 消费该请求；
+- 捕获中不保存 Cookie、Token、Access Key、手机号、账户标识、项目标识或原始用户数据；
+- `trace_id`、推荐 `requestId` 和用户 UUID 只记录字段存在，不保存值；
+- 动态营销、作品和 Skill 内容只用于确定数据结构，不作为静态前端枚举。
+
+## 捕获批次
+
+| 日期 | 页面/动作 | 登录态 | 记录 |
+|---|---|---:|---|
+| 2026-09-03 | `/` 首页刷新 | 是 | [首页刷新](captures/2026-09-03-home-refresh.md) |
+
+## 当前已确认端点
+
+### LibTV 产品域：`https://api.liblib.tv`
+
+| 方法 | 路径 | 首页用途 | 证据 |
+|---|---|---|---|
+| `GET` | `/api/whitelist/check?uuid=<USER_UUID>` | 当前账户白名单能力判断 | `network-confirmed` |
+| `GET` | `/api/community/skill/tag/list?parentTagId=0` | 首页 Skill 分类 | `shape-confirmed` |
+| `POST` | `/api/community/tag/list` | TV Show 分类 | `shape-confirmed` |
+| `POST` | `/api/community/user/verify/pending` | 社区身份审核状态 | `network-confirmed` |
+| `POST` | `/api/community/skill/template/feed/stream` | 首页推荐 Skill | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/community/project/template/feed/stream` | TV Show 作品流 | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/canvas/project/list` | 最近项目查询的一部分 | `shape-confirmed` |
+| `POST` | `/api/canvas/folder/entries` | 最近文件夹查询 | `shape-confirmed`, `interaction-linked` |
+
+### LibLib 账户与营销域：`https://api2.liblib.art`
+
+| 方法 | 路径 | 首页用途 | 证据 |
+|---|---|---|---|
+| `GET` | `/api/www/account/list` | 可用账户/空间列表 | `shape-confirmed` |
+| `GET` | `/api/www/member/account?isApp=false` | 会员、积分、Agent 免费次数与配额 | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/www/tv/msg/msgCounter` | 顶栏通知计数 | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/www/banner/community/getBanner` | 首页 Banner | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/www/user/remove-watermark/get` | 水印偏好 | `network-confirmed` |
+| `GET` | `/api/www/user-group/bestGroup` | 当前团队/用户组 | `network-confirmed` |
+| `POST` | `/api/www/teams/invite/myInviteList` | 团队邀请状态 | `network-confirmed` |
+| `GET` | `/api/www/member/packages?packageType=TRAIN&sourceFrom=libtv` | 个人会员方案 | `network-confirmed` |
+| `GET` | `/api/www/member/packages?packageType=TEAM&sourceFrom=libtv` | 团队会员方案 | `network-confirmed` |
+| `GET` | `/api/www/member/memberPower/list` | 积分/权益明细 | `network-confirmed` |
+| `POST` | `/api/www/member/libtvFreePower` | LibTV 免费额度 | `network-confirmed` |
+| `GET` | `/api/www/commerce/activity/benefit` | 活动权益 | `network-confirmed` |
+| `GET` | `/api/www/commerce/activity/benefit/list` | 活动权益列表 | `network-confirmed` |
+| `GET` | `/api/www/commerce/activity/rateLimitBenefit` | 活动限额权益 | `network-confirmed` |
+| `POST` | `/api/www/commerce/activity/promotion/query` | 当前促销 | `network-confirmed` |
+| `GET` | `/api/www/paywall/popup-info` | 付费墙弹层配置 | `network-confirmed` |
+| `GET` | `/api/www/landing-activities/getById` | 单个活动配置 | `network-confirmed` |
+| `GET` | `/api/www/landing-activities/listByIds` | 指定活动集合 | `network-confirmed` |
+| `POST` | `/api/www/landing-activities/list` | 活动列表 | `network-confirmed` |
+
+`/api/www/log/acceptor/f` 是分析埋点，不进入前端业务 mock 契约。官网还加载
+`https://www.liblib.art/cross-storage-hub.html` 用于跨域账户状态协作；该页面只作为
+认证架构证据，不复制其存储内容。
+
+## 下一批捕获顺序
+
+1. 项目列表与文件夹操作；
+2. 打开现有画布并记录初始化、节点、边、组和模型目录；
+3. 工作流节点编辑、连线、分组、保存和 revision；
+4. 故事板投影与媒体详情；
+5. 视频节点、生成确认、任务轮询、取消和结果；
+6. 视频合成器时间线与导出；
+7. Agent、素材、Skill、TV Show 和账户页面。
+

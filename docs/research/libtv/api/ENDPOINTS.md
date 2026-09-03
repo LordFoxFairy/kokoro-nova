@@ -18,6 +18,8 @@
 | 日期 | 页面/动作 | 登录态 | 记录 |
 |---|---|---:|---|
 | 2026-09-03 | `/` 首页刷新 | 是 | [首页刷新](captures/2026-09-03-home-refresh.md) |
+| 2026-09-03 | `/project` 全部项目 | 是 | [项目列表](captures/2026-09-03-project-list.md) |
+| 2026-09-03 | `/canvas` 画布初始化 | 是 | [画布初始化](captures/2026-09-03-canvas-bootstrap.md) |
 
 ## 当前已确认端点
 
@@ -33,6 +35,17 @@
 | `POST` | `/api/community/project/template/feed/stream` | TV Show 作品流 | `shape-confirmed`, `interaction-linked` |
 | `POST` | `/api/canvas/project/list` | 最近项目查询的一部分 | `shape-confirmed` |
 | `POST` | `/api/canvas/folder/entries` | 最近文件夹查询 | `shape-confirmed`, `interaction-linked` |
+| `GET` | `/api/canvas/project/detail-by-space?spaceId=<SPACE_ID>&projectUuid=<PROJECT_UUID>` | 初始化项目、权限、节点与连线 | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/canvas/project/draft/update` | 保存项目草稿与当前视口 | `shape-confirmed` |
+| `POST` | `/api/canvas/project/heartbeat` | 维持当前项目编辑会话 | `shape-confirmed`, `interaction-linked` |
+| `POST` | `/api/task/generation/progress/batch` | 批量同步生成任务进度 | `shape-confirmed` |
+| `POST` | `/api/agreement/check` | 检查功能协议签署状态 | `shape-confirmed` |
+
+### LibTV Agent 会话域：`https://im.liblib.tv`
+
+| 方法 | 路径 | 画布用途 | 证据 |
+|---|---|---|---|
+| `GET` | `/api/v1/project/session/list?projectId=<PROJECT_ID>` | 初始化项目的 Agent 会话列表 | `shape-confirmed`, `interaction-linked` |
 
 ### LibLib 账户与营销域：`https://api2.liblib.art`
 
@@ -64,11 +77,9 @@
 
 ## 下一批捕获顺序
 
-1. 项目列表与文件夹操作；
-2. 打开现有画布并记录初始化、节点、边、组和模型目录；
-3. 工作流节点编辑、连线、分组、保存和 revision；
-4. 故事板投影与媒体详情；
-5. 视频节点、生成确认、任务轮询、取消和结果；
-6. 视频合成器时间线与导出；
-7. Agent、素材、Skill、TV Show 和账户页面。
-
+1. 项目创建、项目卡菜单、重命名、文件夹与分页的单动作请求；
+2. 工作流节点编辑、连线、分组、保存和并发会话冲突；
+3. 故事板投影与媒体详情；
+4. 视频节点、生成确认、任务轮询、取消和结果；
+5. 视频合成器时间线与导出；
+6. Agent、素材、Skill、TV Show 和账户页面。

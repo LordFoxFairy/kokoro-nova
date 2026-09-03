@@ -1,0 +1,150 @@
+{
+  "code": 0,
+  "data": {
+    "config": {
+      "accessPolicy": 1,
+      "allowCopy": true,
+      "shareAgentConversation": true
+    },
+    "effective": {
+      "canRead": true,
+      "canEdit": true,
+      "canManage": true,
+      "canPublish": true,
+      "canShare": true,
+      "canCopy": true
+    },
+    "folder": {
+      "id": "folder_demo",
+      "name": "广告短片",
+      "description": "品牌项目集合",
+      "parentFolderId": 0,
+      "spaceType": 10,
+      "depth": 1,
+      "coverUrl": "/fixtures/libtv/project/folder-cover.webp",
+      "ownerId": 10001,
+      "createdBy": 10001,
+      "isFolder": true,
+      "teamId": 0,
+      "fileCnt": 1,
+      "createAt": "2026-09-03T10:00:00.000Z",
+      "updateAt": "2026-09-03T11:00:00.000Z",
+      "creatorNickname": "演示用户",
+      "shareAgentConversation": true
+    },
+    "projectList": [
+      {
+        "id": "project_video_demo",
+        "name": "城市夜景短片",
+        "description": "包含图片、视频和音频的完整工作流",
+        "parentFolderId": 0,
+        "spaceType": 1,
+        "depth": 1,
+        "coverUrl": "/fixtures/libtv/project/video-cover.webp",
+        "ownerId": 10001,
+        "createdBy": 10001,
+        "isFolder": false,
+        "teamId": 0,
+        "fileCnt": 1,
+        "createAt": "2026-09-03T10:10:00.000Z",
+        "updateAt": "2026-09-03T11:10:00.000Z",
+        "creatorNickname": "演示用户",
+        "shareAgentConversation": true,
+        "type": 1
+      }
+    ],
+    "total": 1,
+    "projectDetail": {
+      "projectMeta": {
+        "id": 20001,
+        "uuid": "project_video_demo",
+        "name": "城市夜景短片",
+        "visibility": 1,
+        "ownerId": 10001,
+        "createdAtMs": 1788430200000,
+        "updatedAtMs": 1788433800000,
+        "folderId": 0,
+        "accessConfig": {
+          "accessPolicy": 1,
+          "publishable": 1,
+          "assetLocation": 1,
+          "allowCopy": true,
+          "shareAgentConversation": true
+        },
+        "effective": {
+          "canRead": true,
+          "canEdit": true,
+          "canManage": true,
+          "canPublish": true,
+          "canShare": true,
+          "canCopy": true
+        },
+        "projectSpaceId": 30001,
+        "projectType": 1,
+        "bizScene": 1
+      },
+      "projectDraft": {
+        "id": 40001,
+        "uuid": "draft_video_demo",
+        "projectUuid": "project_video_demo",
+        "createdBy": 10001,
+        "draftData": "",
+        "viewportX": "-120",
+        "viewportY": "48",
+        "viewportZoom": "0.5",
+        "lastEditedAtMs": 1788433800000
+      },
+      "nodeList": [
+        {
+          "nodeKey": "node_image_01",
+          "projectUuid": "project_video_demo",
+          "toolId": 0,
+          "toolKey": "",
+          "type": 2,
+          "name": "首帧图片",
+          "position": { "positionX": 120, "positionY": 160 },
+          "measured": { "width": 320, "height": 260 },
+          "data": "{\"type\":\"image\",\"name\":\"首帧图片\",\"url\":[\"/fixtures/libtv/media/first-frame.webp\"],\"action\":\"image\",\"generatorType\":\"image\",\"contentWidth\":1920,\"contentHeight\":1080}",
+          "parentKey": "",
+          "status": 1,
+          "createdAtMs": 1788430200000,
+          "updatedAtMs": 1788433800000,
+          "workflowUuid": "workflow_video_demo",
+          "workflowRoot": 0
+        },
+        {
+          "nodeKey": "node_video_01",
+          "projectUuid": "project_video_demo",
+          "toolId": 0,
+          "toolKey": "",
+          "type": 3,
+          "name": "视频生成",
+          "position": { "positionX": 560, "positionY": 160 },
+          "measured": { "width": 360, "height": 300 },
+          "data": "{\"type\":\"video\",\"name\":\"视频生成\",\"url\":[],\"poster\":\"\",\"action\":\"video\",\"generatorType\":\"video\",\"params\":{\"model\":\"star-video2-fast\",\"prompt\":\"\",\"textList\":[],\"imageList\":[],\"videoList\":[],\"audioList\":[],\"modeType\":\"image2video\",\"count\":1,\"settings\":{\"ratio\":\"16:9\",\"resolution\":\"720p\",\"duration\":5,\"enableSound\":\"on\"},\"advancedSettings\":{\"search_enabled\":1,\"autoCompliance\":1}},\"taskInfo\":{\"loading\":false,\"taskId\":\"\"},\"isStale\":false}",
+          "parentKey": "",
+          "status": 1,
+          "createdAtMs": 1788430260000,
+          "updatedAtMs": 1788433800000,
+          "workflowUuid": "workflow_video_demo",
+          "workflowRoot": 0
+        }
+      ],
+      "connectionList": [
+        {
+          "projectUuid": "project_video_demo",
+          "connectionId": "edge_image_video_01",
+          "source": "node_image_01",
+          "target": "node_video_01",
+          "type": "default",
+          "deletable": true,
+          "selectable": true,
+          "createdAtMs": 1788430260000,
+          "updatedAtMs": 1788433800000
+        }
+      ]
+    }
+  },
+  "msg": "",
+  "trace_id": "trace_fixture_canvas_bootstrap"
+}

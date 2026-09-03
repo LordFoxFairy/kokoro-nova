@@ -1,0 +1,46 @@
+{
+  "code": 0,
+  "data": {
+    "folders": [
+      {
+        "id": "folder_demo",
+        "name": "广告短片",
+        "description": "品牌项目集合",
+        "parentFolderId": 0,
+        "spaceType": 10,
+        "depth": 1,
+        "coverUrl": "/fixtures/libtv/project/folder-cover.webp",
+        "ownerId": 10001,
+        "createdBy": 10001,
+        "isFolder": true,
+        "teamId": 0,
+        "fileCnt": 1,
+        "createAt": "2026-09-03T10:00:00.000Z",
+        "updateAt": "2026-09-03T11:00:00.000Z",
+        "creatorNickname": "演示用户",
+        "shareAgentConversation": false
+      },
+      {
+        "id": "project_video_demo",
+        "name": "城市夜景短片",
+        "description": "包含图片、视频和音频的完整工作流",
+        "parentFolderId": 0,
+        "spaceType": 1,
+        "depth": 1,
+        "coverUrl": "/fixtures/libtv/project/video-cover.webp",
+        "ownerId": 10001,
+        "createdBy": 10001,
+        "isFolder": false,
+        "teamId": 0,
+        "fileCnt": 1,
+        "createAt": "2026-09-03T10:10:00.000Z",
+        "updateAt": "2026-09-03T11:10:00.000Z",
+        "creatorNickname": "演示用户",
+        "shareAgentConversation": true
+      }
+    ],
+    "total": 2
+  },
+  "msg": "",
+  "trace_id": "trace_fixture_project_list"
+}

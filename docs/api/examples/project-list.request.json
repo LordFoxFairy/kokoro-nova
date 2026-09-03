@@ -1,0 +1,8 @@
+{
+  "id": 0,
+  "spaceTypes": [1, 10],
+  "page": 1,
+  "pageSize": 20,
+  "orderBy": "created_at_desc",
+  "onlyFolder": false
+}

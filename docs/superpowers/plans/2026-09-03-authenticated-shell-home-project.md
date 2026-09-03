@@ -162,28 +162,30 @@ git commit -m "feat: add typed home discovery mock API"
 
 - Modify: `src/mocks/scenarios/video-project.ts`
 - Modify: `src/mocks/__tests__/scenarios.test.ts`
+- Modify: `src/app/api/home/route.test.ts`
+- Modify: `src/app/api/dev/scenario/route.test.ts`
 
-- [ ] **Step 1: Write failing scenario expectations**
+- [x] **Step 1: Write failing scenario expectations**
 
 `authenticated-populated` must contain three root projects ordered by update time. Every project has one valid canvas; all cover URLs are local fixture paths.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm vitest run src/mocks/__tests__/scenarios.test.ts
 ```
 
-- [ ] **Step 3: Add two lightweight projects and canvases**
+- [x] **Step 3: Add two lightweight projects and canvases**
 
 Use stable IDs and fixed timestamps. Keep the canonical full video project unchanged; the additional two canvases use empty documents and exist only to make recent/all-project surfaces realistic and navigable.
 
-- [ ] **Step 4: Verify graph references and deterministic snapshots**
+- [x] **Step 4: Verify graph references and deterministic snapshots**
 
 ```bash
 pnpm vitest run src/mocks/__tests__/scenarios.test.ts src/server/__tests__/scenario-store.test.ts
 ```
 
-- [ ] **Step 5: Commit fixtures**
+- [x] **Step 5: Commit fixtures**
 
 ```bash
 git add src/mocks

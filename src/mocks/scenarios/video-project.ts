@@ -25,6 +25,10 @@ export type VideoScenarioStatus = Extract<
 const SPACE_ID = 'sp_default'
 const PROJECT_ID = 'prj_video_demo'
 const CANVAS_ID = 'can_video_main'
+const DORO_PROJECT_ID = 'prj_doro_demo'
+const DORO_CANVAS_ID = 'can_doro_main'
+const UNTITLED_PROJECT_ID = 'prj_untitled_demo'
+const UNTITLED_CANVAS_ID = 'can_untitled_main'
 const VIDEO_NODE_ID = 'node_video_01'
 const VIDEO_JOB_ID = 'job_video_01'
 const IMAGE_JOB_ID = 'job_image_seed'
@@ -87,6 +91,42 @@ function node(
 
 function edge(id: string, source: string, target: string, createdOffset: number): WorkflowEdge {
   return { id, source, target, createdAt: isoAt(createdOffset) }
+}
+
+function lightweightProject(
+  id: string,
+  canvasId: string,
+  name: string,
+  coverUrl: string,
+  createdOffset: number,
+  updatedOffset: number,
+): { project: Project; canvas: Canvas } {
+  const project: Project = {
+    id,
+    spaceId: SPACE_ID,
+    folderId: null,
+    name,
+    coverUrl,
+    createdAt: isoAt(createdOffset),
+    updatedAt: isoAt(updatedOffset),
+    canvasIds: [canvasId],
+  }
+  const canvas: Canvas = {
+    id: canvasId,
+    projectId: id,
+    name: '画布 1',
+    revision: 1,
+    createdAt: isoAt(createdOffset + 30),
+    updatedAt: isoAt(updatedOffset),
+    document: {
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
+      nodes: [],
+      edges: [],
+      groups: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    },
+  }
+  return { project, canvas }
 }
 
 function terminal(status: VideoScenarioStatus): boolean {
@@ -406,6 +446,23 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
     },
   }
 
+  const doro = lightweightProject(
+    DORO_PROJECT_ID,
+    DORO_CANVAS_ID,
+    '咕嘎Doro',
+    '/fixtures/libtv/showcase/cloud-palace.webp',
+    -6_700,
+    -60,
+  )
+  const untitled = lightweightProject(
+    UNTITLED_PROJECT_ID,
+    UNTITLED_CANVAS_ID,
+    '未命名',
+    '/fixtures/libtv/showcase/shanghai-chronicle.webp',
+    -6_500,
+    -90,
+  )
+
   const asset: Asset = {
     id: 'asset_image_seed',
     spaceId: SPACE_ID,
@@ -461,8 +518,8 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
   return {
     spaces: [space],
     folders: [folder],
-    projects: [project],
-    canvases: [canvas],
+    projects: [project, doro.project, untitled.project],
+    canvases: [canvas, doro.canvas, untitled.canvas],
     assets: [asset],
     jobs: [videoJob(status), imageJob()],
     ledger: entries,

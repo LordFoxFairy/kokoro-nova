@@ -69,6 +69,33 @@ describe('buildScenario', () => {
     }
   })
 
+  it('seeds three ordered and navigable root projects for authenticated desktop surfaces', () => {
+    const state = buildScenario('authenticated-populated')
+    const projects = state.projects.filter((project) => project.folderId === null)
+    const canvases = new Map(state.canvases.map((canvas) => [canvas.id, canvas]))
+
+    expect(projects.map((project) => project.id)).toEqual([
+      'prj_video_demo',
+      'prj_doro_demo',
+      'prj_untitled_demo',
+    ])
+    expect(projects.map((project) => project.updatedAt)).toEqual(
+      projects
+        .map((project) => project.updatedAt)
+        .slice()
+        .sort()
+        .reverse(),
+    )
+    expect(projects.every((project) => project.coverUrl?.startsWith('/fixtures/libtv/'))).toBe(true)
+    expect(projects.every((project) => project.canvasIds.length === 1)).toBe(true)
+    expect(
+      projects.every((project) => {
+        const canvas = canvases.get(project.canvasIds[0])
+        return canvas?.projectId === project.id
+      }),
+    ).toBe(true)
+  })
+
   it('represents every video job state with stable project topology', () => {
     const states = [
       'video-awaiting-confirmation',

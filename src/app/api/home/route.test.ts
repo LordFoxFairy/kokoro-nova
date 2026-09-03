@@ -19,7 +19,11 @@ describe.sequential('GET /api/home', () => {
     const parsed = HomeDiscoveryResponseSchema.parse(await response.json())
 
     expect(response.status).toBe(200)
-    expect(parsed.recentProjects.map((project) => project.id)).toEqual(['prj_video_demo'])
+    expect(parsed.recentProjects.map((project) => project.id)).toEqual([
+      'prj_video_demo',
+      'prj_doro_demo',
+      'prj_untitled_demo',
+    ])
     expect(parsed.account.credits).toBe(408)
     expect(parsed.creatorTools).toHaveLength(6)
     expect(parsed.showcase.length).toBeGreaterThanOrEqual(6)

@@ -29,7 +29,7 @@ describe.sequential('/api/dev/scenario', () => {
     expect(response.status).toBe(200)
     expect(body).toMatchObject({
       scenario: { id: 'video-succeeded', seedVersion: 1 },
-      state: { projects: 1, canvases: 1, jobs: 2, assets: 1 },
+      state: { projects: 3, canvases: 3, jobs: 2, assets: 1 },
     })
 
     const current = await GET()

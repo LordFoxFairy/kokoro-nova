@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { ZodType } from 'zod'
 
 export class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -9,6 +10,22 @@ export class HttpError extends Error {
 
 export function ok<T>(data: T, init?: ResponseInit) {
   return NextResponse.json(data, init)
+}
+
+export async function parseJsonBody<T>(request: Request, schema: ZodType<T>): Promise<T> {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    throw new HttpError(400, '请求 JSON 不合法')
+  }
+
+  const parsed = schema.safeParse(body)
+  if (parsed.success) return parsed.data
+
+  const issue = parsed.error.issues[0]
+  const field = issue?.path.length ? issue.path.join('.') : 'body'
+  throw new HttpError(400, `${field}: ${issue?.message ?? '请求参数不合法'}`)
 }
 
 /** Uniform error envelope so the client can render a toast without guessing. */

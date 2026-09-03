@@ -9,10 +9,17 @@ type OpenApiOperation = {
   operationId?: string
   'x-ui-triggers'?: string[]
   'x-mock-scenarios'?: string[]
+  requestBody?: {
+    content?: { 'application/json'?: { schema?: { $ref?: string } } }
+  }
+  responses?: Record<string, { content?: { 'application/json'?: { schema?: { $ref?: string } } } }>
 }
 type OpenApiDocument = {
   openapi?: string
   paths?: Record<string, Partial<Record<Lowercase<HttpMethod>, OpenApiOperation>>>
+  components?: {
+    schemas?: Record<string, { properties?: Record<string, { enum?: string[] }> }>
+  }
 }
 
 function filesBelow(directory: string): string[] {
@@ -81,5 +88,31 @@ describe('local API manifest and OpenAPI', () => {
       expect(operation?.['x-ui-triggers']).toEqual(route.uiTriggers)
       expect(operation?.['x-mock-scenarios']).toEqual(route.scenarios)
     }
+  })
+
+  it('documents exact Jobs wrappers and keeps polling out of the POST transition', () => {
+    const document = openApiDocument()
+    const jobs = document.paths?.['/api/jobs']
+    const detail = document.paths?.['/api/jobs/{jobId}']
+
+    expect(jobs?.get?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/ListJobsResponse',
+    )
+    expect(jobs?.post?.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/CreateJobRequest',
+    )
+    expect(jobs?.post?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/CreateJobResponse',
+    )
+    expect(detail?.get?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/GetJobResponse',
+    )
+    expect(detail?.post?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/TransitionJobResponse',
+    )
+    expect(document.components?.schemas?.TransitionJobRequest?.properties?.action?.enum).toEqual([
+      'confirm',
+      'cancel',
+    ])
   })
 })

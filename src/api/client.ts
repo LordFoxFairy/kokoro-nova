@@ -2,6 +2,15 @@ import type { z, ZodType } from 'zod'
 
 import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import {
+  CreateJobRequestSchema,
+  CreateJobResponseSchema,
+  GetJobResponseSchema,
+  ListJobsResponseSchema,
+  TransitionJobRequestSchema,
+  TransitionJobResponseSchema,
+  type TransitionJobAction,
+} from '@/contracts/jobs'
+import {
   CanvasDetailLocalResponseSchema,
   CreateProjectInputSchema,
   CreateProjectResponseSchema,
@@ -119,6 +128,27 @@ export function createApiClient(transport: JsonTransport = fetch) {
     canvas: {
       bootstrap: (canvasId: string) =>
         requestTyped(CanvasDetailLocalResponseSchema, `/api/canvases/${encodeURIComponent(canvasId)}`),
+    },
+    jobs: {
+      list: (canvasId?: string) =>
+        requestTyped(
+          ListJobsResponseSchema,
+          canvasId === undefined ? '/api/jobs' : `/api/jobs?canvasId=${encodeURIComponent(canvasId)}`,
+        ),
+      create: (input: z.input<typeof CreateJobRequestSchema>) => {
+        const body = CreateJobRequestSchema.parse(input)
+        return requestTyped(CreateJobResponseSchema, '/api/jobs', jsonInit('POST', body))
+      },
+      get: (jobId: string) =>
+        requestTyped(GetJobResponseSchema, `/api/jobs/${encodeURIComponent(jobId)}`),
+      transition: (jobId: string, action: TransitionJobAction) => {
+        const body = TransitionJobRequestSchema.parse({ action })
+        return requestTyped(
+          TransitionJobResponseSchema,
+          `/api/jobs/${encodeURIComponent(jobId)}`,
+          jsonInit('POST', body),
+        )
+      },
     },
     scenarios: {
       get: () => requestTyped(ScenarioResponseSchema, '/api/dev/scenario'),

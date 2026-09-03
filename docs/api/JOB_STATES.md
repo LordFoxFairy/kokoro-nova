@@ -54,19 +54,33 @@ Content-Type: application/json
 
 创建报价不扣积分、不调用 provider。
 
-### 确认、轮询和取消
+### 确认和取消
 
 ```http
 POST /api/jobs/{jobId}
 Content-Type: application/json
 
 {"action":"confirm"}
-{"action":"poll"}
 {"action":"cancel"}
 ```
 
-重复 `confirm` 不产生第二次预留或第二个 invocation。轮询只推进已有 job；进程重启后的
+POST body 是严格判别联合，只接受 `confirm` / `cancel`；缺失 action、`poll` 或未知 action
+返回 `400`，不会隐式确认任务。
+
+轮询固定使用：
+
+```http
+GET /api/jobs/{jobId}
+```
+
+重复 `confirm` 不产生第二次预留或第二个 invocation。GET 轮询只推进已有 job；进程重启后的
 真实 provider adapter 必须用同一 `invocationId` 重挂接，不能重新产生业务副作用。
+
+官网当前生成协议使用 `POST /api/task/generation/progress`，并以数值状态
+`0/1/2/3/4` 表示 pending/running/succeeded/failed/timed_out。本地对外 API 有意使用 REST
+资源语义：GET 轮询；外部 adapter 在进入 runner 前完成状态和 `taskResult` JSON 归一化。
+完整证据见
+[`2026-09-03-video-task-client-contract.md`](../research/libtv/api/captures/2026-09-03-video-task-client-contract.md)。
 
 ## 允许转移
 

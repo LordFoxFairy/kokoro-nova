@@ -15,7 +15,7 @@ import type {
   NodeType,
   WorkflowGroup,
 } from '@/domain/types'
-import { api } from '@/lib/api'
+import { client } from '@/lib/api'
 import { useEditor } from '@/lib/editor-store'
 import { AgentPanel } from '../agent/AgentPanel'
 import { AssetLibraryPanel } from '../assets/AssetLibraryPanel'
@@ -80,7 +80,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       const currentCanvasId = useEditor.getState().canvasId
       if (!currentCanvasId) return
       try {
-        const { job } = await api.post<{ job: GenerationJob }>('/api/jobs', {
+        const { job } = await client.jobs.create({
           canvasId: currentCanvasId,
           nodeId,
         })
@@ -97,9 +97,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const confirmJob = useCallback(
     async (jobId: string) => {
       try {
-        const { job, balance } = await api.post<{ job: GenerationJob; balance: number }>(`/api/jobs/${jobId}`, {
-          action: 'confirm',
-        })
+        const { job, balance } = await client.jobs.transition(jobId, 'confirm')
         upsertJob(job)
         setBalance(balance)
         setPendingJob(null)
@@ -114,9 +112,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const cancelJob = useCallback(
     async (jobId: string) => {
       try {
-        const { job, balance } = await api.post<{ job: GenerationJob; balance: number }>(`/api/jobs/${jobId}`, {
-          action: 'cancel',
-        })
+        const { job, balance } = await client.jobs.transition(jobId, 'cancel')
         upsertJob(job)
         setBalance(balance)
         setPendingJob(null)
@@ -141,12 +137,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         if (pollRef.current.has(jobId)) continue
         pollRef.current.add(jobId)
         try {
-          const result = await api.get<{
-            job: GenerationJob
-            document: typeof document | null
-            revision: number | null
-            balance: number
-          }>(`/api/jobs/${jobId}`)
+          const result = await client.jobs.get(jobId)
           upsertJob(result.job)
           setBalance(result.balance)
           if (result.document && result.revision !== null) {

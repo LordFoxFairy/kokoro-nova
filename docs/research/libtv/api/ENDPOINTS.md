@@ -1,13 +1,15 @@
 # LibTV 官网 API 证据索引
 
-本目录只记录 LibTV 官网实际触发的网络请求。它不是对服务端内部实现的推断，
-也不是 NovaVideo 的最终 OpenAPI。正式 mock/后端契约位于 `docs/api/`，需在官网
+本目录记录 LibTV 官网实际触发的网络请求，以及当前线上部署客户端明确构造/消费的协议
+字段；两类证据必须分别标注，不把静态客户端事实冒充成真实响应。它不是对服务端内部实现
+的推断，也不是 NovaVideo 的最终 OpenAPI。正式 mock/后端契约位于 `docs/api/`，需在官网
 证据稳定后从这里归一化。
 
 ## 证据规则
 
 - `network-confirmed`：由官网页面动作真实触发，并观察到方法、URL 与响应状态；
 - `shape-confirmed`：进一步读取了脱敏后的 request/response 字段结构；
+- `bundle-confirmed`：当前线上部署客户端明确构造或消费该字段，但尚未触发对应付费动作；
 - `interaction-linked`：已经确认某项可见 UI 消费该请求；
 - 捕获中不保存 Cookie、Token、Access Key、手机号、账户标识、项目标识或原始用户数据；
 - `trace_id`、推荐 `requestId` 和用户 UUID 只记录字段存在，不保存值；
@@ -20,6 +22,7 @@
 | 2026-09-03 | `/` 首页刷新 | 是 | [首页刷新](captures/2026-09-03-home-refresh.md) |
 | 2026-09-03 | `/project` 全部项目 | 是 | [项目列表](captures/2026-09-03-project-list.md) |
 | 2026-09-03 | `/canvas` 画布初始化 | 是 | [画布初始化](captures/2026-09-03-canvas-bootstrap.md) |
+| 2026-09-03 | Workflow Video 节点 / 生成任务客户端 | 是 | [Video 任务协议](captures/2026-09-03-video-task-client-contract.md) |
 
 ## 当前已确认端点
 
@@ -39,6 +42,12 @@
 | `POST` | `/api/canvas/project/draft/update` | 保存项目草稿与当前视口 | `shape-confirmed` |
 | `POST` | `/api/canvas/project/heartbeat` | 维持当前项目编辑会话 | `shape-confirmed`, `interaction-linked` |
 | `POST` | `/api/task/generation/progress/batch` | 批量同步生成任务进度 | `shape-confirmed` |
+| `POST` | `/api/task/generation/create` | 创建单个生成任务 | `bundle-confirmed`, `interaction-linked` |
+| `POST` | `/api/task/generation/progress` | 读取指定任务进度与结果 | `bundle-confirmed`, `interaction-linked` |
+| `POST` | `/api/task/generation/stop/batch` | 批量停止生成任务 | `bundle-confirmed`, `interaction-linked` |
+| `POST` | `/api/task/generation/power/calculator` | 单个生成请求算力报价 | `bundle-confirmed`, `interaction-linked` |
+| `POST` | `/api/task/generation/power/calculator/batch` | 批量生成请求算力报价 | `bundle-confirmed` |
+| `POST` | `/api/task/generation/video/opt` | Video 任务优化入口 | `bundle-confirmed`；字段待捕获 |
 | `POST` | `/api/agreement/check` | 检查功能协议签署状态 | `shape-confirmed` |
 
 ### LibTV Agent 会话域：`https://im.liblib.tv`
@@ -80,6 +89,6 @@
 1. 项目创建、项目卡菜单、重命名、文件夹与分页的单动作请求；
 2. 工作流节点编辑、连线、分组、保存和并发会话冲突；
 3. 故事板投影与媒体详情；
-4. 视频节点、生成确认、任务轮询、取消和结果；
-5. 视频合成器时间线与导出；
+4. Video 真实生成确认、进度、取消和成功/失败网络样本（请求结构已有 bundle 证据）；
+5. 视频合成器有效时间线、导出请求与失败响应；
 6. Agent、素材、Skill、TV Show 和账户页面。

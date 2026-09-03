@@ -223,6 +223,18 @@
 - [x] 种子视频进入 `/api/media/` 信任边界，Playwright 实际调用 ffmpeg route、读取返回
       MP4；四张合成器视觉基线与官网逐状态对照归档。
 
+## Generation API 契约对齐批次
+
+- [x] 当前部署客户端的 generation create/progress/progress-batch/stop-batch/power-calculator
+      请求与消费字段完成脱敏静态确认；批量初始化响应沿用真实网络捕获，并分别标注
+      `bundle-confirmed` / `shape-confirmed`，没有触发付费生成。
+- [x] `src/contracts/libtv-generation.ts`：兼容 `taskId/task_id`，显式映射 `0..4` 状态，
+      `taskResult` 合法、缺失、非法 JSON、非法结构均可确定性判定，未知扩展字段保留。
+- [x] `src/contracts/jobs.ts` 与 route/client 收敛：四种精确 response wrapper；create 和
+      transition body 严格校验；POST 只接受 confirm/cancel，轮询固定 GET，不再隐式确认。
+- [x] OpenAPI 升级到 `1.3.0-generation-contracts`，Jobs 不再引用 `GenericSuccess`；六份
+      `jobs-*` 可执行样本、官网映射扩展和契约回归测试同步完成。
+
 ## 交接注意
 
 - 真实模型接入只需实现 `src/server/generation/provider.ts` 的 `GenerationProvider`

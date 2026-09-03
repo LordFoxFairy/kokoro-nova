@@ -19,7 +19,9 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
-| `src/contracts/local.ts` / `src/contracts/home.ts` | 本地响应的 Zod 运行时 Schema |
+| `src/contracts/local.ts` / `src/contracts/home.ts` | 本地资源的 Zod 运行时 Schema |
+| `src/contracts/jobs.ts` | Jobs 四个 operation 的严格请求/响应 Schema |
+| `src/contracts/libtv-generation.ts` | 官网生成 create/progress/stop/batch 协议 adapter |
 | `src/api/client.ts` | 页面唯一 JSON 传输与错误规范化入口 |
 
 `openapi.yaml` 使用 JSON-compatible YAML；它既是合法 YAML，也是合法 JSON，因此无需在
@@ -29,7 +31,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.2.0-video-compositor
+Contract version: 1.3.0-generation-contracts
 OpenAPI: 3.1.0
 ```
 
@@ -127,7 +129,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 文件夹 | `createFolder`, `renameFolder`, `deleteFolder` |
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |
-| 节点生成 | `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
+| 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
 | 素材管理 | `listAssets`, `uploadAsset`, `registerArtifactAsAsset`, `updateAsset` |
@@ -166,6 +168,29 @@ Video 项的 `capabilities` 同时提供：
 Canvas 节点编辑器与 Storyboard 再生成面板消费同一个 registry、目录组件和
 `WorkflowNode.data`。后端不需要维护“故事板参数”副本；任一入口的修改都通过
 `mutateCanvas` 增加 revision，另一入口重新投影同一文档即可看到结果。
+
+### 生成任务契约
+
+本地 Jobs API 使用两阶段提交：
+
+1. `POST /api/jobs` 接收严格的 `{ canvasId, nodeId }`，冻结 `ExecutionSpec` 与 `Quote`，返回
+   `awaiting_confirmation`，此时不扣积分、不提交 provider；
+2. `POST /api/jobs/{jobId}` 只接受 `{ action: "confirm" | "cancel" }`；确认后才预留积分并
+   submit，取消则尽力终止并由状态机收敛；
+3. `GET /api/jobs/{jobId}` 是唯一轮询入口；成功时额外返回最新 `revision/document`，避免
+   产物写回画布后再多一次 bootstrap；
+4. `GET /api/jobs?canvasId=` 返回可刷新恢复的持久任务列表。
+
+四个 operation 分别使用 `ListJobsResponse / CreateJobResponse / GetJobResponse /
+TransitionJobResponse`，不再使用泛型成功占位。请求与响应的可执行样本位于
+[`examples/jobs-create.request.json`](examples/jobs-create.request.json) 等 `jobs-*` 文件。
+`createApiClient().jobs` 在页面边界验证全部响应；服务端 route 在调用 runner 前验证 JSON，
+因此缺失 action 或把 `poll` 误发到 POST 都稳定返回 `400`，不会隐式开始生成。
+
+官网协议仍是 `POST /api/task/generation/create|progress|stop/batch`。两者不是同一路由设计：
+`src/contracts/libtv-generation.ts` 负责兼容 `taskId/task_id`、数值状态和字符串化
+`taskResult`，再交给本地领域状态机。每个 Jobs OpenAPI operation 的 `x-libtv-upstream`
+记录这层映射与证据等级。
 
 ### 视频合成契约
 

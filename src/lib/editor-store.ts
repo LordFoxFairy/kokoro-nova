@@ -10,7 +10,7 @@ import type {
   Project,
   WorkflowDocument,
 } from '@/domain/types'
-import { api, ApiError } from './api'
+import { api, ApiError, client } from './api'
 
 export type ViewMode = 'workflow' | 'storyboard'
 
@@ -152,8 +152,8 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
         projectData.canvases.find((c) => c.id === canvasId) ?? projectData.canvases[0] ?? null
       if (!target) throw new Error('项目没有画布')
 
-      const jobs = await api
-        .get<{ jobs: GenerationJob[] }>(`/api/jobs?canvasId=${target.id}`)
+      const jobs = await client.jobs
+        .list(target.id)
         .then((r) => r.jobs)
         .catch(() => [])
 

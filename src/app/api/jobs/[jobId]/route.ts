@@ -1,4 +1,5 @@
-import { HttpError, handle } from '@/server/http'
+import { TransitionJobRequestSchema } from '@/contracts/jobs'
+import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { activeScenarioId, readState } from '@/server/store'
 import { cancelJob, confirmJob, pollJob } from '@/server/generation/runner'
 
@@ -35,7 +36,7 @@ export async function GET(_request: Request, { params }: Params) {
 export async function POST(request: Request, { params }: Params) {
   return handle(async () => {
     const { jobId } = await params
-    const body = (await request.json().catch(() => ({}))) as { action?: 'confirm' | 'cancel' }
+    const body = await parseJsonBody(request, TransitionJobRequestSchema)
     const job = body.action === 'cancel' ? await cancelJob(jobId) : await confirmJob(jobId)
     const state = await readState()
     return { job, balance: state.balances[job.spaceId] ?? 0 }

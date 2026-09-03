@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.2.0-video-compositor",
-    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。"
+    "version": "1.3.0-generation-contracts",
+    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本收紧生成任务 Jobs 的请求、响应和状态边界。"
   },
   "servers": [
     {
@@ -2214,7 +2214,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/GetJobResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/GetJobResponseExample"
+                  }
                 }
               }
             }
@@ -2270,16 +2275,28 @@
             },
             "description": "jobId 的稳定本地标识"
           }
-        ]
+        ],
+        "x-libtv-upstream": {
+          "path": "/api/task/generation/progress",
+          "evidence": "bundle-confirmed",
+          "statusMap": {
+            "0": "pending",
+            "1": "running",
+            "2": "succeeded",
+            "3": "failed",
+            "4": "timed_out"
+          },
+          "mapping": "外部 adapter 解析 taskResult；本地 runner 再收敛到账本、产物和画布 revision。"
+        }
       },
       "post": {
         "tags": [
           "Jobs"
         ],
-        "summary": "确认、轮询或取消生成任务",
+        "summary": "确认或取消生成任务",
         "operationId": "transitionGenerationJob",
         "x-ui-triggers": [
-          "确认、轮询或取消生成任务"
+          "确认生成报价或取消已有任务"
         ],
         "x-mock-scenarios": [
           "video-awaiting-confirmation",
@@ -2296,7 +2313,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/TransitionJobResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/TransitionJobResponseExample"
+                  }
                 }
               }
             }
@@ -2359,9 +2381,22 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TransitionJobRequest"
+              },
+              "examples": {
+                "confirm": {
+                  "$ref": "#/components/examples/TransitionJobRequestExample"
+                }
               }
             }
           }
+        },
+        "x-libtv-upstream": {
+          "paths": [
+            "/api/task/generation/create",
+            "/api/task/generation/stop/batch"
+          ],
+          "evidence": "bundle-confirmed",
+          "mapping": "confirm 对应 provider submit/create；cancel 对应批量停止。轮询只使用 GET。"
         }
       }
     },
@@ -2390,7 +2425,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/ListJobsResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ListJobsResponseExample"
+                  }
                 }
               }
             }
@@ -2435,6 +2475,11 @@
               }
             }
           }
+        },
+        "x-libtv-upstream": {
+          "path": "/api/task/generation/progress/batch",
+          "evidence": "shape-confirmed",
+          "mapping": "官网端点触发批量进度同步；本地端点返回可直接渲染的持久任务历史。"
         }
       },
       "post": {
@@ -2456,7 +2501,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/CreateJobResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/CreateJobResponseExample"
+                  }
                 }
               }
             }
@@ -2508,9 +2558,19 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateJobRequest"
+              },
+              "examples": {
+                "fixture": {
+                  "$ref": "#/components/examples/CreateJobRequestExample"
+                }
               }
             }
           }
+        },
+        "x-libtv-upstream": {
+          "path": "/api/task/generation/create",
+          "evidence": "bundle-confirmed",
+          "mapping": "本地先编译并冻结 ExecutionSpec/Quote；真正 provider submit 在 confirm 时发生。"
         }
       }
     },
@@ -5095,12 +5155,10 @@
             "maximum": 100
           },
           "spec": {
-            "type": "object",
-            "additionalProperties": true
+            "$ref": "#/components/schemas/ExecutionSpec"
           },
           "quote": {
-            "type": "object",
-            "additionalProperties": true
+            "$ref": "#/components/schemas/JobQuote"
           },
           "artifacts": {
             "type": "array",
@@ -5143,10 +5201,12 @@
         ],
         "properties": {
           "canvasId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "nodeId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -5161,7 +5221,6 @@
             "type": "string",
             "enum": [
               "confirm",
-              "poll",
               "cancel"
             ]
           }
@@ -6175,6 +6234,298 @@
           }
         },
         "additionalProperties": false
+      },
+      "GenerationOutputSpec": {
+        "type": "object",
+        "properties": {
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "21:9",
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16"
+            ]
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "high"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1K",
+              "2K",
+              "4K",
+              "adaptive",
+              "480p",
+              "720p",
+              "1080p"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4
+            ]
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "withAudio": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "text2video",
+              "omni-reference",
+              "image2video",
+              "first-frame",
+              "first-last-frame",
+              "image-reference",
+              "video2video",
+              "motion-transfer",
+              "digital-human"
+            ]
+          },
+          "voiceId": {
+            "type": "string"
+          },
+          "speed": {
+            "type": "number"
+          },
+          "pitch": {
+            "type": "number"
+          },
+          "volume": {
+            "type": "number"
+          },
+          "emotion": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExecutionInput": {
+        "type": "object",
+        "required": [
+          "kind",
+          "value",
+          "fromNodeId"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text",
+              "style",
+              "effect"
+            ]
+          },
+          "value": {
+            "type": "string"
+          },
+          "fromNodeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExecutionSpec": {
+        "type": "object",
+        "required": [
+          "workflowDigest",
+          "nodeId",
+          "nodeType",
+          "modelId",
+          "prompt",
+          "output",
+          "inputs"
+        ],
+        "properties": {
+          "workflowDigest": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "video",
+              "videoComposite",
+              "director",
+              "audio",
+              "script",
+              "scriptLegacy",
+              "style",
+              "effect",
+              "assetLibrary"
+            ]
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "output": {
+            "$ref": "#/components/schemas/GenerationOutputSpec"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionInput"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobQuoteBreakdown": {
+        "type": "object",
+        "required": [
+          "label",
+          "credits"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "credits": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobQuote": {
+        "type": "object",
+        "required": [
+          "credits",
+          "priceVersion",
+          "expiresAt",
+          "breakdown"
+        ],
+        "properties": {
+          "credits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "priceVersion": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "breakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobQuoteBreakdown"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ListJobsResponse": {
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenerationJob"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateJobResponse": {
+        "type": "object",
+        "required": [
+          "job"
+        ],
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/GenerationJob"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetJobResponse": {
+        "type": "object",
+        "required": [
+          "job",
+          "revision",
+          "document",
+          "balance"
+        ],
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/GenerationJob"
+          },
+          "revision": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "document": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowDocument"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TransitionJobResponse": {
+        "type": "object",
+        "required": [
+          "job",
+          "balance"
+        ],
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/GenerationJob"
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {
@@ -6239,6 +6590,281 @@
           "assetId": "asset_composite_demo",
           "subtitleMode": "burned",
           "notes": []
+        }
+      },
+      "CreateJobRequestExample": {
+        "summary": "创建并冻结报价",
+        "value": {
+          "canvasId": "canvas_video_fixture",
+          "nodeId": "node_video_fixture"
+        }
+      },
+      "CreateJobResponseExample": {
+        "summary": "等待确认的任务",
+        "value": {
+          "job": {
+            "id": "job_video_fixture_01",
+            "spaceId": "space_fixture",
+            "projectId": "project_video_fixture",
+            "canvasId": "canvas_video_fixture",
+            "nodeId": "node_video_fixture",
+            "modelId": "seedance-fixture",
+            "status": "awaiting_confirmation",
+            "invocationId": "invocation_video_fixture_01",
+            "attempt": 0,
+            "progress": 0,
+            "spec": {
+              "workflowDigest": "fixture-video-digest-v1",
+              "nodeId": "node_video_fixture",
+              "nodeType": "video",
+              "modelId": "seedance-fixture",
+              "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+              "output": {
+                "aspectRatio": "16:9",
+                "resolution": "720p",
+                "durationSeconds": 15,
+                "count": 1,
+                "withAudio": true,
+                "mode": "omni-reference"
+              },
+              "inputs": [
+                {
+                  "kind": "image",
+                  "value": "/fixtures/libtv/media/first-frame.webp",
+                  "fromNodeId": "node_image_fixture"
+                },
+                {
+                  "kind": "text",
+                  "value": "雨夜城市街道，蓝紫色霓虹。",
+                  "fromNodeId": "node_text_fixture"
+                }
+              ]
+            },
+            "quote": {
+              "credits": 70,
+              "priceVersion": "fixture-2026-09-03",
+              "expiresAt": "2026-09-03T12:10:00.000Z",
+              "breakdown": [
+                {
+                  "label": "视频模型基础",
+                  "credits": 35
+                },
+                {
+                  "label": "15 秒",
+                  "credits": 35
+                }
+              ]
+            },
+            "artifacts": [],
+            "error": null,
+            "createdAt": "2026-09-03T12:00:00.000Z",
+            "startedAt": null,
+            "finishedAt": null
+          }
+        }
+      },
+      "ListJobsResponseExample": {
+        "summary": "画布任务历史",
+        "value": {
+          "jobs": [
+            {
+              "id": "job_video_fixture_01",
+              "spaceId": "space_fixture",
+              "projectId": "project_video_fixture",
+              "canvasId": "canvas_video_fixture",
+              "nodeId": "node_video_fixture",
+              "modelId": "seedance-fixture",
+              "status": "running",
+              "invocationId": "invocation_video_fixture_01",
+              "attempt": 1,
+              "progress": 58,
+              "spec": {
+                "workflowDigest": "fixture-video-digest-v1",
+                "nodeId": "node_video_fixture",
+                "nodeType": "video",
+                "modelId": "seedance-fixture",
+                "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+                "output": {
+                  "aspectRatio": "16:9",
+                  "resolution": "720p",
+                  "durationSeconds": 15,
+                  "count": 1,
+                  "withAudio": true,
+                  "mode": "omni-reference"
+                },
+                "inputs": [
+                  {
+                    "kind": "image",
+                    "value": "/fixtures/libtv/media/first-frame.webp",
+                    "fromNodeId": "node_image_fixture"
+                  },
+                  {
+                    "kind": "text",
+                    "value": "雨夜城市街道，蓝紫色霓虹。",
+                    "fromNodeId": "node_text_fixture"
+                  }
+                ]
+              },
+              "quote": {
+                "credits": 70,
+                "priceVersion": "fixture-2026-09-03",
+                "expiresAt": "2026-09-03T12:10:00.000Z",
+                "breakdown": [
+                  {
+                    "label": "视频模型基础",
+                    "credits": 35
+                  },
+                  {
+                    "label": "15 秒",
+                    "credits": 35
+                  }
+                ]
+              },
+              "artifacts": [],
+              "error": null,
+              "createdAt": "2026-09-03T12:00:00.000Z",
+              "startedAt": "2026-09-03T12:00:05.000Z",
+              "finishedAt": null
+            }
+          ]
+        }
+      },
+      "GetJobResponseExample": {
+        "summary": "轮询中的任务与余额",
+        "value": {
+          "job": {
+            "id": "job_video_fixture_01",
+            "spaceId": "space_fixture",
+            "projectId": "project_video_fixture",
+            "canvasId": "canvas_video_fixture",
+            "nodeId": "node_video_fixture",
+            "modelId": "seedance-fixture",
+            "status": "running",
+            "invocationId": "invocation_video_fixture_01",
+            "attempt": 1,
+            "progress": 58,
+            "spec": {
+              "workflowDigest": "fixture-video-digest-v1",
+              "nodeId": "node_video_fixture",
+              "nodeType": "video",
+              "modelId": "seedance-fixture",
+              "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+              "output": {
+                "aspectRatio": "16:9",
+                "resolution": "720p",
+                "durationSeconds": 15,
+                "count": 1,
+                "withAudio": true,
+                "mode": "omni-reference"
+              },
+              "inputs": [
+                {
+                  "kind": "image",
+                  "value": "/fixtures/libtv/media/first-frame.webp",
+                  "fromNodeId": "node_image_fixture"
+                },
+                {
+                  "kind": "text",
+                  "value": "雨夜城市街道，蓝紫色霓虹。",
+                  "fromNodeId": "node_text_fixture"
+                }
+              ]
+            },
+            "quote": {
+              "credits": 70,
+              "priceVersion": "fixture-2026-09-03",
+              "expiresAt": "2026-09-03T12:10:00.000Z",
+              "breakdown": [
+                {
+                  "label": "视频模型基础",
+                  "credits": 35
+                },
+                {
+                  "label": "15 秒",
+                  "credits": 35
+                }
+              ]
+            },
+            "artifacts": [],
+            "error": null,
+            "createdAt": "2026-09-03T12:00:00.000Z",
+            "startedAt": "2026-09-03T12:00:05.000Z",
+            "finishedAt": null
+          },
+          "revision": 7,
+          "document": null,
+          "balance": 408
+        }
+      },
+      "TransitionJobRequestExample": {
+        "summary": "确认生成报价",
+        "value": {
+          "action": "confirm"
+        }
+      },
+      "TransitionJobResponseExample": {
+        "summary": "确认后的运行中任务",
+        "value": {
+          "job": {
+            "id": "job_video_fixture_01",
+            "spaceId": "space_fixture",
+            "projectId": "project_video_fixture",
+            "canvasId": "canvas_video_fixture",
+            "nodeId": "node_video_fixture",
+            "modelId": "seedance-fixture",
+            "status": "running",
+            "invocationId": "invocation_video_fixture_01",
+            "attempt": 1,
+            "progress": 58,
+            "spec": {
+              "workflowDigest": "fixture-video-digest-v1",
+              "nodeId": "node_video_fixture",
+              "nodeType": "video",
+              "modelId": "seedance-fixture",
+              "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+              "output": {
+                "aspectRatio": "16:9",
+                "resolution": "720p",
+                "durationSeconds": 15,
+                "count": 1,
+                "withAudio": true,
+                "mode": "omni-reference"
+              },
+              "inputs": [
+                {
+                  "kind": "image",
+                  "value": "/fixtures/libtv/media/first-frame.webp",
+                  "fromNodeId": "node_image_fixture"
+                },
+                {
+                  "kind": "text",
+                  "value": "雨夜城市街道，蓝紫色霓虹。",
+                  "fromNodeId": "node_text_fixture"
+                }
+              ]
+            },
+            "quote": {
+              "credits": 70,
+              "priceVersion": "fixture-2026-09-03",
+              "expiresAt": "2026-09-03T12:10:00.000Z",
+              "breakdown": [
+                {
+                  "label": "视频模型基础",
+                  "credits": 35
+                },
+                {
+                  "label": "15 秒",
+                  "credits": 35
+                }
+              ]
+            },
+            "artifacts": [],
+            "error": null,
+            "createdAt": "2026-09-03T12:00:00.000Z",
+            "startedAt": "2026-09-03T12:00:05.000Z",
+            "finishedAt": null
+          },
+          "balance": 408
         }
       }
     }

@@ -494,9 +494,13 @@ export async function planTurn(input: TurnInput): Promise<TurnResult> {
 | `GET` | `/api/jobs?canvasId=<id>` | 列任务，按 `createdAt` 倒序。`canvasId` 省略则返回全部 |
 | `POST` | `/api/jobs` | 请求体 `{ canvasId, nodeId }`。编译 + 报价，建 `awaiting_confirmation` 的 job。**不扣费、不调 provider**。编译失败返回 400 |
 | `GET` | `/api/jobs/[jobId]` | **轮询兼对账**：每次调用都会向 provider 查一次并推进状态机。返回 `{ job, revision, document, balance }`，其中 `document` 仅在 `status === 'succeeded'` 时非空（省掉客户端一次往返） |
-| `POST` | `/api/jobs/[jobId]` | 请求体 `{ action: 'confirm' \| 'cancel' }`，**省略 action 等同 `confirm`**。confirm = 预留积分 + 提交给 provider；cancel = 尽力取消。返回 `{ job, balance }` |
+| `POST` | `/api/jobs/[jobId]` | 请求体严格为 `{ action: 'confirm' \| 'cancel' }`；缺失、`poll` 或未知 action 返回 400。confirm = 预留积分 + 提交给 provider；cancel = 尽力取消。返回 `{ job, balance }` |
 
 `confirm` 的 400 场景：报价过期（签发后 10 分钟）、积分不足（`InsufficientCreditsError`）。
+
+轮询只使用 `GET /api/jobs/[jobId]`。`src/contracts/jobs.ts` 定义本地四类精确 response wrapper，
+`src/contracts/libtv-generation.ts` 定义官网 create/progress/stop/batch 的外部 adapter；两者的
+映射和脱敏字段证据见 `docs/research/libtv/api/captures/2026-09-03-video-task-client-contract.md`。
 
 ### 资产与积分
 
@@ -685,8 +689,9 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 
 ### 工程
 
-- **测试规模**：19 个文件、454 条用例（`pnpm test`）。`src/domain/__tests__/` 6 个，
-  `src/server/__tests__/` 13 个——`src/server/` 整层没有单测的说法已经不成立。
+- **测试规模**：35 个文件、559 条用例（`pnpm test`，2026-09-03 本批次实跑）。其中新增
+  generation adapter、Jobs schema、route validation 与 typed client 契约测试；
+  `src/server/` 整层没有单测的说法已经不成立。
 - **但覆盖是偏的，而且恰好偏在本文要你动的地方。** 实测哪些模块被测试引用过：
 
   | 模块 | 引用它的测试文件数 |

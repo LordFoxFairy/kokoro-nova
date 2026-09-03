@@ -119,7 +119,7 @@
 | 模型模式 | modeType、媒体数量、条件 rules | `OFFICIAL` | CLI schema 文档已确认。 |
 | 人像合规 | 图片校验、asset 引用、整批中止 | `OFFICIAL` | CLI 文档与 Agent 设置确认。 |
 | Seedance 合规 | 审核、两类素材校验、通过标识 | `OFFICIAL` | 指南完整；Web 失败、过期、费用与人工审核待补。 |
-| Generation Job | submit/run/status | `PARTIAL` | CLI 确认执行/轮询；正式 Task 与取消未公开。 |
+| Generation Job | create/progress/stop/status/result | `PARTIAL` | 当前部署客户端的 create/progress/stop/batch 请求、`0..4` 状态和字符串化 taskResult 已做 bundle 级字段确认；批量初始化响应有网络实测；本地 typed adapter、严格 Jobs API/OpenAPI/样本已验证。仍缺付费 create、成功结果、取消和错误的单动作网络样本。 |
 | 资产 | 上传、历史、下载 | `PARTIAL` | 双层管理已实测；有数据生命周期和跨租户权限待补。 |
 | 会员 | 个人/团队方案、周期、席位与权益 | `PARTIAL` | 三周期、产量和 Agent 次数用光门已截图；购买后状态待补。 |
 | 模型超市 | 模型专享积分包、首购赠送、购买门槛 | `OBSERVED` | 商品卡与有效期文案已截图；登录购买和到账待补。 |

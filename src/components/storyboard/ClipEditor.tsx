@@ -1,61 +1,133 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react'
+import { ComposeResponseSchema } from '@/contracts/compose'
+import {
+  appendAudioTrack,
+  appendClip,
+  clipTimelineStart,
+  compositeDuration,
+  createSubtitle,
+  emptyCompositeDocument,
+  moveClip,
+  readCompositeDocument,
+  removeClip,
+  setAudioTrackTiming,
+  setAudioTrackVolume,
+  setClipSpeed,
+  setClipTrim,
+  setTransition,
+  splitClip,
+  toComposeRequest,
+  type CompositeSource,
+} from '@/domain/composite'
 import { createNode } from '@/domain/factory'
 import { TRANSITIONS } from '@/domain/libraries'
-import type { Artifact } from '@/domain/types'
+import type {
+  Artifact,
+  CompositeAudioTrack,
+  CompositeClip,
+  CompositeDocument,
+  CompositeSubtitle,
+  CompositeTransitionId,
+  WorkflowDocument,
+  WorkflowNode,
+} from '@/domain/types'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import { nextFreeSpot } from '../canvas/WorkflowCanvas'
-import { Dialog } from '../ui/Dialog'
-import { EmptyState, Spinner } from '../ui/controls'
-import { IconCut, IconDownload, IconPlus, IconText, IconTrash, IconVideo } from '../icons'
+import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconClose,
+  IconCut,
+  IconDownload,
+  IconExpand,
+  IconPause,
+  IconPlay,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconText,
+  IconTrash,
+  IconVideo,
+  IconZoomIn,
+} from '../icons'
+import { Spinner } from '../ui/controls'
 
-interface Clip {
-  id: string
-  artifactId: string
-  nodeName: string
-  url: string
-  poster: string | null
-  durationSeconds: number
-  /** Trim window inside the source clip. */
-  inPoint: number
-  outPoint: number
-  speed: number
-  /** Constrained to the ids the compositor knows, since it is sent as-is. */
-  transitionAfter: (typeof TRANSITIONS)[number]['id'] | null
+type EditorTool = 'clip' | 'transition' | 'subtitle'
+type SubtitleTab = 'subtitle' | 'text'
+
+const PX_PER_SECOND = 40
+const TIMELINE_HEIGHT = 255
+
+const TRANSITION_UI: Record<CompositeTransitionId, { label: string; accent: string }> = {
+  fade: { label: '淡入淡出', accent: 'from-amber-300/80 via-slate-500/70 to-cyan-800/80' },
+  'to-black': { label: '黑场过渡', accent: 'from-slate-500 via-black to-slate-800' },
+  'to-white': { label: '白场过渡', accent: 'from-slate-500 via-white to-slate-300' },
 }
 
-interface Subtitle {
-  id: string
-  text: string
-  start: number
-  end: number
+function collectSources(document: WorkflowDocument): CompositeSource[] {
+  const seen = new Set<string>()
+  const result: CompositeSource[] = []
+  for (const node of document.nodes) {
+    for (const artifact of node.data.artifacts ?? []) {
+      if ((artifact.kind !== 'video' && artifact.kind !== 'audio') || seen.has(artifact.id)) continue
+      seen.add(artifact.id)
+      result.push({ artifact, nodeId: node.id, nodeName: node.name })
+    }
+  }
+  return result
 }
 
-/** What POST /api/compose answers with once the render has finished. */
-interface ComposeResponse {
-  artifact: Artifact
-  assetId: string
-  subtitleMode: 'burned' | 'muxed' | 'none'
-  notes: string[]
+function compositeNodeOf(document: WorkflowDocument): WorkflowNode | null {
+  return document.nodes.find((node) => node.type === 'videoComposite') ?? null
 }
 
-/** Seconds a freshly created subtitle covers, when the timeline has room. */
-const DEFAULT_SUBTITLE_SECONDS = 2
+function clipSeconds(clip: CompositeClip) {
+  return (clip.outPoint - clip.inPoint) / clip.speed
+}
+
+function timeLabel(seconds: number) {
+  const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
+  return String(Math.floor(safe / 60)).padStart(2, '0') + ':' + String(Math.floor(safe % 60)).padStart(2, '0')
+}
+
+function cleanExtra(extra: Record<string, unknown> | undefined) {
+  const next = { ...(extra ?? {}) }
+  delete next.timeline
+  delete next.transitions
+  delete next.subtitles
+  return next
+}
+
+function activeClipAt(document: CompositeDocument, playhead: number) {
+  for (let index = 0; index < document.clips.length; index += 1) {
+    const clip = document.clips[index]
+    const start = clipTimelineStart(document, index)
+    if (playhead < start + clipSeconds(clip) || index === document.clips.length - 1) {
+      return { clip, start }
+    }
+  }
+  return null
+}
 
 /**
- * Video compositor.
- *
- * The empty timeline is a real state, not an error: opening the editor does not
- * auto-add the current card, and trim/split/speed/export stay disabled until a
- * clip is on the timeline.
- *
- * Both exports run the same server render; they only differ in what they do
- * with the file that comes back. `onExported` lets the surface that opened the
- * editor place the result itself — without it the composite is dropped onto the
- * canvas as a video node here.
+ * The official compositor replaces the right two thirds of Storyboard rather
+ * than opening a modal. Its timeline is a versioned canvas-node document, so
+ * reload, undo and export all operate on the same state.
  */
 export function ClipEditor({
   open,
@@ -66,22 +138,94 @@ export function ClipEditor({
   onClose: () => void
   onExported?: (artifact: Artifact) => void
 }) {
-  const workflow = useEditor((s) => s.document)
-  const toast = useEditor((s) => s.toast)
-  const commitWith = useEditor((s) => s.commitWith)
+  const workflow = useEditor((state) => state.document)
+  const commitWith = useEditor((state) => state.commitWith)
+  const toast = useEditor((state) => state.toast)
+  const sources = useMemo(() => collectSources(workflow), [workflow])
+  const videos = useMemo(() => sources.filter((source) => source.artifact.kind === 'video'), [sources])
+  const audios = useMemo(() => sources.filter((source) => source.artifact.kind === 'audio'), [sources])
+  const compositeNode = useMemo(() => compositeNodeOf(workflow), [workflow])
+  const timeline = useMemo(
+    () => readCompositeDocument(compositeNode?.data.extra, sources),
+    [compositeNode?.data.extra, sources],
+  )
 
-  const [clips, setClips] = useState<Clip[]>([])
-  const [subtitles, setSubtitles] = useState<Subtitle[]>([])
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null)
-  const [tab, setTab] = useState<'media' | 'transition' | 'subtitle'>('media')
-
-  /** Render lifecycle. Elapsed seconds, not a percentage: the encoder runs in
-   * one shot and inventing a progress bar for it would be a lie. */
+  const [selectedAudioId, setSelectedAudioId] = useState<string | null>(null)
+  const [selectedSubtitleId, setSelectedSubtitleId] = useState<string | null>(null)
+  const [tool, setTool] = useState<EditorTool>('clip')
+  const [subtitleTab, setSubtitleTab] = useState<SubtitleTab>('subtitle')
+  const [subtitleSearch, setSubtitleSearch] = useState('')
+  const [subtitleDrafts, setSubtitleDrafts] = useState<Record<string, string>>({})
+  const [playhead, setPlayhead] = useState(timeline.playheadSeconds)
+  const [playing, setPlaying] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [rendering, setRendering] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
   const [notes, setNotes] = useState<string[]>([])
+  const [trackViewportWidth, setTrackViewportWidth] = useState(0)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const playheadRef = useRef(playhead)
+  const trackViewportRef = useRef<HTMLDivElement>(null)
+  const exportRef = useRef<HTMLDivElement>(null)
   const aliveRef = useRef(true)
+
+  const selectedClip = timeline.clips.find((clip) => clip.id === selectedClipId) ?? null
+  const selectedClipIndex = selectedClip ? timeline.clips.findIndex((clip) => clip.id === selectedClip.id) : -1
+  const selectedAudio = timeline.audioTracks.find((track) => track.id === selectedAudioId) ?? null
+  const selectedSubtitle = timeline.subtitles.find((subtitle) => subtitle.id === selectedSubtitleId) ?? null
+  const total = compositeDuration(timeline)
+  const empty = timeline.clips.length === 0
+  const pixelsPerSecond = PX_PER_SECOND * timeline.zoom
+  const trackWidth = Math.max(trackViewportWidth, Math.ceil(total * pixelsPerSecond + 24))
+  const active = useMemo(() => activeClipAt(timeline, playhead), [playhead, timeline])
+  const activeClip = active?.clip ?? null
+  const activeClipStart = active?.start ?? 0
+  const activeSubtitle = timeline.subtitles.find(
+    (subtitle) => subtitle.visible && playhead >= subtitle.start && playhead <= subtitle.end,
+  )
+
+  const persist = useCallback(
+    (transform: (current: CompositeDocument) => CompositeDocument, label: string) =>
+      commitWith((document) => {
+        const latestSources = collectSources(document)
+        const node = compositeNodeOf(document)
+        const current = node ? readCompositeDocument(node.data.extra, latestSources) : emptyCompositeDocument()
+        const next = transform(current)
+        if (JSON.stringify(current) === JSON.stringify(next)) return []
+        if (!node) {
+          const created = createNode('videoComposite', nextFreeSpot(document.nodes), document.nodes, { name: '视频合成' })
+          created.data.extra = { composite: next }
+          return [{ op: 'addNode' as const, node: created }]
+        }
+        return [{
+          op: 'updateNode' as const,
+          nodeId: node.id,
+          patch: { data: { ...node.data, extra: { ...cleanExtra(node.data.extra), composite: next } } },
+        }]
+      }, label),
+    [commitWith],
+  )
+
+  const seek = useCallback(
+    (seconds: number) => {
+      const value = Math.max(0, Math.min(total, seconds))
+      setPlayhead(value)
+      void persist((document) => ({ ...document, playheadSeconds: value }), '定位视频时间线')
+    },
+    [persist, total],
+  )
+
+  const close = useCallback(() => {
+    setPlaying(false)
+    setExportOpen(false)
+    void persist(
+      (document) => ({ ...document, playheadSeconds: Math.min(compositeDuration(document), playhead) }),
+      '保存视频编辑位置',
+    )
+    onClose()
+  }, [onClose, persist, playhead])
 
   useEffect(() => {
     aliveRef.current = true
@@ -90,468 +234,1306 @@ export function ClipEditor({
     }
   }, [])
 
-  // Reopening the editor must not greet the user with the previous run's
-  // verdict; the timeline itself is deliberately kept.
   useEffect(() => {
-    if (open) {
-      setFailure(null)
-      setNotes([])
-    }
+    const viewport = trackViewportRef.current
+    if (!viewport) return
+    const measure = () => setTrackViewportWidth(viewport.clientWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    return () => observer.disconnect()
   }, [open])
 
-  const availableVideos = useMemo(() => {
-    const list: { artifact: Artifact; nodeName: string }[] = []
-    for (const node of workflow.nodes) {
-      for (const artifact of node.data.artifacts ?? []) {
-        if (artifact.kind === 'video') list.push({ artifact, nodeName: node.name })
-      }
+  useEffect(() => {
+    if (playhead > total) setPlayhead(total)
+    if (selectedClipId && !timeline.clips.some((clip) => clip.id === selectedClipId)) setSelectedClipId(null)
+    if (selectedAudioId && !timeline.audioTracks.some((track) => track.id === selectedAudioId)) setSelectedAudioId(null)
+    if (selectedSubtitleId && !timeline.subtitles.some((subtitle) => subtitle.id === selectedSubtitleId)) {
+      setSelectedSubtitleId(null)
     }
-    return list
-  }, [workflow.nodes])
+  }, [playhead, selectedAudioId, selectedClipId, selectedSubtitleId, timeline, total])
 
-  const selected = clips.find((c) => c.id === selectedClipId) ?? null
-  const totalDuration = clips.reduce((sum, c) => sum + (c.outPoint - c.inPoint) / c.speed, 0)
-  const empty = clips.length === 0
-  const exportsDisabled = empty || rendering
+  useEffect(() => {
+    if (!playing || total <= 0) return
+    let frame = 0
+    let previous = performance.now()
+    const tick = (now: number) => {
+      const delta = (now - previous) / 1000
+      previous = now
+      setPlayhead((current) => {
+        if (current + delta >= total) {
+          setPlaying(false)
+          return total
+        }
+        return current + delta
+      })
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [playing, total])
 
-  const addClip = (artifact: Artifact, nodeName: string) => {
-    const duration = artifact.durationSeconds ?? 5
-    setClips((prev) => [
-      ...prev,
-      {
-        id: `clip-${artifact.id}-${prev.length}`,
-        artifactId: artifact.id,
-        nodeName,
-        url: artifact.url,
-        poster: artifact.thumbnailUrl,
-        durationSeconds: duration,
-        inPoint: 0,
-        outPoint: duration,
-        speed: 1,
-        transitionAfter: null,
-      },
-    ])
+  useEffect(() => {
+    playheadRef.current = playhead
+  }, [playhead])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !activeClip) return
+    video.playbackRate = activeClip.speed
+    video.muted = timeline.sourceAudioMuted || activeClip.muted
+    const sourceTime = activeClip.inPoint + Math.max(0, playheadRef.current - activeClipStart) * activeClip.speed
+    video.currentTime = Math.min(activeClip.outPoint, sourceTime)
+    if (playing) void video.play().catch(() => undefined)
+    else video.pause()
+  }, [activeClip, activeClipStart, playing, timeline.sourceAudioMuted])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (playing || !video || !activeClip) return
+    video.currentTime = Math.min(
+      activeClip.outPoint,
+      activeClip.inPoint + Math.max(0, playhead - activeClipStart) * activeClip.speed,
+    )
+  }, [activeClip, activeClipStart, playhead, playing])
+
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      if (exportOpen && !exportRef.current?.contains(event.target as Node)) setExportOpen(false)
+    }
+    window.addEventListener('pointerdown', outside, true)
+    return () => window.removeEventListener('pointerdown', outside, true)
+  }, [exportOpen])
+
+  useEffect(() => {
+    if (!open) return
+    const keyboard = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (event.code === 'Space' && !target?.matches('input, textarea, [contenteditable="true"]')) {
+        event.preventDefault()
+        if (!empty) setPlaying((current) => !current)
+      }
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      if (exportOpen) return setExportOpen(false)
+      if (tool !== 'clip') return setTool('clip')
+      close()
+    }
+    window.addEventListener('keydown', keyboard, true)
+    return () => window.removeEventListener('keydown', keyboard, true)
+  }, [close, empty, exportOpen, open, tool])
+
+  const addSource = (source: CompositeSource) => {
+    if (source.artifact.kind === 'video') {
+      const preview = appendClip(timeline, source)
+      setSelectedClipId(preview.clips.at(-1)?.id ?? null)
+      setSelectedAudioId(null)
+      void persist((document) => appendClip(document, source), '添加视频片段')
+    } else {
+      const preview = appendAudioTrack(timeline, source)
+      setSelectedAudioId(preview.audioTracks.at(-1)?.id ?? null)
+      setSelectedClipId(null)
+      void persist((document) => appendAudioTrack(document, source), '添加独立音轨')
+    }
+    setTool('clip')
   }
 
-  const updateSelected = (patch: Partial<Clip>) => {
-    if (!selected) return
-    setClips((prev) => prev.map((c) => (c.id === selected.id ? { ...c, ...patch } : c)))
+  const updateSubtitle = (id: string, patch: Partial<CompositeSubtitle>, label: string) => {
+    void persist(
+      (document) => ({
+        ...document,
+        subtitles: document.subtitles.map((subtitle) => subtitle.id === id ? { ...subtitle, ...patch } : subtitle),
+      }),
+      label,
+    )
   }
 
-  const splitSelected = () => {
-    if (!selected) return
-    const mid = (selected.inPoint + selected.outPoint) / 2
-    setClips((prev) => {
-      const index = prev.findIndex((c) => c.id === selected.id)
-      if (index === -1) return prev
-      const left = { ...selected, outPoint: mid }
-      const right = { ...selected, id: `${selected.id}-b`, inPoint: mid }
-      return [...prev.slice(0, index), left, right, ...prev.slice(index + 1)]
-    })
+  const trimSelectedAtPlayhead = (edge: 'in' | 'out') => {
+    if (!selectedClip || selectedClipIndex < 0) return
+    const clipStart = clipTimelineStart(timeline, selectedClipIndex)
+    const localSeconds = Math.max(0, Math.min(clipSeconds(selectedClip), playhead - clipStart))
+    const sourceSeconds = selectedClip.inPoint + localSeconds * selectedClip.speed
+    void persist((document) => {
+      const current = document.clips.find((clip) => clip.id === selectedClip.id)
+      if (!current) return document
+      return setClipTrim(
+        document,
+        selectedClip.id,
+        edge === 'in' ? sourceSeconds : current.inPoint,
+        edge === 'out' ? sourceSeconds : current.outPoint,
+      )
+    }, edge === 'in' ? '设置片段入点' : '设置片段出点')
   }
 
-  const addSubtitle = () => {
-    setSubtitles((prev) => {
-      // Anchored after the previous line and clipped to the timeline, because
-      // the server rejects a subtitle addressing a frame that will not exist.
-      const start = Math.min(prev.length > 0 ? prev[prev.length - 1].end : 0, Math.max(0, totalDuration - 0.5))
-      const end = Math.min(start + DEFAULT_SUBTITLE_SECONDS, totalDuration)
-      if (end - start < 0.1) return prev
-      return [...prev, { id: `sub-${prev.length}`, text: '新字幕', start, end }]
-    })
-  }
-
-  /**
-   * Render the timeline server-side. Returns null on failure, having already
-   * put the reason on screen — both callers need the same handling.
-   */
-  const runCompose = async (): Promise<ComposeResponse | null> => {
-    if (exportsDisabled) return null
+  const compose = async () => {
+    if (empty || rendering) return null
     setRendering(true)
     setFailure(null)
     setNotes([])
     setElapsed(0)
-
-    const startedAt = Date.now()
-    const ticker = window.setInterval(() => {
-      if (aliveRef.current) setElapsed((Date.now() - startedAt) / 1000)
-    }, 250)
-
+    const started = Date.now()
+    const timer = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 250)
     try {
-      const result = await api.post<ComposeResponse>('/api/compose', {
-        clips: clips.map((c) => ({
-          url: c.url,
-          inPoint: c.inPoint,
-          outPoint: c.outPoint,
-          speed: c.speed,
-          transitionAfter: c.transitionAfter,
-        })),
-        subtitles: subtitles.map((s) => ({ text: s.text, start: s.start, end: s.end })),
-      })
-      if (aliveRef.current) setNotes(result.notes)
-      return result
+      const response = ComposeResponseSchema.parse(await api.post<unknown>('/api/compose', toComposeRequest(timeline)))
+      if (aliveRef.current) setNotes(response.notes)
+      return response
     } catch (error) {
       const message = error instanceof Error ? error.message : '合成失败'
       if (aliveRef.current) setFailure(message)
       toast(message, 'error')
       return null
     } finally {
-      window.clearInterval(ticker)
+      window.clearInterval(timer)
       if (aliveRef.current) setRendering(false)
     }
   }
 
-  const exportToLocal = async () => {
-    const result = await runCompose()
-    if (!result) return
-    // Same-origin media route, so the anchor's `download` hint is honoured and
-    // the browser saves the file instead of navigating to it.
+  const exportLocal = async () => {
+    setExportOpen(false)
+    const response = await compose()
+    if (!response) return
     const link = window.document.createElement('a')
-    link.href = result.artifact.url
-    link.download = `合成视频-${result.artifact.id.slice(-6)}.mp4`
+    link.href = response.artifact.url
+    link.download = '合成视频-' + response.artifact.id.slice(-6) + '.mp4'
     window.document.body.appendChild(link)
     link.click()
     link.remove()
     toast('已导出到本地', 'success')
   }
 
-  const exportToCanvas = async () => {
-    const result = await runCompose()
-    if (!result) return
-
-    if (onExported) {
-      onExported(result.artifact)
-    } else {
-      const committed = await commitWith((doc) => {
-        const node = createNode('video', nextFreeSpot(doc.nodes), doc.nodes, { name: '合成视频' })
-        node.data.artifacts = [result.artifact]
+  const exportCanvas = async () => {
+    setExportOpen(false)
+    const response = await compose()
+    if (!response) return
+    if (onExported) onExported(response.artifact)
+    else {
+      const saved = await commitWith((document) => {
+        const node = createNode('video', nextFreeSpot(document.nodes), document.nodes, { name: '合成视频' })
+        node.data.artifacts = [response.artifact]
         return [{ op: 'addNode', node }]
       }, '导出合成视频到画布')
-      // `commitWith` already reported why it failed; closing on top of that
-      // would hide the timeline the user still needs.
-      if (!committed) return
+      if (!saved) return
     }
-
     toast('已导出到画布，创建了视频合成节点', 'success')
     onClose()
   }
 
+  if (!open) return null
+
   return (
-    <Dialog open={open} onClose={onClose} variant="panel" width={1040} hideHeader testId="clip-editor">
-      <div className="flex items-center justify-between border-b border-ink-100 px-6 py-3.5">
-        <h2 className="text-[15px] font-semibold text-ink-900">视频合成</h2>
-        <div className="flex items-center gap-2">
-          {rendering ? (
-            <span
-              data-testid="compose-progress"
-              className="flex items-center gap-1.5 text-[12px] text-ink-500"
+    <div
+      data-testid="clip-editor"
+      data-video-compositor="open"
+      className="relative grid h-full gap-3 overflow-hidden px-4 pb-4 pt-[72px]"
+      style={{ gridTemplateColumns: '33.38% minmax(0, 1fr)' }}
+    >
+      <SourceRail sources={videos} audios={audios} onAdd={addSource} />
+      <section
+        data-testid="clip-editor-workspace"
+        className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100"
+      >
+        <header className="relative z-40 flex h-12 shrink-0 items-center border-b border-ink-100 px-3">
+          <h2 className="text-[13px] font-semibold text-ink-900">视频合成</h2>
+          <div className="ml-auto flex items-center gap-2">
+            {rendering && (
+              <span data-testid="compose-progress" className="flex items-center gap-1 text-[11px] text-ink-500">
+                <Spinner size={12} /> 正在合成 {elapsed.toFixed(0)}s
+              </span>
+            )}
+            <div ref={exportRef} className="relative">
+              <button
+                type="button"
+                data-testid="clip-export-trigger"
+                aria-expanded={exportOpen}
+                onClick={() => setExportOpen((value) => !value)}
+                className="flex h-8 items-center gap-1 rounded-lg bg-ink-900 px-3 text-[12px] font-medium text-canvas"
+              >
+                导出 <IconChevronDown size={11} />
+              </button>
+              {exportOpen && (
+                <div
+                  role="menu"
+                  data-testid="clip-export-menu"
+                  className="absolute right-0 top-10 z-50 w-48 rounded-xl bg-surface p-2 shadow-[var(--shadow-panel)] ring-1 ring-ink-100"
+                >
+                  <div className="px-2 pb-1.5 pt-1 text-[12px] font-medium text-ink-700">导出位置</div>
+                  <ExportOption
+                    testId="export-to-local"
+                    label="导出到本地"
+                    icon={<IconDownload size={14} />}
+                    disabled={empty || rendering}
+                    onClick={() => void exportLocal()}
+                  />
+                  <ExportOption
+                    testId="export-to-canvas"
+                    label="导出到画布"
+                    icon={<IconVideo size={14} />}
+                    disabled={empty || rendering}
+                    onClick={() => void exportCanvas()}
+                  />
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              data-testid="close-clip-editor"
+              aria-label="关闭视频合成"
+              onClick={close}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-600 hover:bg-ink-100"
             >
-              <Spinner size={13} /> 正在合成 {elapsed.toFixed(0)}s
-            </span>
-          ) : (
-            <span className="text-[12px] text-ink-400">总时长 {totalDuration.toFixed(1)}s</span>
-          )}
-          <button
-            type="button"
-            disabled={exportsDisabled}
-            data-testid="export-to-local"
-            onClick={() => void exportToLocal()}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] transition-colors',
-              exportsDisabled
-                ? 'cursor-not-allowed bg-ink-100 text-ink-300'
-                : 'bg-ink-100 text-ink-700 hover:bg-ink-200',
-            )}
-          >
-            <IconDownload size={13} /> 导出到本地
-          </button>
-          <button
-            type="button"
-            disabled={exportsDisabled}
-            data-testid="export-to-canvas"
-            onClick={() => void exportToCanvas()}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors',
-              exportsDisabled
-                ? 'cursor-not-allowed bg-ink-100 text-ink-300'
-                : 'bg-ink-900 text-white hover:opacity-85',
-            )}
-          >
-            导出到画布
-          </button>
-        </div>
-      </div>
-
-      {failure && (
-        <div
-          data-testid="compose-error"
-          className="border-b border-ink-100 bg-danger/8 px-6 py-2 text-[12px] text-danger"
-        >
-          {failure}
-        </div>
-      )}
-      {notes.length > 0 && (
-        <div
-          data-testid="compose-notes"
-          className="border-b border-ink-100 bg-ink-50 px-6 py-2 text-[12px] text-ink-500"
-        >
-          {notes.join('；')}
-        </div>
-      )}
-
-      <div className="flex h-[460px]">
-        {/* Source library */}
-        <div className="thin-scrollbar w-56 shrink-0 overflow-y-auto border-r border-ink-100 p-3">
-          <div className="mb-2 text-[12px] font-medium text-ink-500">可用素材</div>
-          {availableVideos.length === 0 ? (
-            <EmptyState compact title="暂无已生成视频" description="先在画布上生成视频再进行合成。" />
-          ) : (
-            <div className="space-y-2">
-              {availableVideos.map(({ artifact, nodeName }) => (
-                <button
-                  key={artifact.id}
-                  type="button"
-                  onClick={() => addClip(artifact, nodeName)}
-                  className="group flex w-full items-center gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-ink-50"
-                >
-                  <span className="h-10 w-16 shrink-0 overflow-hidden rounded-md bg-ink-100">
-                    {artifact.thumbnailUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={artifact.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[11px] text-ink-700">{nodeName}</span>
-                    <span className="block text-[10px] text-ink-400">{artifact.durationSeconds}s</span>
-                  </span>
-                  <IconPlus size={13} className="shrink-0 text-ink-300 group-hover:text-ink-600" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Preview + timeline */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-1 items-center justify-center bg-ink-900/95 p-4">
-            {selected ? (
-              <video
-                key={selected.id}
-                src={selected.url}
-                poster={selected.poster ?? undefined}
-                controls
-                className="max-h-full max-w-full rounded-lg"
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-ink-400">
-                <IconVideo size={32} />
-                <span className="text-[12px]">{empty ? '时间线为空' : '选择一个片段以预览'}</span>
-              </div>
-            )}
+              <IconClose size={17} />
+            </button>
           </div>
+        </header>
 
-          <div className="border-t border-ink-100 p-3">
-            <div className="mb-2 flex items-center gap-1">
-              <button
-                type="button"
-                disabled={!selected}
-                data-testid="clip-split"
-                onClick={splitSelected}
-                className={cn(
-                  'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
-                  selected ? 'bg-ink-100 text-ink-700 hover:bg-ink-200' : 'cursor-not-allowed text-ink-300',
-                )}
-              >
-                <IconCut size={13} /> 分割
-              </button>
-              <button
-                type="button"
-                disabled={!selected}
-                onClick={() => selected && updateSelected({ speed: selected.speed === 1 ? 2 : 1 })}
-                className={cn(
-                  'rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
-                  selected ? 'bg-ink-100 text-ink-700 hover:bg-ink-200' : 'cursor-not-allowed text-ink-300',
-                )}
-              >
-                变速 {selected ? `${selected.speed}×` : ''}
-              </button>
-              <button
-                type="button"
-                disabled={!selected}
-                onClick={() => {
-                  if (!selected) return
-                  setClips((prev) => prev.filter((c) => c.id !== selected.id))
-                  setSelectedClipId(null)
-                }}
-                className={cn(
-                  'rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
-                  selected ? 'text-danger hover:bg-danger/8' : 'cursor-not-allowed text-ink-300',
-                )}
-              >
-                <IconTrash size={13} />
-              </button>
+        <div className="relative min-h-0 flex-1">
+          <Preview active={active} subtitle={activeSubtitle} videoRef={videoRef} playing={playing} />
+          {tool === 'clip' && (selectedClip || selectedAudio) && (
+            <PropertiesPanel
+              key={selectedClip?.id ?? selectedAudio?.id}
+              clip={selectedClip}
+              audio={selectedAudio}
+              clipIndex={selectedClipIndex}
+              clipCount={timeline.clips.length}
+              onTrim={(patch) => selectedClip && void persist((document) => {
+                const current = document.clips.find((clip) => clip.id === selectedClip.id)
+                if (!current) return document
+                return setClipTrim(
+                  document,
+                  selectedClip.id,
+                  patch.inPoint ?? current.inPoint,
+                  patch.outPoint ?? current.outPoint,
+                )
+              }, '裁切视频片段')}
+              onSpeed={(speed) => selectedClip && void persist(
+                (document) => setClipSpeed(document, selectedClip.id, speed),
+                '设置片段速度',
+              )}
+              onMove={(delta) => selectedClip && void persist(
+                (document) => moveClip(document, selectedClip.id, delta),
+                '重排视频片段',
+              )}
+              onMute={() => void persist((document) => ({
+                ...document,
+                clips: document.clips.map((clip) =>
+                  selectedClip && clip.id === selectedClip.id ? { ...clip, muted: !clip.muted } : clip),
+                audioTracks: document.audioTracks.map((track) =>
+                  selectedAudio && track.id === selectedAudio.id ? { ...track, muted: !track.muted } : track),
+              }), '切换音频静音')}
+              onVolume={(volume) => selectedAudio && void persist(
+                (document) => setAudioTrackVolume(document, selectedAudio.id, volume),
+                '设置音轨音量',
+              )}
+              onAudioTiming={(patch) => selectedAudio && void persist((document) => {
+                const current = document.audioTracks.find((track) => track.id === selectedAudio.id)
+                if (!current) return document
+                return setAudioTrackTiming(
+                  document,
+                  selectedAudio.id,
+                  patch.inPoint ?? current.inPoint,
+                  patch.outPoint ?? current.outPoint,
+                  patch.start ?? current.start,
+                )
+              }, '调整独立音轨')}
+            />
+          )}
+          {tool === 'transition' && (
+            <TransitionPanels
+              clip={selectedClip}
+              canApply={selectedClipIndex >= 0 && selectedClipIndex < timeline.clips.length - 1}
+              onChoose={(type) => selectedClip && void persist(
+                (document) => setTransition(document, selectedClip.id, type),
+                '设置片段转场',
+              )}
+              onDuration={(duration) => selectedClip?.transitionAfter && void persist(
+                (document) => setTransition(document, selectedClip.id, selectedClip.transitionAfter!.type, duration),
+                '设置转场时长',
+              )}
+              onDelete={() => selectedClip && void persist(
+                (document) => setTransition(document, selectedClip.id, null),
+                '删除片段转场',
+              )}
+              onClose={() => setTool('clip')}
+            />
+          )}
+          {tool === 'subtitle' && (
+            <SubtitlePanel
+              tab={subtitleTab}
+              onTab={setSubtitleTab}
+              search={subtitleSearch}
+              onSearch={setSubtitleSearch}
+              subtitles={timeline.subtitles}
+              drafts={subtitleDrafts}
+              selectedId={selectedSubtitleId}
+              disabled={empty}
+              onSelect={setSelectedSubtitleId}
+              onAdd={() => {
+                const preview = createSubtitle(timeline, playhead)
+                setSelectedSubtitleId(preview.subtitles.at(-1)?.id ?? null)
+                void persist((document) => createSubtitle(document, playhead), '新建字幕')
+              }}
+              onDraft={(id, value) => setSubtitleDrafts((current) => ({ ...current, [id]: value }))}
+              onCommit={(id, value) => {
+                updateSubtitle(id, { text: value }, '编辑字幕')
+                setSubtitleDrafts((current) => {
+                  const next = { ...current }
+                  delete next[id]
+                  return next
+                })
+              }}
+              onToggle={(subtitle) => updateSubtitle(subtitle.id, { visible: !subtitle.visible }, '切换字幕显隐')}
+              onDelete={(subtitle) => void persist((document) => ({
+                ...document,
+                subtitles: document.subtitles.filter((item) => item.id !== subtitle.id),
+              }), '删除字幕')}
+            />
+          )}
+          {failure && <Notice testId="compose-error" danger>{failure}</Notice>}
+          {notes.length > 0 && !failure && <Notice testId="compose-notes">{notes.join('；')}</Notice>}
+
+          <TimelinePanel
+            timeline={timeline}
+            selectedClipId={selectedClipId}
+            selectedAudioId={selectedAudioId}
+            selectedSubtitleId={selectedSubtitleId}
+            tool={tool}
+            playhead={playhead}
+            playing={playing}
+            total={total}
+            pixelsPerSecond={pixelsPerSecond}
+            trackWidth={trackWidth}
+            viewportRef={trackViewportRef}
+            onTool={setTool}
+            onPlay={() => !empty && setPlaying((value) => !value)}
+            onSeek={seek}
+            onSelectClip={(clip) => {
+              setSelectedClipId(clip.id)
+              setSelectedAudioId(null)
+              setSelectedSubtitleId(null)
+              setTool('clip')
+            }}
+            onSelectAudio={(track) => {
+              setSelectedAudioId(track.id)
+              setSelectedClipId(null)
+              setSelectedSubtitleId(null)
+              setTool('clip')
+            }}
+            onSelectSubtitle={(subtitle) => {
+              setSelectedSubtitleId(subtitle.id)
+              setTool('subtitle')
+            }}
+            onSplit={() => selectedClip && void persist(
+              (document) => splitClip(document, selectedClip.id, playhead),
+              '分割视频片段',
+            )}
+            onTrimIn={() => trimSelectedAtPlayhead('in')}
+            onTrimOut={() => trimSelectedAtPlayhead('out')}
+            onReorder={(clipId, targetIndex) => void persist((document) => {
+              let next = document
+              let currentIndex = next.clips.findIndex((clip) => clip.id === clipId)
+              while (currentIndex >= 0 && currentIndex < targetIndex) {
+                next = moveClip(next, clipId, 1)
+                currentIndex += 1
+              }
+              while (currentIndex > targetIndex) {
+                next = moveClip(next, clipId, -1)
+                currentIndex -= 1
+              }
+              return next
+            }, '拖拽重排视频片段')}
+            onDelete={() => {
+              if (selectedClip) {
+                void persist((document) => removeClip(document, selectedClip.id), '删除视频片段')
+                setSelectedClipId(null)
+              } else if (selectedAudio) {
+                void persist((document) => ({
+                  ...document,
+                  audioTracks: document.audioTracks.filter((track) => track.id !== selectedAudio.id),
+                }), '删除独立音轨')
+                setSelectedAudioId(null)
+              } else if (selectedSubtitle) {
+                void persist((document) => ({
+                  ...document,
+                  subtitles: document.subtitles.filter((subtitle) => subtitle.id !== selectedSubtitle.id),
+                }), '删除字幕')
+                setSelectedSubtitleId(null)
+              }
+            }}
+            onZoom={(zoom) => void persist((document) => ({ ...document, zoom }), '缩放视频时间线')}
+            onFit={() => {
+              const zoom = total > 0 && trackViewportWidth > 0
+                ? Math.max(0.5, Math.min(3, trackViewportWidth / (total * PX_PER_SECOND)))
+                : 1
+              void persist((document) => ({ ...document, zoom }), '适配视频时间线')
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              const source = sources.find(
+                (item) => item.artifact.id === event.dataTransfer.getData('application/x-nova-source'),
+              )
+              if (source) addSource(source)
+            }}
+          />
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function SourceRail({
+  sources,
+  audios,
+  onAdd,
+}: {
+  sources: CompositeSource[]
+  audios: CompositeSource[]
+  onAdd: (source: CompositeSource) => void
+}) {
+  const drag = (event: DragEvent, source: CompositeSource) => {
+    event.dataTransfer.effectAllowed = 'copy'
+    event.dataTransfer.setData('application/x-nova-source', source.artifact.id)
+  }
+  return (
+    <aside data-testid="clip-editor-source-rail" className="flex min-w-0 flex-col gap-3 overflow-hidden">
+      <section className="h-[150px] shrink-0 rounded-2xl bg-surface ring-1 ring-ink-100">
+        <h3 className="px-4 py-3 text-[13px] font-semibold text-ink-900">音频</h3>
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-4">
+          {audios.length === 0 ? (
+            <div className="flex h-[82px] w-20 flex-col items-center justify-center rounded-xl bg-ink-50 text-ink-400">
+              <span className="text-xl">♫</span><span className="text-[10px]">暂无音频</span>
             </div>
-
-            {/* Video track */}
-            <div className="mb-2 flex h-14 items-center gap-1 rounded-lg bg-ink-50 p-1.5">
-              {empty ? (
-                <span className="w-full text-center text-[11px] text-ink-400">
-                  从左侧添加素材以开始合成
-                </span>
-              ) : (
-                clips.map((clip) => (
-                  <button
-                    key={clip.id}
-                    type="button"
-                    data-testid={`timeline-clip-${clip.id}`}
-                    onClick={() => setSelectedClipId(clip.id)}
-                    className={cn(
-                      'h-full shrink-0 overflow-hidden rounded-md ring-2 transition-all',
-                      clip.id === selectedClipId ? 'ring-accent' : 'ring-transparent',
-                    )}
-                    style={{ width: Math.max(48, ((clip.outPoint - clip.inPoint) / clip.speed) * 16) }}
-                  >
-                    {clip.poster ? (
+          ) : audios.map((source) => (
+            <article
+              key={source.artifact.id}
+              data-testid={'clip-source-audio-' + source.artifact.id}
+              draggable
+              onDragStart={(event) => drag(event, source)}
+              className="group relative flex h-[82px] w-32 shrink-0 flex-col justify-end rounded-xl bg-violet-500/10 p-2"
+            >
+              <span className="truncate text-[11px] text-ink-700">{source.nodeName}</span>
+              <span className="text-[10px] text-ink-400">{source.artifact.durationSeconds ?? 0}s</span>
+              <button
+                type="button"
+                aria-label="添加到音轨"
+                onClick={() => onAdd(source)}
+                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink-900 text-canvas opacity-0 group-hover:opacity-100 focus:opacity-100"
+              >
+                <IconPlus size={12} />
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100">
+        <header className="flex items-center px-4 py-3">
+          <h3 className="text-[13px] font-semibold text-ink-900">视频</h3>
+          <span className="ml-auto flex items-center gap-1 text-[11px] text-ink-400">
+            片段 <IconChevronDown size={10} />
+          </span>
+        </header>
+        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          {sources.length === 0 ? (
+            <div className="flex h-40 items-center justify-center rounded-xl bg-ink-50 text-[11px] text-ink-400">
+              暂无已生成视频
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sources.map((source) => (
+                <article
+                  key={source.artifact.id}
+                  data-testid={'clip-source-video-' + source.artifact.id}
+                  draggable
+                  onDragStart={(event) => drag(event, source)}
+                  className="group"
+                >
+                  <div className="mb-1.5 truncate text-[11px] text-ink-400">{source.nodeName}</div>
+                  <div className="relative aspect-video overflow-hidden rounded-xl bg-ink-50">
+                    {source.artifact.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={clip.poster} alt="" className="h-full w-full object-cover" />
+                      <img src={source.artifact.thumbnailUrl} alt={source.nodeName} className="h-full w-full object-cover" />
                     ) : (
-                      <span className="flex h-full w-full items-center justify-center bg-ink-200" />
+                      <div className="flex h-full items-center justify-center text-ink-300"><IconVideo size={24} /></div>
                     )}
-                  </button>
-                ))
-              )}
-            </div>
-
-            {/* Subtitle track */}
-            <div className="flex h-8 items-center gap-1 rounded-lg bg-ink-50 px-1.5">
-              <IconText size={12} className="shrink-0 text-ink-400" />
-              {subtitles.length === 0 ? (
-                <span className="text-[11px] text-ink-400">字幕轨道为空</span>
-              ) : (
-                subtitles.map((s) => (
-                  <span key={s.id} className="rounded bg-ink-200 px-2 py-0.5 text-[10px] text-ink-600">
-                    {s.text}
-                    {/* Timing is now load-bearing, so it is on screen. */}
-                    <span className="ml-1 text-ink-400">
-                      {s.start.toFixed(1)}–{s.end.toFixed(1)}s
+                    <span className="absolute bottom-2 right-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">
+                      {timeLabel(source.artifact.durationSeconds ?? 0)}
                     </span>
-                  </span>
-                ))
-              )}
+                    <button
+                      type="button"
+                      aria-label="添加到时间线"
+                      onClick={() => onAdd(source)}
+                      className="absolute inset-0 flex items-center justify-center text-white hover:bg-black/20 focus:bg-black/20"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/65 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                        <IconPlus size={17} />
+                      </span>
+                    </button>
+                  </div>
+                  <div className="mt-2 flex gap-1.5 text-[10px] text-ink-400">
+                    <span className="rounded bg-ink-50 px-1.5 py-1">{source.artifact.modelId}</span>
+                    <span>{source.artifact.durationSeconds ?? 0}秒</span>
+                    {source.artifact.width && source.artifact.height && (
+                      <span>{source.artifact.width} × {source.artifact.height}</span>
+                    )}
+                  </div>
+                </article>
+              ))}
             </div>
-          </div>
+          )}
         </div>
+      </section>
+    </aside>
+  )
+}
 
-        {/* Inspector */}
-        <div className="w-56 shrink-0 border-l border-ink-100 p-3">
-          <div className="mb-2 flex gap-1">
-            {(['media', 'transition', 'subtitle'] as const).map((t) => (
+function ExportOption({
+  testId,
+  label,
+  icon,
+  disabled,
+  onClick,
+}: {
+  testId: string
+  label: string
+  icon: ReactNode
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      data-testid={testId}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[12px]',
+        disabled ? 'cursor-not-allowed text-ink-300' : 'text-ink-700 hover:bg-ink-50',
+      )}
+    >
+      {icon}{label}
+    </button>
+  )
+}
+
+function Preview({
+  active,
+  subtitle,
+  videoRef,
+  playing,
+}: {
+  active: ReturnType<typeof activeClipAt>
+  subtitle: CompositeSubtitle | undefined
+  videoRef: RefObject<HTMLVideoElement | null>
+  playing: boolean
+}) {
+  return (
+    <div className="absolute inset-x-0 top-0 flex items-center justify-center px-8" style={{ bottom: TIMELINE_HEIGHT + 16 }}>
+      {active ? (
+        <div className="relative flex max-h-[360px] w-[min(68%,640px)] aspect-video items-center justify-center overflow-hidden rounded-xl bg-black">
+          <video
+            ref={videoRef}
+            key={active.clip.id}
+            src={active.clip.url}
+            poster={active.clip.poster ?? undefined}
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-contain"
+          />
+          {!playing && (
+            <span className="pointer-events-none absolute flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white">
+              <IconPlay size={19} />
+            </span>
+          )}
+          {subtitle && (
+            <span className="absolute bottom-6 left-1/2 max-w-[85%] -translate-x-1/2 rounded bg-black/60 px-3 py-1.5 text-center text-[14px] text-white">
+              {subtitle.text}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2 text-ink-300">
+          <IconVideo size={28} /><span className="text-[11px]">从左侧添加或拖入片段</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Notice({ testId, danger, children }: { testId: string; danger?: boolean; children: ReactNode }) {
+  return (
+    <div
+      data-testid={testId}
+      className={cn(
+        'absolute left-4 right-4 top-3 z-30 rounded-lg px-3 py-2 text-[11px] ring-1',
+        danger ? 'bg-danger/10 text-danger ring-danger/20' : 'bg-ink-50 text-ink-500 ring-ink-100',
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+function PropertiesPanel({
+  clip,
+  audio,
+  clipIndex,
+  clipCount,
+  onTrim,
+  onSpeed,
+  onMove,
+  onMute,
+  onVolume,
+  onAudioTiming,
+}: {
+  clip: CompositeClip | null
+  audio: CompositeAudioTrack | null
+  clipIndex: number
+  clipCount: number
+  onTrim: (patch: Partial<Pick<CompositeClip, 'inPoint' | 'outPoint'>>) => void
+  onSpeed: (speed: number) => void
+  onMove: (delta: -1 | 1) => void
+  onMute: () => void
+  onVolume: (volume: number) => void
+  onAudioTiming: (patch: Partial<Pick<CompositeAudioTrack, 'inPoint' | 'outPoint' | 'start'>>) => void
+}) {
+  return (
+    <aside className="absolute right-2 top-2 z-20 w-[300px] rounded-xl bg-surface shadow-[var(--shadow-panel)] ring-1 ring-ink-100">
+      <header className="border-b border-ink-100 px-4 py-3 text-[13px] font-semibold">{clip ? '片段' : '音轨'}</header>
+      <div className="space-y-4 p-4 text-[11px]">
+        <div>
+          <div className="mb-1 text-ink-400">来源</div>
+          <div className="truncate text-ink-700">{clip?.nodeName ?? audio?.nodeName}</div>
+        </div>
+        {clip && (
+          <>
+            <div>
+              <div className="mb-1 text-ink-400">裁切</div>
+              <div className="flex items-center gap-1">
+                <input
+                  aria-label="片段入点"
+                  type="number"
+                  step={0.1}
+                  defaultValue={clip.inPoint}
+                  onBlur={(event) => onTrim({ inPoint: Number(event.currentTarget.value) })}
+                  className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
+                />
+                <span>→</span>
+                <input
+                  aria-label="片段出点"
+                  type="number"
+                  step={0.1}
+                  defaultValue={clip.outPoint}
+                  onBlur={(event) => onTrim({ outPoint: Number(event.currentTarget.value) })}
+                  className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
+                />
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 text-ink-400">速度</div>
+              <div className="grid grid-cols-3 gap-1">
+                {[0.5, 1, 2].map((speed) => (
+                  <button
+                    key={speed}
+                    type="button"
+                    data-testid={'clip-speed-' + speed}
+                    onClick={() => onSpeed(speed)}
+                    className={cn(
+                      'rounded py-1.5',
+                      clip.speed === speed ? 'bg-ink-900 text-canvas' : 'bg-ink-50 text-ink-600',
+                    )}
+                  >
+                    {speed}×
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
               <button
-                key={t}
                 type="button"
-                onClick={() => setTab(t)}
-                className={cn(
-                  'flex-1 rounded-md py-1 text-[11px] transition-colors',
-                  tab === t ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
-                )}
+                data-testid="clip-move-left"
+                disabled={clipIndex <= 0}
+                onClick={() => onMove(-1)}
+                className="flex h-8 flex-1 items-center justify-center rounded bg-ink-50 disabled:text-ink-300"
               >
-                {{ media: '属性', transition: '转场', subtitle: '字幕' }[t]}
+                <IconChevronLeft size={12} />左移
+              </button>
+              <button
+                type="button"
+                data-testid="clip-move-right"
+                disabled={clipIndex < 0 || clipIndex >= clipCount - 1}
+                onClick={() => onMove(1)}
+                className="flex h-8 flex-1 items-center justify-center rounded bg-ink-50 disabled:text-ink-300"
+              >
+                右移<IconChevronRight size={12} />
+              </button>
+            </div>
+          </>
+        )}
+        {audio && (
+          <>
+            <div>
+              <div className="mb-1 text-ink-400">裁切</div>
+              <div className="flex items-center gap-1">
+                <input
+                  aria-label="音轨入点"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  defaultValue={audio.inPoint}
+                  onBlur={(event) => onAudioTiming({ inPoint: Number(event.currentTarget.value) })}
+                  className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
+                />
+                <span>→</span>
+                <input
+                  aria-label="音轨出点"
+                  type="number"
+                  min={0.05}
+                  step={0.1}
+                  defaultValue={audio.outPoint}
+                  onBlur={(event) => onAudioTiming({ outPoint: Number(event.currentTarget.value) })}
+                  className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
+                />
+              </div>
+            </div>
+            <label>
+              <span className="mb-1 block text-ink-400">时间线起点</span>
+              <input
+                type="number"
+                aria-label="音轨时间线起点"
+                min={0}
+                step={0.1}
+                defaultValue={audio.start}
+                onBlur={(event) => onAudioTiming({ start: Number(event.currentTarget.value) })}
+                className="w-full rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
+              />
+            </label>
+            <label>
+              <span className="mb-1 block text-ink-400">音量 {Math.round(audio.volume * 100)}%</span>
+              <input
+                type="range"
+                aria-label="音轨音量"
+                min={0}
+                max={2}
+                step={0.05}
+                value={audio.volume}
+                onChange={(event) => onVolume(Number(event.currentTarget.value))}
+                className="w-full"
+              />
+            </label>
+          </>
+        )}
+        <button type="button" onClick={onMute} className="w-full rounded bg-ink-50 py-2 text-ink-600">
+          {(clip?.muted ?? audio?.muted) ? '开启声音' : '静音'}
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+function TransitionPanels({
+  clip,
+  canApply,
+  onChoose,
+  onDuration,
+  onDelete,
+  onClose,
+}: {
+  clip: CompositeClip | null
+  canApply: boolean
+  onChoose: (type: CompositeTransitionId) => void
+  onDuration: (duration: number) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  const selected = clip?.transitionAfter ?? null
+  return (
+    <div
+      className="absolute inset-x-2 top-2 z-20 grid grid-cols-[minmax(0,1fr)_300px] gap-[78px]"
+      style={{ bottom: TIMELINE_HEIGHT + 16 }}
+    >
+      <section data-testid="transition-library" className="rounded-xl bg-surface shadow-[var(--shadow-panel)] ring-1 ring-ink-100">
+        <header className="flex h-11 items-center border-b border-ink-100 px-4">
+          <h3 className="text-[13px] font-semibold">转场库</h3>
+          <button type="button" aria-label="关闭转场库" onClick={onClose} className="ml-auto p-1.5 text-ink-500">
+            <IconClose size={15} />
+          </button>
+        </header>
+        <div className="p-4">
+          <div className="mb-3 text-[11px] text-ink-400">基础转场</div>
+          <div className="grid grid-cols-3 gap-4">
+            {TRANSITIONS.map((transition) => (
+              <button
+                key={transition.id}
+                type="button"
+                disabled={!canApply}
+                onClick={() => onChoose(transition.id)}
+                className="min-w-0 text-left text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <span className={cn(
+                  'mb-2 block aspect-[1.45] rounded-lg bg-gradient-to-br ring-1',
+                  TRANSITION_UI[transition.id].accent,
+                  selected?.type === transition.id ? 'ring-accent' : 'ring-ink-100',
+                )} />
+                <span>{TRANSITION_UI[transition.id].label}</span>
               </button>
             ))}
           </div>
-
-          {tab === 'media' &&
-            (selected ? (
-              <div className="space-y-3 text-[12px]">
-                <div>
-                  <div className="mb-1 text-ink-500">来源</div>
-                  <div className="truncate text-ink-700">{selected.nodeName}</div>
-                </div>
-                <div>
-                  <div className="mb-1 text-ink-500">裁切</div>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={selected.outPoint}
-                      step={0.1}
-                      value={selected.inPoint}
-                      onChange={(e) => updateSelected({ inPoint: Number(e.target.value) })}
-                      className="w-full rounded-md border border-ink-200 px-1.5 py-1 outline-none"
-                    />
-                    <span className="text-ink-400">→</span>
-                    <input
-                      type="number"
-                      min={selected.inPoint}
-                      max={selected.durationSeconds}
-                      step={0.1}
-                      value={selected.outPoint}
-                      onChange={(e) => updateSelected({ outPoint: Number(e.target.value) })}
-                      className="w-full rounded-md border border-ink-200 px-1.5 py-1 outline-none"
-                    />
-                  </div>
-                </div>
+        </div>
+      </section>
+      <section data-testid="transition-properties" className="relative rounded-xl bg-surface shadow-[var(--shadow-panel)] ring-1 ring-ink-100">
+        <header className="h-11 border-b border-ink-100 px-4 py-3 text-[13px] font-semibold">转场</header>
+        <div className="space-y-4 p-4 text-[11px]">
+          <div><div className="mb-1 text-ink-400">名称</div>
+            <div className={selected ? 'text-ink-700' : 'text-ink-400'}>
+              {selected ? TRANSITION_UI[selected.type].label : '未选择转场'}
+            </div>
+          </div>
+          <div><div className="mb-1 text-ink-400">时长</div>
+            {selected ? (
+              <div className="flex items-center gap-2">
+                <input
+                  aria-label="转场时长"
+                  type="number"
+                  min={0.08}
+                  max={2}
+                  step={0.1}
+                  defaultValue={selected.durationSeconds}
+                  onBlur={(event) => onDuration(Number(event.currentTarget.value))}
+                  className="w-24 rounded bg-ink-50 px-2 py-1.5 ring-1 ring-ink-100"
+                /><span>秒</span>
               </div>
-            ) : (
-              <p className="text-[11px] text-ink-400">未选择片段时属性不可编辑。</p>
-            ))}
+            ) : <div className="text-ink-400">-</div>}
+          </div>
+          <div className={cn(
+            'h-24 rounded-lg bg-gradient-to-br',
+            selected ? TRANSITION_UI[selected.type].accent : 'from-amber-600/60 to-slate-600/60',
+          )} />
+        </div>
+        <button
+          type="button"
+          data-testid="delete-transition"
+          disabled={!selected}
+          onClick={onDelete}
+          className="absolute bottom-3 right-3 rounded bg-ink-50 px-3 py-2 text-[11px] disabled:text-ink-300"
+        >
+          删除
+        </button>
+      </section>
+    </div>
+  )
+}
 
-          {tab === 'transition' && (
-            <div className="space-y-1.5">
-              {TRANSITIONS.map((transition) => (
+function SubtitlePanel({
+  tab,
+  onTab,
+  search,
+  onSearch,
+  subtitles,
+  drafts,
+  selectedId,
+  disabled,
+  onSelect,
+  onAdd,
+  onDraft,
+  onCommit,
+  onToggle,
+  onDelete,
+}: {
+  tab: SubtitleTab
+  onTab: (tab: SubtitleTab) => void
+  search: string
+  onSearch: (value: string) => void
+  subtitles: CompositeSubtitle[]
+  drafts: Record<string, string>
+  selectedId: string | null
+  disabled: boolean
+  onSelect: (id: string) => void
+  onAdd: () => void
+  onDraft: (id: string, value: string) => void
+  onCommit: (id: string, value: string) => void
+  onToggle: (subtitle: CompositeSubtitle) => void
+  onDelete: (subtitle: CompositeSubtitle) => void
+}) {
+  const visible = subtitles.filter((subtitle) => subtitle.text.toLowerCase().includes(search.trim().toLowerCase()))
+  return (
+    <section
+      data-testid="subtitle-panel"
+      className="absolute right-2 top-2 z-20 w-[300px] rounded-xl bg-surface shadow-[var(--shadow-panel)] ring-1 ring-ink-100"
+      style={{ bottom: TIMELINE_HEIGHT + 16 }}
+    >
+      <div role="tablist" className="flex h-11 gap-5 border-b border-ink-100 px-4">
+        {(['subtitle', 'text'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => onTab(value)}
+            className={cn(
+              'border-b-2 text-[12px]',
+              tab === value ? 'border-ink-900 text-ink-900' : 'border-transparent text-ink-400',
+            )}
+          >
+            {value === 'subtitle' ? '字幕' : '文本'}
+          </button>
+        ))}
+      </div>
+      {tab === 'subtitle' ? (
+        <div className="flex h-[calc(100%_-_44px)] flex-col gap-2 p-4">
+          <label className="flex h-8 items-center gap-2 rounded bg-ink-50 px-3 text-ink-400">
+            <input
+              value={search}
+              onChange={(event) => onSearch(event.currentTarget.value)}
+              placeholder="搜索字幕文本"
+              className="min-w-0 flex-1 bg-transparent text-[11px] outline-none"
+            /><IconSearch size={13} />
+          </label>
+          <button
+            type="button"
+            data-testid="add-subtitle"
+            disabled={disabled}
+            onClick={onAdd}
+            className="flex h-8 items-center justify-center gap-1 rounded bg-ink-100 text-[11px] disabled:text-ink-300"
+          >
+            <IconPlus size={13} />新建字幕
+          </button>
+          <div className="thin-scrollbar mt-2 min-h-0 flex-1 overflow-y-auto">
+            {visible.length === 0 ? <p className="pt-4 text-[11px] text-ink-400">暂无字幕</p> : (
+              <div className="space-y-2">
+                {visible.map((subtitle) => (
+                  <div
+                    key={subtitle.id}
+                    className={cn(
+                      'rounded p-2 ring-1',
+                      subtitle.id === selectedId ? 'bg-accent-soft ring-accent/40' : 'bg-ink-50 ring-ink-100',
+                    )}
+                  >
+                    <input
+                      data-testid={'subtitle-text-' + subtitle.id}
+                      value={drafts[subtitle.id] ?? subtitle.text}
+                      onFocus={() => onSelect(subtitle.id)}
+                      onChange={(event) => onDraft(subtitle.id, event.currentTarget.value)}
+                      onBlur={(event) => onCommit(subtitle.id, event.currentTarget.value)}
+                      className="w-full bg-transparent text-[11px] outline-none"
+                    />
+                    <div className="mt-2 flex gap-2 text-[10px] text-ink-400">
+                      <span>{subtitle.start.toFixed(1)}–{subtitle.end.toFixed(1)}s</span>
+                      <button type="button" onClick={() => onToggle(subtitle)} className="ml-auto">
+                        {subtitle.visible ? '隐藏' : '显示'}
+                      </button>
+                      <button type="button" onClick={() => onDelete(subtitle)}>删除</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 p-4">
+          {['标题', '正文', '注释', '片尾'].map((preset) => (
+            <button key={preset} type="button" disabled={disabled} onClick={onAdd} className="rounded bg-ink-50 p-4 text-left text-[12px]">
+              {preset}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function TimelinePanel({
+  timeline,
+  selectedClipId,
+  selectedAudioId,
+  selectedSubtitleId,
+  tool,
+  playhead,
+  playing,
+  total,
+  pixelsPerSecond,
+  trackWidth,
+  viewportRef,
+  onTool,
+  onPlay,
+  onSeek,
+  onSelectClip,
+  onSelectAudio,
+  onSelectSubtitle,
+  onSplit,
+  onTrimIn,
+  onTrimOut,
+  onReorder,
+  onDelete,
+  onZoom,
+  onFit,
+  onDrop,
+}: {
+  timeline: CompositeDocument
+  selectedClipId: string | null
+  selectedAudioId: string | null
+  selectedSubtitleId: string | null
+  tool: EditorTool
+  playhead: number
+  playing: boolean
+  total: number
+  pixelsPerSecond: number
+  trackWidth: number
+  viewportRef: RefObject<HTMLDivElement | null>
+  onTool: (tool: EditorTool) => void
+  onPlay: () => void
+  onSeek: (value: number) => void
+  onSelectClip: (clip: CompositeClip) => void
+  onSelectAudio: (track: CompositeAudioTrack) => void
+  onSelectSubtitle: (subtitle: CompositeSubtitle) => void
+  onSplit: () => void
+  onTrimIn: () => void
+  onTrimOut: () => void
+  onReorder: (clipId: string, targetIndex: number) => void
+  onDelete: () => void
+  onZoom: (zoom: number) => void
+  onFit: () => void
+  onDrop: (event: DragEvent) => void
+}) {
+  const selection = Boolean(selectedClipId || selectedAudioId || selectedSubtitleId)
+  const seekAt = (event: MouseEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    onSeek((event.clientX - bounds.left + event.currentTarget.scrollLeft) / pixelsPerSecond)
+  }
+  return (
+    <section
+      data-testid="clip-timeline-panel"
+      className="absolute bottom-2 left-2 right-2 z-30 overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-panel)] ring-1 ring-ink-100"
+      style={{ height: TIMELINE_HEIGHT }}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={onDrop}
+    >
+      <div className="relative flex h-12 items-center border-b border-ink-100 px-3">
+        <div className="flex gap-1">
+          <ToolButton testId="clip-set-in" label="设置入点" disabled={!selectedClipId} onClick={onTrimIn}>Ⅰ</ToolButton>
+          <ToolButton testId="clip-set-out" label="设置出点" disabled={!selectedClipId} onClick={onTrimOut}>Ⅰ</ToolButton>
+          <ToolButton testId="clip-split" label="分割" disabled={!selectedClipId} onClick={onSplit}><IconCut size={14} /></ToolButton>
+          <ToolButton
+            testId="clip-tool-subtitle"
+            label="字幕"
+            active={tool === 'subtitle'}
+            onClick={() => onTool('subtitle')}
+          ><IconText size={15} /></ToolButton>
+          <ToolButton
+            testId="clip-tool-transition"
+            label="转场"
+            active={tool === 'transition'}
+            onClick={() => onTool('transition')}
+          ><span className="rounded border px-0.5 text-[8px]">▶</span></ToolButton>
+        </div>
+        <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-3 text-[11px]">
+          <span data-testid="clip-current-time" className="w-10 text-right tabular-nums">{timeLabel(playhead)}</span>
+          <button
+            type="button"
+            aria-label={playing ? '暂停' : '播放'}
+            disabled={timeline.clips.length === 0}
+            onClick={onPlay}
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-ink-100 disabled:text-ink-300"
+          >
+            {playing ? <IconPause size={14} /> : <IconPlay size={14} />}
+          </button>
+          <span data-testid="clip-total-time" className="w-10 tabular-nums">{timeLabel(total)}</span>
+        </div>
+        <div className="ml-auto flex gap-1">
+          <ToolButton label="全屏预览" disabled={timeline.clips.length === 0} onClick={() => void globalThis.document.documentElement.requestFullscreen?.()}><IconExpand size={14} /></ToolButton>
+          <ToolButton label="回到开始" disabled={timeline.clips.length === 0} onClick={() => onSeek(0)}><IconRefresh size={13} /></ToolButton>
+          <ToolButton label="删除所选" disabled={!selection} onClick={onDelete}><IconTrash size={13} /></ToolButton>
+          <ToolButton label="缩小时间线" onClick={() => onZoom(Math.max(0.5, timeline.zoom - 0.25))}>−</ToolButton>
+          <input
+            type="range"
+            aria-label="时间线缩放"
+            min={0.5}
+            max={3}
+            step={0.25}
+            value={timeline.zoom}
+            onChange={(event) => onZoom(Number(event.currentTarget.value))}
+            className="w-14"
+          />
+          <ToolButton label="放大时间线" onClick={() => onZoom(Math.min(3, timeline.zoom + 0.25))}><IconZoomIn size={14} /></ToolButton>
+          <ToolButton label="适配时间线" onClick={onFit}>↗</ToolButton>
+        </div>
+      </div>
+      <div className="flex h-[207px]">
+        <div className="w-[78px] shrink-0 border-r border-ink-100 pt-7">
+          <TrackLabel icon={<IconVideo size={14} />} label="视频" />
+          {timeline.audioTracks.length > 0 && <TrackLabel icon="♫" label="音轨" />}
+          {tool === 'subtitle' && <TrackLabel icon={<IconText size={14} />} label="字幕" />}
+        </div>
+        <div
+          ref={viewportRef}
+          data-testid="clip-track-viewport"
+          className="thin-scrollbar min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+          onClick={seekAt}
+        >
+          <div className="relative h-full" style={{ width: trackWidth }}>
+            <Ruler total={total} pixelsPerSecond={pixelsPerSecond} />
+            <div className="absolute left-0 right-0 top-7 h-14 bg-ink-50/70">
+              {timeline.clips.length === 0 ? (
+                <div data-testid="clip-track-empty" className="flex h-full items-center justify-center text-[11px] text-ink-400">
+                  将左侧片段拖入时间线
+                </div>
+              ) : timeline.clips.map((clip, index) => (
                 <button
-                  key={transition.id}
+                  key={clip.id}
                   type="button"
-                  disabled={!selected}
-                  onClick={() => updateSelected({ transitionAfter: transition.id })}
+                  data-testid={'timeline-clip-' + clip.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData('application/x-nova-clip', clip.id)
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    const draggedId = event.dataTransfer.getData('application/x-nova-clip')
+                    if (!draggedId || draggedId === clip.id) return
+                    event.preventDefault()
+                    event.stopPropagation()
+                    onReorder(draggedId, index)
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onSelectClip(clip)
+                  }}
                   className={cn(
-                    'w-full rounded-lg px-2.5 py-2 text-left text-[12px] transition-colors',
-                    !selected
-                      ? 'cursor-not-allowed text-ink-300'
-                      : selected.transitionAfter === transition.id
-                        ? 'bg-accent-soft text-accent-ink'
-                        : 'bg-ink-50 text-ink-700 hover:bg-ink-100',
+                    'absolute top-1 h-12 overflow-hidden rounded ring-2',
+                    clip.id === selectedClipId ? 'ring-accent' : 'ring-transparent',
                   )}
+                  style={{
+                    left: clipTimelineStart(timeline, index) * pixelsPerSecond,
+                    width: Math.max(24, clipSeconds(clip) * pixelsPerSecond),
+                  }}
                 >
-                  {transition.label}
+                  {clip.poster && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={clip.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  )}
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 text-left text-[9px] text-white">
+                    {clip.nodeName} · {clip.speed}×
+                  </span>
+                  {clip.transitionAfter && index < timeline.clips.length - 1 && (
+                    <span className="absolute right-0 top-0 bg-accent px-1 text-[8px]">◆</span>
+                  )}
                 </button>
               ))}
             </div>
-          )}
-
-          {tab === 'subtitle' && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                disabled={empty}
-                data-testid="add-subtitle"
-                onClick={addSubtitle}
-                className={cn(
-                  'w-full rounded-lg border border-dashed py-2 text-[12px] transition-colors',
-                  empty
-                    ? 'cursor-not-allowed border-ink-100 text-ink-300'
-                    : 'border-ink-200 text-ink-500 hover:border-ink-300',
-                )}
+            {timeline.audioTracks.length > 0 && (
+              <div className="absolute left-0 right-0 top-[88px] h-10 bg-ink-50/50">
+                {timeline.audioTracks.map((track) => (
+                  <button
+                    key={track.id}
+                    type="button"
+                    data-testid={'timeline-audio-' + track.id}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onSelectAudio(track)
+                    }}
+                    className={cn(
+                      'absolute top-1 h-8 truncate rounded bg-violet-500/20 px-2 text-[9px] ring-2',
+                      track.id === selectedAudioId ? 'ring-accent' : 'ring-transparent',
+                    )}
+                    style={{
+                      left: track.start * pixelsPerSecond,
+                      width: Math.max(24, Math.min(total - track.start, track.outPoint - track.inPoint) * pixelsPerSecond),
+                    }}
+                  >
+                    ♫ {track.nodeName}
+                  </button>
+                ))}
+              </div>
+            )}
+            {tool === 'subtitle' && (
+              <div
+                data-testid="subtitle-track"
+                className="absolute left-0 right-0 h-10 bg-ink-50/50"
+                style={{ top: timeline.audioTracks.length > 0 ? 132 : 88 }}
               >
-                新建字幕
-              </button>
-              {empty && <p className="text-[11px] text-ink-400">先添加片段，字幕才有可依附的时间线。</p>}
-              {subtitles.map((subtitle, index) => (
-                <input
-                  key={subtitle.id}
-                  value={subtitle.text}
-                  onChange={(e) => {
-                    const next = subtitles.slice()
-                    next[index] = { ...subtitle, text: e.target.value }
-                    setSubtitles(next)
-                  }}
-                  className="w-full rounded-md border border-ink-200 px-2 py-1.5 text-[12px] outline-none focus:border-accent"
-                />
-              ))}
-            </div>
-          )}
+                {timeline.subtitles.map((subtitle) => (
+                  <button
+                    key={subtitle.id}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onSelectSubtitle(subtitle)
+                    }}
+                    className={cn(
+                      'absolute top-1 h-8 truncate rounded bg-sky-500/20 px-2 text-[9px] ring-2',
+                      subtitle.id === selectedSubtitleId ? 'ring-accent' : 'ring-transparent',
+                    )}
+                    style={{
+                      left: subtitle.start * pixelsPerSecond,
+                      width: Math.max(32, (subtitle.end - subtitle.start) * pixelsPerSecond),
+                    }}
+                  >
+                    {subtitle.text}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div
+              data-testid="clip-playhead"
+              className="pointer-events-none absolute bottom-0 top-5 z-30 w-px bg-danger"
+              style={{ left: playhead * pixelsPerSecond }}
+            ><span className="absolute -left-1 -top-1 h-2 w-2 rotate-45 bg-danger" /></div>
+          </div>
         </div>
       </div>
-    </Dialog>
+    </section>
+  )
+}
+
+function ToolButton({
+  label,
+  testId,
+  disabled,
+  active,
+  onClick = () => undefined,
+  children,
+}: {
+  label: string
+  testId?: string
+  disabled?: boolean
+  active?: boolean
+  onClick?: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      data-testid={testId}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'flex h-8 w-8 items-center justify-center rounded text-ink-500 hover:bg-ink-50',
+        active && 'bg-ink-100 text-ink-900',
+        disabled && 'cursor-not-allowed text-ink-300 hover:bg-transparent',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function TrackLabel({ icon, label }: { icon: ReactNode; label: string }) {
+  return <div className="flex h-11 items-center gap-1.5 px-3 text-[10px] text-ink-500">{icon}<span>{label}</span></div>
+}
+
+function Ruler({ total, pixelsPerSecond }: { total: number; pixelsPerSecond: number }) {
+  const step = pixelsPerSecond >= 60 ? 1 : pixelsPerSecond >= 30 ? 2 : 5
+  const marks = Array.from({ length: Math.floor(Math.max(10, Math.ceil(total)) / step) + 1 }, (_, index) => index * step)
+  return (
+    <div className="absolute inset-x-0 top-0 h-7 border-b border-ink-100 text-[9px] text-ink-400">
+      {marks.map((second) => (
+        <span key={second} className="absolute top-1" style={{ left: second * pixelsPerSecond }}>
+          <span className="block h-1.5 w-px bg-ink-200" />{timeLabel(second)}
+        </span>
+      ))}
+    </div>
   )
 }

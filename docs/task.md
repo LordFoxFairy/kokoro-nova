@@ -209,6 +209,20 @@
 - [x] 顺带把测试覆盖写成实测表格：`src/server/generation/` 与 `agent.ts` 引用数**为 0**，
       而这两个恰是 HANDOFF 第 1、3 节让接手方动的模块。
 
+## Video 合成器高保真批次
+
+- [x] 官网故事板剪辑器改为真正的内嵌双栏模式：`33.38%` 素材区、右侧预览/工具面板、
+      255px 底部时间线；空态导出门槛与 Escape 分层关闭按 1440×900 证据锁定。
+- [x] `videoComposite.data.extra.composite` v1：旧数组迁移，片段/独立音轨/字幕、播放头、
+      缩放与源音频状态统一持久化，所有交互仍通过 canvas revision mutation。
+- [x] 片段添加/拖入、裁切、播放头分割、变速、按钮与拖拽重排、静音、删除；视频预览
+      同步；三类转场；字幕搜索/新建/编辑/显隐/删除；独立音轨裁切/放置/增益。
+- [x] `POST /api/compose` Zod/OpenAPI/样本收敛：视频源音频、无声补齐、独立音轨混音、
+      自定义转场时长、20 分钟上限和精确成功响应；不再文档化不存在的
+      `canvasId/nodeId/timeline/destination`。
+- [x] 种子视频进入 `/api/media/` 信任边界，Playwright 实际调用 ffmpeg route、读取返回
+      MP4；四张合成器视觉基线与官网逐状态对照归档。
+
 ## 交接注意
 
 - 真实模型接入只需实现 `src/server/generation/provider.ts` 的 `GenerationProvider`

@@ -1,15 +1,16 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import {
+  ComposeRequestSchema,
+  ComposeResponseSchema,
+  type ComposeContractResponse,
+} from '@/contracts/compose'
 import { ids, newId } from '@/domain/ids'
 import type { Artifact, Asset } from '@/domain/types'
 import {
   composeTimeline,
   type ComposeFailureCode,
-  type SubtitleMode,
-  type TimelineClip,
   type TimelineSpec,
-  type TimelineSubtitle,
-  type TransitionId,
 } from '@/server/compose'
 import { MEDIA_PUBLIC_PREFIX } from '@/server/generation/runner'
 import { HttpError, handle } from '@/server/http'
@@ -42,15 +43,8 @@ const STATUS_BY_CODE: Record<ComposeFailureCode, number> = {
   timeout: 504,
 }
 
-export interface ComposeResponse {
-  artifact: Artifact
-  assetId: string
-  subtitleMode: SubtitleMode
-  notes: string[]
-}
-
 export async function POST(request: Request) {
-  return handle(async (): Promise<ComposeResponse> => {
+  return handle(async (): Promise<ComposeContractResponse> => {
     let body: unknown
     try {
       body = await request.json()
@@ -116,7 +110,12 @@ export async function POST(request: Request) {
       state.assets.push(asset)
     })
 
-    return { artifact, assetId, subtitleMode: result.subtitleMode, notes: result.notes }
+    return ComposeResponseSchema.parse({
+      artifact,
+      assetId,
+      subtitleMode: result.subtitleMode,
+      notes: result.notes,
+    })
   })
 }
 
@@ -127,51 +126,12 @@ export async function POST(request: Request) {
  * belongs to `validateTimeline` so the route and the tests agree on it.
  * ------------------------------------------------------------------ */
 
-const TRANSITION_IDS: TransitionId[] = ['fade', 'to-black', 'to-white']
-
 function readSpec(body: unknown): TimelineSpec {
-  if (typeof body !== 'object' || body === null) throw new HttpError(400, '请求体格式不正确')
-  const raw = body as { clips?: unknown; subtitles?: unknown }
-
-  if (!Array.isArray(raw.clips)) throw new HttpError(400, '缺少片段列表')
-  const rawSubtitles: unknown[] = raw.subtitles === undefined ? [] : asArray(raw.subtitles, '字幕列表')
-
-  const clips: TimelineClip[] = raw.clips.map((entry: unknown, index: number) => {
-    if (typeof entry !== 'object' || entry === null) {
-      throw new HttpError(400, `第 ${index + 1} 个片段格式不正确`)
-    }
-    const clip = entry as Record<string, unknown>
-    const transition = clip.transitionAfter
-    // Rejected rather than coerced to null: silently turning an unrecognised
-    // transition into a hard cut would ship the wrong film without saying so.
-    if (transition !== null && transition !== undefined && !TRANSITION_IDS.includes(transition as TransitionId)) {
-      throw new HttpError(400, `第 ${index + 1} 个片段使用了不支持的转场`)
-    }
-    return {
-      url: typeof clip.url === 'string' ? clip.url : '',
-      inPoint: Number(clip.inPoint),
-      outPoint: Number(clip.outPoint),
-      speed: clip.speed === undefined ? 1 : Number(clip.speed),
-      transitionAfter: (transition as TransitionId | null | undefined) ?? null,
-    }
-  })
-
-  const subtitles: TimelineSubtitle[] = rawSubtitles.map((entry: unknown, index: number) => {
-    if (typeof entry !== 'object' || entry === null) {
-      throw new HttpError(400, `第 ${index + 1} 条字幕格式不正确`)
-    }
-    const subtitle = entry as Record<string, unknown>
-    return {
-      text: typeof subtitle.text === 'string' ? subtitle.text : '',
-      start: Number(subtitle.start),
-      end: Number(subtitle.end),
-    }
-  })
-
-  return { clips, subtitles }
-}
-
-function asArray(value: unknown, label: string): unknown[] {
-  if (!Array.isArray(value)) throw new HttpError(400, `${label}格式不正确`)
-  return value
+  const parsed = ComposeRequestSchema.safeParse(body)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const where = issue.path.length > 0 ? `${issue.path.join('.')}：` : ''
+    throw new HttpError(400, `${where}${issue.message}`)
+  }
+  return parsed.data
 }

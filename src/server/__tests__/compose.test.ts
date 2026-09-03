@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { TimelineClip, TransitionId } from '@/server/compose'
+import type { TimelineAudioTrack, TimelineClip, TransitionId } from '@/server/compose'
 
 /**
  * Timeline compositor.
@@ -41,6 +41,18 @@ function clip(overrides: Partial<TimelineClip> = {}): TimelineClip {
     outPoint: 4,
     speed: 1,
     transitionAfter: null,
+    ...overrides,
+  }
+}
+
+function audioTrack(overrides: Partial<TimelineAudioTrack> = {}): TimelineAudioTrack {
+  return {
+    url: '/api/media/music/bed.wav',
+    inPoint: 0,
+    outPoint: 4,
+    start: 0,
+    volume: 1,
+    muted: false,
     ...overrides,
   }
 }
@@ -114,7 +126,10 @@ describe('validateTimeline', () => {
   })
 
   it('rejects a timeline longer than the render ceiling', () => {
-    const clips = Array.from({ length: 10 }, () => clip({ outPoint: 40 }))
+    const clips = Array.from(
+      { length: compose.MAX_CLIPS },
+      () => clip({ outPoint: compose.MAX_TIMELINE_SECONDS / compose.MAX_CLIPS + 1 }),
+    )
     const result = compose.validateTimeline({ clips, subtitles: [] })
     expect(result).toEqual({ ok: false, reason: expect.stringContaining('合成时长超过上限') })
   })
@@ -134,6 +149,34 @@ describe('validateTimeline', () => {
         subtitles: [],
       })
       expect(result.ok).toBe(true)
+    }
+  })
+
+  it('validates requested transition duration and independent audio tracks', () => {
+    expect(
+      compose.validateTimeline({
+        clips: [clip({ transitionAfter: 'fade', transitionDurationSeconds: 0.8 }), clip()],
+        audioTracks: [audioTrack({ start: 1, volume: 0.65 })],
+        subtitles: [],
+      }).ok,
+    ).toBe(true)
+
+    for (const transitionDurationSeconds of [0, 0.01, 4, Number.NaN]) {
+      const result = compose.validateTimeline({
+        clips: [clip({ transitionAfter: 'fade', transitionDurationSeconds }), clip()],
+        subtitles: [],
+      })
+      expect(result).toEqual({ ok: false, reason: expect.stringContaining('转场时长') })
+    }
+
+    for (const track of [
+      audioTrack({ inPoint: -1 }),
+      audioTrack({ outPoint: 0 }),
+      audioTrack({ volume: 3 }),
+      audioTrack({ start: -1 }),
+    ]) {
+      const result = compose.validateTimeline({ clips: [clip()], audioTracks: [track], subtitles: [] })
+      expect(result.ok).toBe(false)
     }
   })
 
@@ -300,6 +343,30 @@ async function makeSource(file: string, pattern: string, size: string, seconds: 
   })
 }
 
+async function makeAudio(file: string, seconds: number) {
+  await fs.mkdir(path.dirname(file), { recursive: true })
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      'ffmpeg',
+      [
+        '-y',
+        '-v',
+        'error',
+        '-f',
+        'lavfi',
+        '-i',
+        `sine=frequency=330:sample_rate=48000:duration=${seconds}`,
+        '-c:a',
+        'pcm_s16le',
+        file,
+      ],
+      { stdio: 'ignore' },
+    )
+    child.on('error', reject)
+    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`))))
+  })
+}
+
 // Synchronous on purpose: `describe.skip` has to be chosen while the file is
 // being collected, before any hook has had a chance to run.
 const FFMPEG_AVAILABLE = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status === 0
@@ -309,6 +376,7 @@ describeRender('composeTimeline (real ffmpeg render)', () => {
   beforeAll(async () => {
     await makeSource(path.join(mediaDir, 'job_a', 'shot.mp4'), 'testsrc', '320x240', 4)
     await makeSource(path.join(mediaDir, 'job_b', 'shot.mp4'), 'smptebars', '320x240', 3)
+    await makeAudio(path.join(mediaDir, 'music', 'bed.wav'), 5)
   }, 60_000)
 
   it(
@@ -354,6 +422,31 @@ describeRender('composeTimeline (real ffmpeg render)', () => {
       expect(left.filter((name) => name.endsWith('.txt') || name.endsWith('.srt'))).toEqual([])
     },
     180_000,
+  )
+
+  it(
+    'mixes an independent audio track into the composed video',
+    async () => {
+      const result = await compose.composeTimeline(
+        {
+          clips: [clip({ outPoint: 3 })],
+          audioTracks: [audioTrack({ outPoint: 3, start: 0.25, volume: 0.5 })],
+          subtitles: [],
+        },
+        path.join(root, 'audio-out'),
+      )
+
+      expect(result.ok).toBe(true)
+      if (!result.ok) throw new Error(result.reason)
+      const probe = spawnSync(
+        'ffprobe',
+        ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', result.outputPath],
+        { encoding: 'utf8' },
+      )
+      expect(probe.status).toBe(0)
+      expect(probe.stdout.trim()).toBe('audio')
+    },
+    120_000,
   )
 
   it(

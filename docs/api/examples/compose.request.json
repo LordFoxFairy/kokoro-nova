@@ -1,0 +1,39 @@
+{
+  "clips": [
+    {
+      "url": "/api/media/job-shot-a/shot-a.mp4",
+      "inPoint": 0.5,
+      "outPoint": 5.5,
+      "speed": 1,
+      "muted": false,
+      "transitionAfter": "fade",
+      "transitionDurationSeconds": 0.6
+    },
+    {
+      "url": "/api/media/job-shot-b/shot-b.mp4",
+      "inPoint": 1,
+      "outPoint": 7,
+      "speed": 1.25,
+      "muted": true,
+      "transitionAfter": null,
+      "transitionDurationSeconds": null
+    }
+  ],
+  "audioTracks": [
+    {
+      "url": "/api/media/job-music/background.wav",
+      "inPoint": 0,
+      "outPoint": 10,
+      "start": 0,
+      "volume": 0.65,
+      "muted": false
+    }
+  ],
+  "subtitles": [
+    {
+      "text": "雨夜，故事开始。",
+      "start": 0.5,
+      "end": 2.8
+    }
+  ]
+}

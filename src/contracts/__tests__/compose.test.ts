@@ -1,0 +1,115 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+import requestExample from '../../../docs/api/examples/compose.request.json'
+import responseExample from '../../../docs/api/examples/compose.response.json'
+import { ComposeRequestSchema, ComposeResponseSchema } from '@/contracts/compose'
+
+describe('video compose contract', () => {
+  it('accepts the documented multitrack request and exact success response', () => {
+    const request = ComposeRequestSchema.parse(requestExample)
+    const response = ComposeResponseSchema.parse(responseExample)
+
+    expect(request.clips).toHaveLength(2)
+    expect(request.clips[0]).toMatchObject({
+      transitionAfter: 'fade',
+      transitionDurationSeconds: 0.6,
+      muted: false,
+    })
+    expect(request.audioTracks[0]).toMatchObject({ start: 0, volume: 0.65, muted: false })
+    expect(request.subtitles[0]).toEqual({ text: '雨夜，故事开始。', start: 0.5, end: 2.8 })
+    expect(response).toMatchObject({
+      artifact: { kind: 'video', modelId: 'local-compose' },
+      subtitleMode: 'burned',
+    })
+  })
+
+  it('keeps optional arrays backwards compatible', () => {
+    expect(
+      ComposeRequestSchema.parse({
+        clips: [
+          {
+            url: '/api/media/job-a/shot.mp4',
+            inPoint: 0,
+            outPoint: 5,
+            speed: 1,
+            transitionAfter: null,
+          },
+        ],
+      }),
+    ).toMatchObject({ audioTracks: [], subtitles: [] })
+  })
+
+  it('keeps the OpenAPI compositor examples and required fields aligned with runtime schemas', () => {
+    const openapi = JSON.parse(
+      readFileSync(path.join(process.cwd(), 'docs/api/openapi.yaml'), 'utf8'),
+    ) as {
+      components: {
+        schemas: { ComposeRequest: { required: string[]; properties: Record<string, unknown> } }
+        examples: Record<string, { value: unknown }>
+      }
+    }
+
+    expect(openapi.components.schemas.ComposeRequest.required).toEqual(['clips'])
+    expect(Object.keys(openapi.components.schemas.ComposeRequest.properties)).toEqual([
+      'clips',
+      'audioTracks',
+      'subtitles',
+    ])
+    expect(ComposeRequestSchema.parse(openapi.components.examples.ComposeRequestExample.value)).toEqual(
+      ComposeRequestSchema.parse(requestExample),
+    )
+    expect(ComposeResponseSchema.parse(openapi.components.examples.ComposeResponseExample.value)).toEqual(
+      ComposeResponseSchema.parse(responseExample),
+    )
+  })
+
+  it.each([
+    [{ clips: [] }, 'empty clips'],
+    [
+      {
+        clips: [
+          {
+            url: '/api/media/a/shot.mp4',
+            inPoint: 4,
+            outPoint: 2,
+            speed: 1,
+            transitionAfter: null,
+          },
+        ],
+      },
+      'reverse trim',
+    ],
+    [
+      {
+        clips: [
+          {
+            url: '/api/media/a/shot.mp4',
+            inPoint: 0,
+            outPoint: 2,
+            speed: 8,
+            transitionAfter: null,
+          },
+        ],
+      },
+      'unsupported speed',
+    ],
+    [
+      {
+        clips: [
+          {
+            url: '/api/media/a/shot.mp4',
+            inPoint: 0,
+            outPoint: 2,
+            speed: 1,
+            transitionAfter: 'spin',
+          },
+        ],
+      },
+      'unsupported transition',
+    ],
+  ])('rejects %s (%s)', (value, _label) => {
+    expect(ComposeRequestSchema.safeParse(value).success).toBe(false)
+  })
+})

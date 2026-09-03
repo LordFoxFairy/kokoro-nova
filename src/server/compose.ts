@@ -33,8 +33,24 @@ export interface TimelineClip {
   outPoint: number
   /** Playback rate; 2 halves the clip's contribution to the timeline. */
   speed: number
+  /** Mute this source clip's own audio stream. */
+  muted?: boolean
   /** Transition into the *next* clip. Ignored on the last clip. */
   transitionAfter: TransitionId | null
+  /** Requested overlap duration. Defaults to 0.5 seconds. */
+  transitionDurationSeconds?: number | null
+}
+
+export interface TimelineAudioTrack {
+  /** Public media URL of an independent BGM/voice-over source. */
+  url: string
+  inPoint: number
+  outPoint: number
+  /** Placement on the composed video timeline. */
+  start: number
+  /** Linear gain where 1 is the source level and 0 is silent. */
+  volume: number
+  muted: boolean
 }
 
 export interface TimelineSubtitle {
@@ -46,6 +62,7 @@ export interface TimelineSubtitle {
 
 export interface TimelineSpec {
   clips: TimelineClip[]
+  audioTracks?: TimelineAudioTrack[]
   subtitles: TimelineSubtitle[]
 }
 
@@ -98,17 +115,20 @@ export type ComposeResult = ComposeSuccess | ComposeFailure
  * ------------------------------------------------------------------ */
 
 export const MAX_CLIPS = 40
+export const MAX_AUDIO_TRACKS = 16
 export const MAX_SUBTITLES = 100
 export const MIN_SPEED = 0.25
 export const MAX_SPEED = 4
 export const MIN_CLIP_SECONDS = 0.05
-export const MAX_TIMELINE_SECONDS = 300
+/** Official product guidance documents a maximum composed duration of 20 minutes. */
+export const MAX_TIMELINE_SECONDS = 20 * 60
 export const DEFAULT_RENDER_TIMEOUT_MS = 120_000
 
 /** Nominal transition length; shrunk when a neighbouring clip is too short. */
 const TRANSITION_SECONDS = 0.5
 /** Below this a crossfade is indistinguishable from a cut, so we cut. */
 const MIN_TRANSITION_SECONDS = 0.08
+const MAX_TRANSITION_SECONDS = 2
 
 const OUTPUT_LONG_EDGE_CAP = 1920
 const FALLBACK_WIDTH = 1280
@@ -193,11 +213,15 @@ function finite(value: unknown): value is number {
  */
 export function validateTimeline(spec: TimelineSpec): ValidationResult {
   if (!spec || !Array.isArray(spec.clips)) return { ok: false, reason: '时间线数据格式不正确' }
+  const audioTracks = Array.isArray(spec.audioTracks) ? spec.audioTracks : []
   const subtitles = Array.isArray(spec.subtitles) ? spec.subtitles : []
 
   if (spec.clips.length === 0) return { ok: false, reason: '时间线为空，请先添加片段' }
   if (spec.clips.length > MAX_CLIPS) {
     return { ok: false, reason: `片段数量超过上限（最多 ${MAX_CLIPS} 个）` }
+  }
+  if (audioTracks.length > MAX_AUDIO_TRACKS) {
+    return { ok: false, reason: `音轨数量超过上限（最多 ${MAX_AUDIO_TRACKS} 条）` }
   }
   if (subtitles.length > MAX_SUBTITLES) {
     return { ok: false, reason: `字幕数量超过上限（最多 ${MAX_SUBTITLES} 条）` }
@@ -225,12 +249,45 @@ export function validateTimeline(spec: TimelineSpec): ValidationResult {
     ) {
       return { ok: false, reason: `${at}使用了不支持的转场` }
     }
+    if (clip.transitionAfter) {
+      const requested = clip.transitionDurationSeconds ?? TRANSITION_SECONDS
+      if (!finite(requested) || requested < MIN_TRANSITION_SECONDS || requested > MAX_TRANSITION_SECONDS) {
+        return {
+          ok: false,
+          reason: `${at}的转场时长需要在 ${MIN_TRANSITION_SECONDS} 到 ${MAX_TRANSITION_SECONDS} 秒之间`,
+        }
+      }
+    } else if (clip.transitionDurationSeconds !== null && clip.transitionDurationSeconds !== undefined) {
+      return { ok: false, reason: `${at}未选择转场，不能设置转场时长` }
+    }
     clipDurations.push((clip.outPoint - clip.inPoint) / clip.speed)
   }
 
   const totalSeconds = clipDurations.reduce((sum, d) => sum + d, 0)
   if (totalSeconds > MAX_TIMELINE_SECONDS) {
     return { ok: false, reason: `合成时长超过上限（最多 ${MAX_TIMELINE_SECONDS} 秒）` }
+  }
+
+  for (let i = 0; i < audioTracks.length; i += 1) {
+    const track = audioTracks[i]
+    const at = `第 ${i + 1} 条音轨`
+    if (!track || typeof track.url !== 'string' || track.url.length === 0) {
+      return { ok: false, reason: `${at}缺少素材地址` }
+    }
+    if (!finite(track.inPoint) || !finite(track.outPoint)) {
+      return { ok: false, reason: `${at}的裁切点不是有效数值` }
+    }
+    if (track.inPoint < 0) return { ok: false, reason: `${at}的入点不能为负` }
+    if (track.outPoint - track.inPoint < MIN_CLIP_SECONDS) {
+      return { ok: false, reason: `${at}的出点必须大于入点至少 ${MIN_CLIP_SECONDS} 秒` }
+    }
+    if (!finite(track.start) || track.start < 0 || track.start >= totalSeconds) {
+      return { ok: false, reason: `${at}的开始时间超出了视频时间线` }
+    }
+    if (!finite(track.volume) || track.volume < 0 || track.volume > 2) {
+      return { ok: false, reason: `${at}的音量需要在 0 到 2 之间` }
+    }
+    if (typeof track.muted !== 'boolean') return { ok: false, reason: `${at}的静音状态不正确` }
   }
 
   for (let i = 0; i < subtitles.length; i += 1) {
@@ -521,6 +578,8 @@ interface Graph {
   outLabel: string
   /** Duration the graph is expected to produce, before frame quantisation. */
   durationSeconds: number
+  /** Effective overlap at each clip junction; 0 means a hard cut. */
+  transitionSpans: number[]
   notes: string[]
 }
 
@@ -536,6 +595,7 @@ function buildGraph(
 ): Graph {
   const parts: string[] = []
   const notes: string[] = []
+  const transitionSpans: number[] = []
 
   clips.forEach((clip, i) => {
     parts.push(
@@ -557,7 +617,8 @@ function buildGraph(
     // A crossfade eats into both neighbours, so it can never be longer than a
     // sane fraction of the shorter one — otherwise xfade runs past the end of
     // the accumulated stream and ffmpeg errors out.
-    const span = Math.min(TRANSITION_SECONDS, duration * 0.4, clipDuration * 0.4)
+    const requestedSpan = clips[i - 1].transitionDurationSeconds ?? TRANSITION_SECONDS
+    const span = Math.min(requestedSpan, duration * 0.4, clipDuration * 0.4)
 
     if (transition && span >= MIN_TRANSITION_SECONDS) {
       parts.push(
@@ -565,17 +626,118 @@ function buildGraph(
           `duration=${num(span)}:offset=${num(duration - span)}[${next}]`,
       )
       duration = duration + clipDuration - span
+      transitionSpans.push(span)
     } else {
       if (transition) {
         notes.push(`第 ${i} 处转场两侧片段过短，已按硬切处理`)
       }
       parts.push(`[${label}][c${i}]concat=n=2:v=1:a=0[${next}]`)
       duration += clipDuration
+      transitionSpans.push(0)
     }
     label = next
   }
 
-  return { filter: parts.join(';'), outLabel: label, durationSeconds: duration, notes }
+  return { filter: parts.join(';'), outLabel: label, durationSeconds: duration, transitionSpans, notes }
+}
+
+interface AudioGraph {
+  parts: string[]
+  outLabel: string | null
+}
+
+/** ffmpeg's atempo accepts only 0.5–2.0, so boundary rates need a chain. */
+function atempoFilters(speed: number): string[] {
+  const filters: string[] = []
+  let remaining = speed
+  while (remaining > 2) {
+    filters.push('atempo=2')
+    remaining /= 2
+  }
+  while (remaining < 0.5) {
+    filters.push('atempo=0.5')
+    remaining /= 0.5
+  }
+  filters.push(`atempo=${num(remaining)}`)
+  return filters
+}
+
+/**
+ * Rebuild source sound in clip order, then mix independently positioned BGM
+ * and voice-over tracks. Missing/muted source sound becomes silence so later
+ * clips stay aligned with the picture rather than sliding left.
+ */
+function buildAudioGraph(
+  clips: TimelineClip[],
+  clipDurations: number[],
+  videoProbes: Array<ProbeResult | null>,
+  audioTracks: TimelineAudioTrack[],
+  graph: Graph,
+  audioInputStart: number,
+): AudioGraph {
+  const parts: string[] = []
+  const mixLabels: string[] = []
+  const hasSourceAudio = clips.some((clip, index) => videoProbes[index]?.hasAudio && !clip.muted)
+
+  if (hasSourceAudio) {
+    clips.forEach((clip, index) => {
+      const label = `sourceAudio${index}`
+      if (videoProbes[index]?.hasAudio && !clip.muted) {
+        parts.push(
+          `[${index}:a]atrim=start=${num(clip.inPoint)}:end=${num(clip.outPoint)},` +
+            `asetpts=PTS-STARTPTS,${atempoFilters(clip.speed).join(',')},` +
+            `aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[${label}]`,
+        )
+      } else {
+        parts.push(
+          `anullsrc=r=48000:cl=stereo,atrim=duration=${num(clipDurations[index])},` +
+            `asetpts=PTS-STARTPTS[${label}]`,
+        )
+      }
+    })
+
+    let sourceLabel = 'sourceAudio0'
+    for (let index = 1; index < clips.length; index += 1) {
+      const next = `sourceAudioJoin${index}`
+      const span = graph.transitionSpans[index - 1] ?? 0
+      if (span >= MIN_TRANSITION_SECONDS) {
+        parts.push(
+          `[${sourceLabel}][sourceAudio${index}]acrossfade=d=${num(span)}:c1=tri:c2=tri[${next}]`,
+        )
+      } else {
+        parts.push(`[${sourceLabel}][sourceAudio${index}]concat=n=2:v=0:a=1[${next}]`)
+      }
+      sourceLabel = next
+    }
+    mixLabels.push(sourceLabel)
+  }
+
+  audioTracks.forEach((track, index) => {
+    if (track.muted || track.volume === 0) return
+    const label = `independentAudio${index}`
+    const delayMs = Math.round(track.start * 1000)
+    parts.push(
+      `[${audioInputStart + index}:a]atrim=start=${num(track.inPoint)}:end=${num(track.outPoint)},` +
+        `asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,` +
+        `volume=${num(track.volume)},adelay=${delayMs}:all=1,apad,` +
+        `atrim=duration=${num(graph.durationSeconds)}[${label}]`,
+    )
+    mixLabels.push(label)
+  })
+
+  if (mixLabels.length === 0) return { parts, outLabel: null }
+  if (mixLabels.length === 1) {
+    const outLabel = 'audioOut'
+    parts.push(`[${mixLabels[0]}]atrim=duration=${num(graph.durationSeconds)}[${outLabel}]`)
+    return { parts, outLabel }
+  }
+
+  const outLabel = 'audioOut'
+  parts.push(
+    `${mixLabels.map((label) => `[${label}]`).join('')}amix=inputs=${mixLabels.length}:` +
+      `duration=longest:dropout_transition=0,atrim=duration=${num(graph.durationSeconds)}[${outLabel}]`,
+  )
+  return { parts, outLabel }
 }
 
 /* ------------------------------------------------------------------ *
@@ -601,14 +763,26 @@ export async function composeTimeline(
   const validation = validateTimeline(spec)
   if (!validation.ok) return { ok: false, code: 'invalid_spec', reason: validation.reason }
 
-  const sources: string[] = []
+  const videoSources: string[] = []
   for (let i = 0; i < spec.clips.length; i += 1) {
     const resolved = resolveMediaPath(spec.clips[i].url)
     if (!resolved) {
       return { ok: false, code: 'invalid_spec', reason: `第 ${i + 1} 个片段的素材地址不合法` }
     }
-    sources.push(resolved)
+    videoSources.push(resolved)
   }
+
+  const audioTracks = spec.audioTracks ?? []
+  const audioSources: string[] = []
+  for (let i = 0; i < audioTracks.length; i += 1) {
+    const resolved = resolveMediaPath(audioTracks[i].url)
+    if (!resolved) {
+      return { ok: false, code: 'invalid_spec', reason: `第 ${i + 1} 条音轨的素材地址不合法` }
+    }
+    audioSources.push(resolved)
+  }
+
+  const sources = [...videoSources, ...audioSources]
 
   // `resolveMediaPath` only proves the *textual* path stays under MEDIA_DIR — a
   // symlink sitting in the media tree satisfies that while pointing at any file
@@ -628,10 +802,18 @@ export async function composeTimeline(
       const stat = await fs.stat(real)
       if (!stat.isFile()) throw new Error('not a file')
     } catch {
-      return { ok: false, code: 'source_missing', reason: `第 ${i + 1} 个片段的源文件已不存在` }
+      const label =
+        i < videoSources.length
+          ? `第 ${i + 1} 个片段`
+          : `第 ${i - videoSources.length + 1} 条音轨`
+      return { ok: false, code: 'source_missing', reason: `${label}的源文件已不存在` }
     }
     if (real !== mediaRoot && !real.startsWith(mediaRoot + path.sep)) {
-      return { ok: false, code: 'invalid_spec', reason: `第 ${i + 1} 个片段的素材地址不合法` }
+      const label =
+        i < videoSources.length
+          ? `第 ${i + 1} 个片段`
+          : `第 ${i - videoSources.length + 1} 条音轨`
+      return { ok: false, code: 'invalid_spec', reason: `${label}的素材地址不合法` }
     }
     sources[i] = real
   }
@@ -652,10 +834,12 @@ export async function composeTimeline(
   // trim window that starts past the end of its clip (which would hand ffmpeg
   // an empty stream), and tells us whether any audio is about to be dropped.
   const probes = await Promise.all(sources.map((file) => probe(file, probeBudget())))
+  const videoProbes = probes.slice(0, videoSources.length)
+  const audioProbes = probes.slice(videoSources.length)
 
   const clips = spec.clips.map((clip) => ({ ...clip }))
   for (let i = 0; i < clips.length; i += 1) {
-    const sourceDuration = probes[i]?.durationSeconds
+    const sourceDuration = videoProbes[i]?.durationSeconds
     if (sourceDuration === null || sourceDuration === undefined) continue
     if (clips[i].inPoint >= sourceDuration) {
       return {
@@ -669,15 +853,32 @@ export async function composeTimeline(
       clips[i].outPoint = sourceDuration
     }
   }
-  if (probes.some((p) => p?.hasAudio)) {
-    notes.push('合成结果不含音轨：时间线目前只编排画面')
+
+  const tracks = audioTracks.map((track) => ({ ...track }))
+  for (let i = 0; i < tracks.length; i += 1) {
+    if (audioProbes[i] && !audioProbes[i]?.hasAudio) {
+      return { ok: false, code: 'invalid_spec', reason: `第 ${i + 1} 条音轨的源文件不含音频` }
+    }
+    const sourceDuration = audioProbes[i]?.durationSeconds
+    if (sourceDuration === null || sourceDuration === undefined) continue
+    if (tracks[i].inPoint >= sourceDuration) {
+      return {
+        ok: false,
+        code: 'invalid_spec',
+        reason: `第 ${i + 1} 条音轨的入点超出了素材 ${sourceDuration.toFixed(1)} 秒的时长`,
+      }
+    }
+    if (tracks[i].outPoint > sourceDuration + 0.001) {
+      notes.push(`第 ${i + 1} 条音轨的出点超出素材时长，已裁至 ${sourceDuration.toFixed(1)} 秒`)
+      tracks[i].outPoint = sourceDuration
+    }
   }
 
   // Recompute after clamping so the graph and the subtitle timings agree.
-  const measured = validateTimeline({ clips, subtitles: spec.subtitles })
+  const measured = validateTimeline({ clips, audioTracks: tracks, subtitles: spec.subtitles })
   if (!measured.ok) return { ok: false, code: 'invalid_spec', reason: measured.reason }
 
-  const target = targetGeometry(probes[0])
+  const target = targetGeometry(videoProbes[0])
   const graph = buildGraph(clips, measured.clipDurations, target)
   notes.push(...graph.notes)
 
@@ -705,6 +906,15 @@ export async function composeTimeline(
   const tempFiles: string[] = []
   let filter = graph.filter
   let outLabel = graph.outLabel
+  const audioGraph = buildAudioGraph(
+    clips,
+    measured.clipDurations,
+    videoProbes,
+    tracks,
+    graph,
+    videoSources.length,
+  )
+  if (audioGraph.parts.length > 0) filter += `;${audioGraph.parts.join(';')}`
   const extraInputs: string[] = []
   const extraMaps: string[] = []
   const subtitleCodec: string[] = []
@@ -738,7 +948,7 @@ export async function composeTimeline(
       await fs.writeFile(srt, buildSrt(subtitles), 'utf8')
       tempFiles.push(srt)
       extraInputs.push('-i', srt)
-      extraMaps.push('-map', `${clips.length}:s`)
+      extraMaps.push('-map', `${sources.length}:s`)
       subtitleCodec.push('-c:s', 'mov_text')
       subtitleMode = 'muxed'
       notes.push('当前 ffmpeg 未编译文字渲染滤镜，字幕已写入内嵌字幕轨而非烧录进画面')
@@ -757,8 +967,10 @@ export async function composeTimeline(
     filter,
     '-map',
     `[${outLabel}]`,
+    ...(audioGraph.outLabel
+      ? ['-map', `[${audioGraph.outLabel}]`, '-c:a', 'aac', '-b:a', '192k']
+      : ['-an']),
     ...extraMaps,
-    '-an',
     '-c:v',
     'libx264',
     '-preset',

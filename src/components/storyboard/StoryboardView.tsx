@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { MODELS_BY_ID } from '@/domain/models'
 import {
   filterVideoCards,
@@ -65,6 +65,22 @@ export function StoryboardView() {
     : mediaColumnCount === 2
       ? 'repeat(2, minmax(0, 1fr))'
       : 'minmax(0, 1fr)'
+
+  const openClipEditor = useCallback(() => {
+    setDetail(null)
+    setClipEditorOpen(true)
+  }, [])
+
+  const closeClipEditor = useCallback(() => {
+    setClipEditorOpen(false)
+    window.requestAnimationFrame(() => {
+      globalThis.document.querySelector<HTMLElement>('[data-testid="open-clip-editor"]')?.focus()
+    })
+  }, [])
+
+  if (clipEditorOpen) {
+    return <ClipEditor open onClose={closeClipEditor} />
+  }
 
   return (
     <div
@@ -199,7 +215,7 @@ export function StoryboardView() {
       <button
         type="button"
         data-testid="open-clip-editor"
-        onClick={() => setClipEditorOpen(true)}
+        onClick={openClipEditor}
         className="absolute bottom-5 right-5 z-30 flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-[var(--shadow-panel)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <IconCut size={18} className="text-ink-700" />
@@ -225,8 +241,7 @@ export function StoryboardView() {
         />
       )}
 
-      <MediaDetailDrawer card={detail} onClose={() => setDetail(null)} onOpenClipEditor={() => setClipEditorOpen(true)} />
-      <ClipEditor open={clipEditorOpen} onClose={() => setClipEditorOpen(false)} />
+      <MediaDetailDrawer card={detail} onClose={() => setDetail(null)} onOpenClipEditor={openClipEditor} />
     </div>
   )
 }

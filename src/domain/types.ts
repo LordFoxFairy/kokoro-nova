@@ -79,6 +79,74 @@ export interface WorkflowNode {
   data: NodeData
 }
 
+/** Transition vocabulary shared by the persisted video editor and compose API. */
+export type CompositeTransitionId = 'fade' | 'to-black' | 'to-white'
+
+export interface CompositeTransition {
+  type: CompositeTransitionId
+  /** Requested overlap. The renderer may shorten it for very short neighbours. */
+  durationSeconds: number
+}
+
+export interface CompositeClip {
+  id: string
+  artifactId: string
+  nodeId: string
+  nodeName: string
+  url: string
+  poster: string | null
+  /** Source-file duration, before trimming or speed changes. */
+  durationSeconds: number
+  inPoint: number
+  outPoint: number
+  speed: number
+  /** Mutes the source clip's own sound without affecting independent tracks. */
+  muted: boolean
+  /** Transition from this clip into the next clip. */
+  transitionAfter: CompositeTransition | null
+}
+
+export interface CompositeAudioTrack {
+  id: string
+  artifactId: string
+  nodeId: string
+  nodeName: string
+  url: string
+  poster: string | null
+  durationSeconds: number
+  inPoint: number
+  outPoint: number
+  /** Placement on the composed video timeline. */
+  start: number
+  volume: number
+  muted: boolean
+}
+
+export interface CompositeSubtitle {
+  id: string
+  text: string
+  start: number
+  end: number
+  visible: boolean
+}
+
+/**
+ * Versioned state stored at `videoComposite.data.extra.composite`.
+ *
+ * Playback position and timeline zoom are included so closing/reopening the
+ * embedded editor is lossless. They are UI state, but still belong to this
+ * per-composite document rather than to a global component singleton.
+ */
+export interface CompositeDocument {
+  version: 1
+  clips: CompositeClip[]
+  audioTracks: CompositeAudioTrack[]
+  subtitles: CompositeSubtitle[]
+  playheadSeconds: number
+  zoom: number
+  sourceAudioMuted: boolean
+}
+
 /** Per-type editable state. Kept as a discriminated-free bag so the compiler
  * (workflow → ExecutionSpec) owns validation instead of the UI. */
 export interface NodeData {

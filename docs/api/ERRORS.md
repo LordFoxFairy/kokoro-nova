@@ -42,6 +42,8 @@ code，并保持 `ApiError.status/message` 兼容现有调用方。
 | 500 | `INTERNAL_ERROR` | 未分类 mock/服务异常 | Toast + requestId；不改本地成功状态 | 是 |
 | 502 | `INVALID_JSON` | 上游返回不可解析 JSON | 通用服务异常 | 是 |
 | 502 | `INVALID_DATA` | 2xx body 未通过 Zod | 通用服务异常并记录 issues | 修复契约后 |
+| 503 | `SERVICE_UNAVAILABLE` | 本地合成环境缺少 ffmpeg | 保留时间线并提示安装运行依赖 | 环境就绪后 |
+| 504 | `TIMEOUT` | 视频合成超过服务端执行预算 | 保留时间线和参数，允许用户重试 | 是 |
 
 ## 结构化 details
 

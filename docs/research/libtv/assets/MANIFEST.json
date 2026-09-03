@@ -80,6 +80,56 @@
       "surface": "showcase",
       "purpose": "public TV Show card cover",
       "evidence": "observed"
+    },
+    {
+      "id": "compositor-first-frame",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/media/first-frame.webp",
+      "sourceUrl": null,
+      "width": 1280,
+      "height": 720,
+      "surface": "canvas",
+      "purpose": "original deterministic image fixture for the generated-media workflow",
+      "evidence": "generated-local",
+      "sha256": "8e5e8808f84a3997c94be3845f732688f289b762749f8c49dea1cae5742a97d9"
+    },
+    {
+      "id": "compositor-city-night-video",
+      "kind": "video",
+      "localPath": "/fixtures/libtv/media/city-night.mp4",
+      "sourceUrl": null,
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 15,
+      "surface": "canvas",
+      "purpose": "original deterministic video fixture for timeline editing and local rendering",
+      "evidence": "generated-local",
+      "sha256": "11d396af9e3b82ccded589ba150ad7a2e03bf499ab460cdfc364959c7001a28f"
+    },
+    {
+      "id": "compositor-city-night-poster",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/media/city-night-poster.webp",
+      "sourceUrl": null,
+      "width": 960,
+      "height": 540,
+      "surface": "canvas",
+      "purpose": "poster derived from the original local video fixture",
+      "evidence": "generated-local",
+      "sha256": "e26bbd0e8573ed385e064274aaf52dc24042ec3f4c7a0518df35c1a53e846e57"
+    },
+    {
+      "id": "compositor-bed-audio",
+      "kind": "audio",
+      "localPath": "/fixtures/libtv/media/compositor-bed.wav",
+      "sourceUrl": null,
+      "durationSeconds": 3,
+      "sampleRate": 48000,
+      "channels": 2,
+      "surface": "canvas",
+      "purpose": "original deterministic PCM fixture for independent-track mixing",
+      "evidence": "generated-local",
+      "sha256": "6b7671713dd819c718157e3dbfecee718cdc97d976e07b68dc7c5415085aa270"
     }
   ]
 }

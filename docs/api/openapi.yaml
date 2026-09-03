@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.1.0-video-catalog",
+    "version": "1.2.0-video-compositor",
     "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。"
   },
   "servers": [
@@ -105,7 +105,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
+            "description": "时间线引用的本地源媒体已不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -125,7 +125,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "ffmpeg 渲染或产物探测失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1635,7 +1635,8 @@
         "tags": [
           "Video"
         ],
-        "summary": "视频合成器导出到本地或画布",
+        "summary": "将多轨视频时间线合成为本地 MP4",
+        "description": "同步执行本地 ffmpeg 合成。服务端负责裁切、倍速、源音频、独立音轨、片间转场、字幕和结果资产登记；下载或添加到画布由前端消费同一响应后决定。最长时间线 20 分钟（1200 秒），最多 40 个视频片段、16 条独立音轨和 100 条字幕。",
         "operationId": "composeVideo",
         "x-ui-triggers": [
           "视频合成器导出到本地或画布"
@@ -1646,11 +1647,16 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "合成成功，产物同时登记到个人资产库",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/ComposeResponse"
+                },
+                "examples": {
+                  "multitrack": {
+                    "$ref": "#/components/examples/ComposeResponseExample"
+                  }
                 }
               }
             }
@@ -1675,8 +1681,18 @@
               }
             }
           },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "503": {
+            "description": "本地 ffmpeg 不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "合成超过 90 秒执行预算",
             "content": {
               "application/json": {
                 "schema": {
@@ -1702,6 +1718,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ComposeRequest"
+              },
+              "examples": {
+                "multitrack": {
+                  "$ref": "#/components/examples/ComposeRequestExample"
+                }
               }
             }
           }
@@ -5309,47 +5330,219 @@
         },
         "additionalProperties": false
       },
+      "ComposeTransitionId": {
+        "type": "string",
+        "enum": [
+          "fade",
+          "to-black",
+          "to-white"
+        ],
+        "description": "淡入淡出、黑场过渡或白场过渡。转场保存在它前面的片段上。"
+      },
+      "ComposeClip": {
+        "type": "object",
+        "required": [
+          "url",
+          "inPoint",
+          "outPoint"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^/api/media/",
+            "description": "本地媒体 route 下的源视频 URL；服务端会在 realpath 后再次验证其位于 MEDIA_DIR。"
+          },
+          "inPoint": {
+            "type": "number",
+            "minimum": 0,
+            "description": "源视频裁切入点，单位秒。"
+          },
+          "outPoint": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "源视频裁切出点，必须至少比 inPoint 晚 0.05 秒。"
+          },
+          "speed": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 4,
+            "default": 1
+          },
+          "muted": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否丢弃该视频片段自身的音频。"
+          },
+          "transitionAfter": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ComposeTransitionId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "transitionDurationSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0.08,
+            "maximum": 2,
+            "default": null,
+            "description": "请求的重叠时长；transitionAfter 为 null 时也必须为 null。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComposeAudioTrack": {
+        "type": "object",
+        "required": [
+          "url",
+          "inPoint",
+          "outPoint"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^/api/media/"
+          },
+          "inPoint": {
+            "type": "number",
+            "minimum": 0
+          },
+          "outPoint": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "必须至少比 inPoint 晚 0.05 秒。"
+          },
+          "start": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0,
+            "description": "音轨在成片时间线上的起点，单位秒。"
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "default": 1,
+            "description": "线性增益；1 为源音量，0 为静音。"
+          },
+          "muted": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComposeSubtitle": {
+        "type": "object",
+        "required": [
+          "text",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "start": {
+            "type": "number",
+            "minimum": 0
+          },
+          "end": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "必须晚于 start 且不得超出时间线。"
+          }
+        },
+        "additionalProperties": false
+      },
       "ComposeRequest": {
         "type": "object",
         "required": [
-          "canvasId",
-          "nodeId",
-          "timeline"
+          "clips"
         ],
         "properties": {
-          "canvasId": {
-            "type": "string"
-          },
-          "nodeId": {
-            "type": "string"
-          },
-          "timeline": {
+          "clips": {
             "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
             "items": {
-              "type": "object",
-              "additionalProperties": true
+              "$ref": "#/components/schemas/ComposeClip"
             }
           },
-          "transitions": {
+          "audioTracks": {
             "type": "array",
+            "maxItems": 16,
+            "default": [],
             "items": {
-              "type": "object",
-              "additionalProperties": true
+              "$ref": "#/components/schemas/ComposeAudioTrack"
             }
           },
           "subtitles": {
             "type": "array",
+            "maxItems": 100,
+            "default": [],
             "items": {
-              "type": "object",
-              "additionalProperties": true
+              "$ref": "#/components/schemas/ComposeSubtitle"
             }
+          }
+        },
+        "additionalProperties": false,
+        "description": "规范化合成请求。片段裁切后、转场重叠前的总时长上限为 20 分钟（1200 秒）。"
+      },
+      "ComposeResponse": {
+        "type": "object",
+        "required": [
+          "artifact",
+          "assetId",
+          "subtitleMode",
+          "notes"
+        ],
+        "properties": {
+          "artifact": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artifact"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "video"
+                  }
+                }
+              }
+            ]
           },
-          "destination": {
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "同步登记到个人资产库的 Asset ID。"
+          },
+          "subtitleMode": {
             "type": "string",
             "enum": [
-              "download",
-              "canvas"
-            ]
+              "burned",
+              "muxed",
+              "none"
+            ],
+            "description": "字幕被烧录进像素、作为 mov_text 轨封装，或本次没有字幕。"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "裁切、输出几何或字幕能力降级等可直接展示的说明。"
           }
         },
         "additionalProperties": false
@@ -5982,6 +6175,71 @@
           }
         },
         "additionalProperties": false
+      }
+    },
+    "examples": {
+      "ComposeRequestExample": {
+        "summary": "两段视频、独立配乐和一条字幕",
+        "value": {
+          "clips": [
+            {
+              "url": "/api/media/job-shot-a/shot-a.mp4",
+              "inPoint": 0.5,
+              "outPoint": 5.5,
+              "speed": 1,
+              "muted": false,
+              "transitionAfter": "fade",
+              "transitionDurationSeconds": 0.6
+            },
+            {
+              "url": "/api/media/job-shot-b/shot-b.mp4",
+              "inPoint": 1,
+              "outPoint": 7,
+              "speed": 1.25,
+              "muted": true,
+              "transitionAfter": null,
+              "transitionDurationSeconds": null
+            }
+          ],
+          "audioTracks": [
+            {
+              "url": "/api/media/job-music/background.wav",
+              "inPoint": 0,
+              "outPoint": 10,
+              "start": 0,
+              "volume": 0.65,
+              "muted": false
+            }
+          ],
+          "subtitles": [
+            {
+              "text": "雨夜，故事开始。",
+              "start": 0.5,
+              "end": 2.8
+            }
+          ]
+        }
+      },
+      "ComposeResponseExample": {
+        "summary": "已登记资产的视频产物",
+        "value": {
+          "artifact": {
+            "id": "art_composite_demo",
+            "jobId": "compose",
+            "kind": "video",
+            "url": "/api/media/composites/cmp_demo/composite.mp4",
+            "thumbnailUrl": "/api/media/composites/cmp_demo/poster.jpg",
+            "width": 1280,
+            "height": 720,
+            "durationSeconds": 9.2,
+            "createdAt": "2026-09-03T12:00:00.000Z",
+            "modelId": "local-compose",
+            "assetId": "asset_composite_demo"
+          },
+          "assetId": "asset_composite_demo",
+          "subtitleMode": "burned",
+          "notes": []
+        }
       }
     }
   },

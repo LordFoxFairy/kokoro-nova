@@ -29,7 +29,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.1.0-video-catalog
+Contract version: 1.2.0-video-compositor
 OpenAPI: 3.1.0
 ```
 
@@ -166,6 +166,52 @@ Video 项的 `capabilities` 同时提供：
 Canvas 节点编辑器与 Storyboard 再生成面板消费同一个 registry、目录组件和
 `WorkflowNode.data`。后端不需要维护“故事板参数”副本；任一入口的修改都通过
 `mutateCanvas` 增加 revision，另一入口重新投影同一文档即可看到结果。
+
+### 视频合成契约
+
+`POST /api/compose` 接收编辑器从 `videoComposite.data.extra.composite` 规范化得到的多轨
+时间线。API 不接收 `canvasId`、`nodeId`、`timeline` 或 `destination`：持久化属于画布
+mutation，下载或添加到画布属于前端在收到产物之后的动作，两者都不应耦合进渲染请求。
+
+```ts
+type ComposeRequest = {
+  clips: Array<{
+    url: string
+    inPoint: number
+    outPoint: number
+    speed?: number                 // 0.25..4，默认 1
+    muted?: boolean                // 默认 false
+    transitionAfter?: 'fade' | 'to-black' | 'to-white' | null
+    transitionDurationSeconds?: number | null // 0.08..2
+  }>
+  audioTracks?: Array<{
+    url: string
+    inPoint: number
+    outPoint: number
+    start?: number                 // 成片时间线秒数，默认 0
+    volume?: number                // 0..2，默认 1
+    muted?: boolean
+  }>
+  subtitles?: Array<{ text: string; start: number; end: number }>
+}
+```
+
+- 至少 1、最多 40 个视频片段；独立音轨最多 16 条；字幕最多 100 条；
+- 裁切后、转场重叠前的总时长最多 20 分钟（1200 秒）；每个裁切窗口至少 0.05 秒；
+- `url` 必须是 `/api/media/` 下的本地媒体，服务端在交给 ffmpeg 前做解码、路径边界、
+  `realpath` 和普通文件校验；
+- 视频源音频会按裁切、倍速和转场同步处理；无音频的片段以静音补齐；独立 BGM/配音按
+  `start` 放置、按 `volume` 混音；
+- 转场时长会根据相邻片段有效长度收缩；字幕优先烧录，缺少文字渲染能力时封装为
+  `mov_text`，响应的 `subtitleMode` 明确返回 `burned`、`muxed` 或 `none`；
+- 成功响应为 `{ artifact, assetId, subtitleMode, notes }`，其中 Artifact 同步登记进个人
+  资产库。`notes` 用于展示裁切、几何或字幕降级，不代表请求失败；
+- `400` 表示契约/时间线无效，`404` 表示源文件消失，`503` 表示 ffmpeg 缺失，`504`
+  表示超过 90 秒执行预算，`500` 表示渲染失败。失败不会清空或改写前端时间线。
+
+完整样本见 [`compose.request.json`](examples/compose.request.json) 与
+[`compose.response.json`](examples/compose.response.json)，运行时 Schema 位于
+`src/contracts/compose.ts`，OpenAPI 对应 `ComposeRequest` / `ComposeResponse`。
 
 ## 分页、排序和查询
 

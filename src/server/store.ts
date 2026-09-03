@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs'
+import { constants as fsConstants, promises as fs } from 'node:fs'
 import path from 'node:path'
 import { ScenarioIdSchema, type ScenarioId } from '@/contracts/scenario'
 import { buildScenario } from '@/mocks/scenarios/build'
@@ -44,6 +44,8 @@ const DATA_DIR = path.join(process.cwd(), '.data')
 const STATE_FILE = path.join(DATA_DIR, 'workspace.json')
 const SCENARIO_FILE = path.join(DATA_DIR, 'scenario.json')
 export const MEDIA_DIR = path.join(DATA_DIR, 'media')
+const PUBLIC_FIXTURE_MEDIA_DIR = path.join(process.cwd(), 'public', 'fixtures', 'libtv', 'media')
+const SEEDED_FIXTURE_MEDIA = ['city-night.mp4', 'compositor-bed.wav'] as const
 
 export const DEFAULT_SPACE_ID = 'sp_default'
 
@@ -52,9 +54,29 @@ let cacheMtimeNs: bigint | null = null
 let activeScenarioCache: ScenarioId | null = null
 let writeChain: Promise<unknown> = Promise.resolve()
 
+async function seedFixtureMedia(overwrite = false) {
+  const target = path.join(MEDIA_DIR, 'fixtures')
+  await fs.mkdir(target, { recursive: true })
+  await Promise.all(SEEDED_FIXTURE_MEDIA.map(async (name) => {
+    try {
+      await fs.copyFile(
+        path.join(PUBLIC_FIXTURE_MEDIA_DIR, name),
+        path.join(target, name),
+        overwrite ? 0 : fsConstants.COPYFILE_EXCL,
+      )
+    } catch (error) {
+      // Unit tests intentionally import this store from temporary cwd roots
+      // that do not carry browser fixtures. Runtime workspaces do.
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'EEXIST') throw error
+    }
+  }))
+}
+
 async function ensureDirs() {
   await fs.mkdir(DATA_DIR, { recursive: true })
   await fs.mkdir(MEDIA_DIR, { recursive: true })
+  await seedFixtureMedia()
 }
 
 async function load(): Promise<WorkspaceState> {
@@ -142,6 +164,8 @@ export function invalidateCache() {
 export async function resetStore(scenarioId?: ScenarioId) {
   const selected = scenarioId === undefined ? await activeScenarioId() : ScenarioIdSchema.parse(scenarioId)
   const next = buildScenario(selected)
+  await ensureDirs()
+  await seedFixtureMedia(true)
   await persist(next)
   await persistScenarioId(selected)
   cache = next

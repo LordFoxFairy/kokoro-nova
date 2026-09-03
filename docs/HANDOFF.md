@@ -536,12 +536,20 @@ export async function planTurn(input: TurnInput): Promise<TurnResult> {
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `POST` | `/api/compose` | 请求体 `{ clips[], subtitles[] }`。用 ffmpeg 真实渲染成 MP4，返回 Artifact |
+| `POST` | `/api/compose` | 请求体 `{ clips[], audioTracks[], subtitles[] }`。用 ffmpeg 真实渲染成 MP4，并返回 `{ artifact, assetId, subtitleMode, notes }` |
 
-`clips[]` 每项含 `url / inPoint / outPoint / speed / transitionAfter`。校验在调用 ffmpeg **之前**
-完成（空时间线、`out <= in`、离谱倍速、片段数上限、字幕越界都会先 400）。
+`clips[]` 每项含 `url / inPoint / outPoint / speed / muted / transitionAfter /
+transitionDurationSeconds`；`audioTracks[]` 含裁切区间、成片起点、增益和静音。校验在调用
+ffmpeg **之前**完成（空时间线、`out <= in`、离谱倍速、20 分钟/片段/音轨/字幕上限、
+字幕越界都会先 400）。
 素材地址会解析回 `MEDIA_DIR` 之内，**并做 realpath 解引用**——只做文本 `startsWith` 会被
 目录内的软链穿出去。ffmpeg 缺失时返回结构化失败而不是抛异常。
+
+Storyboard 合成器现在是内嵌双栏工作区，不是 modal。编辑态唯一存于
+`videoComposite.data.extra.composite` v1；`src/domain/composite.ts` 负责旧数组迁移、
+归一化和不可变编辑，`src/contracts/compose.ts` 是 route/UI 共享运行时契约。视频源音频会
+随裁切、倍速和转场同步，无音频片段补静音；独立 BGM/配音按时间线放置后混音。
+OpenAPI 与完整样本见 `docs/api/README.md` 和 `docs/api/examples/compose.*.json`。
 
 **已知降级**：字幕是否烧录取决于本机 ffmpeg 是否编译了 libfreetype；没有时退化为
 muxed 字幕轨，响应里的 `subtitleMode` 会如实标明 `burned` / `muxed` / `none`。
@@ -637,16 +645,17 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 - **没有超时回收。** `poll` 持续抛异常或远端永不返回终态时，job 永远停在 `running`，预留的积分永远不释放。没有 reaper、没有 job TTL。
 - **合规拦截是假的**：`compliance_blocked` 只来自 mock 内部一个确定性的随机判定（视频模型约 3.5% 概率），没有接任何内容安全服务。
 - **失败没有自动重试。** `GenerationJob.attempt` 只会在 confirm 时自增一次，没有第二次 attempt 的代码路径。
-- **`videoComposite` 节点走生成管线时不做真正的合成。** 节点的 `data.extra` 里有
-  `timeline` / `transitions` / `subtitles`，但 `compileNode` 一个都不读（在 `src/domain/compile.ts`
-  里 grep 这三个词是零命中），所以点节点上的"生成"只是让 mock 再渲一段新片子。
-  **真正的合成走另一条路**：剪辑器（`ClipEditor.tsx:181`）直接 `POST /api/compose`，
-  由 `src/server/compose.ts` 用 ffmpeg 实渲。两条路径目前没有汇合。
+- **`videoComposite` 的生成编译与剪辑导出仍是两条明确路径。** 节点持久化的
+  `data.extra.composite` v1 由 `src/domain/composite.ts` 规范化；Storyboard 内嵌剪辑器
+  直接 `POST /api/compose`，由 `src/server/compose.ts` 用 ffmpeg 实渲。通用
+  `compileNode()` 不消费 composite 文档，因此节点上的生成动作不能替代剪辑器导出；
+  接真实后端时不要把这两个副作用暗中合并。
 - 导演台的 `extra.scene` **有消费方**（`CanvasWorkspace.tsx:565` 读、`:569` 写回），
   但消费它的只有导演台自己这个编辑器 UI；**生成管线不读它**，摆好的机位和走位
   不会影响任何一次真实出图。
 - 成片导出端点是 `POST /api/compose`（见第 4 节）。**已知降级**：字幕是否烧录取决于
-  本机 ffmpeg 有没有编译 libfreetype，响应里的 `subtitleMode` 会如实标明。
+  本机 ffmpeg 有没有文字渲染能力，缺少时封装 `mov_text`，响应里的 `subtitleMode` 会
+  如实标明 `burned` / `muxed` / `none`。
 
 ### 数据
 

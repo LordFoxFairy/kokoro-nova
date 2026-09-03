@@ -141,6 +141,12 @@
 | 字幕 | [storyboard-video-editor-subtitle-panel-empty-state.png](screenshots/storyboard-video-editor-subtitle-panel-empty-state.png) | 字幕/文本是独立面板和时间线轨道，支持搜索与新建字幕。 |
 | 导出 | [storyboard-video-editor-export-local-or-canvas-disabled.png](screenshots/storyboard-video-editor-export-local-or-canvas-disabled.png) | 可导出到本地或画布；空时间线时两项均禁用。 |
 
+本地复刻已按上述四个官网状态完成内嵌几何、层级和空态，并用原创 fixture 补齐了官网
+当前账户未触发的有效片段路径：裁切、播放头分割、变速、拖拽重排、源音频/独立音轨、
+转场、字幕、刷新恢复与真实本地 MP4 导出。逐状态对照、保留差异和自动化证据见
+[视频合成器对比](../../visual/video-compositor-comparison.md)。这里的本地结果不提升官网
+“有效输入/失败态”的证据等级。
+
 ### 已生成图片工具
 
 | 状态 | 截图 | 观察结论 |
@@ -425,7 +431,8 @@ Agent 资产；完整资产库负责文件夹、上传、标签和批量组织�
 ## 待补状态
 
 - 图片、视频、音频和脚本的真实运行、取消、失败、重试、结果与成本结算。
-- 视频合成在有效媒体输入下的时间线、预览、导出和失败恢复。
+- 官网视频合成在有效媒体输入下的时间线、预览、导出请求和失败恢复；本地同构能力已完成，
+  仍需登录环境中捕获官网网络契约后做字段映射复核。
 - 导演台保存、截图导出、AI 识图完成态、动画导出和多机位结果回写。
 - 不兼容节点类型错误、边选择/删除/重连、外部边复制和循环依赖校验。
 - 多个分镜组的合并、拖拽重排、清空、自定义宫格落地、拼接失败/重复提交保护、

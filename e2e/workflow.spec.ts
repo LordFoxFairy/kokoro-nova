@@ -10,7 +10,12 @@ const SHOTS = 'docs/screenshots'
 // The workspace store is file-backed and survives between runs, so without a
 // reset each run inherits the previous run's projects and folders.
 test.beforeEach(async ({ request }) => {
-  await request.post('/api/dev/reset')
+  const selected = await request.post('/api/dev/scenario', {
+    data: { scenarioId: 'authenticated-empty' },
+  })
+  expect(selected.ok()).toBe(true)
+  const reset = await request.post('/api/dev/reset')
+  expect(reset.ok()).toBe(true)
 })
 
 async function createProject(page: Page) {

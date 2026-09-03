@@ -541,7 +541,7 @@ Run: `pnpm vitest run src/contracts/__tests__/openapi.test.ts && pnpm typecheck 
 
 Expected: manifest/source/OpenAPI pairs match; all commands exit 0.
 
-- [ ] **Step 7: Commit API documentation**
+- [x] **Step 7: Commit API documentation**
 
 ```bash
 git add src/contracts/route-manifest.ts src/contracts/__tests__/openapi.test.ts docs/api
@@ -556,12 +556,12 @@ git commit -m "docs: publish mock API OpenAPI contract"
 
 **Interfaces:**
 - Consumes: `POST /api/dev/scenario`, `POST /api/dev/reset` and existing UI test IDs.
-- Produces: `useScenario(request, id)` E2E helper and deterministic smoke coverage for five visible states.
+- Produces: `selectScenario(request, id)` E2E helper and deterministic smoke coverage for visible states.
 
-- [ ] **Step 1: Write the failing scenario E2E helper and tests**
+- [x] **Step 1: Write the failing scenario E2E helper and tests**
 
 ```ts
-async function useScenario(request: APIRequestContext, scenarioId: string) {
+async function selectScenario(request: APIRequestContext, scenarioId: string) {
   const selected = await request.post('/api/dev/scenario', { data: { scenarioId } })
   expect(selected.ok()).toBe(true)
   const reset = await request.post('/api/dev/reset')
@@ -569,7 +569,7 @@ async function useScenario(request: APIRequestContext, scenarioId: string) {
 }
 
 test('video running is stable across refresh', async ({ page, request }) => {
-  await useScenario(request, 'video-running')
+  await selectScenario(request, 'video-running')
   await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
   await expect(page.getByText('生成中')).toBeVisible()
   await page.reload()
@@ -580,31 +580,31 @@ test('video running is stable across refresh', async ({ page, request }) => {
 Add equivalent smoke assertions for `video-succeeded`, `video-failed`, `video-compliance-blocked`, and
 `session-expired`. Existing tests switch to `authenticated-populated` in `beforeEach`.
 
-- [ ] **Step 2: Run the new file and verify RED**
+- [x] **Step 2: Run the new file and verify RED**
 
 Run: `pnpm playwright test e2e/scenarios.spec.ts`
 
 Expected: at least one state assertion FAIL because current UI does not yet expose every scenario state.
 
-- [ ] **Step 3: Add only the minimal existing-surface state labels needed for the baseline**
+- [x] **Step 3: Add only the minimal existing-surface state labels needed for the baseline**
 
 Use the existing canvas job rendering path; do not build the full video panel in this foundation plan.
 The exact visible labels are `等待确认`, `排队中`, `生成中`, `生成完成`, `生成失败`, `已取消`,
 `素材合规校验未通过`, and `会话已过期，请刷新页面`.
 
-- [ ] **Step 4: Run the scenario file and complete suite**
+- [x] **Step 4: Run the scenario file and complete suite**
 
 Run: `pnpm playwright test e2e/scenarios.spec.ts && pnpm e2e`
 
 Expected: scenario tests PASS and existing workflow E2E stays green.
 
-- [ ] **Step 5: Run the batch completion gate**
+- [x] **Step 5: Run the batch completion gate**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm e2e`
 
 Expected: every command exits 0 with no skipped foundation scenario.
 
-- [ ] **Step 6: Commit the E2E baseline**
+- [x] **Step 6: Commit the E2E baseline**
 
 ```bash
 git add e2e

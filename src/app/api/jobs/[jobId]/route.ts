@@ -1,5 +1,5 @@
 import { HttpError, handle } from '@/server/http'
-import { readState } from '@/server/store'
+import { activeScenarioId, readState } from '@/server/store'
 import { cancelJob, confirmJob, pollJob } from '@/server/generation/runner'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,12 @@ export async function GET(_request: Request, { params }: Params) {
     const state = await readState()
     const existing = state.jobs.find((j) => j.id === jobId)
     if (!existing) throw new HttpError(404, '任务不存在')
-    const job = await pollJob(jobId)
+    const scenarioId = await activeScenarioId()
+    // Named scenarios are visual fixtures, not live provider simulations. Keep
+    // their canonical video job frozen so refresh, screenshots and E2E runs
+    // always render the exact state selected by the caller.
+    const frozenFixture = scenarioId.startsWith('video-') && existing.id === 'job_video_01'
+    const job = frozenFixture ? existing : await pollJob(jobId)
     const after = await readState()
     const canvas = after.canvases.find((c) => c.id === job.canvasId)
     return {

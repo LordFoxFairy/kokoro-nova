@@ -124,7 +124,11 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('GET', '/api/preview/character', 'Assets', 'previewCharacterReference', ['角色库参考图预览']),
   route('GET', '/api/preview/stitch', 'Assets', 'previewStoryboardStitch', ['分镜组 2K 拼接预览']),
 
-  route('GET', '/api/projects/{projectId}', 'Projects', 'getProject', ['从项目卡打开工作台']),
+  route('GET', '/api/projects/{projectId}', 'Projects', 'getProject', ['从项目卡打开工作台'], [
+    'authenticated-populated',
+    'session-expired',
+    ...VIDEO_STATES,
+  ]),
   route('PATCH', '/api/projects/{projectId}', 'Projects', 'updateProject', ['项目重命名、移动或修改封面']),
   route('DELETE', '/api/projects/{projectId}', 'Projects', 'deleteProject', ['项目菜单确认删除']),
   route('PUT', '/api/projects/{projectId}', 'Projects', 'duplicateProject', ['项目菜单创建副本']),

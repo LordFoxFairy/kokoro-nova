@@ -1,7 +1,7 @@
 import { createCanvas } from '@/domain/factory'
 import { ids } from '@/domain/ids'
 import { HttpError, handle } from '@/server/http'
-import { canvasesOfProject, deleteProjects, findProject, readState, withState } from '@/server/store'
+import { activeScenarioId, canvasesOfProject, deleteProjects, findProject, readState, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +9,9 @@ type Params = { params: Promise<{ projectId: string }> }
 
 export async function GET(_request: Request, { params }: Params) {
   return handle(async () => {
+    if ((await activeScenarioId()) === 'session-expired') {
+      throw new HttpError(401, '会话已过期，请刷新页面')
+    }
     const { projectId } = await params
     const state = await readState()
     const project = findProject(state, projectId)

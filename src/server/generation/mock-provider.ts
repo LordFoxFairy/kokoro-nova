@@ -266,12 +266,10 @@ export const mockProvider: GenerationProvider = {
     const baseMs = { image: 2600, video: 6200, audio: 2000, text: 1600 }[media]
     const rand = mulberry32(hashString(request.invocationId))
 
-    // A small deterministic slice of runs fail so error handling is reachable
-    // without editing code. Compliance blocks only apply to video, matching the
-    // documented Seedance pre-submit check.
-    const roll = rand()
-    const outcome: MockRun['outcome'] =
-      roll > 0.965 ? (media === 'video' ? 'compliance' : 'fail') : 'succeed'
+    // Interactive runs are the canonical happy path. Failure and compliance
+    // states live in named scenarios instead of being selected from a generated
+    // invocation id; this keeps demos and E2E runs reproducible across retries.
+    const outcome: MockRun['outcome'] = 'succeed'
 
     const handle: ProviderHandle = {
       providerId: this.id,

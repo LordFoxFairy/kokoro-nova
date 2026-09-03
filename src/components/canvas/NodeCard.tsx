@@ -4,7 +4,7 @@ import { memo, useState } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { NODE_META } from '@/domain/nodes'
 import { MODELS_BY_ID, quoteCredits } from '@/domain/models'
-import type { GenerationJob, WorkflowNode } from '@/domain/types'
+import type { GenerationJob, JobStatus, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
 import { ProgressBar, Spinner } from '../ui/controls'
@@ -38,6 +38,16 @@ export interface NodeCardData extends Record<string, unknown> {
   onSetIntent: (nodeId: string, intent: string) => void
 }
 
+const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  awaiting_confirmation: '等待确认',
+  queued: '排队中',
+  running: '生成中',
+  succeeded: '生成完成',
+  failed: '生成失败',
+  cancelled: '已取消',
+  compliance_blocked: '素材合规校验未通过',
+}
+
 /**
  * A canvas node.
  *
@@ -69,6 +79,9 @@ function NodeCardImpl({ data, selected }: NodeProps) {
   const running = job ? job.status === 'running' || job.status === 'queued' : false
   const awaiting = job?.status === 'awaiting_confirmation'
   const failed = job?.status === 'failed' || job?.status === 'compliance_blocked'
+  const cancelled = job?.status === 'cancelled'
+  const statusLabel = job ? JOB_STATUS_LABEL[job.status] : null
+  const statusTestId = job ? `job-status-${job.id}` : undefined
 
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, node.data.output).credits : 0
 
@@ -171,6 +184,9 @@ function NodeCardImpl({ data, selected }: NodeProps) {
             {running ? (
               <>
                 <Spinner size={13} />
+                <span data-testid={statusTestId} className="shrink-0 text-[11px] font-medium text-ink-700">
+                  {statusLabel}
+                </span>
                 <span className="text-[11px] text-ink-500">{job?.progress ?? 0}%</span>
                 <div className="flex-1">
                   <ProgressBar value={job?.progress ?? 0} />
@@ -187,7 +203,13 @@ function NodeCardImpl({ data, selected }: NodeProps) {
             ) : failed ? (
               <>
                 <IconWarning size={13} className="text-danger" />
-                <span className="flex-1 truncate text-[11px] text-danger">{job?.error}</span>
+                <span
+                  data-testid={statusTestId}
+                  title={job.error ?? undefined}
+                  className="flex-1 truncate text-[11px] font-medium text-danger"
+                >
+                  {statusLabel}
+                </span>
                 <button
                   type="button"
                   onClick={() => onRun(node.id)}
@@ -196,8 +218,33 @@ function NodeCardImpl({ data, selected }: NodeProps) {
                   重试
                 </button>
               </>
+            ) : cancelled ? (
+              <>
+                <IconStop size={13} className="text-ink-400" />
+                <span data-testid={statusTestId} className="flex-1 text-[11px] font-medium text-ink-500">
+                  {statusLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRun(node.id)}
+                  className="rounded-md px-2 py-1 text-[11px] font-medium text-ink-600 transition-colors hover:bg-ink-100"
+                >
+                  重新生成
+                </button>
+              </>
             ) : (
               <>
+                {statusLabel && (
+                  <span
+                    data-testid={statusTestId}
+                    className={cn(
+                      'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                      awaiting ? 'bg-running/10 text-running' : 'bg-success/10 text-success',
+                    )}
+                  >
+                    {statusLabel}
+                  </span>
+                )}
                 {model && <span className="truncate text-[11px] text-ink-500">{model.label}</span>}
                 <span className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-ink-500">
                   <IconCredit size={12} />

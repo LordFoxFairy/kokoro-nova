@@ -2959,7 +2959,15 @@
           "从项目卡打开工作台"
         ],
         "x-mock-scenarios": [
-          "authenticated-populated"
+          "authenticated-populated",
+          "session-expired",
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
         ],
         "responses": {
           "200": {
@@ -3004,6 +3012,16 @@
           },
           "500": {
             "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录态或编辑会话已过期",
             "content": {
               "application/json": {
                 "schema": {

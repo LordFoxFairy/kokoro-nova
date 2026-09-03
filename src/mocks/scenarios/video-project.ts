@@ -40,8 +40,8 @@ function imageArtifact(): Artifact {
     kind: 'image',
     url: '/fixtures/libtv/media/first-frame.webp',
     thumbnailUrl: '/fixtures/libtv/media/first-frame.webp',
-    width: 1920,
-    height: 1080,
+    width: 1280,
+    height: 720,
     durationSeconds: null,
     createdAt: isoAt(-1_200),
     modelId: 'lib-image-2',
@@ -433,7 +433,7 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
       nodes,
       edges,
       groups: [],
-      viewport: { x: -120, y: 48, zoom: 0.5 },
+      viewport: { x: 120, y: 64, zoom: 0.5 },
     },
   }
 

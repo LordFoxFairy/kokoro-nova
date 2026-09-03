@@ -175,7 +175,7 @@ function CanvasInner({
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        type: 'smoothstep',
+        type: 'default',
         animated: false,
       })),
     [document.edges],

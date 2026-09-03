@@ -1,8 +1,10 @@
 /**
  * Node type vocabulary.
  *
- * The add-node menu is documented as: 文本 / 图片 / 视频 / 视频合成(Beta) /
- * 导演台(NEW) / 音频 / 脚本(二级: v2 + legacy) / 素材库(二级: 风格 + 特效),
+ * The current add-node menu is documented as: 文本 / 图片 / 视频 /
+ * 智能剪辑(Beta, serialized as `videoComposite`) / 导演台(NEW) /
+ * 逐帧拉片(SD 2.5, serialized as `scriptLegacy`) / 音频 /
+ * 脚本(二级: v2 + legacy) / 素材库(二级: 风格 + 特效),
  * plus the two "add resource" entries which create an image/video/audio node
  * pre-bound to an existing asset rather than a distinct node type.
  */

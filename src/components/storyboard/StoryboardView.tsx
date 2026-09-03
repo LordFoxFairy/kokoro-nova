@@ -200,7 +200,7 @@ export function StoryboardView() {
         type="button"
         data-testid="open-clip-editor"
         onClick={() => setClipEditorOpen(true)}
-        className="absolute bottom-5 right-5 z-30 flex flex-col items-center gap-0.5 rounded-2xl bg-surface px-3 py-2 shadow-[var(--shadow-panel)] transition-transform hover:-translate-y-0.5"
+        className="absolute bottom-5 right-5 z-30 flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-[var(--shadow-panel)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <IconCut size={18} className="text-ink-700" />
         <span className="text-[10px] text-ink-500">剪辑</span>

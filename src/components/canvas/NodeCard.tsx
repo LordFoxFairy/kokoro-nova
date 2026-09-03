@@ -82,6 +82,11 @@ function NodeCardImpl({ data, selected }: NodeProps) {
   const cancelled = job?.status === 'cancelled'
   const statusLabel = job ? JOB_STATUS_LABEL[job.status] : null
   const statusTestId = job ? `job-status-${job.id}` : undefined
+  const isGeneratedMedia = Boolean(
+    artifact && ['image', 'video', 'videoComposite', 'director'].includes(node.type),
+  )
+  const dimensions =
+    artifact?.width && artifact.height ? `${artifact.width} × ${artifact.height}` : null
 
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, node.data.output).credits : 0
 
@@ -134,7 +139,10 @@ function NodeCardImpl({ data, selected }: NodeProps) {
       style={{ width: node.size.width }}
     >
       {/* Title sits above the card, matching the canvas layout. */}
-      <div className="mb-1.5 flex items-center gap-1.5 px-0.5">
+      <div
+        data-testid={`node-header-${node.id}`}
+        className="mb-1.5 flex min-h-5 items-center gap-1.5 px-0.5"
+      >
         <span className="text-ink-500">
           <Icon size={14} />
         </span>
@@ -142,13 +150,22 @@ function NodeCardImpl({ data, selected }: NodeProps) {
         {node.keyElement && (
           <span className="rounded bg-accent-soft px-1 py-px text-[9px] font-medium text-accent-ink">关键</span>
         )}
+        {dimensions && (
+          <span
+            data-testid={`node-dimensions-${node.id}`}
+            className="ml-auto shrink-0 text-[11px] tabular-nums text-ink-400"
+          >
+            {dimensions}
+          </span>
+        )}
         <button
           type="button"
           aria-label="更多操作"
           data-testid={`node-more-${node.id}`}
           onClick={(e) => menu.openFrom(e, 'point')}
           className={cn(
-            'ml-auto rounded p-0.5 text-ink-400 transition-opacity hover:bg-ink-100 hover:text-ink-700',
+            'rounded p-0.5 text-ink-400 transition-opacity hover:bg-ink-100 hover:text-ink-700 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            !dimensions && 'ml-auto',
             hovered || selected ? 'opacity-100' : 'opacity-0',
           )}
         >
@@ -157,22 +174,31 @@ function NodeCardImpl({ data, selected }: NodeProps) {
       </div>
 
       <div
+        data-testid={`node-shell-${node.id}`}
+        data-visual-kind={isGeneratedMedia ? 'media' : 'generator'}
+        data-selected={selected ? 'true' : 'false'}
         className={cn(
-          'relative rounded-2xl bg-surface transition-shadow',
-          selected ? 'ring-2 ring-accent' : 'ring-1 ring-ink-200/70',
+          'relative transition-[box-shadow]',
+          isGeneratedMedia ? 'rounded-xl bg-transparent' : 'rounded-2xl bg-surface',
+          selected
+            ? 'ring-2 ring-accent'
+            : isGeneratedMedia
+              ? 'ring-1 ring-ink-200/60'
+              : 'ring-1 ring-ink-200/70',
           running && 'running-ring',
         )}
-        style={{ minHeight: node.size.height }}
+        style={isGeneratedMedia ? { height: node.size.height } : { minHeight: node.size.height }}
       >
         <Handle type="target" position={Position.Left} className="connectionindicator" />
         <Handle type="source" position={Position.Right} className="connectionindicator" />
 
-        <div className="flex h-full flex-col p-3">
+        <div className={cn('flex h-full flex-col', isGeneratedMedia ? 'p-0' : 'p-3')}>
           <NodeBody
             node={node}
             artifact={artifact}
             running={running}
             job={job}
+            compactMedia={isGeneratedMedia}
             onSetIntent={onSetIntent}
             onOpen={onOpen}
           />
@@ -180,7 +206,14 @@ function NodeCardImpl({ data, selected }: NodeProps) {
 
         {/* Status footer: cost + run control, or progress while running. */}
         {meta.produces && (
-          <div className="flex items-center gap-2 border-t border-ink-100 px-3 py-2">
+          <div
+            className={cn(
+              'flex items-center gap-2 px-3 py-2',
+              isGeneratedMedia
+                ? 'absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/75 via-black/45 to-transparent pt-8'
+                : 'border-t border-ink-100',
+            )}
+          >
             {running ? (
               <>
                 <Spinner size={13} />
@@ -280,6 +313,7 @@ function NodeBody({
   artifact,
   running,
   job,
+  compactMedia,
   onSetIntent,
   onOpen,
 }: {
@@ -287,6 +321,7 @@ function NodeBody({
   artifact: WorkflowNode['data']['artifacts'] extends (infer A)[] | undefined ? A | null : never
   running: boolean
   job: GenerationJob | null
+  compactMedia: boolean
   onSetIntent: (nodeId: string, intent: string) => void
   onOpen: (nodeId: string) => void
 }) {
@@ -328,7 +363,7 @@ function NodeBody({
               <MediaPlaceholder kind="image" label={job ? '待确认后生成' : '待确认后生成'} />
             )}
           </div>
-          {prompt && <p className="line-clamp-2 text-[11px] leading-snug text-ink-500">{prompt}</p>}
+          {!compactMedia && prompt && <p className="line-clamp-2 text-[11px] leading-snug text-ink-500">{prompt}</p>}
         </div>
       )
     }
@@ -346,7 +381,7 @@ function NodeBody({
               <MediaPlaceholder kind="video" />
             )}
           </div>
-          {prompt && <p className="line-clamp-2 text-[11px] leading-snug text-ink-500">{prompt}</p>}
+          {!compactMedia && prompt && <p className="line-clamp-2 text-[11px] leading-snug text-ink-500">{prompt}</p>}
         </div>
       )
     }

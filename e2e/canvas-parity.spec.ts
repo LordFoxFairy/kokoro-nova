@@ -85,6 +85,21 @@ test('empty workflow uses the current dark 1440×900 editor shell', async ({ pag
     '首帧图生视频',
     '音频生视频',
   ])
+
+  const unnamedButtons = await editor.locator('button:visible').evaluateAll((buttons) =>
+    buttons
+      .map((button, index) => ({
+        index,
+        name:
+          button.getAttribute('aria-label')?.trim() ||
+          button.textContent?.trim() ||
+          button.getAttribute('title')?.trim() ||
+          '',
+        testId: button.getAttribute('data-testid'),
+      }))
+      .filter((button) => !button.name),
+  )
+  expect(unnamedButtons).toEqual([])
   await expectVisualBaseline(page, 'canvas-empty-dark-1440x900.png')
 })
 
@@ -148,6 +163,47 @@ test('音频生视频 starter creates a direct audio-to-video workflow', async (
   await expect(page.locator('.react-flow__edge')).toHaveCount(1)
 })
 
+test('populated workflow uses minimal media nodes, bezier edges and hover handles', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-populated')
+  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+
+  await expect(page.locator('[data-node-type]')).toHaveCount(4)
+  await expect(page.locator('.react-flow__edge')).toHaveCount(3)
+  expect(await page.locator('.react-flow__viewport').getAttribute('style')).toContain('scale(0.5)')
+  await expect(page.getByTestId('zoom-readout')).toHaveText('50%')
+  await expectRect(page.getByTestId('node-node_text_01'), { x: 160, y: 154 }, 3)
+  await expectRect(page.getByTestId('node-node_composite_01'), { x: 850, right: 1060 }, 3)
+
+  const imageNode = page.getByTestId('node-node_image_01')
+  const imageHeader = page.getByTestId('node-header-node_image_01')
+  const imageShell = page.getByTestId('node-shell-node_image_01')
+  await expect(imageHeader).toContainText('首帧图片')
+  await expect(page.getByTestId('node-dimensions-node_image_01')).toHaveText('1280 × 720')
+  await expect(imageShell).toHaveAttribute('data-visual-kind', 'media')
+  expect(await imageShell.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+
+  const preview = imageNode.locator('img')
+  await expect(preview).toBeVisible()
+  expect(await preview.evaluate((element) => getComputedStyle(element).borderRadius)).toBe('12px')
+  await expectVisualBaseline(page, 'canvas-populated-dark-1440x900.png')
+
+  const handle = imageNode.locator('.react-flow__handle-right')
+  expect(await handle.evaluate((element) => getComputedStyle(element).width)).toBe('20px')
+  expect(await handle.evaluate((element) => getComputedStyle(element).opacity)).toBe('0')
+  await imageNode.hover()
+  await expect.poll(() => handle.evaluate((element) => getComputedStyle(element).opacity)).toBe('1')
+
+  const edge = page.locator('.react-flow__edge').first()
+  await expect(edge).toHaveClass(/react-flow__edge-default/)
+  expect(await edge.locator('.react-flow__edge-path').evaluate((element) => getComputedStyle(element).strokeWidth)).toBe(
+    '1.25px',
+  )
+
+  await imageHeader.click()
+  await expect(imageShell).toHaveAttribute('data-selected', 'true')
+})
+
 test('storyboard preserves the document while matching default, expanded and Agent layouts', async ({ page, request }) => {
   await selectScenario(request, 'authenticated-populated')
   await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
@@ -166,10 +222,21 @@ test('storyboard preserves the document while matching default, expanded and Age
   await expectRect(imageColumn, { x: 498, y: 72, width: 456 }, 3)
   await expectRect(videoColumn, { x: 967, y: 72, right: 1424 }, 3)
   expect(await imageColumn.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(36, 36, 36)')
+  await expect(imageColumn).toContainText('1280 × 720')
 
   const afterSwitch = await request.get('/api/canvases/can_video_main').then((response) => response.json())
   expect(afterSwitch.canvas.revision).toBe(before.canvas.revision)
   expect(afterSwitch.canvas.document).toEqual(before.canvas.document)
+
+  const clipEntry = page.getByTestId('open-clip-editor')
+  await expectRect(clipEntry, { width: 56, height: 56, right: 1420, bottom: 880 })
+  expect(
+    await clipEntry.evaluate((element) => Number.parseFloat(getComputedStyle(element).borderRadius)),
+  ).toBeGreaterThanOrEqual(28)
+  await clipEntry.click()
+  await expect(page.getByTestId('clip-editor')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('clip-editor')).toHaveCount(0)
   await expectVisualBaseline(page, 'storyboard-dark-1440x900.png')
 
   await page.getByTestId('expand-image').click()
@@ -183,6 +250,7 @@ test('storyboard preserves the document while matching default, expanded and Age
   const agent = page.getByTestId('agent-panel')
   await expectRect(agent, { x: 1100, width: 340, right: 1440 }, 1)
   await expectRect(storyboard, { x: 0, width: 1100, right: 1100 }, 1)
+  await expectRect(clipEntry, { width: 56, height: 56, right: 1080, bottom: 880 })
   const agentImage = page.getByTestId('storyboard-image')
   const agentVideo = page.getByTestId('storyboard-video')
   const leftBox = await leftRail.boundingBox()

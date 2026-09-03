@@ -1,5 +1,6 @@
 import type { z, ZodType } from 'zod'
 
+import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import {
   CanvasDetailLocalResponseSchema,
   CreateProjectInputSchema,
@@ -105,6 +106,9 @@ export function createApiClient(transport: JsonTransport = fetch) {
   }
 
   return {
+    home: {
+      get: () => requestTyped(HomeDiscoveryResponseSchema, '/api/home'),
+    },
     projects: {
       list: () => requestTyped(ProjectListLocalResponseSchema, '/api/projects'),
       create: (input: z.input<typeof CreateProjectInputSchema>) => {

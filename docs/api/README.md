@@ -13,13 +13,13 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；27 个 path、50 个 operation |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；28 个 path、51 个 operation |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
-| `src/contracts/local.ts` | 本地响应的 Zod 运行时 Schema |
+| `src/contracts/local.ts` / `src/contracts/home.ts` | 本地响应的 Zod 运行时 Schema |
 | `src/api/client.ts` | 页面唯一 JSON 传输与错误规范化入口 |
 
 `openapi.yaml` 使用 JSON-compatible YAML；它既是合法 YAML，也是合法 JSON，因此无需在
@@ -122,7 +122,8 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 
 | UI 流程 | 主要 operation |
 |---|---|
-| 首页/全部项目 | `listProjects`, `createProject` |
+| 首页发现/最近项目 | `getHomeDiscovery` |
+| 全部项目 | `listProjects`, `createProject` |
 | 文件夹 | `createFolder`, `renameFolder`, `deleteFolder` |
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |
@@ -136,6 +137,13 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 
 完整触发动作位于每个 OpenAPI operation 的 `x-ui-triggers`，可重放状态位于
 `x-mock-scenarios`。
+
+### 首页聚合契约
+
+`GET /api/home` 是首页唯一初始化请求：公开活动、创作入口、推荐 Skill 与 TV Show
+内容来自冻结的本地 catalogue；账户积分和最近三个项目来自当前 scenario workspace state。
+匿名态仍返回公开发现内容，但 `recentProjects` 为空、积分为 `0`。所有媒体 URL 都由
+运行时 Schema 限制在 `/fixtures/libtv/`，页面不会依赖官网 CDN 或登录凭证。
 
 ## 分页、排序和查询
 

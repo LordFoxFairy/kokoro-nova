@@ -100,6 +100,12 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('DELETE', '/api/folders/{folderId}', 'Folders', 'deleteFolder', ['输入完整文件夹名后永久删除']),
   route('POST', '/api/folders', 'Folders', 'createFolder', ['项目页新建文件夹']),
 
+  route('GET', '/api/home', 'Projects', 'getHomeDiscovery', ['登录态首页初始化'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+
   route('GET', '/api/jobs/{jobId}', 'Jobs', 'getGenerationJob', ['节点和详情轮询单个任务'], VIDEO_STATES),
   route('POST', '/api/jobs/{jobId}', 'Jobs', 'transitionGenerationJob', ['确认、轮询或取消生成任务'], VIDEO_STATES),
   route('GET', '/api/jobs', 'Jobs', 'listGenerationJobs', ['历史记录和画布初始化任务列表'], VIDEO_STATES),

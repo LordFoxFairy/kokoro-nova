@@ -109,16 +109,17 @@ type HomeDiscoveryResponse = {
     coverUrl: string
     likeCount: number
     processAvailable: boolean
+    category: string
   }>
   showcaseCategories: string[]
 }
 ```
 
-- [ ] **Step 1: Write failing schema and route tests**
+- [x] **Step 1: Write failing schema and route tests**
 
 Assert local-only URLs, unique IDs, fixed ordering, exactly six creator tools, at least six showcase cards and three recent projects in `authenticated-populated`.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm vitest run src/contracts/__tests__/home.test.ts src/app/api/home/route.test.ts
@@ -126,19 +127,19 @@ pnpm vitest run src/contracts/__tests__/home.test.ts src/app/api/home/route.test
 
 Expected: FAIL because contract/route do not exist.
 
-- [ ] **Step 3: Implement catalogue and route**
+- [x] **Step 3: Implement catalogue and route**
 
 The route reads project state, takes the three newest projects and combines them with deterministic campaign/tool/Skill/showcase catalogues. It returns partial-safe data: an empty projects collection does not remove creator tools or public showcase.
 
-- [ ] **Step 4: Add typed client endpoint**
+- [x] **Step 4: Add typed client endpoint**
 
 Expose `client.home.get()` and decode every response with `HomeDiscoveryResponseSchema`.
 
-- [ ] **Step 5: Register and document the route**
+- [x] **Step 5: Register and document the route**
 
 Add `GET /api/home`, operationId `getHomeDiscovery`, tag `Projects`, UI triggers `登录态首页初始化`, and scenarios `anonymous`, `authenticated-empty`, `authenticated-populated`.
 
-- [ ] **Step 6: Run contract gate**
+- [x] **Step 6: Run contract gate**
 
 ```bash
 pnpm vitest run src/contracts/__tests__/home.test.ts src/app/api/home/route.test.ts src/contracts/__tests__/openapi.test.ts src/api/__tests__/client.test.ts
@@ -146,7 +147,7 @@ pnpm typecheck
 pnpm lint
 ```
 
-- [ ] **Step 7: Commit contract**
+- [x] **Step 7: Commit contract**
 
 ```bash
 git add src/contracts src/mocks/home.ts src/app/api/home src/api/client.ts docs/api

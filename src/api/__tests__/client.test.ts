@@ -1,12 +1,31 @@
 import { describe, expect, it } from 'vitest'
 
 import { ApiError, createApiClient, type JsonTransport } from '@/api/client'
+import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
 
 function json(value: unknown, init?: ResponseInit): Response {
   return Response.json(value, init)
 }
 
 describe('createApiClient', () => {
+  it('decodes the typed home discovery response through the injected transport', async () => {
+    const seen: Array<{ url: string; init?: RequestInit }> = []
+    const payload = {
+      ...HOME_DISCOVERY_CATALOG,
+      account: { credits: 408, unreadCount: 1, membershipLabel: '开通会员' },
+      recentProjects: [],
+    }
+    const transport: JsonTransport = async (input, init) => {
+      seen.push({ url: String(input), init })
+      return json(payload)
+    }
+
+    const result = await createApiClient(transport).home.get()
+
+    expect(result).toEqual(payload)
+    expect(seen).toEqual([{ url: '/api/home', init: undefined }])
+  })
+
   it('decodes the typed project listing through the injected transport', async () => {
     const seen: Array<{ url: string; init?: RequestInit }> = []
     const transport: JsonTransport = async (input, init) => {

@@ -3964,6 +3964,46 @@
           }
         }
       }
+    },
+    "/api/home": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "加载登录态首页聚合数据",
+        "description": "返回冻结的公开发现内容、当前账户摘要和按更新时间排序的最近三个项目。匿名态仍返回公开内容。",
+        "operationId": "getHomeDiscovery",
+        "x-ui-triggers": [
+          "登录态首页初始化"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeDiscoveryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5293,6 +5333,245 @@
             "items": {}
           }
         ]
+      },
+      "HomeCampaign": {
+        "type": "object",
+        "required": [
+          "id",
+          "message",
+          "cta",
+          "imageUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "cta": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string",
+            "pattern": "^/fixtures/libtv/"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HomeAccount": {
+        "type": "object",
+        "required": [
+          "credits",
+          "unreadCount",
+          "membershipLabel"
+        ],
+        "properties": {
+          "credits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "membershipLabel": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HomeCreatorTool": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "badge",
+          "description",
+          "intent"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "badge": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "blank",
+              "video-model",
+              "director",
+              "frame-analysis",
+              "segment-remake"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "HomeRecentProject": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "coverUrl",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^/fixtures/libtv/"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HomeFeaturedSkill": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "coverUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": "string",
+            "pattern": "^/fixtures/libtv/"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HomeShowcaseItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "author",
+          "authorTier",
+          "coverUrl",
+          "likeCount",
+          "processAvailable",
+          "category"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "authorTier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "coverUrl": {
+            "type": "string",
+            "pattern": "^/fixtures/libtv/"
+          },
+          "likeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "processAvailable": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HomeDiscoveryResponse": {
+        "type": "object",
+        "required": [
+          "campaign",
+          "account",
+          "creatorTools",
+          "recentProjects",
+          "featuredSkills",
+          "showcase",
+          "showcaseCategories"
+        ],
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/HomeCampaign"
+          },
+          "account": {
+            "$ref": "#/components/schemas/HomeAccount"
+          },
+          "creatorTools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomeCreatorTool"
+            }
+          },
+          "recentProjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomeRecentProject"
+            }
+          },
+          "featuredSkills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomeFeaturedSkill"
+            }
+          },
+          "showcase": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomeShowcaseItem"
+            }
+          },
+          "showcaseCategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
       }
     }
   },

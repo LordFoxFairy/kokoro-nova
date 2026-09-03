@@ -1,6 +1,8 @@
 import type { ScenarioId, ScenarioMeta } from '@/contracts/scenario'
 import { FIXED_NOW } from '@/mocks/clock'
 
+export const DEFAULT_SCENARIO_ID: ScenarioId = 'authenticated-empty'
+
 function meta(
   id: ScenarioId,
   label: string,

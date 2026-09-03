@@ -73,7 +73,7 @@
 - Produces: `ExternalEnvelopeSchema`, `LocalErrorEnvelopeSchema`, `ContractDecodeError`, `decodeExternalEnvelope<T>()`.
 - Consumes: `z.ZodType<T>` from Zod.
 
-- [ ] **Step 1: Write the failing envelope tests**
+- [x] **Step 1: Write the failing envelope tests**
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -101,13 +101,13 @@ describe('decodeExternalEnvelope', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test and verify RED**
+- [x] **Step 2: Run the test and verify RED**
 
 Run: `pnpm vitest run src/contracts/__tests__/http.test.ts`
 
 Expected: FAIL because `@/contracts/http` does not exist.
 
-- [ ] **Step 3: Implement the minimal decoder**
+- [x] **Step 3: Implement the minimal decoder**
 
 ```ts
 import { z } from 'zod'
@@ -151,13 +151,13 @@ export function decodeExternalEnvelope<T>(input: unknown, schema: z.ZodType<T>):
 }
 ```
 
-- [ ] **Step 4: Run focused and full contract tests**
+- [x] **Step 4: Run focused and full contract tests**
 
 Run: `pnpm vitest run src/contracts/__tests__/http.test.ts`
 
 Expected: 3 tests PASS.
 
-- [ ] **Step 5: Commit the contract primitive**
+- [x] **Step 5: Commit the contract primitive**
 
 ```bash
 git add src/contracts/http.ts src/contracts/__tests__/http.test.ts
@@ -179,7 +179,7 @@ git commit -m "feat: add strict external API envelope decoder"
 - Consumes: `decodeExternalEnvelope()` from Task 1.
 - Produces: `ProjectListRequestSchema`, `ProjectEntrySchema`, `ProjectListPage`, `decodeProjectList()`, `CanvasBootstrapSchema`, `CanvasBootstrap`, `decodeCanvasBootstrap()`.
 
-- [ ] **Step 1: Add sanitized examples copied from the confirmed field shapes**
+- [x] **Step 1: Add sanitized examples copied from the confirmed field shapes**
 
 `project-list.request.json`:
 
@@ -191,7 +191,7 @@ git commit -m "feat: add strict external API envelope decoder"
 
 `canvas-bootstrap.response.json` uses `project_video_demo`, one image node, one video node, one connection and permissions with all six booleans.
 
-- [ ] **Step 2: Write failing normalization tests**
+- [x] **Step 2: Write failing normalization tests**
 
 ```ts
 it('normalizes mixed folder/project entries without exposing external numeric enums', () => {
@@ -208,13 +208,13 @@ it('parses node data JSON and keeps permission booleans explicit', () => {
 })
 ```
 
-- [ ] **Step 3: Run both tests and verify RED**
+- [x] **Step 3: Run both tests and verify RED**
 
 Run: `pnpm vitest run src/contracts/__tests__/project.test.ts src/contracts/__tests__/canvas.test.ts`
 
 Expected: FAIL because project/canvas decoders do not exist.
 
-- [ ] **Step 4: Implement strict external schemas and explicit normalizers**
+- [x] **Step 4: Implement strict external schemas and explicit normalizers**
 
 The normalized project card must be:
 
@@ -235,13 +235,13 @@ The canvas decoder must parse every node `data` string with `JSON.parse`, reject
 `ContractDecodeError('INVALID_DATA', ...)`, map external node types `1/2/3` to `effect/image/video`, and
 preserve an `externalType: number` field for unrecognized types instead of silently dropping them.
 
-- [ ] **Step 5: Run focused tests and full typecheck**
+- [x] **Step 5: Run focused tests and full typecheck**
 
 Run: `pnpm vitest run src/contracts/__tests__/project.test.ts src/contracts/__tests__/canvas.test.ts && pnpm typecheck`
 
 Expected: all focused tests PASS; typecheck exits 0.
 
-- [ ] **Step 6: Commit observed API schemas**
+- [x] **Step 6: Commit observed API schemas**
 
 ```bash
 git add src/contracts docs/api/examples
@@ -262,7 +262,7 @@ git commit -m "feat: encode observed project and canvas contracts"
 - Produces: `ScenarioId`, `ScenarioMeta`, `SCENARIO_CATALOG`, `DEFAULT_SCENARIO_ID`, `buildScenario(id): WorkspaceState`, `FIXED_NOW`.
 - Consumes: domain factories/types and `WorkspaceState` from `src/server/store.ts`.
 
-- [ ] **Step 1: Write failing determinism and integrity tests**
+- [x] **Step 1: Write failing determinism and integrity tests**
 
 ```ts
 const REQUIRED = [
@@ -292,37 +292,37 @@ it('represents every terminal video status with the same project topology', () =
 })
 ```
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 Run: `pnpm vitest run src/mocks/__tests__/scenarios.test.ts`
 
 Expected: FAIL because scenario modules do not exist.
 
-- [ ] **Step 3: Implement the fixed clock and catalogue**
+- [x] **Step 3: Implement the fixed clock and catalogue**
 
 Use `FIXED_NOW = '2026-09-03T12:00:00.000Z'`. Every ID is a readable constant such as
 `prj_video_demo`, `can_video_main`, `node_video_01`, `job_video_01`, and every timestamp derives from
 `FIXED_NOW` through `isoAt(offsetSeconds)`.
 
-- [ ] **Step 4: Implement one canonical video project and status overlays**
+- [x] **Step 4: Implement one canonical video project and status overlays**
 
 `buildVideoProject(status)` creates the same text → image → video topology for every video state.
 Status overlays change only `GenerationJob.status`, `progress`, `error`, `finishedAt`, artifacts and the
 node's `jobId/artifacts`; they do not change project, canvas, node or edge IDs.
 
-- [ ] **Step 5: Implement the remaining viewer/session/conflict/showcase scenarios**
+- [x] **Step 5: Implement the remaining viewer/session/conflict/showcase scenarios**
 
 Each scenario fills every required `WorkspaceState` collection. Empty collections are explicit empty
 arrays; balances always match the last ledger entry; anonymous uses no private projects but retains public
 snapshot fixture data through the existing publish store boundary.
 
-- [ ] **Step 6: Run focused tests and the existing 454-test suite**
+- [x] **Step 6: Run focused tests and the existing 454-test suite**
 
 Run: `pnpm vitest run src/mocks/__tests__/scenarios.test.ts && pnpm test`
 
 Expected: scenario tests PASS and no existing test regresses.
 
-- [ ] **Step 7: Commit deterministic scenarios**
+- [x] **Step 7: Commit deterministic scenarios**
 
 ```bash
 git add src/contracts/scenario.ts src/mocks
@@ -342,7 +342,7 @@ git commit -m "feat: add deterministic LibTV mock scenarios"
 - Consumes: `buildScenario()`, `ScenarioIdSchema`, `DEFAULT_SCENARIO_ID` from Task 3.
 - Produces: `activeScenarioId()`, `resetStore(scenarioId?)`, `GET/POST /api/dev/scenario`.
 
-- [ ] **Step 1: Write failing store tests**
+- [x] **Step 1: Write failing store tests**
 
 ```ts
 it('resets to an explicitly selected deterministic scenario', async () => {
@@ -360,24 +360,24 @@ it('plain reset restores the active scenario rather than changing fixtures', asy
 })
 ```
 
-- [ ] **Step 2: Write failing route tests**
+- [x] **Step 2: Write failing route tests**
 
 Call the exported route functions directly. Assert `POST {scenarioId:'video-succeeded'}` returns status
 200 and metadata, invalid IDs return 400, and both GET/POST return 403 when `NODE_ENV` is production.
 
-- [ ] **Step 3: Run and verify RED**
+- [x] **Step 3: Run and verify RED**
 
 Run: `pnpm vitest run src/server/__tests__/scenario-store.test.ts src/app/api/dev/scenario/route.test.ts`
 
 Expected: FAIL because store/API signatures do not exist.
 
-- [ ] **Step 4: Replace ad-hoc seeding with scenario seeding**
+- [x] **Step 4: Replace ad-hoc seeding with scenario seeding**
 
 Persist active scenario metadata in `.data/scenario.json`; `workspace.json` remains only business state.
 `resetStore(undefined)` reads the active scenario, while `resetStore(id)` validates and atomically updates
 both files. `NODE_ENV=production` never exposes scenario mutation.
 
-- [ ] **Step 5: Implement GET/POST scenario route and update reset route**
+- [x] **Step 5: Implement GET/POST scenario route and update reset route**
 
 Responses:
 
@@ -390,13 +390,13 @@ type ScenarioResponse = {
 
 `POST /api/dev/reset` calls `resetStore()` without changing the active scenario.
 
-- [ ] **Step 6: Run focused tests and all server tests**
+- [x] **Step 6: Run focused tests and all server tests**
 
 Run: `pnpm vitest run src/server src/app/api/dev/scenario/route.test.ts`
 
 Expected: all server and route tests PASS.
 
-- [ ] **Step 7: Commit scenario switching**
+- [x] **Step 7: Commit scenario switching**
 
 ```bash
 git add src/server/store.ts src/app/api/dev src/server/__tests__/scenario-store.test.ts
@@ -414,7 +414,7 @@ git commit -m "feat: switch mock workspace by deterministic scenario"
 - Consumes: project/canvas/scenario schemas from Tasks 1–3.
 - Produces: `createApiClient(transport?)`, singleton `client`, compatibility `api` methods.
 
-- [ ] **Step 1: Write failing transport tests with a real Response object**
+- [x] **Step 1: Write failing transport tests with a real Response object**
 
 ```ts
 const transport: typeof fetch = async () => Response.json({ projects: [], folders: [], balance: 20 })
@@ -428,13 +428,13 @@ await expect(createApiClient(broken).projects.list()).rejects.toMatchObject({ co
 Also assert HTTP 409 maps to `ApiError {status:409, code:'REVISION_CONFLICT'}` and malformed JSON maps to
 `ApiError {status:502, code:'INVALID_JSON'}`.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 Run: `pnpm vitest run src/api/__tests__/client.test.ts`
 
 Expected: FAIL because `createApiClient` does not exist.
 
-- [ ] **Step 3: Implement one request pipeline and typed endpoint groups**
+- [x] **Step 3: Implement one request pipeline and typed endpoint groups**
 
 ```ts
 export type JsonTransport = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -458,13 +458,13 @@ export function createApiClient(transport: JsonTransport = fetch) {
 All endpoint groups share one JSON parser, HTTP error mapper and Zod decode path. `src/lib/api.ts` exports
 `client.raw` as `api` so unchanged components continue to compile while later plans migrate by surface.
 
-- [ ] **Step 4: Run tests, typecheck and lint**
+- [x] **Step 4: Run tests, typecheck and lint**
 
 Run: `pnpm vitest run src/api/__tests__/client.test.ts && pnpm typecheck && pnpm lint`
 
 Expected: all commands exit 0.
 
-- [ ] **Step 5: Commit the API client boundary**
+- [x] **Step 5: Commit the API client boundary**
 
 ```bash
 git add src/api src/lib/api.ts
@@ -486,7 +486,7 @@ git commit -m "feat: add injectable typed API client"
 - Consumes: all current files under `src/app/api/**/route.ts` and scenario IDs from Task 3.
 - Produces: `LOCAL_API_ROUTES`, OpenAPI paths/tags/components, UI-to-endpoint documentation.
 
-- [ ] **Step 1: Write a failing route/OpenAPI drift test**
+- [x] **Step 1: Write a failing route/OpenAPI drift test**
 
 The test recursively enumerates `src/app/api/**/route.ts`, reads exported HTTP method names with a strict
 regex, converts `[projectId]` and `[...path]` to `{projectId}` and `{path}`, then checks that every pair is
@@ -499,13 +499,13 @@ expect(openApiPairs).toEqual(manifestPairs)
 expect(sourcePairs).toEqual(manifestPairs)
 ```
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 Run: `pnpm vitest run src/contracts/__tests__/openapi.test.ts`
 
 Expected: FAIL because manifest and OpenAPI files do not exist.
 
-- [ ] **Step 3: Add every current route to the manifest**
+- [x] **Step 3: Add every current route to the manifest**
 
 Each item has this exact shape:
 
@@ -522,20 +522,20 @@ type LocalApiRoute = {
 
 Include all existing routes plus `/api/dev/scenario`; no route is excluded as “internal.”
 
-- [ ] **Step 4: Write JSON-compatible OpenAPI YAML**
+- [x] **Step 4: Write JSON-compatible OpenAPI YAML**
 
 Use a YAML document whose values avoid anchors, merge keys and custom tags so the drift test can inspect
 paths with deterministic text parsing. Every operation includes `operationId`, tag, success response,
 `400`, `404`, `409`, `422` or `500` where applicable, and `x-ui-triggers`/`x-mock-scenarios` extensions.
 
-- [ ] **Step 5: Write the four contract guides**
+- [x] **Step 5: Write the four contract guides**
 
 - `README.md`: envelope, pagination, IDs, timestamps, idempotency, fixture selection, and UI-to-route table.
 - `ERRORS.md`: `INVALID_INPUT`, `NOT_FOUND`, `REVISION_CONFLICT`, `QUOTE_EXPIRED`, `INSUFFICIENT_CREDITS`, `COMPLIANCE_BLOCKED`, `SESSION_EXPIRED`, `INVALID_DATA`.
 - `JOB_STATES.md`: exact draft → confirmation → queued → running → terminal transition table and scenario names.
 - `WORKFLOW_CONCURRENCY.md`: expected revision, 409 payload, single rebase retry, heartbeat, session expiry and refresh recovery.
 
-- [ ] **Step 6: Run drift test and full verification**
+- [x] **Step 6: Run drift test and full verification**
 
 Run: `pnpm vitest run src/contracts/__tests__/openapi.test.ts && pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 

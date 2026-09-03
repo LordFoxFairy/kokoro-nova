@@ -1,0 +1,5283 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LibTV Frontend Replica Mock API",
+    "version": "1.0.0-foundation",
+    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3200",
+      "description": "Next.js 本地 mock server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Projects",
+      "description": "项目列表与生命周期"
+    },
+    {
+      "name": "Folders",
+      "description": "项目文件夹"
+    },
+    {
+      "name": "Canvases",
+      "description": "多画布"
+    },
+    {
+      "name": "Workflow",
+      "description": "节点、边、分组与视口 mutation"
+    },
+    {
+      "name": "Jobs",
+      "description": "生成任务状态机"
+    },
+    {
+      "name": "Video",
+      "description": "视频合成与导出"
+    },
+    {
+      "name": "Assets",
+      "description": "上传、资产与本地媒体"
+    },
+    {
+      "name": "Agent",
+      "description": "会话、消息和 mutation proposal"
+    },
+    {
+      "name": "Skills",
+      "description": "Skill 市场"
+    },
+    {
+      "name": "Publish",
+      "description": "TV Show 与公开快照"
+    },
+    {
+      "name": "Ledger",
+      "description": "积分余额与明细"
+    },
+    {
+      "name": "Presence",
+      "description": "编辑租约、协作光标和跟随"
+    },
+    {
+      "name": "Development",
+      "description": "确定性 fixture 控制"
+    }
+  ],
+  "paths": {
+    "/api/agent/sessions/{sessionId}/messages": {
+      "post": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Agent 输入框发送消息",
+        "operationId": "sendAgentMessage",
+        "x-ui-triggers": [
+          "Agent 输入框发送消息"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "sessionId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendAgentMessageRequest"
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "回答 ask_human",
+        "operationId": "resolveAgentMessage",
+        "x-ui-triggers": [
+          "回答 ask_human",
+          "确认或拒绝 mutation proposal"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "sessionId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveAgentMessageRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/sessions/{sessionId}": {
+      "get": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "打开 Agent 会话",
+        "operationId": "getAgentSession",
+        "x-ui-triggers": [
+          "打开 Agent 会话"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "sessionId 的稳定本地标识"
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "修改 Agent 模型、模式或分享状态",
+        "operationId": "updateAgentSession",
+        "x-ui-triggers": [
+          "修改 Agent 模型、模式或分享状态"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "sessionId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentSessionRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Agent 历史菜单删除会话",
+        "operationId": "deleteAgentSession",
+        "x-ui-triggers": [
+          "Agent 历史菜单删除会话"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "sessionId 的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/agent/sessions": {
+      "get": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "打开 Agent 历史",
+        "operationId": "listAgentSessions",
+        "x-ui-triggers": [
+          "打开 Agent 历史"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "新建 Agent 会话",
+        "operationId": "createAgentSession",
+        "x-ui-triggers": [
+          "新建 Agent 会话"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentSessionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}": {
+      "patch": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "重命名、移动或修改资产标签",
+        "operationId": "updateAsset",
+        "x-ui-triggers": [
+          "重命名、移动或修改资产标签"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "assetId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssetRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "资产菜单删除",
+        "operationId": "deleteAsset",
+        "x-ui-triggers": [
+          "资产菜单删除"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "assetId 的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/assets/folders": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "打开资产管理文件夹列表",
+        "operationId": "listAssetFolders",
+        "x-ui-triggers": [
+          "打开资产管理文件夹列表"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "资产管理新建文件夹",
+        "operationId": "createAssetFolder",
+        "x-ui-triggers": [
+          "资产管理新建文件夹"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "打开个人资产或 Agent 资产标签",
+        "operationId": "listAssets",
+        "x-ui-triggers": [
+          "打开个人资产或 Agent 资产标签"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "生成结果保存到资产",
+        "operationId": "registerArtifactAsAsset",
+        "x-ui-triggers": [
+          "生成结果保存到资产"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAssetRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/upload": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "资产管理上传文件",
+        "operationId": "uploadAsset",
+        "x-ui-triggers": [
+          "资产管理上传文件"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericJsonObject"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "取消正在上传的资产",
+        "operationId": "cancelAssetUpload",
+        "x-ui-triggers": [
+          "取消正在上传的资产"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/canvases/{canvasId}": {
+      "get": {
+        "tags": [
+          "Canvases"
+        ],
+        "summary": "打开或刷新画布",
+        "operationId": "getCanvas",
+        "x-ui-triggers": [
+          "打开或刷新画布"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated",
+          "session-expired",
+          "revision-conflict",
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanvasDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "canvasId 的稳定本地标识"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Workflow"
+        ],
+        "summary": "节点、边、分组或视口提交",
+        "operationId": "mutateCanvas",
+        "x-ui-triggers": [
+          "节点、边、分组或视口提交"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated",
+          "revision-conflict"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "canvasId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutationRequest"
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Canvases"
+        ],
+        "summary": "画布选择器内联重命名",
+        "operationId": "renameCanvas",
+        "x-ui-triggers": [
+          "画布选择器内联重命名"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "canvasId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Canvases"
+        ],
+        "summary": "画布菜单确认删除",
+        "operationId": "deleteCanvas",
+        "x-ui-triggers": [
+          "画布菜单确认删除"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "canvasId 的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/canvases": {
+      "post": {
+        "tags": [
+          "Canvases"
+        ],
+        "summary": "新建画布或创建画布副本",
+        "operationId": "createCanvas",
+        "x-ui-triggers": [
+          "新建画布或创建画布副本"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Canvas"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCanvasRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/compose": {
+      "post": {
+        "tags": [
+          "Video"
+        ],
+        "summary": "视频合成器导出到本地或画布",
+        "operationId": "composeVideo",
+        "x-ui-triggers": [
+          "视频合成器导出到本地或画布"
+        ],
+        "x-mock-scenarios": [
+          "video-succeeded",
+          "video-failed"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dev/reset": {
+      "post": {
+        "tags": [
+          "Development"
+        ],
+        "summary": "Playwright 用例恢复当前 fixture",
+        "operationId": "resetActiveScenario",
+        "x-ui-triggers": [
+          "Playwright 用例恢复当前 fixture"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dev/scenario": {
+      "get": {
+        "tags": [
+          "Development"
+        ],
+        "summary": "开发场景面板读取当前 fixture",
+        "operationId": "getActiveScenario",
+        "x-ui-triggers": [
+          "开发场景面板读取当前 fixture"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Development"
+        ],
+        "summary": "开发场景面板切换 fixture",
+        "operationId": "setActiveScenario",
+        "x-ui-triggers": [
+          "开发场景面板切换 fixture"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetScenarioRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/folders/{folderId}": {
+      "patch": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "项目页文件夹内联重命名",
+        "operationId": "renameFolder",
+        "x-ui-triggers": [
+          "项目页文件夹内联重命名"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "folderId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "输入完整文件夹名后永久删除",
+        "operationId": "deleteFolder",
+        "x-ui-triggers": [
+          "输入完整文件夹名后永久删除"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "folderId 的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/folders": {
+      "post": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "项目页新建文件夹",
+        "operationId": "createFolder",
+        "x-ui-triggers": [
+          "项目页新建文件夹"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{jobId}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "节点和详情轮询单个任务",
+        "operationId": "getGenerationJob",
+        "x-ui-triggers": [
+          "节点和详情轮询单个任务"
+        ],
+        "x-mock-scenarios": [
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "jobId 的稳定本地标识"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "确认、轮询或取消生成任务",
+        "operationId": "transitionGenerationJob",
+        "x-ui-triggers": [
+          "确认、轮询或取消生成任务"
+        ],
+        "x-mock-scenarios": [
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "jobId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionJobRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "历史记录和画布初始化任务列表",
+        "operationId": "listGenerationJobs",
+        "x-ui-triggers": [
+          "历史记录和画布初始化任务列表"
+        ],
+        "x-mock-scenarios": [
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "节点点击生成并创建报价",
+        "operationId": "createGenerationJob",
+        "x-ui-triggers": [
+          "节点点击生成并创建报价"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated",
+          "video-awaiting-confirmation"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ledger": {
+      "get": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "账户积分余额与明细",
+        "operationId": "listLedgerEntries",
+        "x-ui-triggers": [
+          "账户积分余额与明细"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated",
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/{path}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "图片、视频和音频播放器读取本地 fixture",
+        "operationId": "readLocalMedia",
+        "x-ui-triggers": [
+          "图片、视频和音频播放器读取本地 fixture"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated",
+          "public-showcase",
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "path 的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/presence/{canvasId}": {
+      "get": {
+        "tags": [
+          "Presence"
+        ],
+        "summary": "画布协作者和跟随状态",
+        "operationId": "getCanvasPresence",
+        "x-ui-triggers": [
+          "画布协作者和跟随状态"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "canvasId 的稳定本地标识"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Presence"
+        ],
+        "summary": "光标、视口、跟随和编辑租约心跳",
+        "operationId": "updateCanvasPresence",
+        "x-ui-triggers": [
+          "光标、视口、跟随和编辑租约心跳"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated",
+          "session-expired"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "canvasId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresenceUpdateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/preview/character": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "角色库参考图预览",
+        "operationId": "previewCharacterReference",
+        "x-ui-triggers": [
+          "角色库参考图预览"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/preview/stitch": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "分镜组 2K 拼接预览",
+        "operationId": "previewStoryboardStitch",
+        "x-ui-triggers": [
+          "分镜组 2K 拼接预览"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectId}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "从项目卡打开工作台",
+        "operationId": "getProject",
+        "x-ui-triggers": [
+          "从项目卡打开工作台"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "projectId 的稳定本地标识"
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "项目重命名、移动或修改封面",
+        "operationId": "updateProject",
+        "x-ui-triggers": [
+          "项目重命名、移动或修改封面"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "projectId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "项目菜单确认删除",
+        "operationId": "deleteProject",
+        "x-ui-triggers": [
+          "项目菜单确认删除"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "projectId 的稳定本地标识"
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "项目菜单创建副本",
+        "operationId": "duplicateProject",
+        "x-ui-triggers": [
+          "项目菜单创建副本"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "projectId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "首页最近项目与全部项目页",
+        "operationId": "listProjects",
+        "x-ui-triggers": [
+          "首页最近项目与全部项目页"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "首页开始创作与项目页开始创作",
+        "operationId": "createProject",
+        "x-ui-triggers": [
+          "首页开始创作与项目页开始创作"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/publish/{snapshotId}": {
+      "get": {
+        "tags": [
+          "Publish"
+        ],
+        "summary": "TV Show 查看制作过程",
+        "operationId": "getPublishedSnapshot",
+        "x-ui-triggers": [
+          "TV Show 查看制作过程"
+        ],
+        "x-mock-scenarios": [
+          "public-showcase"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "snapshotId 的稳定本地标识"
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Publish"
+        ],
+        "summary": "个人中心下架作品",
+        "operationId": "revokePublishedSnapshot",
+        "x-ui-triggers": [
+          "个人中心下架作品"
+        ],
+        "x-mock-scenarios": [
+          "public-showcase"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "snapshotId 的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/publish": {
+      "get": {
+        "tags": [
+          "Publish"
+        ],
+        "summary": "TV Show 作品流",
+        "operationId": "listPublishedSnapshots",
+        "x-ui-triggers": [
+          "TV Show 作品流"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "public-showcase"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Publish"
+        ],
+        "summary": "发布与分享菜单发布作品",
+        "operationId": "publishCanvas",
+        "x-ui-triggers": [
+          "发布与分享菜单发布作品"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/{skillId}": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "打开 Skill 详情",
+        "operationId": "getSkill",
+        "x-ui-triggers": [
+          "打开 Skill 详情"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "skillId 的稳定本地标识"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "Skill 卡或详情收藏",
+        "operationId": "toggleSkillFavorite",
+        "x-ui-triggers": [
+          "Skill 卡或详情收藏"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "skillId 的稳定本地标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericJsonObject"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "summary": "首页推荐与 Skill 市场",
+        "operationId": "listSkills",
+        "x-ui-triggers": [
+          "首页推荐与 Skill 市场"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数或业务状态不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标对象不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "revision 或编辑租约冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorDetail": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {}
+        },
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "requestId"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LegacyErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "deprecated": true,
+        "description": "当前本地 route 的兼容错误形状；迁移后统一为 ErrorResponse。"
+      },
+      "ScenarioId": {
+        "type": "string",
+        "enum": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated",
+          "account-switch-required",
+          "session-expired",
+          "video-awaiting-confirmation",
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled",
+          "video-compliance-blocked",
+          "revision-conflict",
+          "public-showcase"
+        ]
+      },
+      "ScenarioMeta": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "description",
+          "viewer",
+          "editorSession",
+          "seedVersion",
+          "fixedNow"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ScenarioId"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "viewer": {
+            "type": "string",
+            "enum": [
+              "anonymous",
+              "authenticated",
+              "account-selection"
+            ]
+          },
+          "editorSession": {
+            "type": "string",
+            "enum": [
+              "none",
+              "active",
+              "expired"
+            ]
+          },
+          "seedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fixedNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScenarioResponse": {
+        "type": "object",
+        "required": [
+          "scenario",
+          "state"
+        ],
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/ScenarioMeta"
+          },
+          "state": {
+            "type": "object",
+            "required": [
+              "projects",
+              "canvases",
+              "jobs",
+              "assets"
+            ],
+            "properties": {
+              "projects": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "canvases": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "jobs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "assets": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetScenarioRequest": {
+        "type": "object",
+        "required": [
+          "scenarioId"
+        ],
+        "properties": {
+          "scenarioId": {
+            "$ref": "#/components/schemas/ScenarioId"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Folder": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "name",
+          "coverUrl",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "spaceId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "folderId",
+          "name",
+          "coverUrl",
+          "createdAt",
+          "updatedAt",
+          "canvasIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "spaceId": {
+            "type": "string"
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canvasIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectRow": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Project"
+          },
+          {
+            "type": "object",
+            "required": [
+              "canvasCount"
+            ],
+            "properties": {
+              "canvasCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
+      "FolderRow": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Folder"
+          },
+          {
+            "type": "object",
+            "required": [
+              "projectCount"
+            ],
+            "properties": {
+              "projectCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
+      "ProjectListResponse": {
+        "type": "object",
+        "required": [
+          "projects",
+          "folders",
+          "balance"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectRow"
+            }
+          },
+          "folders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FolderRow"
+            }
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateProjectRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Viewport": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "zoom"
+        ],
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "zoom": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Artifact": {
+        "type": "object",
+        "required": [
+          "id",
+          "jobId",
+          "kind",
+          "url",
+          "thumbnailUrl",
+          "width",
+          "height",
+          "durationSeconds",
+          "createdAt",
+          "modelId",
+          "assetId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "jobId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "width": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "height": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "durationSeconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "assetId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkflowNode": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "name",
+          "position",
+          "size",
+          "groupId",
+          "keyElement",
+          "createdAt",
+          "updatedAt",
+          "data"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "video",
+              "videoComposite",
+              "director",
+              "audio",
+              "script",
+              "scriptLegacy",
+              "style",
+              "effect",
+              "assetLibrary"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "object",
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "size": {
+            "type": "object",
+            "required": [
+              "width",
+              "height"
+            ],
+            "properties": {
+              "width": {
+                "type": "number",
+                "minimum": 0
+              },
+              "height": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "groupId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "keyElement": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkflowEdge": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "target",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkflowGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "nodeIds",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "storyboard"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "storyboard": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkflowDocument": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "nodes",
+          "edges",
+          "groups",
+          "viewport"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowGroup"
+            }
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/Viewport"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Canvas": {
+        "type": "object",
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "document"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "document": {
+            "$ref": "#/components/schemas/WorkflowDocument"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CanvasDetailResponse": {
+        "type": "object",
+        "required": [
+          "canvas",
+          "jobs",
+          "balance"
+        ],
+        "properties": {
+          "canvas": {
+            "$ref": "#/components/schemas/Canvas"
+          },
+          "project": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Project"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenerationJob"
+            }
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CanvasMutation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "node"
+            ],
+            "properties": {
+              "op": {
+                "const": "addNode"
+              },
+              "node": {
+                "$ref": "#/components/schemas/WorkflowNode"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "nodeId",
+              "patch"
+            ],
+            "properties": {
+              "op": {
+                "const": "updateNode"
+              },
+              "nodeId": {
+                "type": "string"
+              },
+              "patch": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "nodeId"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeNode"
+              },
+              "nodeId": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "edge"
+            ],
+            "properties": {
+              "op": {
+                "const": "addEdge"
+              },
+              "edge": {
+                "$ref": "#/components/schemas/WorkflowEdge"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "edgeId"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeEdge"
+              },
+              "edgeId": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "group"
+            ],
+            "properties": {
+              "op": {
+                "const": "addGroup"
+              },
+              "group": {
+                "$ref": "#/components/schemas/WorkflowGroup"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "groupId",
+              "patch"
+            ],
+            "properties": {
+              "op": {
+                "const": "updateGroup"
+              },
+              "groupId": {
+                "type": "string"
+              },
+              "patch": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "groupId",
+              "deleteNodes"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeGroup"
+              },
+              "groupId": {
+                "type": "string"
+              },
+              "deleteNodes": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "viewport"
+            ],
+            "properties": {
+              "op": {
+                "const": "setViewport"
+              },
+              "viewport": {
+                "$ref": "#/components/schemas/Viewport"
+              }
+            }
+          }
+        ]
+      },
+      "MutationRequest": {
+        "type": "object",
+        "required": [
+          "canvasId",
+          "expectedRevision",
+          "mutations",
+          "label"
+        ],
+        "properties": {
+          "canvasId": {
+            "type": "string"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "mutations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CanvasMutation"
+            }
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MutationResult": {
+        "type": "object",
+        "required": [
+          "revision",
+          "document"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "document": {
+            "$ref": "#/components/schemas/WorkflowDocument"
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "awaiting_confirmation",
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "compliance_blocked"
+        ]
+      },
+      "GenerationJob": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "projectId",
+          "canvasId",
+          "nodeId",
+          "modelId",
+          "status",
+          "invocationId",
+          "attempt",
+          "progress",
+          "spec",
+          "quote",
+          "artifacts",
+          "error",
+          "createdAt",
+          "startedAt",
+          "finishedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "spaceId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "canvasId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "invocationId": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "spec": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "quote": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            }
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateJobRequest": {
+        "type": "object",
+        "required": [
+          "canvasId",
+          "nodeId"
+        ],
+        "properties": {
+          "canvasId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TransitionJobRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "confirm",
+              "poll",
+              "cancel"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateCanvasRequest": {
+        "type": "object",
+        "required": [
+          "projectId"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "copyOf": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenameRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateAgentSessionRequest": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canvasId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "SendAgentMessageRequest": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "context": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveAgentMessageRequest": {
+        "type": "object",
+        "required": [
+          "action",
+          "messageId"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "answer",
+              "apply",
+              "reject"
+            ]
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAgentSessionRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "generationMode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto"
+            ]
+          },
+          "modelId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAssetRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisterAssetRequest": {
+        "type": "object",
+        "required": [
+          "artifactId"
+        ],
+        "properties": {
+          "artifactId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "agent"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComposeRequest": {
+        "type": "object",
+        "required": [
+          "canvasId",
+          "nodeId",
+          "timeline"
+        ],
+        "properties": {
+          "canvasId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "subtitles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "destination": {
+            "type": "string",
+            "enum": [
+              "download",
+              "canvas"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "PresenceUpdateRequest": {
+        "type": "object",
+        "required": [
+          "clientId"
+        ],
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/Viewport"
+          },
+          "followingClientId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublishRequest": {
+        "type": "object",
+        "required": [
+          "canvasId"
+        ],
+        "properties": {
+          "canvasId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GenericJsonObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "GenericSuccess": {
+        "description": "Endpoint-specific success body; schemas are tightened surface by surface.",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "type": "array",
+            "items": {}
+          }
+        ]
+      }
+    }
+  },
+  "x-contract-source": "src/contracts/route-manifest.ts",
+  "x-research-source": "docs/research/libtv/api/ENDPOINTS.md"
+}

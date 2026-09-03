@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.0.0-foundation",
+    "version": "1.1.0-video-catalog",
     "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。"
   },
   "servers": [
@@ -31,6 +31,10 @@
     {
       "name": "Jobs",
       "description": "生成任务状态机"
+    },
+    {
+      "name": "Models",
+      "description": "版本化模型目录与能力矩阵"
     },
     {
       "name": "Video",
@@ -4004,6 +4008,82 @@
           }
         }
       }
+    },
+    "/api/models": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "读取版本化模型目录",
+        "description": "返回本地确定性模型 descriptor。Video 项包含参数选择、音频支持、生成模式和参考素材要求。",
+        "operationId": "listModels",
+        "x-ui-triggers": [
+          "打开模型目录",
+          "搜索或筛选模型"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "media",
+            "in": "query",
+            "required": false,
+            "description": "按媒体族筛选",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio",
+                "text"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "在 ID、名称、provider、标签和摘要中搜索",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "稳定排序的模型目录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelCatalogResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "未知媒体筛选",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5568,6 +5648,336 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReferenceCountConstraint": {
+        "type": "object",
+        "required": [
+          "min"
+        ],
+        "properties": {
+          "min": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoReferenceRequirement": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "$ref": "#/components/schemas/ReferenceCountConstraint"
+          },
+          "videos": {
+            "$ref": "#/components/schemas/ReferenceCountConstraint"
+          },
+          "audios": {
+            "$ref": "#/components/schemas/ReferenceCountConstraint"
+          },
+          "anyMedia": {
+            "$ref": "#/components/schemas/ReferenceCountConstraint"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoOutputDefaults": {
+        "type": "object",
+        "required": [
+          "aspectRatio",
+          "resolution",
+          "durationSeconds",
+          "count",
+          "withAudio",
+          "mode"
+        ],
+        "properties": {
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "21:9",
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1K",
+              "2K",
+              "4K",
+              "adaptive",
+              "480p",
+              "720p",
+              "1080p"
+            ]
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "count": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4
+            ]
+          },
+          "withAudio": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "text2video",
+              "omni-reference",
+              "image2video",
+              "first-frame",
+              "first-last-frame",
+              "image-reference",
+              "video2video",
+              "motion-transfer",
+              "digital-human"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoModelCapabilities": {
+        "type": "object",
+        "required": [
+          "aspectRatios",
+          "resolutions",
+          "durationsSeconds",
+          "counts",
+          "audio",
+          "modes",
+          "referenceRequirements",
+          "defaults"
+        ],
+        "properties": {
+          "aspectRatios": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "21:9",
+                "16:9",
+                "4:3",
+                "1:1",
+                "3:4",
+                "9:16"
+              ]
+            }
+          },
+          "resolutions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "1K",
+                "2K",
+                "4K",
+                "adaptive",
+                "480p",
+                "720p",
+                "1080p"
+              ]
+            }
+          },
+          "durationsSeconds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "counts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                4
+              ]
+            }
+          },
+          "audio": {
+            "type": "string",
+            "enum": [
+              "unsupported",
+              "optional",
+              "required"
+            ]
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "text2video",
+                "omni-reference",
+                "image2video",
+                "first-frame",
+                "first-last-frame",
+                "image-reference",
+                "video2video",
+                "motion-transfer",
+                "digital-human"
+              ]
+            }
+          },
+          "referenceRequirements": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VideoReferenceRequirement"
+            }
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/VideoOutputDefaults"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ModelDefinition": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "provider",
+          "media",
+          "latencyLabel",
+          "baseCredits",
+          "controls",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "media": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text"
+            ]
+          },
+          "latencyLabel": {
+            "type": "string"
+          },
+          "baseCredits": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "本地报价基数，不代表官网实时价格"
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "aspectRatio",
+                "quality",
+                "resolution",
+                "count",
+                "durationSeconds",
+                "withAudio",
+                "mode",
+                "voiceId",
+                "speed",
+                "pitch",
+                "volume",
+                "emotion"
+              ]
+            }
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/VideoModelCapabilities"
+          },
+          "membershipTier": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "vip"
+            ]
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "preview",
+              "coming-soon"
+            ]
+          },
+          "iconKey": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ModelCatalogResponse": {
+        "type": "object",
+        "required": [
+          "version",
+          "media",
+          "query",
+          "items"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "能力目录快照版本"
+          },
+          "media": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text",
+              null
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelDefinition"
             }
           }
         },

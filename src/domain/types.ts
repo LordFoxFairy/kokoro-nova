@@ -99,14 +99,24 @@ export interface NodeData {
 }
 
 export interface OutputSpec {
-  aspectRatio?: '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
+  aspectRatio?: 'auto' | '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
   quality?: 'standard' | 'high'
   resolution?: '1K' | '2K' | '4K' | 'adaptive' | '480p' | '720p' | '1080p'
   count?: 1 | 2 | 4
-  durationSeconds?: 5 | 10 | 15
+  /** Model registries constrain the exact choices; current video models span 5–40 seconds. */
+  durationSeconds?: number
   withAudio?: boolean
   /** Video generation mode, derived from what is connected upstream. */
-  mode?: 'text2video' | 'first-frame' | 'first-last-frame' | 'video2video'
+  mode?:
+    | 'text2video'
+    | 'omni-reference'
+    | 'image2video'
+    | 'first-frame'
+    | 'first-last-frame'
+    | 'image-reference'
+    | 'video2video'
+    | 'motion-transfer'
+    | 'digital-human'
   /** Audio only. */
   voiceId?: string
   speed?: number

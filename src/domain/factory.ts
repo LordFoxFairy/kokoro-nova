@@ -55,7 +55,11 @@ function defaultData(type: NodeType): NodeData {
         references: [],
         artifacts: [],
         jobId: null,
-        extra: { advanced: { webSearch: false, autoCompliance: true }, cameraMove: null, effect: null },
+        extra: {
+          advanced: { webSearch: false, autoCompliance: true, autoLink: true },
+          cameraMove: null,
+          effect: null,
+        },
       }
     case 'videoComposite':
       return {

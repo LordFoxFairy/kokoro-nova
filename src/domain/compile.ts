@@ -1,4 +1,12 @@
-import { MODELS_BY_ID, quoteCredits, PRICE_VERSION } from './models'
+import {
+  MODELS_BY_ID,
+  modelOutputOptions,
+  normalizeOutputForModel,
+  quoteCredits,
+  PRICE_VERSION,
+  type VideoGenerationMode,
+  type VideoReferenceRequirement,
+} from './models'
 import { MEDIA_OF_NODE } from './nodes'
 import type { ExecutionInput, ExecutionSpec, Quote, WorkflowDocument, WorkflowNode } from './types'
 
@@ -33,19 +41,67 @@ export function downstreamNodes(doc: WorkflowDocument, nodeId: string): Workflow
   return doc.nodes.filter((n) => targetIds.includes(n.id))
 }
 
+export interface VideoModeOption {
+  mode: VideoGenerationMode
+  available: boolean
+  reason: string | null
+}
+
+function countInputs(inputs: ExecutionInput[]) {
+  return {
+    images: inputs.filter((input) => input.kind === 'image').length,
+    videos: inputs.filter((input) => input.kind === 'video').length,
+    audios: inputs.filter((input) => input.kind === 'audio').length,
+    anyMedia: inputs.filter((input) => input.kind !== 'text').length,
+  }
+}
+
+function constraintMet(actual: number, constraint: { min: number; max?: number } | undefined): boolean {
+  if (!constraint) return true
+  return actual >= constraint.min && (constraint.max === undefined || actual <= constraint.max)
+}
+
+function requirementMet(counts: ReturnType<typeof countInputs>, requirement: VideoReferenceRequirement): boolean {
+  return (
+    constraintMet(counts.images, requirement.images) &&
+    constraintMet(counts.videos, requirement.videos) &&
+    constraintMet(counts.audios, requirement.audios) &&
+    constraintMet(counts.anyMedia, requirement.anyMedia)
+  )
+}
+
+function requirementReason(requirement: VideoReferenceRequirement): string {
+  const parts: string[] = []
+  if (requirement.images) parts.push(`${requirement.images.min} 张图片`)
+  if (requirement.videos) parts.push(`${requirement.videos.min} 条视频`)
+  if (requirement.audios) parts.push(`${requirement.audios.min} 条音频`)
+  if (requirement.anyMedia) parts.push(`${requirement.anyMedia.min} 个参考素材`)
+  return parts.length > 0 ? `需要 ${parts.join('和 ')}参考` : '当前输入不满足模型要求'
+}
+
 /**
- * Video generation mode is derived from what is actually connected upstream,
- * which is why the mode selector changes as edges are added.
+ * The mode list is the intersection of model capabilities and material inputs.
+ * The richer `videoModeOptions` powers disabled menu rows; this compact helper
+ * is retained for compile-time validation and callers that only need runnable
+ * choices.
  */
-export function availableVideoModes(doc: WorkflowDocument, nodeId: string) {
-  const upstream = upstreamNodes(doc, nodeId)
-  const imageInputs = upstream.filter((n) => MEDIA_OF_NODE[n.type] === 'image').length
-  const videoInputs = upstream.filter((n) => MEDIA_OF_NODE[n.type] === 'video').length
-  const modes: NonNullable<ExecutionSpec['output']['mode']>[] = ['text2video']
-  if (imageInputs >= 1) modes.push('first-frame')
-  if (imageInputs >= 2) modes.push('first-last-frame')
-  if (videoInputs >= 1) modes.push('video2video')
-  return modes
+export function videoModeOptions(doc: WorkflowDocument, nodeId: string): VideoModeOption[] {
+  const node = doc.nodes.find((item) => item.id === nodeId)
+  const capabilities = node?.data.modelId ? modelOutputOptions(node.data.modelId) : null
+  if (!node || !capabilities) return []
+
+  const counts = countInputs(resolveInputs(doc, node))
+  return capabilities.modes.map((mode) => {
+    const requirement = capabilities.referenceRequirements[mode] ?? {}
+    const available = requirementMet(counts, requirement)
+    return { mode, available, reason: available ? null : requirementReason(requirement) }
+  })
+}
+
+export function availableVideoModes(doc: WorkflowDocument, nodeId: string): VideoGenerationMode[] {
+  return videoModeOptions(doc, nodeId)
+    .filter((option) => option.available)
+    .map((option) => option.mode)
 }
 
 function resolveInputs(doc: WorkflowDocument, node: WorkflowNode): ExecutionInput[] {
@@ -106,12 +162,14 @@ export function compileNode(doc: WorkflowDocument, nodeId: string): { spec: Exec
     throw new CompileError(`${node.name} 需要提示词或已连接的素材输入`)
   }
 
-  const output = { ...(node.data.output ?? {}) }
+  let output = { ...(node.data.output ?? {}) }
   if (model.media === 'video') {
     const modes = availableVideoModes(doc, node.id)
-    if (!output.mode || !modes.includes(output.mode)) {
-      output.mode = modes[modes.length - 1]
+    if (modes.length === 0) {
+      const first = videoModeOptions(doc, node.id)[0]
+      throw new CompileError(`${model.label} ${first?.reason ?? '当前没有可用的生成模式'}`)
     }
+    output = normalizeOutputForModel(modelId, output, modes)
   }
 
   const { credits, breakdown } = quoteCredits(modelId, output)

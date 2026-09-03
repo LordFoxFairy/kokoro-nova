@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_MODEL, MODELS, MODELS_BY_ID, modelsFor, quoteCredits } from '@/domain/models'
+import {
+  DEFAULT_MODEL,
+  MODEL_CATALOG_VERSION,
+  MODELS,
+  MODELS_BY_ID,
+  modelOutputOptions,
+  modelsFor,
+  normalizeOutputForModel,
+  quoteCredits,
+} from '@/domain/models'
 import type { OutputSpec } from '@/domain/types'
 
 const credits = (modelId: string, output?: OutputSpec) => quoteCredits(modelId, output).credits
@@ -82,7 +91,7 @@ describe('quoteCredits / duration', () => {
   it('adds an audio surcharge on top of the duration-scaled price', () => {
     expect(credits('seedance-2', { durationSeconds: 10, withAudio: true })).toBe(81)
     expect(quoteCredits('seedance-2', { durationSeconds: 10, withAudio: true }).breakdown).toEqual([
-      { label: 'Seedance 2.0 基础', credits: 35 },
+      { label: 'Seedance 2.0 VIP 基础', credits: 35 },
       { label: '10 秒', credits: 35 },
       { label: '生成音频', credits: 11 },
     ])
@@ -130,7 +139,129 @@ describe('model catalog', () => {
   })
 
   it('filters by media', () => {
-    expect(modelsFor('video').map((m) => m.id)).toEqual(['seedance-2', 'kling-o1', 'hailuo-2', 'veo-3'])
+    expect(modelsFor('video')).toHaveLength(36)
+    expect(modelsFor('video').map((m) => m.label)).toEqual([
+      'Seedance 2.5',
+      'Seedance 2.0 VIP',
+      'Seedance 2.0 Fast VIP',
+      'Seedance 2.0 Mini',
+      'Kling O3',
+      'Minimax H3 Max',
+      'Minimax H3',
+      'Wan 3.0 Prime',
+      'Wan 3.0',
+      'Happy Horse 1.1',
+      'Happy Horse 1.0',
+      'Kling 3.0 Turbo',
+      'Kling 3.0',
+      'Wan 2.7',
+      'Kling O1',
+      'Wan 2.6',
+      'Hailuo 2.3 Fast',
+      'Hailuo 2.3',
+      'Seedance1.5 Pro',
+      'Seedance 1.0 Pro',
+      'Seedance 1.0 Lite',
+      'Kling 2.6',
+      'Kling3.0 动作迁移',
+      'Style Video',
+      'Hailuo 02',
+      'Vidu Q2',
+      'Vidu Q2 Pro',
+      'Vidu Q2 Turbo',
+      'Vidu Q3 Pro',
+      'OmniHuman 1.5',
+      'Kling 2.5',
+      'Kling 2.1',
+      'Wan 2.2',
+      'Wan 2.5',
+      'Pixverse V5.5',
+      'Pixverse V5',
+    ])
     expect(modelsFor('image').every((m) => m.media === 'image')).toBe(true)
+  })
+
+  it('publishes a versioned deterministic catalog', () => {
+    expect(MODEL_CATALOG_VERSION).toBe('2026-09-03.1')
+    expect(DEFAULT_MODEL.video).toBe('seedance-2-5')
+  })
+
+  it('records representative video capability profiles', () => {
+    expect(modelOutputOptions('seedance-2-5')).toMatchObject({
+      aspectRatios: ['auto', '16:9', '4:3', '1:1', '3:4', '9:16', '21:9'],
+      resolutions: ['480p', '720p', '1080p', '4K'],
+      durationsSeconds: [5, 10, 15, 30],
+      counts: [1, 2, 4],
+      audio: 'optional',
+      modes: ['text2video', 'omni-reference', 'image2video', 'first-last-frame', 'image-reference'],
+    })
+
+    expect(modelOutputOptions('minimax-h3-max')).toMatchObject({
+      resolutions: ['720p', '1080p'],
+      durationsSeconds: [5, 10],
+      audio: 'unsupported',
+      modes: ['text2video', 'image2video', 'first-last-frame'],
+    })
+
+    expect(modelOutputOptions('kling-3-motion-transfer')).toMatchObject({
+      audio: 'unsupported',
+      modes: ['motion-transfer'],
+      referenceRequirements: {
+        'motion-transfer': { images: { min: 1, max: 1 }, videos: { min: 1, max: 1 } },
+      },
+    })
+
+    expect(modelOutputOptions('omnihuman-1-5')).toMatchObject({
+      modes: ['digital-human'],
+      referenceRequirements: {
+        'digital-human': { images: { min: 1 }, audios: { min: 1 } },
+      },
+    })
+  })
+})
+
+describe('normalizeOutputForModel', () => {
+  it('keeps legal Seedance values and rejects modes that connected inputs cannot provide', () => {
+    expect(
+      normalizeOutputForModel(
+        'seedance-2-5',
+        {
+          aspectRatio: '21:9',
+          resolution: '4K',
+          durationSeconds: 30,
+          count: 4,
+          withAudio: true,
+          mode: 'video2video',
+        },
+        ['text2video', 'omni-reference'],
+      ),
+    ).toEqual({
+      aspectRatio: '21:9',
+      resolution: '4K',
+      durationSeconds: 30,
+      count: 4,
+      withAudio: true,
+      mode: 'omni-reference',
+    })
+  })
+
+  it('falls back to model defaults and disables unsupported audio', () => {
+    expect(
+      normalizeOutputForModel('minimax-h3-max', {
+        aspectRatio: '21:9',
+        resolution: '4K',
+        durationSeconds: 30,
+        count: 4,
+        withAudio: true,
+        mode: 'omni-reference',
+      }),
+    ).toEqual({
+      aspectRatio: '16:9',
+      resolution: '720p',
+      durationSeconds: 5,
+      count: 1,
+      withAudio: false,
+      mode: 'text2video',
+    })
   })
 })

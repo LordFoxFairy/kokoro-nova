@@ -1,0 +1,72 @@
+{
+  "version": "2026-09-03.1",
+  "media": "video",
+  "query": "motion",
+  "items": [
+    {
+      "id": "kling-3-motion-transfer",
+      "label": "Kling3.0 动作迁移",
+      "provider": "Kling",
+      "latencyLabel": "8min",
+      "baseCredits": 56,
+      "iconKey": "kling",
+      "tags": [
+        "动作控制",
+        "专用"
+      ],
+      "description": "动作控制模型，需要一张图片和一条视频。",
+      "capabilities": {
+        "aspectRatios": [
+          "auto",
+          "16:9",
+          "9:16"
+        ],
+        "resolutions": [
+          "720p",
+          "1080p"
+        ],
+        "durationsSeconds": [
+          5,
+          10
+        ],
+        "counts": [
+          1
+        ],
+        "audio": "unsupported",
+        "modes": [
+          "motion-transfer"
+        ],
+        "referenceRequirements": {
+          "motion-transfer": {
+            "images": {
+              "min": 1,
+              "max": 1
+            },
+            "videos": {
+              "min": 1,
+              "max": 1
+            }
+          }
+        },
+        "defaults": {
+          "aspectRatio": "16:9",
+          "resolution": "720p",
+          "durationSeconds": 5,
+          "count": 1,
+          "withAudio": false,
+          "mode": "motion-transfer"
+        }
+      },
+      "media": "video",
+      "controls": [
+        "aspectRatio",
+        "resolution",
+        "durationSeconds",
+        "count",
+        "mode"
+      ],
+      "membershipTier": "standard",
+      "availability": "available"
+    }
+  ]
+}

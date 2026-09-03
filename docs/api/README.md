@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；28 个 path、51 个 operation |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；29 个 path、52 个 operation |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
@@ -29,7 +29,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.0.0-foundation
+Contract version: 1.1.0-video-catalog
 OpenAPI: 3.1.0
 ```
 
@@ -128,6 +128,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |
 | 节点生成 | `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
+| 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
 | 素材管理 | `listAssets`, `uploadAsset`, `registerArtifactAsAsset`, `updateAsset` |
 | Agent | `createAgentSession`, `sendAgentMessage`, `resolveAgentMessage` |
@@ -144,6 +145,23 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 内容来自冻结的本地 catalogue；账户积分和最近三个项目来自当前 scenario workspace state。
 匿名态仍返回公开发现内容，但 `recentProjects` 为空、积分为 `0`。所有媒体 URL 都由
 运行时 Schema 限制在 `/fixtures/libtv/`，页面不会依赖官网 CDN 或登录凭证。
+
+### 模型目录契约
+
+`GET /api/models?media=video&q=` 返回版本化的本地模型 registry。目录顺序、标签和当前
+可见模型集合以官网交互证据为基线；`baseCredits`、provider adapter 和 capability 默认值
+是本地 mock 的规范化字段，不声称等于官网动态价格或服务端内部配置。
+
+Video 项的 `capabilities` 同时提供：
+
+- 支持的画幅、清晰度、时长、生成数量和音频策略；
+- 可用 generation mode；
+- 每种 mode 对图片、视频、音频或任意参考素材的最小/最大数量要求；
+- 切换模型时应使用的默认输出。
+
+页面切换模型后先按此能力对象归一化编辑态，`compileNode()` 在创建任务前再次执行同一
+归一化，避免导入旧草稿或直接 mutation 留下不可执行参数。完整响应样本见
+[`examples/models-video.response.json`](examples/models-video.response.json)。
 
 ## 分页、排序和查询
 

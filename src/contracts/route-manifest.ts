@@ -8,6 +8,7 @@ export type LocalApiTag =
   | 'Canvases'
   | 'Workflow'
   | 'Jobs'
+  | 'Models'
   | 'Video'
   | 'Assets'
   | 'Agent'
@@ -121,6 +122,10 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-populated',
     'public-showcase',
     ...VIDEO_STATES,
+  ]),
+  route('GET', '/api/models', 'Models', 'listModels', ['打开模型目录', '搜索或筛选模型'], [
+    'anonymous',
+    'authenticated-populated',
   ]),
   route('GET', '/api/presence/{canvasId}', 'Presence', 'getCanvasPresence', ['画布协作者和跟随状态']),
   route('POST', '/api/presence/{canvasId}', 'Presence', 'updateCanvasPresence', ['光标、视口、跟随和编辑租约心跳'], [

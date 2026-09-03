@@ -190,8 +190,8 @@ describe('compileNode / inputs and prompt', () => {
 })
 
 describe('availableVideoModes', () => {
-  it('grows as image and video inputs are connected', () => {
-    const v = node('video', 'nd_v', { prompt: '推镜头' })
+  it('intersects connected inputs with the selected model capabilities', () => {
+    const v = node('video', 'nd_v', { prompt: '推镜头', modelId: 'seedance-2-5' })
     const i1 = node('image', 'nd_i1', { artifacts: [artifact('image', 'https://cdn.test/1.png')] })
     const i2 = node('image', 'nd_i2', { artifacts: [artifact('image', 'https://cdn.test/2.png')] })
     const src = node('video', 'nd_src', { artifacts: [artifact('video', 'https://cdn.test/s.mp4')] })
@@ -200,22 +200,70 @@ describe('availableVideoModes', () => {
     expect(availableVideoModes(alone, v.id)).toEqual(['text2video'])
 
     const oneImage = applyMutations(alone, [{ op: 'addEdge', edge: createEdge(i1.id, v.id) }])
-    expect(availableVideoModes(oneImage, v.id)).toEqual(['text2video', 'first-frame'])
+    expect(availableVideoModes(oneImage, v.id)).toEqual([
+      'text2video',
+      'omni-reference',
+      'image2video',
+      'image-reference',
+    ])
 
     const twoImages = applyMutations(oneImage, [{ op: 'addEdge', edge: createEdge(i2.id, v.id) }])
     expect(availableVideoModes(twoImages, v.id)).toEqual([
       'text2video',
-      'first-frame',
+      'omni-reference',
+      'image2video',
       'first-last-frame',
+      'image-reference',
     ])
 
     const withVideo = applyMutations(twoImages, [{ op: 'addEdge', edge: createEdge(src.id, v.id) }])
     expect(availableVideoModes(withVideo, v.id)).toEqual([
       'text2video',
-      'first-frame',
+      'omni-reference',
+      'image2video',
       'first-last-frame',
-      'video2video',
+      'image-reference',
     ])
+  })
+
+  it('unlocks an editor mode only when that model exposes it', () => {
+    const src = node('video', 'nd_src', { artifacts: [artifact('video', 'https://cdn.test/s.mp4')] })
+    const target = node('video', 'nd_target', { prompt: '改成雨夜', modelId: 'kling-o3' })
+    const doc = build([src, target], [{ op: 'addEdge', edge: createEdge(src.id, target.id) }])
+
+    expect(availableVideoModes(doc, target.id)).toEqual(['text2video', 'omni-reference', 'video2video'])
+  })
+
+  it('enforces exact compound requirements for action transfer and digital human', () => {
+    const image = node('image', 'nd_image', { artifacts: [artifact('image', 'https://cdn.test/ref.png')] })
+    const video = node('video', 'nd_motion', { artifacts: [artifact('video', 'https://cdn.test/motion.mp4')] })
+    const audio = node('audio', 'nd_audio', { artifacts: [artifact('audio', 'https://cdn.test/voice.mp3')] })
+    const motion = node('video', 'nd_target_motion', {
+      prompt: '迁移动作',
+      modelId: 'kling-3-motion-transfer',
+      output: { mode: 'motion-transfer' },
+    })
+    const human = node('video', 'nd_target_human', {
+      prompt: '数字人口播',
+      modelId: 'omnihuman-1-5',
+      output: { mode: 'digital-human' },
+    })
+
+    const bare = build([image, video, audio, motion, human])
+    expect(availableVideoModes(bare, motion.id)).toEqual([])
+    expect(availableVideoModes(bare, human.id)).toEqual([])
+
+    const imageOnly = applyMutations(bare, [{ op: 'addEdge', edge: createEdge(image.id, motion.id) }])
+    expect(availableVideoModes(imageOnly, motion.id)).toEqual([])
+
+    const motionReady = applyMutations(imageOnly, [{ op: 'addEdge', edge: createEdge(video.id, motion.id) }])
+    expect(availableVideoModes(motionReady, motion.id)).toEqual(['motion-transfer'])
+
+    const humanReady = applyMutations(bare, [
+      { op: 'addEdge', edge: createEdge(image.id, human.id) },
+      { op: 'addEdge', edge: createEdge(audio.id, human.id) },
+    ])
+    expect(availableVideoModes(humanReady, human.id)).toEqual(['digital-human'])
   })
 })
 
@@ -223,6 +271,7 @@ describe('compileNode / video output mode', () => {
   it('falls back to the widest available mode when the stored one is unreachable', () => {
     const v = node('video', 'nd_v', {
       prompt: '推镜头',
+      modelId: 'seedance-2-5',
       output: { aspectRatio: '16:9', resolution: '720p', durationSeconds: 5, count: 1, mode: 'first-last-frame' },
     })
 
@@ -235,23 +284,60 @@ describe('compileNode / video output mode', () => {
     const i1 = node('image', 'nd_i1', { artifacts: [artifact('image', 'https://cdn.test/1.png')] })
     const v = node('video', 'nd_v', {
       prompt: '推镜头',
+      modelId: 'seedance-2-5',
       output: { aspectRatio: '16:9', resolution: '720p', durationSeconds: 5, count: 1, mode: 'first-last-frame' },
     })
     const doc = build([i1, v], [{ op: 'addEdge', edge: createEdge(i1.id, v.id) }])
 
-    expect(availableVideoModes(doc, v.id)).toEqual(['text2video', 'first-frame'])
-    expect(compileNode(doc, v.id).spec.output.mode).toBe('first-frame')
+    expect(availableVideoModes(doc, v.id)).toEqual([
+      'text2video',
+      'omni-reference',
+      'image2video',
+      'image-reference',
+    ])
+    expect(compileNode(doc, v.id).spec.output.mode).toBe('omni-reference')
   })
 
   it('keeps a mode that the connected inputs support', () => {
     const i1 = node('image', 'nd_i1', { artifacts: [artifact('image', 'https://cdn.test/1.png')] })
     const v = node('video', 'nd_v', {
       prompt: '推镜头',
+      modelId: 'seedance-2-5',
       output: { aspectRatio: '16:9', resolution: '720p', durationSeconds: 5, count: 1, mode: 'first-frame' },
     })
     const doc = build([i1, v], [{ op: 'addEdge', edge: createEdge(i1.id, v.id) }])
 
-    expect(compileNode(doc, v.id).spec.output.mode).toBe('first-frame')
+    expect(compileNode(doc, v.id).spec.output.mode).toBe('omni-reference')
+  })
+
+  it('normalizes imported output values and rejects a specialist without required references', () => {
+    const general = node('video', 'nd_general', {
+      prompt: '海边长镜头',
+      modelId: 'minimax-h3-max',
+      output: {
+        aspectRatio: '21:9',
+        resolution: '4K',
+        durationSeconds: 30,
+        count: 4,
+        withAudio: true,
+        mode: 'omni-reference',
+      },
+    })
+    expect(compileNode(build([general]), general.id).spec.output).toEqual({
+      aspectRatio: '16:9',
+      resolution: '720p',
+      durationSeconds: 5,
+      count: 1,
+      withAudio: false,
+      mode: 'text2video',
+    })
+
+    const specialist = node('video', 'nd_specialist', {
+      prompt: '动作迁移',
+      modelId: 'kling-3-motion-transfer',
+      output: { mode: 'motion-transfer' },
+    })
+    expect(() => compileNode(build([specialist]), specialist.id)).toThrow('需要 1 张图片和 1 条视频参考')
   })
 })
 

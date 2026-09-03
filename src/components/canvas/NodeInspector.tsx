@@ -11,7 +11,7 @@ import {
   SLASH_PRESETS,
   VOICES,
 } from '@/domain/libraries'
-import { MODELS_BY_ID, modelsFor, quoteCredits, type ModelMedia } from '@/domain/models'
+import { MODELS_BY_ID, VIDEO_MODE_LABELS, modelsFor, quoteCredits, type ModelMedia } from '@/domain/models'
 import { NODE_META } from '@/domain/nodes'
 import type { GenerationJob, NodeData, OutputSpec, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
@@ -411,11 +411,7 @@ export function NodeInspector({
                     output.mode === mode ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
                   )}
                 >
-                  {
-                    { text2video: '文生视频', 'first-frame': '首帧生视频', 'first-last-frame': '首尾帧生视频', video2video: '视频生视频' }[
-                      mode
-                    ]
-                  }
+                  {VIDEO_MODE_LABELS[mode]}
                 </button>
               ))}
             </div>

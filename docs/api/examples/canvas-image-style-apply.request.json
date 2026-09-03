@@ -1,0 +1,74 @@
+{
+  "canvasId": "can_video_main",
+  "expectedRevision": 7,
+  "mutations": [
+    {
+      "op": "addNode",
+      "node": {
+        "id": "node_style_fixture",
+        "type": "style",
+        "name": "电影青橙",
+        "position": { "x": 160, "y": 220 },
+        "size": { "width": 240, "height": 260 },
+        "groupId": null,
+        "keyElement": false,
+        "createdAt": "2026-09-03T12:00:00.000Z",
+        "updatedAt": "2026-09-03T12:00:00.000Z",
+        "data": {
+          "references": [],
+          "artifacts": [],
+          "extra": {
+            "presetId": "style-cine-teal",
+            "presetName": "电影青橙",
+            "hue": 190
+          }
+        }
+      }
+    },
+    {
+      "op": "addEdge",
+      "edge": {
+        "id": "edge_style_image_fixture",
+        "source": "node_style_fixture",
+        "target": "node_image_01",
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    },
+    {
+      "op": "updateNode",
+      "nodeId": "node_image_01",
+      "patch": {
+        "data": {
+          "prompt": "雨夜城市街道，蓝紫色霓虹，电影感。",
+          "modelId": "lib-image-2",
+          "output": { "aspectRatio": "16:9", "resolution": "2K", "quality": "standard", "count": 1 },
+          "references": [],
+          "artifacts": [
+            {
+              "id": "art_image_seed",
+              "jobId": "job_image_seed",
+              "kind": "image",
+              "url": "/fixtures/libtv/media/first-frame.webp",
+              "thumbnailUrl": "/fixtures/libtv/media/first-frame.webp",
+              "width": 1280,
+              "height": 720,
+              "durationSeconds": null,
+              "createdAt": "2026-09-03T11:40:00.000Z",
+              "modelId": "lib-image-2",
+              "assetId": "asset_image_seed"
+            }
+          ],
+          "jobId": null,
+          "extra": {
+            "imageStyle": {
+              "nodeId": "node_style_fixture",
+              "presetId": "style-cine-teal",
+              "name": "电影青橙"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "label": "添加风格节点"
+}

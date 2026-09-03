@@ -1,0 +1,38 @@
+{
+  "canvasId": "can_video_main",
+  "expectedRevision": 7,
+  "mutations": [
+    {
+      "op": "updateNode",
+      "nodeId": "node_image_01",
+      "patch": {
+        "data": {
+          "prompt": "在保持主体、服装与场景完全一致的前提下，输出九宫格：九种不同机位与景别的同一瞬间。",
+          "modelId": "lib-image-2",
+          "output": { "resolution": "4K", "quality": "high", "count": 1, "aspectRatio": "16:9" },
+          "references": [],
+          "artifacts": [
+            {
+              "id": "art_image_seed",
+              "jobId": "job_image_seed",
+              "kind": "image",
+              "url": "/fixtures/libtv/media/first-frame.webp",
+              "thumbnailUrl": "/fixtures/libtv/media/first-frame.webp",
+              "width": 1280,
+              "height": 720,
+              "durationSeconds": null,
+              "createdAt": "2026-09-03T11:40:00.000Z",
+              "modelId": "lib-image-2",
+              "assetId": "asset_image_seed"
+            }
+          ],
+          "jobId": null,
+          "extra": {
+            "imagePreset": { "id": "slash-multicam-9", "name": "多机位九宫格" }
+          }
+        }
+      }
+    }
+  ],
+  "label": "应用图片预设"
+}

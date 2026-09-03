@@ -60,6 +60,14 @@ describe('quoteCredits / resolution', () => {
 })
 
 describe('quoteCredits / quality', () => {
+  it('discounts low quality and labels the quote delta accurately', () => {
+    expect(credits('lib-image-2', { quality: 'low' })).toBe(14)
+    expect(quoteCredits('lib-image-2', { quality: 'low' }).breakdown).toEqual([
+      { label: 'Lib Image 基础', credits: 18 },
+      { label: '低画质', credits: -4 },
+    ])
+  })
+
   it('charges more for high quality than for standard', () => {
     expect(credits('lib-image-2', { quality: 'standard' })).toBe(18)
     expect(credits('lib-image-2', { quality: 'high' })).toBe(26)

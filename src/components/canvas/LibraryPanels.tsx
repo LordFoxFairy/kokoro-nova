@@ -172,6 +172,7 @@ export function MaterialPanel({
   onClose: () => void
   onApply: (preset: { id: string; name: string; hue: number }, kind: 'style' | 'effect') => void
 }) {
+  const [tab, setTab] = useState<'market' | 'favorites' | 'recent'>('market')
   const [category, setCategory] = useState('全部')
   const [commercialOnly, setCommercialOnly] = useState(false)
   const [query, setQuery] = useState('')
@@ -180,37 +181,75 @@ export function MaterialPanel({
   const items = kind === 'style' ? STYLE_PRESETS : EFFECT_PRESETS
 
   const filtered = items.filter((item) => {
+    if (kind === 'style' && tab === 'favorites' && !['style-cine-teal', 'style-film-grain', 'style-soft-portrait'].includes(item.id)) return false
+    if (kind === 'style' && tab === 'recent' && !['style-cine-teal', 'style-noir', 'style-isometric', 'style-anime-cel'].includes(item.id)) return false
     if (category !== '全部' && item.category !== category) return false
     if (commercialOnly && !item.commercial) return false
-    if (query && !item.name.includes(query)) return false
+    const needle = query.trim().toLocaleLowerCase('zh-CN')
+    if (needle && !`${item.name}\n${item.author}`.toLocaleLowerCase('zh-CN').includes(needle)) return false
     return true
   })
 
   return (
     <Dialog open={open} onClose={onClose} variant="panel" width={880} hideHeader testId="material-panel">
       <div className="flex items-center justify-between gap-4 border-b border-ink-100 px-6 py-4">
-        <h2 className="text-[15px] font-semibold text-ink-900">{kind === 'style' ? '风格库' : '特效库'}</h2>
+        {kind === 'style' ? (
+          <nav aria-label="风格来源" className="flex items-center gap-5">
+            {[
+              ['market', '风格广场'],
+              ['favorites', '我的收藏'],
+              ['recent', '最近使用'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-current={tab === value ? 'page' : undefined}
+                onClick={() => {
+                  setTab(value as typeof tab)
+                  setCategory('全部')
+                }}
+                className={cn(
+                  'relative py-1 text-[14px] transition-colors after:absolute after:inset-x-1 after:-bottom-[17px] after:h-0.5 after:rounded-full',
+                  tab === value
+                    ? 'font-semibold text-ink-900 after:bg-ink-900'
+                    : 'text-ink-500 after:bg-transparent hover:text-ink-800',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <h2 className="text-[15px] font-semibold text-ink-900">特效库</h2>
+        )}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
             <IconSearch size={14} className="text-ink-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索"
-              className="w-32 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
+              placeholder={kind === 'style' ? '搜索风格名称、作者' : '搜索特效名称、作者'}
+              aria-label={kind === 'style' ? '搜索风格名称、作者' : '搜索特效名称、作者'}
+              className="w-40 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setCommercialOnly(!commercialOnly)}
+          <label
             className={cn(
-              'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
+              'flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
               commercialOnly ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
             )}
           >
-            {commercialOnly && <IconCheck size={12} />}
-            可商用
-          </button>
+            <input
+              type="checkbox"
+              checked={commercialOnly}
+              onChange={(event) => setCommercialOnly(event.target.checked)}
+              className="sr-only"
+            />
+            <span className={cn('flex h-3.5 w-3.5 items-center justify-center rounded border', commercialOnly ? 'border-white/30 bg-white/15' : 'border-ink-300 bg-surface')}>
+              {commercialOnly && <IconCheck size={10} />}
+            </span>
+            仅看可商用
+          </label>
         </div>
       </div>
 

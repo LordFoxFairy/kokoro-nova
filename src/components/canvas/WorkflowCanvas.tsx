@@ -15,6 +15,7 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react'
 import { createEdge, createGroup, createNode, NODE_SIZE } from '@/domain/factory'
+import type { ImageTransformRequest } from '@/domain/image-authoring'
 import { MEDIA_OF_NODE, NODE_META } from '@/domain/nodes'
 import { canConvertToStoryboardGroup } from '@/domain/mutations'
 import { videoReferenceCandidates } from '@/domain/video-references'
@@ -49,6 +50,8 @@ interface WorkflowCanvasProps {
   onSelectCanvasCandidate: (nodeId: string) => void
   onRemoveVideoReference: (targetNodeId: string, sourceNodeId: string) => void
   onLocateNode: (nodeId: string) => void
+  onOpenImageStyle: (nodeId: string) => void
+  onApplyImageTool: (sourceNodeId: string, request: ImageTransformRequest) => void
 }
 
 function CanvasInner({
@@ -64,6 +67,8 @@ function CanvasInner({
   onSelectCanvasCandidate,
   onRemoveVideoReference,
   onLocateNode,
+  onOpenImageStyle,
+  onApplyImageTool,
 }: WorkflowCanvasProps) {
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
@@ -186,6 +191,8 @@ function CanvasInner({
           onSelectCanvasCandidate,
           onRemoveVideoReference,
           onLocateNode,
+          onOpenImageStyle,
+          onApplyImageTool,
           canvasSelection: selectionMode
             ? node.id === selectionMode.targetNodeId
               ? {
@@ -237,6 +244,8 @@ function CanvasInner({
       onSelectCanvasCandidate,
       onRemoveVideoReference,
       onLocateNode,
+      onOpenImageStyle,
+      onApplyImageTool,
       selectionMode,
       referenceCandidateByNode,
       openNodeId,

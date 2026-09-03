@@ -18,6 +18,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
 | [`VIDEO_REFERENCE_STATE.md`](VIDEO_REFERENCE_STATE.md) | Video 图引用、`@` token、局部元素与运镜持久化契约 |
+| [`IMAGE_AUTHORING_STATE.md`](IMAGE_AUTHORING_STATE.md) | Image 模型矩阵、参考、风格、预设与非破坏式派生工具契约 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
 | `src/contracts/local.ts` / `src/contracts/home.ts` | 本地资源的 Zod 运行时 Schema |
@@ -32,7 +33,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.4.0-video-reference-state
+Contract version: 1.5.0-image-authoring-state
 OpenAPI: 3.1.0
 ```
 
@@ -131,6 +132,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |
 | Video 参考、元素、运镜 | `mutateCanvas`（同一 revision 的边与节点元数据事务） |
+| Image 参考、风格、预设、派生工具 | `mutateCanvas`（原子图 mutation 与可重放 metadata） |
 | 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
@@ -156,7 +158,8 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 可见模型集合以官网交互证据为基线；`baseCredits`、provider adapter 和 capability 默认值
 是本地 mock 的规范化字段，不声称等于官网动态价格或服务端内部配置。
 
-Video 项的 `capabilities` 同时提供：
+Image 项的 `imageCapabilities` 固定质量、清晰度、13 种画幅、生成数量及默认值；Video 项的
+`capabilities` 同时提供：
 
 - 支持的画幅、清晰度、时长、生成数量和音频策略；
 - 可用 generation mode；

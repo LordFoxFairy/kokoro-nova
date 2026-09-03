@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { IMAGE_ASPECT_RATIOS, IMAGE_QUALITIES } from '@/domain/models'
 import { ScenarioResponseSchema } from './scenario'
 
 const IsoTimestampSchema = z.string().datetime()
@@ -31,8 +32,8 @@ export const ProjectListLocalResponseSchema = z.object({
 })
 
 export const OutputSpecSchema = z.object({
-  aspectRatio: z.enum(['auto', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16']).optional(),
-  quality: z.enum(['standard', 'high']).optional(),
+  aspectRatio: z.enum(['auto', ...IMAGE_ASPECT_RATIOS]).optional(),
+  quality: z.enum(IMAGE_QUALITIES).optional(),
   resolution: z.enum(['1K', '2K', '4K', 'adaptive', '480p', '720p', '1080p']).optional(),
   count: z.union([z.literal(1), z.literal(2), z.literal(4)]).optional(),
   durationSeconds: z.number().int().positive().max(120).optional(),

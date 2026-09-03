@@ -1,0 +1,411 @@
+{
+  "version": "2026-09-03.1",
+  "media": "image",
+  "query": "",
+  "items": [
+    {
+      "id": "lib-image-2",
+      "label": "Lib Image",
+      "provider": "Lib",
+      "media": "image",
+      "latencyLabel": "60s",
+      "baseCredits": 18,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "lib-image",
+      "tags": [
+        "默认",
+        "文生图",
+        "图生图"
+      ],
+      "description": "最新图片模型、长文本能力突出"
+    },
+    {
+      "id": "lib-navo-pro",
+      "label": "Lib Navo Pro",
+      "provider": "Lib",
+      "media": "image",
+      "latencyLabel": "50s",
+      "baseCredits": 28,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "navo",
+      "tags": [
+        "高保真",
+        "指令编辑"
+      ],
+      "description": "复杂构图与细节优先的高保真图片模型"
+    },
+    {
+      "id": "lib-navo-2",
+      "label": "Lib Navo 2",
+      "provider": "Lib",
+      "media": "image",
+      "latencyLabel": "25s",
+      "baseCredits": 20,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "navo",
+      "tags": [
+        "快速",
+        "一致性"
+      ],
+      "description": "快速图片生成与主体一致性编辑"
+    },
+    {
+      "id": "seedream-5-pro",
+      "label": "Seedream 5.0 Pro",
+      "provider": "Seed",
+      "media": "image",
+      "latencyLabel": "20s",
+      "baseCredits": 16,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "seedream",
+      "tags": [
+        "快速"
+      ],
+      "description": "速度优先的通用图像与分镜探索模型"
+    },
+    {
+      "id": "midjourney-v8-1",
+      "label": "Midjourney V8.1",
+      "provider": "Midjourney",
+      "media": "image",
+      "latencyLabel": "50s",
+      "baseCredits": 32,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "midjourney",
+      "tags": [
+        "风格上新"
+      ],
+      "description": "新一代审美与材质表达模型"
+    },
+    {
+      "id": "midjourney-v7",
+      "label": "Midjourney V7",
+      "provider": "Midjourney",
+      "media": "image",
+      "latencyLabel": "50s",
+      "baseCredits": 28,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "midjourney",
+      "tags": [
+        "风格上新"
+      ],
+      "description": "稳定的风格化图片生成模型"
+    },
+    {
+      "id": "midjourney-niji-7",
+      "label": "Midjourney Niji 7",
+      "provider": "Midjourney",
+      "media": "image",
+      "latencyLabel": "50s",
+      "baseCredits": 28,
+      "controls": [
+        "aspectRatio",
+        "quality",
+        "resolution",
+        "count"
+      ],
+      "imageCapabilities": {
+        "qualities": [
+          "low",
+          "standard",
+          "high"
+        ],
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "1:2",
+          "2:1",
+          "9:16",
+          "16:9",
+          "3:4",
+          "4:3",
+          "3:2",
+          "2:3",
+          "5:4",
+          "4:5",
+          "21:9",
+          "9:21"
+        ],
+        "counts": [
+          1,
+          2,
+          4
+        ],
+        "defaults": {
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "16:9",
+          "count": 1
+        }
+      },
+      "iconKey": "midjourney",
+      "tags": [
+        "风格上新",
+        "动漫"
+      ],
+      "description": "动漫、插画与角色设计专用模型"
+    }
+  ]
+}

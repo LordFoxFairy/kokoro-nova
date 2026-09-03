@@ -1,0 +1,49 @@
+{
+  "canvasId": "can_video_main",
+  "expectedRevision": 7,
+  "mutations": [
+    {
+      "op": "addNode",
+      "node": {
+        "id": "node_image_upscale_fixture",
+        "type": "image",
+        "name": "高清",
+        "position": { "x": 1040, "y": 180 },
+        "size": { "width": 400, "height": 320 },
+        "groupId": null,
+        "keyElement": false,
+        "createdAt": "2026-09-03T12:00:00.000Z",
+        "updatedAt": "2026-09-03T12:00:00.000Z",
+        "data": {
+          "prompt": "保持内容不变，提升清晰度、纹理与边缘质量。",
+          "modelId": "lib-image-2",
+          "output": { "quality": "high", "resolution": "4K", "aspectRatio": "16:9", "count": 1 },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "imageTransform": {
+              "version": 1,
+              "sourceNodeId": "node_image_01",
+              "tool": "upscale",
+              "label": "高清",
+              "parameters": {},
+              "output": { "quality": "high", "resolution": "4K", "aspectRatio": "16:9", "count": 1 },
+              "credits": 12
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "addEdge",
+      "edge": {
+        "id": "edge_image_upscale_fixture",
+        "source": "node_image_01",
+        "target": "node_image_upscale_fixture",
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    }
+  ],
+  "label": "图片工具 高清"
+}

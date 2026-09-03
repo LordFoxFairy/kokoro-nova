@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import type { ImageTransformRequest } from '@/domain/image-authoring'
 import { CROP_ASPECTS, MULTI_ANGLE_PRESETS, emotionLabel } from '@/domain/libraries'
 import { cn } from '@/lib/cn'
 import { Dialog } from '../ui/Dialog'
@@ -16,18 +17,7 @@ import { IconCredit, IconRefresh } from '../icons'
  * non-destructive is what makes the provenance chain in the storyboard work.
  */
 
-export interface ImageToolRequest {
-  tool: string
-  label: string
-  prompt: string
-  output: {
-    resolution: '1K' | '2K' | '4K'
-    quality: 'standard' | 'high'
-    count: 1 | 2 | 4
-    aspectRatio: '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
-  }
-  credits: number
-}
+export type ImageToolRequest = ImageTransformRequest
 
 interface EditorProps {
   open: boolean
@@ -227,6 +217,7 @@ export function LightingEditor({ open, imageUrl, onClose, onSubmit }: EditorProp
             prompt: describe(),
             output: { resolution: '2K', quality: 'standard', count: 1, aspectRatio: '16:9' },
             credits: 22,
+            parameters: { brightness, temperature, keyAngle, rimLight },
           })
           onClose()
         }}
@@ -324,6 +315,7 @@ export function MultiAngleEditor({ open, imageUrl, onClose, onSubmit }: EditorPr
             prompt: describe(),
             output: { resolution: '2K', quality: 'standard', count: 1, aspectRatio: '16:9' },
             credits: 22,
+            parameters: { preset, orbit, pitch, zoom, extra },
           })
           onClose()
         }}
@@ -458,6 +450,7 @@ export function EmotionEditor({ open, imageUrl, onClose, onSubmit }: EditorProps
               prompt: `保持身份特征与构图不变，将${subject}的表情调整为「${label}」。`,
               output: { resolution, quality: 'standard', count, aspectRatio: '16:9' },
               credits: 22 * count,
+              parameters: { subject, x: point.x, y: point.y, emotion: label },
             })
             onClose()
           }}

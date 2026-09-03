@@ -25,10 +25,12 @@
 | 工作流图 | `VERIFIED_LOCAL` | 保存 viewport、媒体主导节点、尺寸标注、20px 悬浮端口、细贝塞尔边、选中态与既有编辑回归。 |
 | 故事板布局 | `VERIFIED_LOCAL` | 动态文本/音频左轨、图片/视频列、筛选/展开、Agent 340px 重排、剪辑入口与同文档不写入切换。 |
 | Video 节点、参考与运镜 | `VERIFIED_LOCAL` | 660px 节点浮层、36 项模型目录、画布选参考/断边、编号参考卡、`@` token/来源定位、局部元素 mock、23 项媒体运镜库、收藏/搜索/Escape、能力联动和 Storyboard 同状态复用。 |
+| Image 节点与派生工具 | `VERIFIED_LOCAL` | 660px 节点浮层、7 项模型目录、3×3×13×3 输出矩阵、参考/标记、风格原子绑定、四组 15 预设、完整生成结果工具条、非破坏式派生和 `ImageTransformSpec v1`。 |
 
 几何数据、保留差异和截图配对见
 [`visual/home-project-comparison.md`](visual/home-project-comparison.md) 与
-[`visual/canvas-workflow-comparison.md`](visual/canvas-workflow-comparison.md)。
+[`visual/canvas-workflow-comparison.md`](visual/canvas-workflow-comparison.md)、
+[`visual/image-authoring-comparison.md`](visual/image-authoring-comparison.md)。
 
 ## 入口与账户
 
@@ -81,8 +83,8 @@
 | 类型/工具 | 状态 | 已确认能力 | 缺口 |
 | --- | --- | --- | --- |
 | 文本节点 | `OBSERVED` | 手写、模型生成、反推、文字生音乐、Agent 引用 | 字数、模型参数、成功/失败结果 |
-| 图片节点 | `PARTIAL` | 参数、参考、全景、角度、打光、裁剪、九宫格、人像/情绪、分镜组 | 付费生成、失败、编辑成功输出和结算 |
-| 图像生成器 | `PARTIAL` | 当前详情编辑器、九宫格/人像待确认节点和情绪人物识别已实测 | 生成中、成功、失败、取消和重试 |
+| 图片节点 | `PARTIAL` | 官网参数、参考、全景、角度、打光、裁剪、九宫格、人像/情绪、分镜组已观察；本地节点创作器、7 模型、完整输出矩阵、风格/预设和可追溯派生已验证 | 官网付费生成、失败、编辑成功输出和结算 |
+| 图像生成器 | `PARTIAL` | 当前详情编辑器、九宫格/人像待确认节点和情绪人物识别已实测；本地同状态 mock 与 API 契约已完成 | 官网生成中、成功、失败、取消和重试 |
 | 视频节点 | `PARTIAL` | Seedance、输入/输出、播放器、画布参考、`@` 富引用、局部元素、特效、23 项运镜库、再生成参数；本地浮层、图边闭环、模型能力联动和 Storyboard 复用已验证 | 官网真实运行、取消、失败和变换成功态 |
 | 音频节点 | `PARTIAL` | TTS、模型、音色库/筛选/克隆、停顿和副语言提示已实测 | 真实生成、录音完成态、编辑与失败恢复 |
 | 脚本节点 v2 | `PARTIAL` | 三入口、模型、镜头表、景别、资产与提示词三阶段已实测 | AI 拆解成功态、批量生图/视频、取消和失败 |
@@ -115,7 +117,7 @@
 
 | Surface | 能力 | 状态 | 证据/缺口 |
 | --- | --- | --- | --- |
-| 模型目录 | 图片/视频/音频/文本模型 | `PARTIAL` | Web 目录/耗时与 CLI schema 已确认；本地 Video 36 项版本化 registry 与 4 个代表模型联动已验证，其他媒体和官网权限过滤待补。 |
+| 模型目录 | 图片/视频/音频/文本模型 | `PARTIAL` | Web 目录/耗时与 CLI schema 已确认；本地 Video 36 项、Image 7 项版本化 registry 与参数联动已验证，Audio/Text 和官网权限过滤待补。 |
 | 模型模式 | modeType、媒体数量、条件 rules | `OFFICIAL` | CLI schema 文档已确认。 |
 | 人像合规 | 图片校验、asset 引用、整批中止 | `OFFICIAL` | CLI 文档与 Agent 设置确认。 |
 | Seedance 合规 | 审核、两类素材校验、通过标识 | `OFFICIAL` | 指南完整；Web 失败、过期、费用与人工审核待补。 |

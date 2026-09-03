@@ -4,6 +4,7 @@ import { memo, useState } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { NODE_META } from '@/domain/nodes'
 import { MODELS_BY_ID, quoteCredits } from '@/domain/models'
+import type { ImageTransformRequest } from '@/domain/image-authoring'
 import type { GenerationJob, JobStatus, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
@@ -25,6 +26,7 @@ import {
 } from '../icons'
 import { ArtifactPreview, MediaPlaceholder, NODE_ICON, TrySuggestions } from './node-visuals'
 import { VideoNodeEditor } from './VideoNodeEditor'
+import { ImageNodeEditor } from './ImageNodeEditor'
 
 export interface NodeCardData extends Record<string, unknown> {
   node: WorkflowNode
@@ -42,6 +44,8 @@ export interface NodeCardData extends Record<string, unknown> {
   onSelectCanvasCandidate: (nodeId: string) => void
   onRemoveVideoReference: (targetNodeId: string, sourceNodeId: string) => void
   onLocateNode: (nodeId: string) => void
+  onOpenImageStyle: (nodeId: string) => void
+  onApplyImageTool: (sourceNodeId: string, request: ImageTransformRequest) => void
   canvasSelection: {
     kind: 'reference' | 'element'
     targetNodeId: string
@@ -86,6 +90,8 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     onSelectCanvasCandidate,
     onRemoveVideoReference,
     onLocateNode,
+    onOpenImageStyle,
+    onApplyImageTool,
     canvasSelection,
     open,
   } = data as NodeCardData
@@ -336,6 +342,22 @@ function NodeCardImpl({ data, selected }: NodeProps) {
           onExitSelection={onExitVideoSelection}
           onRemoveReference={onRemoveVideoReference}
           onLocateReference={onLocateNode}
+        />
+      )}
+
+      {node.type === 'image' && open && (
+        <ImageNodeEditor
+          node={node}
+          job={job}
+          onRun={onRun}
+          onCancel={onCancel}
+          selectionMode={canvasSelection?.targetNodeId === node.id ? canvasSelection.kind : null}
+          onStartSelection={onStartVideoSelection}
+          onExitSelection={onExitVideoSelection}
+          onRemoveReference={onRemoveVideoReference}
+          onLocateReference={onLocateNode}
+          onOpenStyle={onOpenImageStyle}
+          onApplyTool={onApplyImageTool}
         />
       )}
 

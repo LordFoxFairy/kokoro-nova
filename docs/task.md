@@ -252,3 +252,22 @@
   并 `registerProvider`，后注册者覆盖内置 mock。
 - 存储层只有 `src/server/store.ts` 知道持久化细节，换 Postgres 只需重写该文件。
 - Agent 换成真实 LLM 只需替换 `src/server/agent.ts` 的 `planTurn`，协议保持不变。
+
+## Image 节点创作器、风格与派生工具高保真批次
+
+- [x] Image 节点从通用右侧抽屉迁移到节点附着的 `660px` 深色创作器；在 `33% / 50% /
+      100%` 画布缩放下保持固定屏幕宽度，并与 Video 编辑器共享分层 Escape 语义。
+- [x] 图片模型目录冻结当前观察到的 7 项与耗时；新增 `ImageModelCapabilities`、
+      `normalizeImageOutputForModel`，完整覆盖低/标准/高画质、`1K/2K/4K`、13 种比例和
+      `1/2/4` 张，连续快速修改按最新 revision 合并，不会相互覆盖。
+- [x] 画布参考/标记选择泛化给 Image 与 Video；风格应用改为 `style node + edge +
+      imageStyle` 原子事务；风格广场、收藏、最近使用、搜索、十类分类和仅看可商用完整接线。
+- [x] 四组 15 个图片预设写回 prompt/output/metadata；生成结果工具条补齐人像、全景、
+      多角度、打光、九宫格、高清、元素编辑、图层分离、宫格切分、下载和展开入口。
+- [x] Canvas 与 Storyboard 图片工具统一到 `createImageDerivedMutations`；每个派生节点保留
+      来源边和 `ImageTransformSpec v1`，源 Artifact 永不原位改写。
+- [x] API 契约升级到 `1.5.0-image-authoring-state`：专门状态文档、5 份请求/响应样本、
+      OpenAPI schema/example、runtime Zod schema、route manifest 和可执行 contract test 同步；
+      本地 provider 对 13 种图片比例输出正确宽高，不再回退到 `16:9`。
+- [x] 5 张 `1440×900` 本地视觉基线与官网状态配对；`pnpm verify` 全绿（40 files / 584
+      tests + production build），`pnpm e2e` 全绿（59 passed / 2 production-only skipped）。

@@ -177,7 +177,7 @@ import type {
 type OutputArtifact = Omit<Artifact, 'id' | 'jobId' | 'assetId' | 'createdAt'>
 
 /** 本 provider 认领的模型。未列出的模型交给别人，别用恒真的 supports()。 */
-const CLAIMED = new Set(['lib-image-2', 'lib-image-ultra'])
+const CLAIMED = new Set(['lib-image-2', 'lib-navo-pro'])
 
 /**
  * poll() 只拿得到 ProviderHandle，而产物落盘需要 submit() 时才有的两个路径。

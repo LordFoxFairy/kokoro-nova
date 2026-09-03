@@ -19,18 +19,30 @@ export interface StylePreset {
   description: string
 }
 
-export const STYLE_CATEGORIES = ['全部', '写实', '插画', '动画', '概念设计', '摄影', '复古'] as const
+export const STYLE_CATEGORIES = [
+  '全部',
+  '推荐',
+  '摄影写真',
+  '电商营销',
+  '动漫游戏',
+  '风格插画',
+  '平面设计',
+  '建筑及室内设计',
+  '创意玩法',
+  '文创周边',
+  '小说推文',
+] as const
 
 export const STYLE_PRESETS: StylePreset[] = [
-  { id: 'style-cine-teal', name: '电影青橙', category: '写实', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-2', compatibleModelIds: ['lib-image-ultra', 'flux-kontext'], hue: 190, description: '青橙对比的电影调色，暗部偏青、肤色偏暖。' },
-  { id: 'style-ink-wash', name: '水墨写意', category: '插画', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-ultra', compatibleModelIds: ['lib-image-2'], hue: 210, description: '留白与飞白笔触，墨色浓淡分明。' },
-  { id: 'style-anime-cel', name: '赛璐璐动画', category: '动画', author: '社区', commercial: false, preferredModelId: 'lib-image-2', compatibleModelIds: ['seedream-4'], hue: 340, description: '硬边阴影与高饱和色块的传统动画质感。' },
-  { id: 'style-concept-matte', name: '概念绘景', category: '概念设计', author: '社区', commercial: true, preferredModelId: 'lib-image-ultra', compatibleModelIds: ['lib-image-2', 'flux-kontext'], hue: 30, description: '大气透视与体积光的场景概念图。' },
-  { id: 'style-film-grain', name: '胶片颗粒', category: '摄影', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-2', compatibleModelIds: ['seedream-4'], hue: 45, description: '细腻颗粒与轻微暗角的胶片观感。' },
-  { id: 'style-retro-print', name: '复古海报', category: '复古', author: '社区', commercial: false, preferredModelId: 'seedream-4', compatibleModelIds: ['lib-image-2'], hue: 15, description: '有限套色与网点印刷质感。' },
-  { id: 'style-soft-portrait', name: '柔光人像', category: '摄影', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-ultra', compatibleModelIds: ['lib-image-2'], hue: 350, description: '大光比柔化，肤质通透。' },
-  { id: 'style-isometric', name: '等距微缩', category: '插画', author: '社区', commercial: true, preferredModelId: 'lib-image-2', compatibleModelIds: ['seedream-4'], hue: 265, description: '等距视角的微缩场景与干净配色。' },
-  { id: 'style-noir', name: '黑色电影', category: '写实', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-ultra', compatibleModelIds: ['flux-kontext'], hue: 220, description: '强对比硬光、百叶窗投影与高反差黑白。' },
+  { id: 'style-cine-teal', name: '电影青橙', category: '推荐', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-2', compatibleModelIds: ['lib-navo-pro', 'lib-navo-2'], hue: 190, description: '青橙对比的电影调色，暗部偏青、肤色偏暖。' },
+  { id: 'style-ink-wash', name: '水墨写意', category: '风格插画', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-navo-pro', compatibleModelIds: ['lib-image-2'], hue: 210, description: '留白与飞白笔触，墨色浓淡分明。' },
+  { id: 'style-anime-cel', name: '赛璐璐动画', category: '动漫游戏', author: '社区', commercial: false, preferredModelId: 'midjourney-niji-7', compatibleModelIds: ['seedream-5-pro'], hue: 340, description: '硬边阴影与高饱和色块的传统动画质感。' },
+  { id: 'style-concept-matte', name: '概念绘景', category: '动漫游戏', author: '社区', commercial: true, preferredModelId: 'lib-navo-pro', compatibleModelIds: ['lib-image-2', 'midjourney-v8-1'], hue: 30, description: '大气透视与体积光的场景概念图。' },
+  { id: 'style-film-grain', name: '胶片颗粒', category: '摄影写真', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-image-2', compatibleModelIds: ['seedream-5-pro'], hue: 45, description: '细腻颗粒与轻微暗角的胶片观感。' },
+  { id: 'style-retro-print', name: '复古海报', category: '平面设计', author: '社区', commercial: false, preferredModelId: 'seedream-5-pro', compatibleModelIds: ['lib-image-2'], hue: 15, description: '有限套色与网点印刷质感。' },
+  { id: 'style-soft-portrait', name: '柔光人像', category: '摄影写真', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-navo-pro', compatibleModelIds: ['lib-image-2'], hue: 350, description: '大光比柔化，肤质通透。' },
+  { id: 'style-isometric', name: '等距微缩', category: '建筑及室内设计', author: '社区', commercial: true, preferredModelId: 'lib-image-2', compatibleModelIds: ['seedream-5-pro'], hue: 265, description: '等距视角的微缩场景与干净配色。' },
+  { id: 'style-noir', name: '黑色电影', category: '创意玩法', author: 'Lib 官方', commercial: true, preferredModelId: 'lib-navo-pro', compatibleModelIds: ['midjourney-v8-1'], hue: 220, description: '强对比硬光、百叶窗投影与高反差黑白。' },
 ]
 
 export interface EffectPreset {
@@ -194,7 +206,12 @@ export interface SlashPreset {
   id: string
   name: string
   /** Resolution and count the preset forces on the pending node. */
-  output: { resolution: '1K' | '2K' | '4K'; quality: 'standard' | 'high'; count: 1 | 2 | 4; aspectRatio: '16:9' | '1:1' | '9:16' }
+  output: {
+    resolution: '1K' | '2K' | '4K'
+    quality: 'standard' | 'high'
+    count: 1 | 2 | 4
+    aspectRatio: '21:9' | '9:21' | '16:9' | '9:16' | '5:4' | '4:5' | '4:3' | '3:4' | '3:2' | '2:3' | '2:1' | '1:2' | '1:1'
+  }
   promptTemplate: string
   summary: string
 }
@@ -270,6 +287,47 @@ export const SLASH_PRESETS: SlashPreset[] = [
     promptTemplate: '在四向情绪坐标（激动/平静、亲近/疏离）上重新定位人物表情，保持身份与构图。',
     summary: '先识别人物，再按四向坐标定位情绪。',
   },
+]
+
+export type ImagePresetCategory = '分镜叙事' | '质感调节' | '空间与机位' | '设定图'
+
+export interface ImageAuthoringPreset extends SlashPreset {
+  category: ImagePresetCategory
+}
+
+function imagePreset(
+  id: string,
+  name: string,
+  category: ImagePresetCategory,
+  summary: string,
+  promptTemplate: string,
+  output: SlashPreset['output'] = {
+    resolution: '2K',
+    quality: 'high',
+    count: 1,
+    aspectRatio: '16:9',
+  },
+): ImageAuthoringPreset {
+  return { id, name, category, summary, promptTemplate, output }
+}
+
+/** Current Image composer preset directory, frozen in visible group order. */
+export const IMAGE_AUTHORING_PRESETS: ImageAuthoringPreset[] = [
+  imagePreset('image-schedule-storyboard', '调度故事板', '分镜叙事', '生成带有运动轨迹等调度草图分镜', '把当前内容拆为调度故事板，标出人物站位、运动轨迹、机位与镜头衔接。'),
+  imagePreset('image-storyboard', '故事板', '分镜叙事', '生成完整剧情片段', '把当前内容拆为一组完整剧情分镜，保持角色、场景、光线和叙事连续。'),
+  imagePreset('slash-coherent-25', '25宫格连贯分镜', '分镜叙事', '生成连续分镜长图', '输出 5×5 共 25 格连贯分镜，覆盖完整段落的起承转合，保持角色一致与镜头衔接。', { resolution: '4K', quality: 'high', count: 1, aspectRatio: '16:9' }),
+  imagePreset('slash-story-4', '剧情推演四宫格', '分镜叙事', '生成四格剧情推演', '基于当前画面向后推演四个连续剧情瞬间，按四宫格排列，保持角色与光线连贯。'),
+  imagePreset('slash-progress-after', '画面推演 - 3秒后', '分镜叙事', '推演画面后续动作', '推演当前画面 3 秒之后的瞬间，保持机位与光线连续，只改变主体动作与位置。', { resolution: '2K', quality: 'standard', count: 1, aspectRatio: '16:9' }),
+  imagePreset('slash-progress-before', '画面推演 - 5秒前', '分镜叙事', '还原画面前置状态', '推演当前画面 5 秒之前的瞬间，保持机位与光线连续，只改变主体动作与位置。', { resolution: '2K', quality: 'standard', count: 1, aspectRatio: '16:9' }),
+  imagePreset('slash-portrait-quality', '人像质感调节', '质感调节', '降低 AI 感，优化人物质感与光影', '保持身份特征不变，优化肤质通透度、发丝细节与眼神光，不改变五官比例。', { resolution: '2K', quality: 'standard', count: 1, aspectRatio: '16:9' }),
+  imagePreset('slash-relight', '电影级光影校正', '质感调节', '调整画面光影质感', '保持构图与主体不变，重建为电影级布光：明确主光方向、轮廓光与环境反射，提升层次。'),
+  imagePreset('image-panorama-720', '720全景', '空间与机位', '生成全景场景图', '扩展当前场景为无缝 720 全景图，保持空间结构、材质与光线连续。', { resolution: '4K', quality: 'high', count: 1, aspectRatio: '2:1' }),
+  imagePreset('slash-multicam-9', '多机位九宫格', '空间与机位', '生成多视角机位图', '在保持主体、服装与场景完全一致的前提下，输出九宫格：九种不同机位与景别的同一瞬间。', { resolution: '4K', quality: 'high', count: 1, aspectRatio: '16:9' }),
+  imagePreset('image-face-three-view', '角色脸部三视图', '设定图', '基于一张参考图生成脸部细节三视图', '输出角色脸部正面、四分之三侧面和侧面细节，身份特征、妆容与光线一致。'),
+  imagePreset('slash-character-sheet', '角色设定图', '设定图', '角色主视觉与设定拆解', '输出角色设定图：全身立绘、头部特写、服装细节与配饰分解，统一底色与标注留白。'),
+  imagePreset('slash-three-view', '角色三视图', '设定图', '正侧背视图与脸部特写', '输出同一角色的正面、侧面与背面三视图，并补充脸部特写，服装配饰一致。'),
+  imagePreset('image-scene-sheet', '场景设定图', '设定图', '场景主视觉与设定拆解', '输出场景主视觉、平面关系、关键材质、光线状态与局部细节设定图。'),
+  imagePreset('image-product-sheet', '产品设定图', '设定图', '产品主视觉与设定拆解', '输出产品主视觉、正侧背视图、结构细节与材质说明设定图。'),
 ]
 
 /** 情绪调节 default label at the coordinate origin. */

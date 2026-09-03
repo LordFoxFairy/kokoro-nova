@@ -101,6 +101,9 @@ export function videoReferenceCandidates(
     })
 }
 
+/** Generic name used by Image and Video editors; old exports remain stable. */
+export const canvasReferenceCandidates = videoReferenceCandidates
+
 /** Returns a single add/remove mutation. The reducer performs the same checks. */
 export function toggleVideoReference(
   document: WorkflowDocument,
@@ -123,6 +126,9 @@ export function toggleVideoReference(
 
   return [{ op: 'addEdge', edge: createEdge(sourceNodeId, targetNodeId) }]
 }
+
+/** Generic name used by Image and Video editors; old exports remain stable. */
+export const toggleCanvasReference = toggleVideoReference
 
 /** Reference-card order is selection/edge order, matching the visible ordinals. */
 export function orderedVideoReferences(

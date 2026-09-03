@@ -8,6 +8,41 @@ export type VideoGenerationMode = NonNullable<OutputSpec['mode']>
 export type ModelAspectRatio = NonNullable<OutputSpec['aspectRatio']>
 export type ModelResolution = NonNullable<OutputSpec['resolution']>
 export type ModelCount = NonNullable<OutputSpec['count']>
+export type ImageQuality = NonNullable<OutputSpec['quality']>
+export type ImageResolution = Extract<ModelResolution, '1K' | '2K' | '4K'>
+export type ImageAspectRatio = Exclude<ModelAspectRatio, 'auto'>
+
+export const IMAGE_QUALITIES = ['low', 'standard', 'high'] as const satisfies readonly ImageQuality[]
+export const IMAGE_RESOLUTIONS = ['1K', '2K', '4K'] as const satisfies readonly ImageResolution[]
+export const IMAGE_ASPECT_RATIOS = [
+  '1:1',
+  '1:2',
+  '2:1',
+  '9:16',
+  '16:9',
+  '3:4',
+  '4:3',
+  '3:2',
+  '2:3',
+  '5:4',
+  '4:5',
+  '21:9',
+  '9:21',
+] as const satisfies readonly ImageAspectRatio[]
+export const IMAGE_COUNTS = [1, 2, 4] as const satisfies readonly ModelCount[]
+
+export interface ImageModelCapabilities {
+  qualities: readonly ImageQuality[]
+  resolutions: readonly ImageResolution[]
+  aspectRatios: readonly ImageAspectRatio[]
+  counts: readonly ModelCount[]
+  defaults: {
+    quality: ImageQuality
+    resolution: ImageResolution
+    aspectRatio: ImageAspectRatio
+    count: ModelCount
+  }
+}
 
 export interface ReferenceCountConstraint {
   min: number
@@ -53,6 +88,8 @@ export interface ModelDefinition {
   controls: readonly (keyof OutputSpec)[]
   /** Versioned output and reference rules for video models. */
   capabilities?: VideoModelCapabilities
+  /** Versioned output rules for image models. */
+  imageCapabilities?: ImageModelCapabilities
   membershipTier?: MembershipTier
   availability?: ModelAvailability
   /** Stable family key used by the local icon tile; never a remote asset URL. */
@@ -81,6 +118,19 @@ const VIDEO_COUNTS = [1, 2, 4] as const
 const OMNI_MODES = ['text2video', 'omni-reference', 'image2video', 'first-last-frame', 'image-reference'] as const
 const EDIT_MODES = [...OMNI_MODES, 'video2video'] as const
 const IMAGE_MODES = ['text2video', 'image2video', 'first-frame', 'first-last-frame'] as const
+
+const DEFAULT_IMAGE_CAPABILITIES: ImageModelCapabilities = {
+  qualities: IMAGE_QUALITIES,
+  resolutions: IMAGE_RESOLUTIONS,
+  aspectRatios: IMAGE_ASPECT_RATIOS,
+  counts: IMAGE_COUNTS,
+  defaults: {
+    quality: 'standard',
+    resolution: '2K',
+    aspectRatio: '16:9',
+    count: 1,
+  },
+}
 
 const DEFAULT_MODE_REQUIREMENTS: Partial<Record<VideoGenerationMode, VideoReferenceRequirement>> = {
   'omni-reference': { anyMedia: { min: 1 } },
@@ -169,6 +219,19 @@ function videoModel(options: VideoModelOptions): ModelDefinition {
   }
 }
 
+function imageModel(
+  options: Omit<ModelDefinition, 'media' | 'controls' | 'imageCapabilities'> & {
+    imageCapabilities?: ImageModelCapabilities
+  },
+): ModelDefinition {
+  return {
+    ...options,
+    media: 'image',
+    controls: ['aspectRatio', 'quality', 'resolution', 'count'],
+    imageCapabilities: options.imageCapabilities ?? DEFAULT_IMAGE_CAPABILITIES,
+  }
+}
+
 /**
  * Catalog shape mirrors the observed selectors: image / video / audio / 语言
  * tabs, each card showing provider, tier and an estimated duration.
@@ -178,50 +241,76 @@ function videoModel(options: VideoModelOptions): ModelDefinition {
  */
 export const MODELS: ModelDefinition[] = [
   // ---- image ----
-  {
+  imageModel({
     id: 'lib-image-2',
     label: 'Lib Image',
     provider: 'Lib',
-    media: 'image',
-    latencyLabel: '约 30 秒',
+    latencyLabel: '60s',
     baseCredits: 18,
-    controls: ['aspectRatio', 'quality', 'resolution', 'count'],
+    iconKey: 'lib-image',
     tags: ['默认', '文生图', '图生图'],
-    description: '通用图像生成与指令式图片编辑，支持参考图与风格。',
-  },
-  {
-    id: 'lib-image-ultra',
-    label: 'Lib Image Ultra',
+    description: '最新图片模型、长文本能力突出',
+  }),
+  imageModel({
+    id: 'lib-navo-pro',
+    label: 'Lib Navo Pro',
     provider: 'Lib',
-    media: 'image',
-    latencyLabel: '约 55 秒',
-    baseCredits: 34,
-    controls: ['aspectRatio', 'quality', 'resolution', 'count'],
-    tags: ['高保真'],
-    description: '更高细节与文字还原度，适合成片级分镜与关键视觉。',
-  },
-  {
-    id: 'flux-kontext',
-    label: 'Kontext',
-    provider: 'Black Forest',
-    media: 'image',
-    latencyLabel: '约 25 秒',
-    baseCredits: 22,
-    controls: ['aspectRatio', 'quality', 'resolution', 'count'],
-    tags: ['指令编辑'],
-    description: '擅长按自然语言指令做局部修改并保持主体一致。',
-  },
-  {
-    id: 'seedream-4',
-    label: 'Seedream 4',
+    latencyLabel: '50s',
+    baseCredits: 28,
+    iconKey: 'navo',
+    tags: ['高保真', '指令编辑'],
+    description: '复杂构图与细节优先的高保真图片模型',
+  }),
+  imageModel({
+    id: 'lib-navo-2',
+    label: 'Lib Navo 2',
+    provider: 'Lib',
+    latencyLabel: '25s',
+    baseCredits: 20,
+    iconKey: 'navo',
+    tags: ['快速', '一致性'],
+    description: '快速图片生成与主体一致性编辑',
+  }),
+  imageModel({
+    id: 'seedream-5-pro',
+    label: 'Seedream 5.0 Pro',
     provider: 'Seed',
-    media: 'image',
-    latencyLabel: '约 20 秒',
+    latencyLabel: '20s',
     baseCredits: 16,
-    controls: ['aspectRatio', 'quality', 'resolution', 'count'],
+    iconKey: 'seedream',
     tags: ['快速'],
-    description: '速度优先的通用图像模型，适合批量草稿与分镜探索。',
-  },
+    description: '速度优先的通用图像与分镜探索模型',
+  }),
+  imageModel({
+    id: 'midjourney-v8-1',
+    label: 'Midjourney V8.1',
+    provider: 'Midjourney',
+    latencyLabel: '50s',
+    baseCredits: 32,
+    iconKey: 'midjourney',
+    tags: ['风格上新'],
+    description: '新一代审美与材质表达模型',
+  }),
+  imageModel({
+    id: 'midjourney-v7',
+    label: 'Midjourney V7',
+    provider: 'Midjourney',
+    latencyLabel: '50s',
+    baseCredits: 28,
+    iconKey: 'midjourney',
+    tags: ['风格上新'],
+    description: '稳定的风格化图片生成模型',
+  }),
+  imageModel({
+    id: 'midjourney-niji-7',
+    label: 'Midjourney Niji 7',
+    provider: 'Midjourney',
+    latencyLabel: '50s',
+    baseCredits: 28,
+    iconKey: 'midjourney',
+    tags: ['风格上新', '动漫'],
+    description: '动漫、插画与角色设计专用模型',
+  }),
 
   // ---- video — current observed catalogue order ----
   videoModel({
@@ -761,6 +850,32 @@ export function modelOutputOptions(modelId: string): VideoModelCapabilities | nu
   return model?.media === 'video' ? (model.capabilities ?? null) : null
 }
 
+export function imageModelOutputOptions(modelId: string): ImageModelCapabilities | null {
+  const model = MODELS_BY_ID.get(modelId)
+  return model?.media === 'image' ? (model.imageCapabilities ?? null) : null
+}
+
+/** Normalize image-only output and deliberately discard cross-media fields. */
+export function normalizeImageOutputForModel(modelId: string, output: OutputSpec | undefined): OutputSpec {
+  const capabilities = imageModelOutputOptions(modelId)
+  if (!capabilities) return { ...(output ?? {}) }
+  const current = output ?? {}
+  return {
+    quality: capabilities.qualities.includes(current.quality as ImageQuality)
+      ? current.quality
+      : capabilities.defaults.quality,
+    resolution: capabilities.resolutions.includes(current.resolution as ImageResolution)
+      ? current.resolution
+      : capabilities.defaults.resolution,
+    aspectRatio: capabilities.aspectRatios.includes(current.aspectRatio as ImageAspectRatio)
+      ? current.aspectRatio
+      : capabilities.defaults.aspectRatio,
+    count: capabilities.counts.includes(current.count as ModelCount)
+      ? current.count
+      : capabilities.defaults.count,
+  }
+}
+
 /**
  * Normalize persisted or imported output parameters against the selected
  * model. This runs in both the UI and compiler so old drafts cannot submit a
@@ -771,6 +886,7 @@ export function normalizeOutputForModel(
   output: OutputSpec | undefined,
   currentlyAvailableModes?: readonly VideoGenerationMode[],
 ): OutputSpec {
+  if (imageModelOutputOptions(modelId)) return normalizeImageOutputForModel(modelId, output)
   const next = { ...(output ?? {}) }
   const capabilities = modelOutputOptions(modelId)
   if (!capabilities) return next
@@ -822,6 +938,7 @@ const RESOLUTION_MULTIPLIER: Record<string, number> = {
 }
 
 const QUALITY_MULTIPLIER: Record<string, number> = {
+  low: 0.75,
   standard: 1,
   high: 1.45,
 }
@@ -861,7 +978,8 @@ export function quoteCredits(modelId: string, output: OutputSpec | undefined): {
     const before = credits
     credits *= QUALITY_MULTIPLIER[out.quality]
     if (credits !== before) {
-      breakdown.push({ label: out.quality === 'high' ? '高品质' : '标准画质', credits: Math.round(credits - before) })
+      const qualityLabel = out.quality === 'high' ? '高品质' : out.quality === 'low' ? '低画质' : '标准画质'
+      breakdown.push({ label: qualityLabel, credits: Math.round(credits - before) })
     }
   }
   if (model.media === 'video' && out.durationSeconds) {

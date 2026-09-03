@@ -41,17 +41,9 @@ const RESOLUTION_PIXELS: Record<string, number> = {
   '1080p': 1920,
 }
 
-const ASPECT: Record<string, number> = {
-  '21:9': 21 / 9,
-  '16:9': 16 / 9,
-  '4:3': 4 / 3,
-  '1:1': 1,
-  '3:4': 3 / 4,
-  '9:16': 9 / 16,
-}
-
-function dimensionsFor(spec: ProviderSubmitRequest['spec']): { width: number; height: number } {
-  const ratio = ASPECT[spec.output.aspectRatio ?? '16:9'] ?? 16 / 9
+export function dimensionsFor(spec: ProviderSubmitRequest['spec']): { width: number; height: number } {
+  const match = /^(\d+):(\d+)$/.exec(spec.output.aspectRatio ?? '')
+  const ratio = match && Number(match[2]) > 0 ? Number(match[1]) / Number(match[2]) : 16 / 9
   // Cap the long edge so mock artifacts stay small on disk.
   const longEdge = Math.min(RESOLUTION_PIXELS[spec.output.resolution ?? '2K'] ?? 1280, 1536)
   if (ratio >= 1) {

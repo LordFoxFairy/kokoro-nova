@@ -78,6 +78,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('POST', '/api/canvases/{canvasId}', 'Workflow', 'mutateCanvas', [
     '节点、边、分组或视口提交',
     'Video 参考增删、@ token、元素标记或运镜设置',
+    'Image 参考增删、风格绑定、预设或派生工具提交',
   ], [
     'authenticated-populated',
     'revision-conflict',

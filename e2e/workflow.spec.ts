@@ -309,10 +309,10 @@ test('storyboard: image tools derive a new pending node from a generated still',
 
   const imageNode = page.locator('[data-node-type="image"]').first()
   await imageNode.dblclick()
-  await page.getByTestId('node-prompt').fill('黄昏的山脊线，逆光剪影')
-  await page.getByTestId('node-prompt').blur()
+  await page.getByTestId('image-prompt').fill('黄昏的山脊线，逆光剪影')
+  await page.getByTestId('image-prompt').blur()
   await expect(imageNode).toContainText('黄昏的山脊线')
-  await page.getByTestId('inspector-run').click()
+  await page.getByTestId('image-run').click()
   await page.getByTestId('confirm-generate').click()
   await expect(imageNode.locator('img')).toBeVisible({ timeout: 60_000 })
   await page.keyboard.press('Escape')

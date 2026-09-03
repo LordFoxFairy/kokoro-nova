@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.4.0-video-reference-state",
-    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Video 图引用、富 token、元素标记与运镜持久化结构。"
+    "version": "1.5.0-image-authoring-state",
+    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Image 模型矩阵、参考、风格、预设与非破坏式派生工具持久化结构。"
   },
   "servers": [
     {
@@ -1311,7 +1311,8 @@
         "operationId": "mutateCanvas",
         "x-ui-triggers": [
           "节点、边、分组或视口提交",
-          "Video 参考增删、@ token、元素标记或运镜设置"
+          "Video 参考增删、@ token、元素标记或运镜设置",
+          "Image 参考增删、风格绑定、预设或派生工具提交"
         ],
         "x-mock-scenarios": [
           "authenticated-populated",
@@ -1386,6 +1387,20 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MutationRequest"
+              },
+              "examples": {
+                "imageReferenceAdd": {
+                  "$ref": "#/components/examples/ImageReferenceAddRequestExample"
+                },
+                "imageStyleApply": {
+                  "$ref": "#/components/examples/ImageStyleApplyRequestExample"
+                },
+                "imagePresetApply": {
+                  "$ref": "#/components/examples/ImagePresetRequestExample"
+                },
+                "imageTransform": {
+                  "$ref": "#/components/examples/ImageTransformRequestExample"
+                }
               }
             }
           }
@@ -4140,6 +4155,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModelCatalogResponse"
+                },
+                "examples": {
+                  "imageCatalog": {
+                    "$ref": "#/components/examples/ImageModelCatalogResponseExample"
+                  }
                 }
               }
             }
@@ -4715,7 +4735,7 @@
       },
       "NodeExtra": {
         "type": "object",
-        "description": "各节点共享的扩展袋；列出 Video 稳定字段并保留其他节点的未知扩展。",
+        "description": "各节点共享的扩展袋；列出 Video 与 Image 稳定字段并保留其他节点的未知扩展。",
         "properties": {
           "advanced": {
             "$ref": "#/components/schemas/VideoAdvancedSettings"
@@ -4751,6 +4771,15 @@
               "type": "object",
               "additionalProperties": true
             }
+          },
+          "imagePreset": {
+            "$ref": "#/components/schemas/ImagePresetSelection"
+          },
+          "imageStyle": {
+            "$ref": "#/components/schemas/ImageStyleSelection"
+          },
+          "imageTransform": {
+            "$ref": "#/components/schemas/ImageTransformSpec"
           }
         },
         "additionalProperties": true
@@ -6366,6 +6395,9 @@
           },
           "description": {
             "type": "string"
+          },
+          "imageCapabilities": {
+            "$ref": "#/components/schemas/ImageModelCapabilities"
           }
         },
         "additionalProperties": false
@@ -6415,17 +6447,25 @@
             "type": "string",
             "enum": [
               "auto",
-              "21:9",
-              "16:9",
-              "4:3",
               "1:1",
+              "1:2",
+              "2:1",
+              "9:16",
+              "16:9",
               "3:4",
-              "9:16"
+              "4:3",
+              "3:2",
+              "2:3",
+              "5:4",
+              "4:5",
+              "21:9",
+              "9:21"
             ]
           },
           "quality": {
             "type": "string",
             "enum": [
+              "low",
               "standard",
               "high"
             ]
@@ -6696,6 +6736,227 @@
           },
           "balance": {
             "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImageOutputSpec": {
+        "type": "object",
+        "description": "Image 节点的规范化输出参数；切换模型时必须按 imageCapabilities 收敛。",
+        "required": [
+          "quality",
+          "resolution",
+          "aspectRatio",
+          "count"
+        ],
+        "properties": {
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "standard",
+              "high"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1K",
+              "2K",
+              "4K"
+            ]
+          },
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "1:1",
+              "1:2",
+              "2:1",
+              "9:16",
+              "16:9",
+              "3:4",
+              "4:3",
+              "3:2",
+              "2:3",
+              "5:4",
+              "4:5",
+              "21:9",
+              "9:21"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImageModelCapabilities": {
+        "type": "object",
+        "description": "一个图片模型在当前目录版本中允许的完整参数矩阵及默认值。",
+        "required": [
+          "qualities",
+          "resolutions",
+          "aspectRatios",
+          "counts",
+          "defaults"
+        ],
+        "properties": {
+          "qualities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "low",
+                "standard",
+                "high"
+              ]
+            }
+          },
+          "resolutions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "1K",
+                "2K",
+                "4K"
+              ]
+            }
+          },
+          "aspectRatios": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "1:1",
+                "1:2",
+                "2:1",
+                "9:16",
+                "16:9",
+                "3:4",
+                "4:3",
+                "3:2",
+                "2:3",
+                "5:4",
+                "4:5",
+                "21:9",
+                "9:21"
+              ]
+            }
+          },
+          "counts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                4
+              ]
+            }
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/ImageOutputSpec"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImagePresetSelection": {
+        "type": "object",
+        "description": "保留语义预设选择；prompt/output 是执行快照，本字段用于刷新后恢复 UI。",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImageStyleSelection": {
+        "type": "object",
+        "description": "绑定到 Image 节点的风格选择；nodeId 必须对应一条 style → image 入边。",
+        "required": [
+          "nodeId",
+          "presetId",
+          "name"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "presetId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImageTransformSpec": {
+        "type": "object",
+        "description": "非破坏式图片工具生成的新节点所携带的可重放 provenance。",
+        "required": [
+          "version",
+          "sourceNodeId",
+          "tool",
+          "label",
+          "parameters",
+          "output",
+          "credits"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1
+          },
+          "sourceNodeId": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string",
+            "examples": [
+              "upscale",
+              "lighting",
+              "multi-angle",
+              "emotion",
+              "panorama",
+              "layer-separation",
+              "grid-split",
+              "preset"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "output": {
+            "$ref": "#/components/schemas/ImageOutputSpec"
+          },
+          "credits": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -7039,6 +7300,26 @@
           },
           "balance": 408
         }
+      },
+      "ImageReferenceAddRequestExample": {
+        "summary": "给 Image 节点添加画布参考",
+        "externalValue": "./examples/canvas-image-reference-add.request.json"
+      },
+      "ImageStyleApplyRequestExample": {
+        "summary": "创建并绑定风格节点",
+        "externalValue": "./examples/canvas-image-style-apply.request.json"
+      },
+      "ImagePresetRequestExample": {
+        "summary": "应用图片预设并保存语义选择",
+        "externalValue": "./examples/canvas-image-preset.request.json"
+      },
+      "ImageTransformRequestExample": {
+        "summary": "创建带可重放元数据的非破坏式派生图片",
+        "externalValue": "./examples/canvas-image-transform.request.json"
+      },
+      "ImageModelCatalogResponseExample": {
+        "summary": "七个图片模型与完整输出能力矩阵",
+        "externalValue": "./examples/models-image.response.json"
       }
     }
   },

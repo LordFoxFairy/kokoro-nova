@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createEdge, createNode } from '@/domain/factory'
+import { createImageDerivedMutations } from '@/domain/image-authoring'
 import { availableVideoModes, videoModeOptions } from '@/domain/compile'
 import { CAMERA_MOVES, EFFECT_PRESETS, SLASH_PRESETS } from '@/domain/libraries'
 import {
@@ -65,6 +65,7 @@ export function MediaDetailDrawer({
 }) {
   const document = useEditor((s) => s.document)
   const commit = useEditor((s) => s.commit)
+  const commitWith = useEditor((s) => s.commitWith)
   const pushAgentRef = useEditor((s) => s.pushAgentRef)
   const toast = useEditor((s) => s.toast)
   const [referenceNodeId, setReferenceNodeId] = useState<string | null>(null)
@@ -78,27 +79,15 @@ export function MediaDetailDrawer({
    * stays intact and the original artifact is always recoverable.
    */
   const createDerivedNode = (nodeId: string, request: ImageToolRequest) => {
-    const doc = useEditor.getState().document
-    const source = doc.nodes.find((n) => n.id === nodeId)
-    if (!source) return
-
-    const node = createNode(
-      'image',
-      { x: source.position.x + source.size.width + 120, y: source.position.y },
-      doc.nodes,
-      { name: request.label },
-    )
-    node.data.prompt = request.prompt
-    node.data.output = { ...node.data.output, ...request.output }
-
-    void commit(
-      [
-        { op: 'addNode', node },
-        { op: 'addEdge', edge: createEdge(source.id, node.id) },
-      ],
+    void commitWith(
+      (doc) => {
+        if (!doc.nodes.some((item) => item.id === nodeId)) return []
+        return createImageDerivedMutations(doc, nodeId, request).mutations
+      },
       `图片工具 ${request.label}`,
-    )
-    toast(`已创建「${request.label}」待确认节点`, 'success')
+    ).then((ok) => {
+      if (ok) toast(`已创建「${request.label}」待确认节点`, 'success')
+    })
   }
 
   if (!card) return null

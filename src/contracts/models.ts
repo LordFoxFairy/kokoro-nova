@@ -1,5 +1,11 @@
 import { z } from 'zod'
 
+import {
+  IMAGE_ASPECT_RATIOS,
+  IMAGE_QUALITIES,
+  IMAGE_RESOLUTIONS,
+} from '@/domain/models'
+
 export const ModelMediaSchema = z.enum(['image', 'video', 'audio', 'text'])
 export const VideoGenerationModeSchema = z.enum([
   'text2video',
@@ -43,6 +49,19 @@ export const VideoModelCapabilitiesSchema = z.object({
   }),
 })
 
+export const ImageModelCapabilitiesSchema = z.object({
+  qualities: z.array(z.enum(IMAGE_QUALITIES)),
+  resolutions: z.array(z.enum(IMAGE_RESOLUTIONS)),
+  aspectRatios: z.array(z.enum(IMAGE_ASPECT_RATIOS)),
+  counts: z.array(z.union([z.literal(1), z.literal(2), z.literal(4)])),
+  defaults: z.object({
+    quality: z.enum(IMAGE_QUALITIES),
+    resolution: z.enum(IMAGE_RESOLUTIONS),
+    aspectRatio: z.enum(IMAGE_ASPECT_RATIOS),
+    count: z.union([z.literal(1), z.literal(2), z.literal(4)]),
+  }),
+})
+
 export const ModelDefinitionSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -52,6 +71,7 @@ export const ModelDefinitionSchema = z.object({
   baseCredits: z.number().int().nonnegative(),
   controls: z.array(z.string()),
   capabilities: VideoModelCapabilitiesSchema.optional(),
+  imageCapabilities: ImageModelCapabilitiesSchema.optional(),
   membershipTier: z.enum(['standard', 'vip']).optional(),
   availability: z.enum(['available', 'preview', 'coming-soon']).optional(),
   iconKey: z.string().optional(),

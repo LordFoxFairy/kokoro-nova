@@ -1,0 +1,16 @@
+{
+  "canvasId": "can_video_main",
+  "expectedRevision": 7,
+  "mutations": [
+    {
+      "op": "addEdge",
+      "edge": {
+        "id": "edge_text_image_fixture",
+        "source": "node_text_01",
+        "target": "node_image_01",
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    }
+  ],
+  "label": "选择图片参考"
+}

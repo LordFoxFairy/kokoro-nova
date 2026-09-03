@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { createEdge, createNode } from '@/domain/factory'
+import {
+  createImageDerivedMutations,
+  type ImageTransformRequest,
+} from '@/domain/image-authoring'
 import { SLASH_PRESETS, type CharacterPreset } from '@/domain/libraries'
+import { quoteCredits } from '@/domain/models'
 import { instantiatePreset, PRESETS_BY_ID, type ToolboxPreset } from '@/domain/presets'
 import { ids, newId } from '@/domain/ids'
 import {
@@ -66,6 +71,8 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 
   const commands = useCanvasCommands()
   const [materialKind, setMaterialKind] = useState<'style' | 'effect'>('style')
+  /** When set, choosing a style binds it to this Image node instead of dropping a free node. */
+  const [materialTargetNodeId, setMaterialTargetNodeId] = useState<string | null>(null)
   const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null)
   /** Node whose full-screen editor is open; its type selects which one. */
   const [studioNodeId, setStudioNodeId] = useState<string | null>(null)
@@ -189,10 +196,10 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     [flow, select],
   )
 
-  const startVideoSelection = useCallback(
+  const startCanvasSelection = useCallback(
     (kind: 'reference' | 'element', targetNodeId: string) => {
       const target = useEditor.getState().document.nodes.find((node) => node.id === targetNodeId)
-      if (target?.type !== 'video') return
+      if (target?.type !== 'video' && target?.type !== 'image') return
       setLeftPanel(null)
       setStoryboardConfig(null)
       inspect(targetNodeId)
@@ -391,12 +398,71 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 
   const applyMaterial = useCallback(
     async (preset: { id: string; name: string; hue: number }, kind: 'style' | 'effect') => {
-      const doc = useEditor.getState().document
-      const node = createNode(kind, nextFreeSpot(doc.nodes), doc.nodes, { name: preset.name })
-      node.data.extra = { presetId: preset.id, presetName: preset.name, hue: preset.hue }
-      await commit([{ op: 'addNode', node }], `添加${kind === 'style' ? '风格' : '特效'}节点`)
+      const targetNodeId = kind === 'style' ? materialTargetNodeId : null
+      await commitWith((doc) => {
+        const target = targetNodeId ? doc.nodes.find((item) => item.id === targetNodeId) : null
+        if (targetNodeId && target?.type !== 'image') return []
+        const position = target
+          ? { x: target.position.x - 360, y: target.position.y + 40 }
+          : nextFreeSpot(doc.nodes)
+        const node = createNode(kind, position, doc.nodes, { name: preset.name })
+        node.data.extra = { presetId: preset.id, presetName: preset.name, hue: preset.hue }
+        const mutations: CanvasMutation[] = [{ op: 'addNode', node }]
+
+        if (target?.type === 'image') {
+          mutations.push({ op: 'addEdge', edge: createEdge(node.id, target.id) })
+          mutations.push({
+            op: 'updateNode',
+            nodeId: target.id,
+            patch: {
+              data: {
+                ...target.data,
+                extra: {
+                  ...target.data.extra,
+                  imageStyle: {
+                    nodeId: node.id,
+                    presetId: preset.id,
+                    name: preset.name,
+                  },
+                },
+              },
+            },
+          })
+        }
+        return mutations
+      }, `添加${kind === 'style' ? '风格' : '特效'}节点`)
+      setMaterialTargetNodeId(null)
     },
-    [commit],
+    [commitWith, materialTargetNodeId],
+  )
+
+  const openImageStyle = useCallback(
+    (nodeId: string) => {
+      const node = useEditor.getState().document.nodes.find((item) => item.id === nodeId)
+      if (node?.type !== 'image') return
+      setMaterialTargetNodeId(nodeId)
+      setMaterialKind('style')
+      setLeftPanel('material')
+    },
+    [setLeftPanel],
+  )
+
+  const applyImageTool = useCallback(
+    async (sourceNodeId: string, request: ImageTransformRequest) => {
+      const created: { id: string | null } = { id: null }
+      const ok = await commitWith((doc) => {
+        const source = doc.nodes.find((item) => item.id === sourceNodeId)
+        if (source?.type !== 'image' && source?.type !== 'director') return []
+        const result = createImageDerivedMutations(doc, sourceNodeId, request)
+        created.id = result.node.id
+        return result.mutations
+      }, `图片工具 ${request.label}`)
+      if (!ok || !created.id) return
+      select([created.id])
+      inspect(created.id)
+      toast(`已创建「${request.label}」待确认节点`, 'success')
+    },
+    [commitWith, inspect, select, toast],
   )
 
   /** Applying a character creates four independent reference image nodes. */
@@ -522,32 +588,16 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const applySlash = useCallback(
     async (sourceNodeId: string, presetId: string) => {
       const preset = SLASH_PRESETS.find((p) => p.id === presetId) ?? SLASH_PRESETS[0]
-      const doc = useEditor.getState().document
-      const source = doc.nodes.find((n) => n.id === sourceNodeId)
-      if (!source) return
-
-      const node = createNode(
-        'image',
-        { x: source.position.x + source.size.width + 120, y: source.position.y },
-        doc.nodes,
-        { name: preset.name },
-      )
-      node.data.prompt = preset.promptTemplate
-      node.data.output = { ...node.data.output, ...preset.output }
-
-      const ok = await commit(
-        [
-          { op: 'addNode', node },
-          { op: 'addEdge', edge: createEdge(source.id, node.id) },
-        ],
-        `应用预设 ${preset.name}`,
-      )
-      if (ok) {
-        select([node.id])
-        inspect(node.id)
-      }
+      await applyImageTool(sourceNodeId, {
+        tool: 'preset',
+        label: preset.name,
+        prompt: preset.promptTemplate,
+        output: preset.output,
+        credits: quoteCredits('lib-image-2', preset.output).credits,
+        parameters: { presetId: preset.id },
+      })
     },
-    [commit, select, inspect],
+    [applyImageTool],
   )
 
   /** 拼接 creates a new stitched image node from the storyboard group. */
@@ -658,11 +708,13 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
               onStitch={stitchGroup}
               onOpenStoryboardConfig={(groupId, anchor) => setStoryboardConfig({ groupId, anchor })}
               selectionMode={selectionMode}
-              onStartVideoSelection={startVideoSelection}
+              onStartVideoSelection={startCanvasSelection}
               onExitVideoSelection={returnFromSelection}
               onSelectCanvasCandidate={selectCanvasCandidate}
               onRemoveVideoReference={removeVideoReference}
               onLocateNode={locateNode}
+              onOpenImageStyle={openImageStyle}
+              onApplyImageTool={(sourceNodeId, request) => void applyImageTool(sourceNodeId, request)}
             />
             {!selectionMode && <PresenceLayer canvasId={canvasId ?? null} />}
             {!selectionMode && (
@@ -670,6 +722,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
                 onAddNode={addNodeAtViewportCenter}
                 onAutoArrange={() => void commands.autoArrange()}
                 onOpenMaterial={(kind) => {
+                  setMaterialTargetNodeId(null)
                   setMaterialKind(kind)
                   setLeftPanel('material')
                 }}
@@ -681,7 +734,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           <StoryboardView />
         )}
 
-        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && (
+        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && (
           <NodeInspector
             node={inspectedNode}
             job={inspectedJob}
@@ -706,7 +759,10 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       <MaterialPanel
         open={leftPanel === 'material'}
         kind={materialKind}
-        onClose={() => setLeftPanel(null)}
+        onClose={() => {
+          setLeftPanel(null)
+          setMaterialTargetNodeId(null)
+        }}
         onApply={applyMaterial}
       />
       <CharacterPanel open={leftPanel === 'character'} onClose={() => setLeftPanel(null)} onApply={applyCharacter} />

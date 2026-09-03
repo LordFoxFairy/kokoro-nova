@@ -167,8 +167,22 @@ export interface NodeData {
 }
 
 export interface OutputSpec {
-  aspectRatio?: 'auto' | '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
-  quality?: 'standard' | 'high'
+  aspectRatio?:
+    | 'auto'
+    | '21:9'
+    | '9:21'
+    | '16:9'
+    | '9:16'
+    | '5:4'
+    | '4:5'
+    | '4:3'
+    | '3:4'
+    | '3:2'
+    | '2:3'
+    | '2:1'
+    | '1:2'
+    | '1:1'
+  quality?: 'low' | 'standard' | 'high'
   resolution?: '1K' | '2K' | '4K' | 'adaptive' | '480p' | '720p' | '1080p'
   count?: 1 | 2 | 4
   /** Model registries constrain the exact choices; current video models span 5–40 seconds. */

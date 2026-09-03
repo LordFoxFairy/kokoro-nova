@@ -26,11 +26,11 @@ export function ProjectCard({ project, renaming, onRenameCancel, onRenameCommit,
     <article
       data-testid={`project-card-${project.id}`}
       data-grid-kind="project"
-      className="group w-[212px]"
+      className="group w-full"
     >
       <Link
         href={`/canvas?projectId=${encodeURIComponent(project.id)}`}
-        className="flex h-[120px] w-[212px] items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#292929] text-white/20 transition-colors hover:border-white/[0.17]"
+        className="flex h-[120px] w-full items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#292929] text-white/20 transition-colors hover:border-white/[0.17]"
       >
         {project.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -78,11 +78,11 @@ type FolderCardProps = {
 
 export function FolderCard({ folder, renaming, onOpen, onRenameCancel, onRenameCommit, onMenu }: FolderCardProps) {
   return (
-    <article data-testid={`folder-card-${folder.id}`} data-grid-kind="folder" className="group w-[212px]">
+    <article data-testid={`folder-card-${folder.id}`} data-grid-kind="folder" className="group w-full">
       <button
         type="button"
         onClick={onOpen}
-        className="flex h-[120px] w-[212px] items-center justify-center rounded-xl border border-white/[0.08] bg-[#242424] text-white/24 transition-colors hover:border-white/[0.17] hover:bg-[#292929]"
+        className="flex h-[120px] w-full items-center justify-center rounded-xl border border-white/[0.08] bg-[#242424] text-white/24 transition-colors hover:border-white/[0.17] hover:bg-[#292929]"
       >
         <IconFolder size={40} />
       </button>

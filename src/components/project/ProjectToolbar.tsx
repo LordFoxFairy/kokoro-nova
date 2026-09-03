@@ -22,8 +22,8 @@ export function ProjectToolbar({
   onCreateFolder,
 }: ProjectToolbarProps) {
   return (
-    <header data-testid="project-toolbar" className="flex h-[54px] items-center justify-between px-10">
-      <div className="flex items-center gap-3">
+    <header data-testid="project-toolbar" className="flex h-[54px] items-center justify-between pl-[53px] pr-10">
+      <div className="flex items-center gap-4">
         {inFolder ? (
           <button
             type="button"

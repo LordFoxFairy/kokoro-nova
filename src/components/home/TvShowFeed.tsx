@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 
 import { IconSearch } from '@/components/icons'
 import type { HomeDiscoveryResponse } from '@/contracts/home'
@@ -25,7 +26,9 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
 
   return (
     <section aria-labelledby="tv-show-title" className="mt-9 pb-20">
-      <h2 id="tv-show-title" className="px-1 text-[18px] font-semibold tracking-tight text-white">TV Show</h2>
+      <Link href="/showcase" aria-label="公开作品" className="inline-block px-1">
+        <h2 id="tv-show-title" className="text-[18px] font-semibold tracking-tight text-white">TV Show</h2>
+      </Link>
       <div className="mt-5 flex items-center gap-2 border-b border-white/[0.07] pb-3">
         <div className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto">
           {categories.map((item) => (

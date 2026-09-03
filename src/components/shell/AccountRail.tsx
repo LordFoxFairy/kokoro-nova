@@ -43,7 +43,7 @@ export function AccountRail({ account }: AccountRailProps) {
       </RailButton>
       <Link
         href="/account"
-        aria-label="个人中心"
+        aria-label="账户"
         className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-gradient-to-br from-[#e9d8ff] to-[#6872ff] text-[12px] font-bold text-[#20213a]"
       >
         L

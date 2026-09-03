@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 import { IconPlus, IconSend } from '@/components/icons'
 import type { HomeDiscoveryResponse } from '@/contracts/home'
@@ -76,9 +77,9 @@ export function HomeAgentComposer({ skills, submitting = false, onSubmit }: Home
             </button>
           )
         })}
-        <button type="button" aria-label="更多 Skill" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.045] text-white/65 transition-colors hover:bg-white/[0.08]">
+        <Link href="/skills" aria-label="技能库" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.045] text-white/65 transition-colors hover:bg-white/[0.08]">
           ▣
-        </button>
+        </Link>
       </div>
     </section>
   )

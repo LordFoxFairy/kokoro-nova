@@ -184,21 +184,21 @@ export function ProjectListPage() {
 
         <section aria-label="项目列表" className="px-10 pb-16 pt-[26px]">
           {loading ? (
-            <div className="flex w-[890px] justify-center py-20 text-white/35">
+            <div className="flex w-4/5 justify-center py-20 text-white/35">
               <Spinner size={22} />
             </div>
           ) : (
             <>
-              <div className="grid w-[890px] grid-cols-[repeat(4,212px)] gap-x-[14px] gap-y-7">
-                <div data-testid="project-grid-item" className="w-[212px]">
+              <div data-testid="project-grid" className="grid w-4/5 grid-cols-4 gap-x-[14px] gap-y-7">
+                <div data-testid="project-grid-item" className="min-w-0">
                   <button
                     type="button"
                     data-testid="start-create"
                     data-grid-kind="create"
                     onClick={createProject}
-                    className="group w-[212px] text-left"
+                    className="group w-full text-left"
                   >
-                    <span className="flex h-[120px] w-[212px] flex-col items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-[#292929] text-white/80 transition-colors group-hover:border-white/[0.18] group-hover:bg-[#2d2d2d]">
+                    <span className="flex h-[120px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-[#292929] text-white/80 transition-colors group-hover:border-white/[0.18] group-hover:bg-[#2d2d2d]">
                       <IconPlus size={24} className="text-white/40" />
                       <span className="text-[14px] font-medium">开始创作</span>
                     </span>
@@ -207,7 +207,7 @@ export function ProjectListPage() {
                 </div>
 
                 {visibleFolders.map((folder) => (
-                  <div key={folder.id} data-testid="project-grid-item" className="w-[212px]">
+                  <div key={folder.id} data-testid="project-grid-item" className="min-w-0">
                     <FolderCard
                       folder={folder}
                       renaming={renamingId === folder.id}
@@ -228,7 +228,7 @@ export function ProjectListPage() {
                 ))}
 
                 {visibleProjects.map((project) => (
-                  <div key={project.id} data-testid="project-grid-item" className="w-[212px]">
+                  <div key={project.id} data-testid="project-grid-item" className="min-w-0">
                     <ProjectCard
                       project={project}
                       renaming={renamingId === project.id}
@@ -249,10 +249,10 @@ export function ProjectListPage() {
               </div>
 
               {visibleProjects.length === 0 && visibleFolders.length === 0 && normalizedQuery && (
-                <p className="w-[890px] pt-12 text-center text-[12px] text-white/32">没有匹配的项目</p>
+                <p className="w-4/5 pt-12 text-center text-[12px] text-white/32">没有匹配的项目</p>
               )}
               {(visibleProjects.length > 0 || visibleFolders.length > 0) && (
-                <p className="w-[890px] pt-10 text-center text-[12px] text-white/30">没有更多了</p>
+                <p className="w-4/5 pt-10 text-center text-[12px] text-white/30">没有更多了</p>
               )}
             </>
           )}

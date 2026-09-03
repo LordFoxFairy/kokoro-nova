@@ -33,7 +33,7 @@ function ToolGlyph({ tool }: { tool: CreatorTool }) {
 
 export function CreatorToolGrid({ tools, disabled = false, onBlank, onTool }: CreatorToolGridProps) {
   return (
-    <section aria-label="快捷创作" className="grid h-[200px] grid-cols-[2.04fr_repeat(3,minmax(0,1fr))] grid-rows-2 gap-2.5">
+    <section data-testid="creator-tool-grid" aria-label="快捷创作" className="grid h-[200px] grid-cols-[2.04fr_repeat(3,minmax(0,1fr))] grid-rows-2 gap-2.5">
       <button
         type="button"
         data-testid="home-blank-canvas"

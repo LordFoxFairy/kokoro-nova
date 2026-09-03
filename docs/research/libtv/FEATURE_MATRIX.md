@@ -10,12 +10,27 @@
 - `PENDING`：尚未验证。
 - `COST_GATED`：需要真实生成、积分或付费，未获单独授权。
 
+## 本地复刻里程碑
+
+`VERIFIED_LOCAL` 表示该批次已用冻结官网证据、typed mock API、交互 E2E 和
+`1440×900` 本地截图共同验证；它不替代下方对官网未知状态的 `PARTIAL/PENDING` 标记。
+
+| Surface | 本地状态 | 已实现与验证 |
+|---|---|---|
+| 登录态桌面 Shell | `VERIFIED_LOCAL` | 活动条、展开/收起导航、账户操作栏、路由高亮、键盘可达、刷新持久化和内容重排。 |
+| 首页首屏 | `VERIFIED_LOCAL` | 8:1 Banner、大画布入口、六工具、三最近项目、Agent 输入和 TV Show 下折位置。 |
+| 首页发现与启动 | `VERIFIED_LOCAL` | `GET /api/home` typed contract、本地媒体约束、Skill 上下文、分类/搜索及三条创建路径。 |
+| 全部项目 | `VERIFIED_LOCAL` | 四列自适应卡宽、搜索、回收站空态、文件夹、菜单、重命名和强确认删除。 |
+
+几何数据、保留差异和截图配对见
+[`visual/home-project-comparison.md`](visual/home-project-comparison.md)。
+
 ## 入口与账户
 
 | Surface | 能力 | 状态 | 证据/缺口 |
 | --- | --- | --- | --- |
-| 首页 | 活动 Banner、开始创作、Seedance 快速体验 | `PARTIAL` | 首页总览已截图；两种启动后的路由差异待补。 |
-| 首页创作框 | 文本、附件、模型、Skill、生成模式 | `PARTIAL` | 配置、Skill 搜索/空态/添加已截图；真实提交待补。 |
+| 首页 | 活动 Banner、开始创作、Seedance 快速体验 | `PARTIAL` | 官网总览已截图；本地活动、六工具和 intent 启动已验证，官网两种启动后的完整服务端差异待补。 |
+| 首页创作框 | 文本、附件、模型、Skill、生成模式 | `PARTIAL` | 官网配置、Skill 搜索/空态/添加已截图；本地有效草稿与 Skill 上下文创建已验证，官网真实媒体提交待补。 |
 | 首次登录 | 获客问卷 | `PARTIAL` | 第一步已截图，后续步骤未提交。 |
 | 账户菜单 | 身份、UUID、团队、会员、积分、存储、设置 | `OBSERVED` | 登录态展开与亮/暗主题已截图；敏感凭据值不采集。 |
 | 凭据 | Access Key | `PARTIAL` | 入口已确认；出于安全不打开、不截图密钥。 |
@@ -44,8 +59,8 @@
 | Surface | 能力 | 状态 | 证据/缺口 |
 | --- | --- | --- | --- |
 | Workspace | create/list/update/use/unuse | `OFFICIAL` | CLI 契约已确认，Web 管理页待补。 |
-| Project/画布 | create/list/update/use/unuse | `OFFICIAL` | CLI/Web 动作已确认。 |
-| 项目文件夹 | 创建、打开、重命名、删除 | `PARTIAL` | 默认名、空态和强确认删除已实测；重命名会回滚，封面与移动待补。 |
+| Project/画布 | create/list/update/use/unuse | `OFFICIAL` | CLI/Web 动作已确认；本地项目列表、创建、打开、重命名和删除契约已覆盖。 |
+| 项目文件夹 | 创建、打开、重命名、删除 | `PARTIAL` | 官网默认名、空态和强确认删除已实测；本地完整生命周期已覆盖，官网封面与移动仍待补。 |
 | 多画布 | 创建/切换/复制/删除 | `OBSERVED` | 全链路已实测并清理临时画布。 |
 | 视图 | 工作流 / 故事板 | `OBSERVED` | 列映射、视频筛选/展开、媒体详情、Agent 引用和回切已截图。 |
 | 画布导航 | 平移、缩放、小地图、适应、整理、网格 | `PARTIAL` | 控件与快捷键已确认；细节状态待补。 |

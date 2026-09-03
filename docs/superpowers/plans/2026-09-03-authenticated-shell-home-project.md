@@ -20,13 +20,13 @@
 
 ## Invariants
 
-- [ ] No runtime URL points at `liblib.tv`, `liblib.art` or `liblib.cloud`; every rendered image is local.
-- [ ] Components do not import fixture arrays directly; the API route is the boundary.
-- [ ] Existing project create/folder/delete tests keep their stable test IDs and semantics.
-- [ ] Sidebar collapse is keyboard reachable, persists in `localStorage`, and reflows rather than overlays content.
-- [ ] Authenticated shell is dark and scoped; canvas token migration is not smuggled into this batch.
-- [ ] Every new local route is in `LOCAL_API_ROUTES` and `docs/api/openapi.yaml`.
-- [ ] The user-owned untracked `.gitignore` is not staged or edited.
+- [x] No runtime URL points at `liblib.tv`, `liblib.art` or `liblib.cloud`; every rendered image is local.
+- [x] Components do not import fixture arrays directly; the API route is the boundary.
+- [x] Existing project create/folder/delete tests keep their stable test IDs and semantics.
+- [x] Sidebar collapse is keyboard reachable, persists in `localStorage`, and reflows rather than overlays content.
+- [x] Authenticated shell is dark and scoped; canvas token migration is not smuggled into this batch.
+- [x] Every new local route is in `LOCAL_API_ROUTES` and `docs/api/openapi.yaml`.
+- [x] The user-owned untracked `.gitignore` is not staged or edited.
 
 ---
 
@@ -358,15 +358,15 @@ git commit -m "feat: replicate LibTV project manager"
 - Create: `docs/research/libtv/visual/home-project-comparison.md`
 - Modify: `docs/research/libtv/FEATURE_MATRIX.md`
 
-- [ ] **Step 1: Add bounding-box assertions from official evidence**
+- [x] **Step 1: Add bounding-box assertions from official evidence**
 
 Use tolerances rather than hard-coded pixels for dynamic text: sidebar ±2px, banner ±4px, content origin ±4px, creator grid and project grid ±8px.
 
-- [ ] **Step 2: Inspect official/local screenshots side by side**
+- [x] **Step 2: Inspect official/local screenshots side by side**
 
 Record remaining differences in layout, typography, color, crop, state or interaction. Fix all high-salience differences in this batch; defer only canvas/video-specific gaps.
 
-- [ ] **Step 3: Run the full gate**
+- [x] **Step 3: Run the full gate**
 
 ```bash
 pnpm typecheck
@@ -378,7 +378,7 @@ pnpm e2e
 
 Expected: every command exits 0; only the intentionally opt-in production suite is skipped.
 
-- [ ] **Step 4: Check remote dependency and placeholder drift**
+- [x] **Step 4: Check remote dependency and placeholder drift**
 
 ```bash
 grep -RInE 'https?://(www\.)?liblib|liblib\.cloud|liblib\.art' src public || true
@@ -386,7 +386,7 @@ grep -RInE 'TODO|TBD|placeholder' src/components/home src/components/project src
 git diff --check
 ```
 
-- [ ] **Step 5: Commit verification record**
+- [x] **Step 5: Commit verification record**
 
 ```bash
 git add docs/research/libtv/visual docs/research/libtv/FEATURE_MATRIX.md e2e/home-project.spec.ts

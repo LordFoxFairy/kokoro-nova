@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-03",
+  "sourcePage": "https://www.liblib.tv/",
+  "usage": "Local visual fixtures for the frontend replica; provenance is retained per asset.",
+  "assets": [
+    {
+      "id": "home-theatre-banner",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/home/theatre-banner.webp",
+      "sourceUrl": "https://liblibai-online.liblib.cloud/banner/1787644396291.webp",
+      "width": 4000,
+      "height": 500,
+      "surface": "home",
+      "purpose": "authenticated home hero banner",
+      "evidence": "observed"
+    },
+    {
+      "id": "showcase-cloud-palace",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/showcase/cloud-palace.webp",
+      "sourceUrl": "https://libtv-res.liblib.art/upload-images/785ad06f390049d4837e32aece721659/e3b2da6f0453dc4c19b569613aaf760d451212f0.png?x-oss-process=image/resize,w_900,m_lfit/format,webp",
+      "width": 900,
+      "height": 506,
+      "surface": "showcase",
+      "purpose": "public TV Show card cover",
+      "evidence": "observed"
+    },
+    {
+      "id": "showcase-childhood-memoir",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/showcase/childhood-memoir.webp",
+      "sourceUrl": "https://libtv-res.liblib.art/upload-images/8bacb97bf9194011af0cba57e6e9decd/4439065306b971ab62cc6406af11a7280e509bc6.jpg?x-oss-process=image/resize,w_900,m_lfit/format,webp",
+      "width": 900,
+      "height": 506,
+      "surface": "showcase",
+      "purpose": "public TV Show card cover",
+      "evidence": "observed"
+    },
+    {
+      "id": "showcase-work-diary",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/showcase/work-diary.webp",
+      "sourceUrl": "https://libtv-res.liblib.art/upload-images/363091d9e344437c8535f7ab75440483/75557d9dc83bb65f4b96367790f037545c56ba35.png?x-oss-process=image/resize,w_900,m_lfit/format,webp",
+      "width": 900,
+      "height": 506,
+      "surface": "showcase",
+      "purpose": "public TV Show card cover",
+      "evidence": "observed"
+    },
+    {
+      "id": "showcase-shanghai-chronicle",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/showcase/shanghai-chronicle.webp",
+      "sourceUrl": "https://libtv-res.liblib.art/upload-images/e475dfaf6e0a472f99fb3c4d65f06b14/9963a09026086403a6dfbc7ac55b500b23b2ac17.png?x-oss-process=image/resize,w_900,m_lfit/format,webp",
+      "width": 900,
+      "height": 504,
+      "surface": "showcase",
+      "purpose": "public TV Show card cover",
+      "evidence": "observed"
+    },
+    {
+      "id": "showcase-dust-skeleton",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/showcase/dust-skeleton.webp",
+      "sourceUrl": "https://libtv-res.liblib.art/upload-images/57d6894524b04e64a67a3b58f19d3f01/0cdf3c2e10e07d1e5ecd7c8b47b37de14e398030.jpg?x-oss-process=image/resize,w_900,m_lfit/format,webp",
+      "width": 900,
+      "height": 504,
+      "surface": "showcase",
+      "purpose": "public TV Show card cover",
+      "evidence": "observed"
+    },
+    {
+      "id": "showcase-wash-white",
+      "kind": "image",
+      "localPath": "/fixtures/libtv/showcase/wash-white.webp",
+      "sourceUrl": "https://libtv-res.liblib.art/upload-images/0c3a6c0307af4038811f8a7d3e947286/bf3ee2128bda42a5b70dea70344f70bd23ece56d.png?x-oss-process=image/resize,w_900,m_lfit/format,webp",
+      "width": 900,
+      "height": 506,
+      "surface": "showcase",
+      "purpose": "public TV Show card cover",
+      "evidence": "observed"
+    }
+  ]
+}

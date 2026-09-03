@@ -21,9 +21,13 @@
 | 首页首屏 | `VERIFIED_LOCAL` | 8:1 Banner、大画布入口、六工具、三最近项目、Agent 输入和 TV Show 下折位置。 |
 | 首页发现与启动 | `VERIFIED_LOCAL` | `GET /api/home` typed contract、本地媒体约束、Skill 上下文、分类/搜索及三条创建路径。 |
 | 全部项目 | `VERIFIED_LOCAL` | 四列自适应卡宽、搜索、回收站空态、文件夹、菜单、重命名和强确认删除。 |
+| 画布 Shell 与空态 | `VERIFIED_LOCAL` | 深色独立 token、顶部身份/账户轨、底部工具/状态轨、四启动卡、可访问名称与键盘关闭。 |
+| 工作流图 | `VERIFIED_LOCAL` | 保存 viewport、媒体主导节点、尺寸标注、20px 悬浮端口、细贝塞尔边、选中态与既有编辑回归。 |
+| 故事板布局 | `VERIFIED_LOCAL` | 动态文本/音频左轨、图片/视频列、筛选/展开、Agent 340px 重排、剪辑入口与同文档不写入切换。 |
 
 几何数据、保留差异和截图配对见
-[`visual/home-project-comparison.md`](visual/home-project-comparison.md)。
+[`visual/home-project-comparison.md`](visual/home-project-comparison.md) 与
+[`visual/canvas-workflow-comparison.md`](visual/canvas-workflow-comparison.md)。
 
 ## 入口与账户
 

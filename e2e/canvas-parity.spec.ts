@@ -53,7 +53,9 @@ async function expectVisualBaseline(page: Page, name: string) {
     animations: 'disabled',
     caret: 'hide',
     scale: 'css',
-    maxDiffPixelRatio: 0.001,
+    // 1440×900 gives a 129-pixel budget. The former 0.1% threshold let
+    // changed metadata and a resized action control slip through together.
+    maxDiffPixelRatio: 0.0001,
   })
 }
 

@@ -17,6 +17,8 @@
 6. 在 `references/` 查看官方 Skills、OpenAPI、ComfyUI 和 NovaVideo 对照研究。
 7. Video 节点当前实现与官网几何、模型联动的逐项对照见
    [`visual/video-model-editor-comparison.md`](visual/video-model-editor-comparison.md)。
+8. 公开 TV Show、Skill、账户三条发现路径的当前实现缺口与收敛顺序见
+   [`visual/2026-09-04-public-discovery-fidelity-audit.md`](visual/2026-09-04-public-discovery-fidelity-audit.md)。
 
 完整覆盖状态统一查看 [FEATURE_MATRIX.md](FEATURE_MATRIX.md)，不要仅凭页面有截图就判断能力已完成。
 

@@ -14,6 +14,7 @@ import type {
   Project,
   Space,
 } from '@/domain/types'
+import { __resetScriptV2Runs } from './script-v2'
 
 /**
  * File-backed workspace store.
@@ -162,6 +163,7 @@ export function invalidateCache() {
 }
 
 export async function resetStore(scenarioId?: ScenarioId) {
+  __resetScriptV2Runs()
   const selected = scenarioId === undefined ? await activeScenarioId() : ScenarioIdSchema.parse(scenarioId)
   const next = buildScenario(selected)
   await ensureDirs()

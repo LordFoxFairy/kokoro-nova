@@ -12,7 +12,11 @@ export function ok<T>(data: T, init?: ResponseInit) {
   return NextResponse.json(data, init)
 }
 
-export async function parseJsonBody<T>(request: Request, schema: ZodType<T>): Promise<T> {
+export async function parseJsonBody<T>(
+  request: Request,
+  schema: ZodType<T>,
+  options: { validationStatus?: number } = {},
+): Promise<T> {
   let body: unknown
   try {
     body = await request.json()
@@ -25,7 +29,10 @@ export async function parseJsonBody<T>(request: Request, schema: ZodType<T>): Pr
 
   const issue = parsed.error.issues[0]
   const field = issue?.path.length ? issue.path.join('.') : 'body'
-  throw new HttpError(400, `${field}: ${issue?.message ?? '请求参数不合法'}`)
+  throw new HttpError(
+    options.validationStatus ?? 400,
+    `${field}: ${issue?.message ?? '请求参数不合法'}`,
+  )
 }
 
 /** Uniform error envelope so the client can render a toast without guessing. */

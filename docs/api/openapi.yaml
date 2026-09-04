@@ -67,6 +67,10 @@
     {
       "name": "Development",
       "description": "确定性 fixture 控制"
+    },
+    {
+      "name": "Script V2",
+      "description": "三阶段脚本、资产与双轨提示词本地任务"
     }
   ],
   "paths": {
@@ -4186,6 +4190,347 @@
           }
         }
       }
+    },
+    "/api/script-v2/quotes": {
+      "post": {
+        "tags": [
+          "Script V2"
+        ],
+        "summary": "计算 Script V2 本地报价",
+        "operationId": "quoteScriptV2",
+        "x-ui-triggers": [
+          "脚本生成、提示词重算或 AI 资产生成前展示报价"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptV2QuoteRequest"
+              },
+              "examples": {
+                "fixture": {
+                  "$ref": "#/components/examples/ScriptV2QuoteRequestExample"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptV2QuoteResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ScriptV2QuoteResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求 JSON 不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求字段不符合 Script V2 契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-libtv-upstream": {
+          "path": "/api/task/generation/power/calculator",
+          "evidence": "network-confirmed",
+          "mapping": "本地规范化为无账本副作用的确定性报价。"
+        }
+      }
+    },
+    "/api/script-v2/runs": {
+      "post": {
+        "tags": [
+          "Script V2"
+        ],
+        "summary": "提交幂等 Script V2 本地任务",
+        "operationId": "createScriptV2Run",
+        "x-ui-triggers": [
+          "脚本生成、资产识别、提示词智能合成或 AI 资产生成"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScriptV2RunRequest"
+              },
+              "examples": {
+                "fixture": {
+                  "$ref": "#/components/examples/CreateScriptV2RunRequestExample"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptV2RunResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ScriptV2RunResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求 JSON 不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求字段不符合 Script V2 契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "idempotencyKey 已绑定不同请求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-libtv-upstream": {
+          "paths": [
+            "/api/task/generation/create",
+            "/api/canvas/nodes/batch"
+          ],
+          "evidence": "shape-confirmed",
+          "mapping": "本地 run 只保存严格校验的 fixture input/result；画布持久化仍走 revision mutation。"
+        }
+      }
+    },
+    "/api/script-v2/runs/{runId}": {
+      "get": {
+        "tags": [
+          "Script V2"
+        ],
+        "summary": "轮询 Script V2 本地任务",
+        "operationId": "getScriptV2Run",
+        "x-ui-triggers": [
+          "Script V2 任务进度轮询与刷新恢复"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Script V2 本地逻辑任务标识"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptV2RunResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ScriptV2RunResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "任务不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Script V2"
+        ],
+        "summary": "取消或重试 Script V2 本地任务",
+        "operationId": "transitionScriptV2Run",
+        "x-ui-triggers": [
+          "取消或重试 Script V2 任务"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Script V2 本地逻辑任务标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionScriptV2RunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptV2RunResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ScriptV2RunResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求 JSON 不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求字段不符合 Script V2 契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "任务不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "当前终态与请求动作不兼容",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4742,7 +5087,7 @@
       },
       "NodeExtra": {
         "type": "object",
-        "description": "各节点共享的扩展袋；列出 Video、Image、Audio 与 Text 稳定字段并保留其他节点的未知扩展。",
+        "description": "各节点共享的扩展袋；列出 Video、Image、Audio、Text 与 Script V2 稳定字段并保留其他节点的未知扩展。",
         "properties": {
           "advanced": {
             "$ref": "#/components/schemas/VideoAdvancedSettings"
@@ -4793,6 +5138,9 @@
           },
           "textAuthoring": {
             "$ref": "#/components/schemas/TextAuthoringState"
+          },
+          "scriptV2": {
+            "$ref": "#/components/schemas/ScriptV2State"
           }
         },
         "additionalProperties": true
@@ -7491,6 +7839,1112 @@
           }
         },
         "additionalProperties": false
+      },
+      "ScriptV2Operation": {
+        "type": "string",
+        "enum": [
+          "generate-full",
+          "recognize-assets-only",
+          "recompute-prompts",
+          "generate-asset"
+        ]
+      },
+      "ScriptV2EntityRef": {
+        "type": "object",
+        "required": [
+          "text",
+          "assetId"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2CharacterRef": {
+        "type": "object",
+        "required": [
+          "characterName",
+          "characterAssetId",
+          "characterDescription",
+          "characterImageUrl"
+        ],
+        "properties": {
+          "characterName": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "characterAssetId": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "characterDescription": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "characterImageUrl": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2DialogueLine": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "characterRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "voiceover",
+              "speech"
+            ]
+          },
+          "entityRefs": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2EntityRef"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2MediaVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "url": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2Row": {
+        "type": "object",
+        "required": [
+          "id",
+          "hiddenUuid",
+          "shotNumber",
+          "durationSeconds",
+          "plotDescription",
+          "characters",
+          "shotSize",
+          "emotion",
+          "sceneAssetIds",
+          "propTags",
+          "propAssetIds",
+          "lightingAndAtmosphere",
+          "audioEffects",
+          "dialogue",
+          "imageGenerationPrompt",
+          "videoMotionPrompt",
+          "imageToVideoMotionPrompt",
+          "imageVersions",
+          "videoVersions",
+          "colorLabel",
+          "imagePromptState",
+          "videoPromptState",
+          "textHash",
+          "payloadHash"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "hiddenUuid": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "shotNumber": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 15
+          },
+          "plotDescription": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "plotDescriptionEntityRefs": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2EntityRef"
+            }
+          },
+          "characters": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2CharacterRef"
+            }
+          },
+          "videoReference": {
+            "type": "object",
+            "required": [
+              "startTime",
+              "endTime",
+              "referenceFrameImage"
+            ],
+            "properties": {
+              "startTime": {
+                "type": "number",
+                "minimum": 0
+              },
+              "endTime": {
+                "type": "number",
+                "minimum": 0
+              },
+              "referenceFrameImage": {
+                "type": "string",
+                "maxLength": 4000
+              }
+            },
+            "additionalProperties": false
+          },
+          "cinematics": {
+            "type": "object",
+            "properties": {
+              "shotSize": {
+                "type": "string",
+                "enum": [
+                  "大远景",
+                  "远景",
+                  "全景",
+                  "中远景",
+                  "中景",
+                  "中近景",
+                  "近景",
+                  "特写",
+                  "大特写",
+                  "头肩景",
+                  "半身景",
+                  "全身景"
+                ]
+              },
+              "cameraMovement": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "lighting": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            "additionalProperties": false
+          },
+          "shotSize": {
+            "type": "string",
+            "enum": [
+              "大远景",
+              "远景",
+              "全景",
+              "中远景",
+              "中景",
+              "中近景",
+              "近景",
+              "特写",
+              "大特写",
+              "头肩景",
+              "半身景",
+              "全身景"
+            ]
+          },
+          "emotion": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "sceneAssetIds": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "propTags": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "propAssetIds": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "lightingAndAtmosphere": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "audioEffects": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "dialogue": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "dialogueLines": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2DialogueLine"
+            }
+          },
+          "voiceover": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "bgm": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "sfx": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "imageGenerationPrompt": {
+            "type": "string",
+            "maxLength": 40000
+          },
+          "videoMotionPrompt": {
+            "type": "string",
+            "maxLength": 40000
+          },
+          "finalImagePromptEntityRefs": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2EntityRef"
+            }
+          },
+          "finalVideoPromptEntityRefs": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2EntityRef"
+            }
+          },
+          "imageToVideoMotionPrompt": {
+            "type": "string",
+            "maxLength": 40000
+          },
+          "userEditedImageToVideoMotionPrompt": {
+            "type": "string",
+            "maxLength": 40000
+          },
+          "imageVersions": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2MediaVersion"
+            }
+          },
+          "videoVersions": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2MediaVersion"
+            }
+          },
+          "colorLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "red",
+              "yellow",
+              "green",
+              "blue",
+              "gray",
+              null
+            ]
+          },
+          "imagePromptState": {
+            "type": "string",
+            "enum": [
+              "none",
+              "synced",
+              "stale",
+              "generating",
+              "user_edited",
+              "user_edited_stale"
+            ]
+          },
+          "videoPromptState": {
+            "type": "string",
+            "enum": [
+              "none",
+              "synced",
+              "stale",
+              "generating",
+              "user_edited",
+              "user_edited_stale"
+            ]
+          },
+          "textHash": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "payloadHash": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2AssetGenerationSettings": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "prompt",
+          "quality",
+          "resolution",
+          "aspectRatio"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "standard",
+              "high"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "1K",
+              "2K",
+              "4K"
+            ]
+          },
+          "aspectRatio": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2Asset": {
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "name",
+          "description",
+          "source",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "character",
+              "scene",
+              "prop"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "canvas",
+              "upload",
+              "library"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "generating",
+              "ready",
+              "failed",
+              "lost"
+            ]
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "linkedNodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sourceImageRef": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "compliance": {
+            "type": "object",
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "reject",
+                  "pending",
+                  "expired",
+                  "unknown"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 4000
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          },
+          "generation": {
+            "$ref": "#/components/schemas/ScriptV2AssetGenerationSettings"
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2Assets": {
+        "type": "object",
+        "required": [
+          "characters",
+          "scenes",
+          "props"
+        ],
+        "properties": {
+          "characters": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2Asset"
+            }
+          },
+          "scenes": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2Asset"
+            }
+          },
+          "props": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2Asset"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2State": {
+        "type": "object",
+        "required": [
+          "version",
+          "identitySeed",
+          "nextRowOrdinal",
+          "nextAssetOrdinal",
+          "entry",
+          "activeStage",
+          "title",
+          "originalStoryText",
+          "styleDescription",
+          "rows",
+          "assets",
+          "generator",
+          "promptComposer",
+          "promptBatchRuns"
+        ],
+        "properties": {
+          "version": {
+            "const": 1
+          },
+          "identitySeed": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "nextRowOrdinal": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nextAssetOrdinal": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "entry": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "screenplay",
+              "character",
+              "manual",
+              null
+            ]
+          },
+          "activeStage": {
+            "type": "string",
+            "enum": [
+              "shots",
+              "assets",
+              "prompts"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "originalStoryText": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "styleDescription": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000
+          },
+          "rows": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2Row"
+            }
+          },
+          "assets": {
+            "$ref": "#/components/schemas/ScriptV2Assets"
+          },
+          "generator": {
+            "type": "object",
+            "required": [
+              "modelId",
+              "prompt",
+              "translating",
+              "referenceIds",
+              "status",
+              "error"
+            ],
+            "properties": {
+              "modelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "prompt": {
+                "type": "string",
+                "maxLength": 40000
+              },
+              "translating": {
+                "type": "boolean"
+              },
+              "referenceIds": {
+                "type": "array",
+                "maxItems": 500,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "idle",
+                  "generating",
+                  "failed"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 4000
+              }
+            },
+            "additionalProperties": false
+          },
+          "promptComposer": {
+            "type": "object",
+            "required": [
+              "singleMode",
+              "batchMode",
+              "modelId"
+            ],
+            "properties": {
+              "singleMode": {
+                "type": "string",
+                "enum": [
+                  "smart",
+                  "auto"
+                ]
+              },
+              "batchMode": {
+                "type": "string",
+                "enum": [
+                  "smart",
+                  "auto"
+                ]
+              },
+              "modelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "additionalProperties": false
+          },
+          "promptBatchRuns": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2QuoteRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "operation",
+              "modelId"
+            ],
+            "properties": {
+              "operation": {
+                "const": "generate-full"
+              },
+              "modelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "operation",
+              "modelId"
+            ],
+            "properties": {
+              "operation": {
+                "const": "recognize-assets-only"
+              },
+              "modelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "operation",
+              "modelId",
+              "shotCount"
+            ],
+            "properties": {
+              "operation": {
+                "const": "recompute-prompts"
+              },
+              "modelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "shotCount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "operation",
+              "modelId",
+              "assetCount",
+              "quality",
+              "resolution",
+              "aspectRatio"
+            ],
+            "properties": {
+              "operation": {
+                "const": "generate-asset"
+              },
+              "modelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "assetCount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1500
+              },
+              "quality": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "standard",
+                  "high"
+                ]
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "1K",
+                  "2K",
+                  "4K"
+                ]
+              },
+              "aspectRatio": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 30
+              }
+            },
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "operation"
+        }
+      },
+      "ScriptV2Quote": {
+        "type": "object",
+        "required": [
+          "id",
+          "operation",
+          "credits",
+          "priceVersion",
+          "expiresAt",
+          "breakdown"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "operation": {
+            "$ref": "#/components/schemas/ScriptV2Operation"
+          },
+          "credits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "priceVersion": {
+            "const": "script-v2-local-1"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "breakdown": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "credits"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "credits": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2QuoteResponse": {
+        "type": "object",
+        "required": [
+          "quote"
+        ],
+        "properties": {
+          "quote": {
+            "$ref": "#/components/schemas/ScriptV2Quote"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateScriptV2RunRequest": {
+        "type": "object",
+        "required": [
+          "idempotencyKey",
+          "canvasId",
+          "nodeId",
+          "operation",
+          "input"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "canvasId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "operation": {
+            "$ref": "#/components/schemas/ScriptV2Operation"
+          },
+          "input": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "input 由 operation 判别；完整约束以 src/contracts/script-v2.ts 的 Zod 判别联合为准。"
+      },
+      "ScriptV2Run": {
+        "type": "object",
+        "required": [
+          "id",
+          "idempotencyKey",
+          "canvasId",
+          "nodeId",
+          "operation",
+          "input",
+          "status",
+          "attempt",
+          "progress",
+          "quote",
+          "inputFingerprint",
+          "result",
+          "error",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "canvasId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "operation": {
+            "$ref": "#/components/schemas/ScriptV2Operation"
+          },
+          "input": {
+            "type": "object"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "quote": {
+            "$ref": "#/components/schemas/ScriptV2Quote"
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "result": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "description": "operation 同时判别 input 与 result；succeeded 必须有同 operation 结果，其余状态 result 为 null。"
+      },
+      "ScriptV2RunResponse": {
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/ScriptV2Run"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TransitionScriptV2RunRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel",
+              "retry"
+            ]
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {
@@ -7883,6 +9337,30 @@
       "TextStarterMusicRequestExample": {
         "summary": "原子创建 Text -> Audio 音乐预设",
         "externalValue": "./examples/canvas-text-starter-music.request.json"
+      },
+      "ScriptV2StateExample": {
+        "summary": "Script V2 完整持久化状态",
+        "externalValue": "./examples/script-v2-state.json"
+      },
+      "ScriptV2QuoteRequestExample": {
+        "summary": "AI 资产生成报价",
+        "externalValue": "./examples/script-v2-quote.request.json"
+      },
+      "ScriptV2QuoteResponseExample": {
+        "summary": "确定性本地报价",
+        "externalValue": "./examples/script-v2-quote.response.json"
+      },
+      "CreateScriptV2RunRequestExample": {
+        "summary": "提交幂等 Script V2 任务",
+        "externalValue": "./examples/script-v2-run.request.json"
+      },
+      "ScriptV2RunResponseExample": {
+        "summary": "Script V2 成功任务",
+        "externalValue": "./examples/script-v2-run.response.json"
+      },
+      "OfficialScriptV2RecomputeEvidenceExample": {
+        "summary": "脱敏官网提示词重算协议证据",
+        "externalValue": "./examples/script-v2-official-recompute.sanitized.json"
       }
     }
   },

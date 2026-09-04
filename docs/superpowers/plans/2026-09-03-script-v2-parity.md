@@ -318,40 +318,40 @@ git commit -m "feat: add deterministic script v2 engine"
 - Produces: `transitionScriptV2Run(runId, action): ScriptV2Run`.
 - Consumes: typed schemas and deterministic operations from Tasks 3–4.
 
-- [ ] **Step 1: Write failing quote tests**
+- [x] **Step 1: Write failing quote tests**
 
 Lock costs: initial script 6, prompt recompute 6 per 20-shot batch, default Lib Image asset 18 per selected asset; assert identical requests return identical quote ids and quote expiry is based on the fixture clock.
 
-- [ ] **Step 2: Implement quote calculation with no ledger mutation**
+- [x] **Step 2: Implement quote calculation with no ledger mutation**
 
 Quote response includes `credits`, `priceVersion: 'script-v2-local-1'`, breakdown and ISO expiry. It never reserves or settles credits.
 
-- [ ] **Step 3: Write failing run lifecycle/idempotency tests**
+- [x] **Step 3: Write failing run lifecycle/idempotency tests**
 
 Assert `queued → running → succeeded`, same `idempotencyKey` returns the same run, cancel is terminal, retry creates attempt 2 with the same logical run id, and malformed result cannot enter storage.
 
-- [ ] **Step 4: Implement run repository and fixed poll progression**
+- [x] **Step 4: Implement run repository and fixed poll progression**
 
 Progress is 0 on create, 48 on first poll and 100 with result on second poll. Store only sanitized local input and operation-specific result. Export `__resetScriptV2Runs()` for tests and scenario reset.
 
-- [ ] **Step 5: Implement Route Handlers using `parseJsonBody` and `handle`**
+- [x] **Step 5: Implement Route Handlers using `parseJsonBody` and `handle`**
 
 Return 404 for unknown run, 409 for transitions from an incompatible terminal state and 422 for contract failures.
 
-- [ ] **Step 6: Register exact route manifest entries**
+- [x] **Step 6: Register exact route manifest entries**
 
 Add tag `Script V2` and operationIds `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run` with observed UI triggers.
 
-- [ ] **Step 7: Run server tests**
+- [x] **Step 7: Run server tests**
 
 Run: `pnpm vitest run src/server/__tests__/script-v2.test.ts`
 
-Expected: PASS. Route manifest registration moves to Task 12 with its matching OpenAPI paths, so no intermediate commit knowingly leaves the parity suite red.
+Expected: PASS. Register the manifest and matching OpenAPI paths together in this task so the parity suite remains green; Task 12 expands the schemas and handoff documentation.
 
-- [ ] **Step 8: Commit Task 5 without weakening the OpenAPI parity assertion**
+- [x] **Step 8: Commit Task 5 without weakening the OpenAPI parity assertion**
 
 ```bash
-git add src/server/script-v2.ts src/server/__tests__/script-v2.test.ts src/app/api/script-v2
+git add src/server/script-v2.ts src/server/__tests__/script-v2.test.ts src/server/http.ts src/server/store.ts src/app/api/script-v2 src/contracts/route-manifest.ts docs/api/openapi.yaml
 git commit -m "feat: add script v2 mock task api"
 ```
 

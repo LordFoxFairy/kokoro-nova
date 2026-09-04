@@ -54,6 +54,19 @@ pnpm e2e:ui
 pnpm build && pnpm start   # start 同样是 3200
 ```
 
+### Docker / GHCR
+
+仓库已配置 GitHub Actions 容器发布：推送 `v*` tag 且类型检查、Lint、测试和生产构建全部
+通过后，会自动将公开镜像发布到
+[`ghcr.io/lordfoxfairy/kokoro-nova`](https://github.com/LordFoxFairy/kokoro-nova/pkgs/container/kokoro-nova)。
+完整的 tag、版本和本地运行说明见 [`docs/CONTAINER.md`](docs/CONTAINER.md)。
+
+```bash
+docker pull ghcr.io/lordfoxfairy/kokoro-nova:latest
+docker run --rm -p 3200:3200 -v kokoro-nova-data:/app/.data \
+  ghcr.io/lordfoxfairy/kokoro-nova:latest
+```
+
 两套测试的边界由 `vitest.config.ts` 的 `include: ['src/**/*.test.ts']` 划开：`pnpm test` 只跑 `src/domain/__tests__/` 下的纯领域单测（`mutations` / `compile` / `models` / `storyboard`），`e2e/` 归 Playwright。改配置时别把这条 include 放宽，否则 vitest 会把 Playwright 的 spec 收进来并在 `test()` 调用处崩掉。
 
 ### 本地数据

@@ -4,6 +4,7 @@ import {
   generationStatusLabel,
   latestJobForNode,
   mergeNodeData,
+  regenerationStatusError,
   regenerationStatusForJob,
   cycleFocusIndex,
   mediaAspectRatio,
@@ -57,6 +58,15 @@ describe('storyboard regeneration helpers', () => {
     expect(generationStatusLabel('queued')).toBe('排队中')
     expect(generationStatusLabel('running')).toBe('生成中')
     expect(generationStatusLabel('compliance_blocked')).toBe('合规阻断')
+  })
+
+  it('uses storyboard recovery copy instead of the workflow error for compliance blocks', () => {
+    expect(
+      regenerationStatusError(
+        job('node_video_01', 'job_compliance', 'compliance_blocked', '2026-09-04T10:00:00.000Z'),
+        '素材合规校验未通过',
+      ),
+    ).toContain('未通过合规检查')
   })
 
   it('merges parameter patches without dropping unrelated workflow extras', () => {

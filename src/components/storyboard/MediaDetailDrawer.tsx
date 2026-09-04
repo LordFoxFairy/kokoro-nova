@@ -114,6 +114,22 @@ export function regenerationStatusForJob(job: GenerationJob | null): Regeneratio
   return 'failed'
 }
 
+const COMPLIANCE_RECOVERY_COPY = '该内容未通过合规检查，请调整提示词或参考元素后重试。'
+
+/** Keep workflow/provider reasons while ensuring the drawer exposes its recovery action copy. */
+export function regenerationStatusError(
+  job: Pick<GenerationJob, 'status' | 'error'> | null,
+  error: string | null,
+): string | null {
+  if (job?.status === 'compliance_blocked') {
+    const reason = job.error ?? error
+    if (!reason) return COMPLIANCE_RECOVERY_COPY
+    if (reason.includes('未通过合规检查')) return reason
+    return `${COMPLIANCE_RECOVERY_COPY}（${reason}）`
+  }
+  return error ?? job?.error ?? null
+}
+
 export function cycleFocusIndex(currentIndex: number, count: number, backwards: boolean): number {
   if (count <= 0) return -1
   if (backwards) return currentIndex <= 0 ? count - 1 : currentIndex - 1
@@ -1116,10 +1132,7 @@ function RegenerationFooter({
 }) {
   const busy = action !== null
   const quote = job?.quote.credits ?? cost
-  const statusError =
-    error ??
-    job?.error ??
-    (job?.status === 'compliance_blocked' ? '该内容未通过合规检查，请调整提示词或参考元素后重试。' : null)
+  const statusError = regenerationStatusError(job, error)
 
   return (
     <div data-testid="detail-regeneration" aria-live="polite" className="space-y-2.5">
@@ -1215,7 +1228,7 @@ function RegenerationFooter({
       {status === 'compliance_blocked' && (
         <div data-testid="detail-regeneration-compliance" className="flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/8 px-3 py-2.5 text-[11px] text-amber-700">
           <IconWarning size={14} className="mt-px shrink-0" />
-          <span>{statusError ?? '该内容未通过合规检查，请调整提示词或参考元素后重试。'}</span>
+          <span>{statusError ?? COMPLIANCE_RECOVERY_COPY}</span>
         </div>
       )}
 

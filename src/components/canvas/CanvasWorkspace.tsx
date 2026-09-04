@@ -57,6 +57,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const load = useEditor((s) => s.load)
   const loading = useEditor((s) => s.loading)
   const viewMode = useEditor((s) => s.viewMode)
+  const loadedCanvasId = useEditor((s) => s.canvasId)
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
   const leftPanel = useEditor((s) => s.leftPanel)
@@ -687,6 +688,16 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   )
 
   const studioNode = document.nodes.find((n) => n.id === studioNodeId) ?? null
+  const scriptV2CanvasImages = document.nodes.flatMap((node) => {
+    const artifact = node.data.artifacts?.find((candidate) => candidate.kind === 'image')
+    if (!artifact) return []
+    return [{
+      nodeId: node.id,
+      name: node.name,
+      url: artifact.thumbnailUrl ?? artifact.url,
+      artifactId: artifact.id,
+    }]
+  })
   const inspectedNode = document.nodes.find((n) => n.id === inspectedNodeId) ?? null
   const inspectedJob = inspectedNode?.data.jobId
     ? jobs.find((j) => j.id === inspectedNode.data.jobId) ?? null
@@ -838,6 +849,9 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 
       <ScriptV2Workspace
         open={studioNode?.type === 'script'}
+        canvasId={loadedCanvasId ?? canvasId ?? 'canvas_local'}
+        nodeId={studioNode?.id ?? 'script_local'}
+        canvasImages={scriptV2CanvasImages}
         nodeName={studioNode?.name ?? '脚本 V2'}
         state={studioNode?.type === 'script' ? readScriptV2State(studioNode.data.extra, studioNode.id) : null}
         onStateChange={(state, label) =>
@@ -845,6 +859,10 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
             ? persistScriptV2State(studioNode.id, state, label)
             : undefined
         }
+        onLocateNode={(nodeId) => {
+          setStudioNodeId(null)
+          window.requestAnimationFrame(() => locateNode(nodeId))
+        }}
         onClose={() => setStudioNodeId(null)}
       />
 

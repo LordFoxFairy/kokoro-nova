@@ -506,35 +506,35 @@ git commit -m "feat: reproduce script v2 shot workspace"
 - Produces: grouped asset stage and source/AI/batch/delete dialogs.
 - Consumes: local assets client, canvas node candidates, Image model catalog and Script run hook.
 
-- [ ] **Step 1: Add failing grouped-asset/source-dialog test**
+- [x] **Step 1: Add failing grouped-asset/source-dialog test**
 
 Assert `角色 / 场景 / 道具`, add action per section, immediate pending card, and exact source order `AI生成 / 从当前画布选择 / 本地上传 / 个人资产库`.
 
-- [ ] **Step 2: Implement pending-first creation and source dialog**
+- [x] **Step 2: Implement pending-first creation and source dialog**
 
 Closing the source dialog leaves the pending card. `下一步` shows `0/1 已生成、还差 1 个` and remains disabled; direct stage 3 navigation remains possible.
 
-- [ ] **Step 3: Add failing AI form and quote test**
+- [x] **Step 3: Add failing AI form and quote test**
 
 Assert defaults `Lib Image / 标准 / 2K / 2:1 / 18`, model-dependent choices, prompt-required submit and generated ready preview.
 
-- [ ] **Step 4: Implement AI, canvas, upload and library sources**
+- [x] **Step 4: Implement AI, canvas, upload and library sources**
 
 AI calls local Script run; canvas creates linkedNodeId; upload stores object URL metadata; library reads local `/api/assets`. All produce ready state without external network.
 
-- [ ] **Step 5: Add failing asset card/menu/delete-impact tests**
+- [x] **Step 5: Add failing asset card/menu/delete-impact tests**
 
 Cover detail edit, choose image, AI generation, locate disabled/enabled, clear, save disabled/enabled, and both delete modes with prompt staleness.
 
-- [ ] **Step 6: Implement card menu and reference reconciliation**
+- [x] **Step 6: Implement card menu and reference reconciliation**
 
 Renaming an asset reconciles visible mention refs by asset id; it never string-replaces unrelated words.
 
-- [ ] **Step 7: Add and implement batch asset dialog test**
+- [x] **Step 7: Add and implement batch asset dialog test**
 
 Assert per-role grouping, checkboxes, editable prompts, selected count, shared controls, aggregate credits and sequential success/failure summaries.
 
-- [ ] **Step 8: Run and commit**
+- [x] **Step 8: Run and commit**
 
 Run: `pnpm e2e e2e/script-v2.spec.ts --grep "asset" --reporter=line`
 
@@ -752,6 +752,40 @@ Expected: no whitespace errors and no persisted credentials.
 git add e2e/script-v2.spec.ts e2e/__snapshots__/script-v2.spec.ts-snapshots docs/visual/script-v2-comparison.md docs/superpowers/plans/2026-09-03-script-v2-parity.md
 git commit -m "test: verify script v2 parity"
 ```
+
+### Task 14: Package the Kokoro Nova product demo and repository handoff
+
+**Files:**
+- Modify: `README.md`
+- Modify: `package.json`
+- Modify: `next.config.ts`
+- Modify: `src/server/store.ts`
+- Create: `scripts/demo.mjs`
+- Create: `docs/DEMO_RUNBOOK.md`
+
+**Interfaces:**
+- Produces: a deterministic, one-command product demonstration isolated from development and future backend integration state.
+- Preserves: `pnpm dev` for ordinary development on port 3200 and `.data/`; demo mode uses its own port, Next dist directory and fixture data directory.
+
+- [ ] **Step 1: Add a failing demo-isolation smoke test**
+
+Assert demo mode resolves a dedicated data directory and does not mutate `.data/workspace.json` or reuse the development `.next` output.
+
+- [ ] **Step 2: Implement `pnpm demo`**
+
+Launch Kokoro Nova with `NEXT_DIST_DIR=.next-demo`, a non-conflicting default port, deterministic `authenticated-populated` fixtures and an isolated `.demo-data/` store. Make the port overridable without editing source.
+
+- [ ] **Step 3: Rewrite the README for product demonstration**
+
+Lead with a 30-second quick start, product capability map, recommended demo route, mock/API boundaries, scenario reset, API documentation index, backend handoff seams, verification commands and port-conflict troubleshooting. Use the product name `Kokoro Nova`; keep the remote repository rename as a separate explicit GitHub action.
+
+- [ ] **Step 4: Add the presenter runbook and smoke verification**
+
+Document a timed walkthrough covering home, project list, infinite canvas, Script V2, assets, prompts, storyboard and Video editing. Run the demo command from a clean checkout and verify the stable URL plus representative fixture media.
+
+- [ ] **Step 5: Commit and prepare GitHub publication**
+
+Commit the demo packaging independently. Verify the current `origin`, branch and clean worktree before any user-authorized repository rename or push.
 
 ## Self-Review
 

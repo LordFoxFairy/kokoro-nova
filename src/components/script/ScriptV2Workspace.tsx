@@ -5,6 +5,7 @@ import {
   appendScriptV2Row,
   moveScriptV2Row,
   removeScriptV2Row,
+  scriptV2AssetReady,
   updateScriptV2Row,
   type ScriptV2RowPatch,
   type ScriptV2Stage,
@@ -12,13 +13,19 @@ import {
 } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
 import { IconCheck, IconClose, IconPlus, IconScript, IconSparkle } from '../icons'
+import { ScriptV2Assets } from './ScriptV2Assets'
+import type { ScriptV2CanvasImageCandidate } from './ScriptV2Dialogs'
 import { ScriptV2ShotTable } from './ScriptV2ShotTable'
 
 interface ScriptV2WorkspaceProps {
   open: boolean
+  canvasId: string
+  nodeId: string
+  canvasImages: ScriptV2CanvasImageCandidate[]
   state: ScriptV2State | null
   nodeName: string
   onStateChange: (change: ScriptV2StateChange, label?: string) => void | Promise<void>
+  onLocateNode?: (nodeId: string) => void
   onClose: () => void
 }
 
@@ -41,9 +48,13 @@ function promptReady(state: ScriptV2State) {
 /** Full-screen three-stage Script V2 workspace rooted in canonical node state. */
 export function ScriptV2Workspace({
   open,
+  canvasId,
+  nodeId,
+  canvasImages,
   state,
   nodeName,
   onStateChange,
+  onLocateNode,
   onClose,
 }: ScriptV2WorkspaceProps) {
   const [childSurfaceOpen, setChildSurfaceOpen] = useState(false)
@@ -68,18 +79,20 @@ export function ScriptV2Workspace({
   if (!open || !state) return null
 
   const allAssets = [...state.assets.characters, ...state.assets.scenes, ...state.assets.props]
-  const readyAssets = allAssets.filter((asset) => asset.status === 'ready').length
+  const activeAssets = allAssets.filter((asset) => asset.status !== 'lost')
+  const readyAssets = activeAssets.filter(scriptV2AssetReady).length
+  const assetsReady = activeAssets.every(scriptV2AssetReady)
   const readyPrompts = promptReady(state)
   const stageCompletions =
     (state.rows.length > 0 ? 1 : 0) +
-    (allAssets.length > 0 && readyAssets === allAssets.length ? 1 : 0) +
+    (assetsReady ? 1 : 0) +
     (state.rows.length > 0 && readyPrompts === state.rows.length ? 1 : 0)
   const stages: Array<{ id: ScriptV2Stage; title: string; subtitle: string }> = [
     { id: 'shots', title: '确认镜头', subtitle: `${state.rows.length}个镜头已就绪` },
     {
       id: 'assets',
       title: '准备资产',
-      subtitle: `${readyAssets}/${allAssets.length} 已生成${readyAssets < allAssets.length ? `、还差 ${allAssets.length - readyAssets} 个` : ''}`,
+      subtitle: `${readyAssets}/${activeAssets.length} 已生成${readyAssets < activeAssets.length ? `、还差 ${activeAssets.length - readyAssets} 个` : ''}`,
     },
     { id: 'prompts', title: '合成提示词', subtitle: `${readyPrompts}/${state.rows.length} 已合成` },
   ]
@@ -183,9 +196,22 @@ export function ScriptV2Workspace({
           }
           onChildSurfaceChange={setChildSurfaceOpen}
         />
+      ) : state.activeStage === 'assets' ? (
+        <ScriptV2Assets
+          canvasId={canvasId}
+          nodeId={nodeId}
+          canvasImages={canvasImages}
+          state={state}
+          onStateChange={onStateChange}
+          onLocateNode={onLocateNode}
+          onChildSurfaceChange={setChildSurfaceOpen}
+        />
       ) : (
-        <div className="flex min-h-0 flex-1 items-center justify-center text-[12px] text-white/35">
-          {state.activeStage === 'assets' ? '准备资产' : '合成提示词'}
+        <div
+          data-testid="script-v2-prompts-placeholder"
+          className="flex min-h-0 flex-1 items-center justify-center text-[12px] text-white/35"
+        >
+          合成提示词
         </div>
       )}
 
@@ -206,6 +232,26 @@ export function ScriptV2Workspace({
             >
               <IconSparkle size={14} />
               一键合成全部提示词
+            </button>
+          </>
+        )}
+        {state.activeStage === 'assets' && (
+          <>
+            <span className="flex items-center gap-2 text-[10px] text-white/38">
+              <span className={assetsReady ? 'text-emerald-300' : 'text-amber-300'}>
+                <IconCheck size={14} />
+              </span>
+              {assetsReady
+                ? '资产已生成，如再次生成将会覆盖之前的图片/场景/道具等资产'
+                : `检测到有 ${activeAssets.length - readyAssets} 个资产尚未生成`}
+            </span>
+            <button
+              type="button"
+              disabled={!assetsReady}
+              onClick={() => setStage('prompts')}
+              className="ml-auto flex h-10 items-center rounded-xl bg-white px-5 text-[12px] font-medium text-[#202020] disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              下一步：合成提示词
             </button>
           </>
         )}

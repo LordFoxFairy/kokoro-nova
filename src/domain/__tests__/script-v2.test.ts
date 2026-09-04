@@ -11,7 +11,9 @@ import {
   moveScriptV2Row,
   parseOfficialScriptResult,
   readScriptV2State,
+  removeScriptV2Asset,
   removeScriptV2Row,
+  renameScriptV2Asset,
   resolveScriptV2PromptWriteback,
   scriptV2PromptInputFingerprint,
   scriptV2BatchBlockedReason,
@@ -19,6 +21,99 @@ import {
   serializeOfficialScriptNode,
   updateScriptV2Row,
 } from '@/domain/script-v2'
+
+function referencedAssetState() {
+  let state = defaultScriptV2State('asset-references')
+  const asset = {
+    id: 'asset-character-1',
+    role: 'character' as const,
+    name: '林夏',
+    description: '黑色风衣，短发',
+    source: 'canvas' as const,
+    status: 'ready' as const,
+    thumbnailUrl: '/fixtures/libtv/script/linxia.svg',
+    linkedNodeId: 'NODE_IMAGE_1',
+    createdAt: '2026-09-03T00:00:00.000Z',
+    updatedAt: '2026-09-03T00:00:00.000Z',
+  }
+  state = { ...state, assets: { ...state.assets, characters: [asset] } }
+  state = appendScriptV2Row(state, {
+    plotDescription: '@林夏与林夏默契配合',
+    plotDescriptionEntityRefs: [{ text: '林夏', assetId: asset.id }],
+    characters: [{
+      characterName: '林夏',
+      characterAssetId: asset.id,
+      characterDescription: asset.description,
+      characterImageUrl: asset.thumbnailUrl,
+    }],
+    dialogue: '@林夏说继续，林夏默契不变。',
+    dialogueLines: [{
+      characterRef: asset.id,
+      kind: 'speech',
+      text: '@林夏继续。',
+      entityRefs: [{ text: '林夏', assetId: asset.id }],
+    }],
+    imageGenerationPrompt: '@林夏站在雨中，林夏默契清晰可见。',
+    finalImagePromptEntityRefs: [{ text: '林夏', assetId: asset.id }],
+    videoMotionPrompt: '@林夏缓慢回头。',
+    finalVideoPromptEntityRefs: [{ text: '林夏', assetId: asset.id }],
+    imagePromptState: 'synced',
+    videoPromptState: 'user_edited',
+  })
+  return state
+}
+
+describe('Script V2 asset reference reconciliation', () => {
+  it('renames only visible mentions carrying the same stable asset id', () => {
+    const renamed = renameScriptV2Asset(referencedAssetState(), 'asset-character-1', {
+      name: '林墨',
+      description: '深灰风衣，短发',
+    })
+    const row = renamed.rows[0]
+
+    expect(renamed.assets.characters[0]).toMatchObject({ name: '林墨', description: '深灰风衣，短发' })
+    expect(row.plotDescription).toBe('@林墨与林夏默契配合')
+    expect(row.dialogue).toBe('@林夏说继续，林夏默契不变。')
+    expect(row.dialogueLines?.[0]).toMatchObject({
+      text: '@林墨继续。',
+      entityRefs: [{ text: '林墨', assetId: 'asset-character-1' }],
+    })
+    expect(row.imageGenerationPrompt).toBe('@林墨站在雨中，林夏默契清晰可见。')
+    expect(row.videoMotionPrompt).toBe('@林墨缓慢回头。')
+    expect(row.characters[0]).toMatchObject({
+      characterName: '林墨',
+      characterDescription: '深灰风衣，短发',
+    })
+    expect(row.imagePromptState).toBe('stale')
+    expect(row.videoPromptState).toBe('user_edited_stale')
+  })
+
+  it('deletes dangling ids in both modes while keep-text preserves authored wording', () => {
+    const kept = removeScriptV2Asset(referencedAssetState(), 'asset-character-1', 'keep-text')
+    const row = kept.rows[0]
+
+    expect(kept.assets.characters).toEqual([])
+    expect(row.plotDescription).toBe('@林夏与林夏默契配合')
+    expect(row.plotDescriptionEntityRefs).toBeUndefined()
+    expect(row.characters).toEqual([])
+    expect(row.dialogueLines?.[0].text).toBe('@林夏继续。')
+    expect(row.dialogueLines?.[0].entityRefs).toBeUndefined()
+    expect(row.imageGenerationPrompt).toContain('@林夏')
+    expect(row.imagePromptState).toBe('stale')
+    expect(row.videoPromptState).toBe('user_edited_stale')
+  })
+
+  it('removes only id-backed mention tokens in remove-references mode', () => {
+    const removed = removeScriptV2Asset(referencedAssetState(), 'asset-character-1', 'remove-references')
+    const row = removed.rows[0]
+
+    expect(row.plotDescription).toBe('与林夏默契配合')
+    expect(row.dialogue).toBe('@林夏说继续，林夏默契不变。')
+    expect(row.dialogueLines?.[0].text).toBe('继续。')
+    expect(row.imageGenerationPrompt).toBe('站在雨中，林夏默契清晰可见。')
+    expect(row.videoMotionPrompt).toBe('缓慢回头。')
+  })
+})
 
 describe('Script V2 canonical state', () => {
   it('exposes one shared batch gate for empty prompts and unfinished video assets', () => {
@@ -53,6 +148,23 @@ describe('Script V2 canonical state', () => {
     }
     expect(scriptV2BatchBlockedReason(state, 'image')).toBeNull()
     expect(scriptV2BatchBlockedReason(state, 'video')).toBe('有 1 个资产尚未准备完成')
+
+    state = {
+      ...state,
+      assets: {
+        ...state.assets,
+        characters: [{ ...state.assets.characters[0], status: 'ready' }],
+      },
+    }
+    expect(scriptV2BatchBlockedReason(state, 'video')).toBe('有 1 个资产尚未准备完成')
+    state = {
+      ...state,
+      assets: {
+        ...state.assets,
+        characters: [{ ...state.assets.characters[0], thumbnailUrl: 'data:image/svg+xml,fixture' }],
+      },
+    }
+    expect(scriptV2BatchBlockedReason(state, 'video')).toBeNull()
 
     state = updateScriptV2Row(state, state.rows[0].id, { imageGenerationPrompt: '' })
     expect(scriptV2BatchBlockedReason(state, 'image')).toBe('有 1 个镜头缺少分镜图提示词')

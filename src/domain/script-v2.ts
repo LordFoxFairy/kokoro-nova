@@ -452,6 +452,297 @@ export function updateScriptV2Row(
   return changed ? { ...state, rows } : state
 }
 
+export type ScriptV2AssetRemovalMode = 'keep-text' | 'remove-references'
+
+function refsForAsset(refs: ScriptV2EntityRef[] | undefined, assetId: string): ScriptV2EntityRef[] {
+  return (refs ?? []).filter((ref) => ref.assetId === assetId)
+}
+
+function replaceReferencedMentions(
+  value: string,
+  refs: ScriptV2EntityRef[] | undefined,
+  assetId: string,
+  nextName: string,
+): string {
+  let next = value
+  for (const previous of new Set(refsForAsset(refs, assetId).map((ref) => ref.text).filter(Boolean))) {
+    const mention = `@${previous}`
+    if (next.includes(mention)) {
+      next = next.replaceAll(mention, `@${nextName}`)
+      continue
+    }
+    const index = next.indexOf(previous)
+    if (index >= 0) next = `${next.slice(0, index)}${nextName}${next.slice(index + previous.length)}`
+  }
+  return next
+}
+
+function stripReferencedMentions(
+  value: string,
+  refs: ScriptV2EntityRef[] | undefined,
+  assetId: string,
+): string {
+  let next = value
+  for (const previous of new Set(refsForAsset(refs, assetId).map((ref) => ref.text).filter(Boolean))) {
+    const mention = `@${previous}`
+    if (next.includes(mention)) {
+      next = next.replaceAll(mention, '')
+      continue
+    }
+    const index = next.indexOf(previous)
+    if (index >= 0) next = `${next.slice(0, index)}${next.slice(index + previous.length)}`
+  }
+  return next
+    .replace(/ {2,}/g, ' ')
+    .replace(/\s+([，。；：、！？!?,.])/g, '$1')
+    .replace(/([，。；：、])\s+/g, '$1')
+    .replace(/^[\s、，,；;]+/, '')
+    .trimEnd()
+}
+
+function renameEntityRefs(
+  refs: ScriptV2EntityRef[] | undefined,
+  assetId: string,
+  nextName: string,
+): ScriptV2EntityRef[] | undefined {
+  if (!refs) return undefined
+  return refs.map((ref) => (ref.assetId === assetId ? { ...ref, text: nextName } : ref))
+}
+
+function removeEntityRefs(
+  refs: ScriptV2EntityRef[] | undefined,
+  assetId: string,
+): ScriptV2EntityRef[] | undefined {
+  if (!refs) return undefined
+  const next = refs.filter((ref) => ref.assetId !== assetId)
+  return next.length ? next : undefined
+}
+
+function rowReferencesAsset(row: ScriptV2Row, assetId: string): boolean {
+  return (
+    row.characters.some((character) => character.characterAssetId === assetId) ||
+    row.sceneAssetIds.includes(assetId) ||
+    row.propAssetIds.includes(assetId) ||
+    refsForAsset(row.plotDescriptionEntityRefs, assetId).length > 0 ||
+    refsForAsset(row.finalImagePromptEntityRefs, assetId).length > 0 ||
+    refsForAsset(row.finalVideoPromptEntityRefs, assetId).length > 0 ||
+    (row.dialogueLines ?? []).some(
+      (line) => line.characterRef === assetId || refsForAsset(line.entityRefs, assetId).length > 0,
+    )
+  )
+}
+
+function forceReferencedPromptsStale(row: ScriptV2Row): ScriptV2Row {
+  return {
+    ...row,
+    imagePromptState: staleState(row.imagePromptState),
+    videoPromptState: staleState(row.videoPromptState),
+  }
+}
+
+/**
+ * Rename one stable asset and only rewrite author-visible mention tokens backed
+ * by that same asset id. Plain words that happen to contain the old name are
+ * intentionally left alone.
+ */
+export function renameScriptV2Asset(
+  state: ScriptV2State,
+  assetId: string,
+  patch: { name: string; description?: string },
+): ScriptV2State {
+  const assets = [...state.assets.characters, ...state.assets.scenes, ...state.assets.props]
+  const target = assets.find((asset) => asset.id === assetId)
+  const name = patch.name.trim()
+  if (!target || !name) return state
+  const replacement: ScriptV2Asset = {
+    ...target,
+    name,
+    ...(patch.description === undefined ? {} : { description: patch.description.trim() }),
+  }
+  const replaceBucket = (bucket: ScriptV2Asset[]) =>
+    bucket.map((asset) => (asset.id === assetId ? replacement : asset))
+
+  const rows = state.rows.map((row) => {
+    if (!rowReferencesAsset(row, assetId)) return row
+    const next: ScriptV2Row = {
+      ...row,
+      plotDescription: replaceReferencedMentions(
+        row.plotDescription,
+        row.plotDescriptionEntityRefs,
+        assetId,
+        name,
+      ),
+      plotDescriptionEntityRefs: renameEntityRefs(row.plotDescriptionEntityRefs, assetId, name),
+      characters: row.characters.map((character) =>
+        character.characterAssetId === assetId
+          ? {
+              ...character,
+              characterName: name,
+              characterDescription: replacement.description,
+              characterImageUrl: replacement.thumbnailUrl ?? '',
+            }
+          : character,
+      ),
+      dialogueLines: row.dialogueLines?.map((line) => ({
+        ...line,
+        text: replaceReferencedMentions(line.text, line.entityRefs, assetId, name),
+        entityRefs: renameEntityRefs(line.entityRefs, assetId, name),
+      })),
+      imageGenerationPrompt: replaceReferencedMentions(
+        row.imageGenerationPrompt,
+        row.finalImagePromptEntityRefs,
+        assetId,
+        name,
+      ),
+      finalImagePromptEntityRefs: renameEntityRefs(row.finalImagePromptEntityRefs, assetId, name),
+      videoMotionPrompt: replaceReferencedMentions(
+        row.videoMotionPrompt,
+        row.finalVideoPromptEntityRefs,
+        assetId,
+        name,
+      ),
+      finalVideoPromptEntityRefs: renameEntityRefs(row.finalVideoPromptEntityRefs, assetId, name),
+    }
+    return forceReferencedPromptsStale(reconcileScriptV2PromptState(row, next))
+  })
+
+  return {
+    ...state,
+    rows,
+    assets: {
+      characters: replaceBucket(state.assets.characters),
+      scenes: replaceBucket(state.assets.scenes),
+      props: replaceBucket(state.assets.props),
+    },
+  }
+}
+
+/**
+ * Replace mutable asset fields and project media/description changes into every
+ * row that references the stable id. This keeps character payloads and prompt
+ * freshness in lockstep with card actions such as choose, clear and save.
+ */
+export function updateScriptV2Asset(
+  state: ScriptV2State,
+  assetId: string,
+  patch: Partial<ScriptV2Asset>,
+): ScriptV2State {
+  const all = [...state.assets.characters, ...state.assets.scenes, ...state.assets.props]
+  const original = all.find((asset) => asset.id === assetId)
+  if (!original) return state
+
+  let current = state
+  if (typeof patch.name === 'string' && patch.name.trim() && patch.name.trim() !== original.name) {
+    current = renameScriptV2Asset(current, assetId, {
+      name: patch.name,
+      ...(patch.description === undefined ? {} : { description: patch.description }),
+    })
+  }
+  const target = [...current.assets.characters, ...current.assets.scenes, ...current.assets.props]
+    .find((asset) => asset.id === assetId)
+  if (!target) return current
+  const replacement: ScriptV2Asset = {
+    ...target,
+    ...patch,
+    id: target.id,
+    role: target.role,
+    name: typeof patch.name === 'string' && patch.name.trim() ? patch.name.trim() : target.name,
+  }
+
+  const affectsPrompt =
+    replacement.name !== target.name ||
+    replacement.description !== target.description ||
+    replacement.thumbnailUrl !== target.thumbnailUrl ||
+    replacement.linkedNodeId !== target.linkedNodeId ||
+    replacement.sourceImageRef !== target.sourceImageRef
+  const rows = current.rows.map((row) => {
+    if (!rowReferencesAsset(row, assetId)) return row
+    const next: ScriptV2Row = {
+      ...row,
+      characters: row.characters.map((character) =>
+        character.characterAssetId === assetId
+          ? {
+              ...character,
+              characterName: replacement.name,
+              characterDescription: replacement.description,
+              characterImageUrl: replacement.thumbnailUrl ?? '',
+            }
+          : character,
+      ),
+    }
+    const reconciled = reconcileScriptV2PromptState(row, next)
+    return affectsPrompt ? forceReferencedPromptsStale(reconciled) : reconciled
+  })
+  const replaceBucket = (bucket: ScriptV2Asset[]) =>
+    bucket.map((asset) => (asset.id === assetId ? replacement : asset))
+
+  return {
+    ...current,
+    rows,
+    assets: {
+      characters: replaceBucket(current.assets.characters),
+      scenes: replaceBucket(current.assets.scenes),
+      props: replaceBucket(current.assets.props),
+    },
+  }
+}
+
+/** Remove an asset, all dangling ids and optionally only its id-backed @mentions. */
+export function removeScriptV2Asset(
+  state: ScriptV2State,
+  assetId: string,
+  mode: ScriptV2AssetRemovalMode,
+): ScriptV2State {
+  const target = [...state.assets.characters, ...state.assets.scenes, ...state.assets.props]
+    .find((asset) => asset.id === assetId)
+  if (!target) return state
+
+  const rows = state.rows.map((row) => {
+    if (!rowReferencesAsset(row, assetId)) return row
+    const strip = mode === 'remove-references'
+    const next: ScriptV2Row = {
+      ...row,
+      plotDescription: strip
+        ? stripReferencedMentions(row.plotDescription, row.plotDescriptionEntityRefs, assetId)
+        : row.plotDescription,
+      plotDescriptionEntityRefs: removeEntityRefs(row.plotDescriptionEntityRefs, assetId),
+      characters: row.characters.filter((character) => character.characterAssetId !== assetId),
+      sceneAssetIds: row.sceneAssetIds.filter((id) => id !== assetId),
+      propAssetIds: row.propAssetIds.filter((id) => id !== assetId),
+      dialogueLines: row.dialogueLines?.map((line) => ({
+        ...line,
+        text: strip ? stripReferencedMentions(line.text, line.entityRefs, assetId) : line.text,
+        ...(line.characterRef === assetId ? { characterRef: undefined } : {}),
+        entityRefs: removeEntityRefs(line.entityRefs, assetId),
+      })),
+      imageGenerationPrompt: strip
+        ? stripReferencedMentions(row.imageGenerationPrompt, row.finalImagePromptEntityRefs, assetId)
+        : row.imageGenerationPrompt,
+      finalImagePromptEntityRefs: removeEntityRefs(row.finalImagePromptEntityRefs, assetId),
+      videoMotionPrompt: strip
+        ? stripReferencedMentions(row.videoMotionPrompt, row.finalVideoPromptEntityRefs, assetId)
+        : row.videoMotionPrompt,
+      finalVideoPromptEntityRefs: removeEntityRefs(row.finalVideoPromptEntityRefs, assetId),
+    }
+    return forceReferencedPromptsStale(reconcileScriptV2PromptState(row, next))
+  })
+
+  return {
+    ...state,
+    rows,
+    assets: {
+      characters: state.assets.characters.filter((asset) => asset.id !== assetId),
+      scenes: state.assets.scenes.filter((asset) => asset.id !== assetId),
+      props: state.assets.props.filter((asset) => asset.id !== assetId),
+    },
+  }
+}
+
+/** A ready status without a resolvable preview/link is still an unfinished asset. */
+export function scriptV2AssetReady(asset: ScriptV2Asset): boolean {
+  return asset.status === 'ready' && Boolean(asset.thumbnailUrl || asset.linkedNodeId)
+}
+
 export function scriptV2BatchBlockedReason(
   state: ScriptV2State,
   kind: 'image' | 'video',
@@ -470,7 +761,7 @@ export function scriptV2BatchBlockedReason(
       ...state.assets.characters,
       ...state.assets.scenes,
       ...state.assets.props,
-    ].filter((asset) => asset.status !== 'ready').length
+    ].filter((asset) => asset.status !== 'lost' && !scriptV2AssetReady(asset)).length
     if (unfinishedAssets > 0) return `有 ${unfinishedAssets} 个资产尚未准备完成`
   }
   return null

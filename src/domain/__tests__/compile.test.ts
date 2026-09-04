@@ -7,6 +7,7 @@ import {
   runnableNodes,
   upstreamNodes,
 } from '@/domain/compile'
+import { defaultAudioAuthoringState } from '@/domain/audio-authoring'
 import { createEdge, createNode, emptyDocument } from '@/domain/factory'
 import { PRICE_VERSION } from '@/domain/models'
 import { applyMutations } from '@/domain/mutations'
@@ -186,6 +187,37 @@ describe('compileNode / inputs and prompt', () => {
       { op: 'updateNode', nodeId: target.id, patch: { data: { ...target.data, prompt: '另一张海报' } } },
     ])
     expect(compileNode(edited, target.id).spec.workflowDigest).not.toBe(first)
+  })
+
+  it('freezes complete family-specific Audio settings instead of stale node output', () => {
+    const authoring = defaultAudioAuthoringState('minimax-speech-2.8-hd')
+    authoring.settings = {
+      ...authoring.settings,
+      speed: 1.08,
+      pitch: 1,
+      volume: 0.9,
+      effectPitch: 8,
+      effectStrength: 12,
+      timbre: -4,
+      soundEffect: 'telephone',
+    }
+    const audio = node('audio', 'nd_audio_compile', {
+      prompt: '城市故事旁白',
+      modelId: 'minimax-speech-2.8-hd',
+      output: { durationSeconds: 120 },
+      extra: { audioAuthoring: authoring },
+    })
+
+    expect(compileNode(build([audio]), audio.id).spec.output).toEqual({
+      voiceId: 'voice-girl',
+      speed: 1.08,
+      pitch: 1,
+      volume: 0.9,
+      effectPitch: 8,
+      effectStrength: 12,
+      timbre: -4,
+      soundEffect: 'telephone',
+    })
   })
 })
 

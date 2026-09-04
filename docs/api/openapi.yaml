@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.5.0-image-authoring-state",
-    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Image 模型矩阵、参考、风格、预设与非破坏式派生工具持久化结构。"
+    "version": "1.6.0-audio-authoring-state",
+    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Audio 六模型能力、TTS/音乐参数、音色收藏与本地克隆状态。"
   },
   "servers": [
     {
@@ -4735,7 +4735,7 @@
       },
       "NodeExtra": {
         "type": "object",
-        "description": "各节点共享的扩展袋；列出 Video 与 Image 稳定字段并保留其他节点的未知扩展。",
+        "description": "各节点共享的扩展袋；列出 Video、Image 与 Audio 稳定字段并保留其他节点的未知扩展。",
         "properties": {
           "advanced": {
             "$ref": "#/components/schemas/VideoAdvancedSettings"
@@ -4780,6 +4780,9 @@
           },
           "imageTransform": {
             "$ref": "#/components/schemas/ImageTransformSpec"
+          },
+          "audioAuthoring": {
+            "$ref": "#/components/schemas/AudioAuthoringState"
           }
         },
         "additionalProperties": true
@@ -6398,6 +6401,9 @@
           },
           "imageCapabilities": {
             "$ref": "#/components/schemas/ImageModelCapabilities"
+          },
+          "audioCapabilities": {
+            "$ref": "#/components/schemas/AudioModelCapabilities"
           }
         },
         "additionalProperties": false
@@ -6526,6 +6532,74 @@
           },
           "emotion": {
             "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "zh",
+              "en"
+            ]
+          },
+          "sampleRate": {
+            "type": "string",
+            "enum": [
+              "8k",
+              "16k",
+              "24k",
+              "48k"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "wav",
+              "mp3",
+              "pcm",
+              "ogg_opus"
+            ]
+          },
+          "effectPitch": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "effectStrength": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "timbre": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "soundEffect": {
+            "type": "string",
+            "enum": [
+              "none",
+              "echo",
+              "hall",
+              "telephone",
+              "electronic"
+            ]
+          },
+          "stability": {
+            "type": "string",
+            "enum": [
+              "lively",
+              "natural",
+              "steady"
+            ]
+          },
+          "murekaMode": {
+            "type": "string",
+            "enum": [
+              "description",
+              "lyrics"
+            ]
+          },
+          "instrumental": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -6960,6 +7034,277 @@
           }
         },
         "additionalProperties": false
+      },
+      "AudioSettings": {
+        "type": "object",
+        "required": [
+          "language",
+          "sampleRate",
+          "format",
+          "voiceId",
+          "speed",
+          "pitch",
+          "volume",
+          "effectPitch",
+          "effectStrength",
+          "timbre",
+          "soundEffect",
+          "stability",
+          "musicDurationSeconds",
+          "murekaMode",
+          "instrumental"
+        ],
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "zh",
+              "en"
+            ]
+          },
+          "sampleRate": {
+            "type": "string",
+            "enum": [
+              "8k",
+              "16k",
+              "24k",
+              "48k"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "wav",
+              "mp3",
+              "pcm",
+              "ogg_opus"
+            ]
+          },
+          "voiceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "speed": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2
+          },
+          "pitch": {
+            "type": "number",
+            "minimum": -12,
+            "maximum": 12
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "effectPitch": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "effectStrength": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "timbre": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "soundEffect": {
+            "type": "string",
+            "enum": [
+              "none",
+              "echo",
+              "hall",
+              "telephone",
+              "electronic"
+            ]
+          },
+          "stability": {
+            "type": "string",
+            "enum": [
+              "lively",
+              "natural",
+              "steady"
+            ]
+          },
+          "musicDurationSeconds": {
+            "type": "integer",
+            "enum": [
+              30,
+              60,
+              120
+            ]
+          },
+          "murekaMode": {
+            "type": "string",
+            "enum": [
+              "description",
+              "lyrics"
+            ]
+          },
+          "instrumental": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AudioVoice": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "language",
+          "accent",
+          "gender",
+          "age",
+          "tags",
+          "source",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "language": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accent": {
+            "type": "string",
+            "minLength": 1
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "男",
+              "女",
+              "中性",
+              "Character"
+            ]
+          },
+          "age": {
+            "type": "string",
+            "enum": [
+              "儿童",
+              "青年",
+              "成年",
+              "老年"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "string",
+            "const": "custom"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AudioAuthoringState": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "settings",
+          "favoriteVoiceIds",
+          "customVoices",
+          "advancedOpen"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AudioSettings"
+          },
+          "favoriteVoiceIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "customVoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudioVoice"
+            }
+          },
+          "advancedOpen": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AudioModelCapabilities": {
+        "type": "object",
+        "required": [
+          "family",
+          "maxCharacters",
+          "acceptsReferences",
+          "supportsVoice",
+          "supportsPauseTokens",
+          "supportsCueTokens",
+          "defaults"
+        ],
+        "properties": {
+          "family": {
+            "type": "string",
+            "enum": [
+              "multimodal",
+              "tts-minimax",
+              "tts-eleven",
+              "music-eleven",
+              "music-mureka"
+            ]
+          },
+          "maxCharacters": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "acceptsReferences": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "text",
+                "audio"
+              ]
+            }
+          },
+          "supportsVoice": {
+            "type": "boolean"
+          },
+          "supportsPauseTokens": {
+            "type": "boolean"
+          },
+          "supportsCueTokens": {
+            "type": "boolean"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/AudioSettings"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {
@@ -7320,6 +7665,18 @@
       "ImageModelCatalogResponseExample": {
         "summary": "七个图片模型与完整输出能力矩阵",
         "externalValue": "./examples/models-image.response.json"
+      },
+      "AudioAuthoringUpdateRequestExample": {
+        "summary": "更新 Audio 模型、提示词、输出与 v1 创作状态",
+        "externalValue": "./examples/canvas-audio-authoring-update-request.json"
+      },
+      "AudioAuthoringUpdateResponseExample": {
+        "summary": "Audio mutation 后的 revision 与完整工作流文档",
+        "externalValue": "./examples/canvas-audio-authoring-update-response.json"
+      },
+      "AudioModelCatalogResponseExample": {
+        "summary": "六项 Audio 模型与模型族能力矩阵",
+        "externalValue": "./examples/models-audio.response.json"
       }
     }
   },

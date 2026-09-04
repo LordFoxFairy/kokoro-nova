@@ -7,6 +7,7 @@ import {
   type VideoGenerationMode,
   type VideoReferenceRequirement,
 } from './models'
+import { audioExecutionOutput, readAudioAuthoringState } from './audio-authoring'
 import { MEDIA_OF_NODE } from './nodes'
 import type { ExecutionInput, ExecutionSpec, Quote, WorkflowDocument, WorkflowNode } from './types'
 
@@ -171,6 +172,8 @@ export function compileNode(doc: WorkflowDocument, nodeId: string): { spec: Exec
       throw new CompileError(`${model.label} ${first?.reason ?? '当前没有可用的生成模式'}`)
     }
     output = normalizeOutputForModel(modelId, output, modes)
+  } else if (model.media === 'audio') {
+    output = audioExecutionOutput(modelId, readAudioAuthoringState(node.data.extra, modelId))
   }
 
   const { credits, breakdown } = quoteCredits(modelId, output)

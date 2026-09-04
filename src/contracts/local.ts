@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
 import { IMAGE_ASPECT_RATIOS, IMAGE_QUALITIES } from '@/domain/models'
+import {
+  AudioAuthoringStateSchema,
+  AudioSettingsSchema,
+  AudioVoiceSchema,
+} from './audio'
 import { ScenarioResponseSchema } from './scenario'
 
 const IsoTimestampSchema = z.string().datetime()
@@ -56,6 +61,16 @@ export const OutputSpecSchema = z.object({
   pitch: z.number().optional(),
   volume: z.number().optional(),
   emotion: z.string().optional(),
+  language: z.enum(['zh', 'en']).optional(),
+  sampleRate: z.enum(['8k', '16k', '24k', '48k']).optional(),
+  format: z.enum(['wav', 'mp3', 'pcm', 'ogg_opus']).optional(),
+  effectPitch: z.number().finite().min(-100).max(100).optional(),
+  effectStrength: z.number().finite().min(-100).max(100).optional(),
+  timbre: z.number().finite().min(-100).max(100).optional(),
+  soundEffect: z.enum(['none', 'echo', 'hall', 'telephone', 'electronic']).optional(),
+  stability: z.enum(['lively', 'natural', 'steady']).optional(),
+  murekaMode: z.enum(['description', 'lyrics']).optional(),
+  instrumental: z.boolean().optional(),
 })
 
 export const ArtifactSchema = z.object({
@@ -80,6 +95,12 @@ export const NodeReferenceSchema = z.object({
   label: z.string(),
   thumbnailUrl: z.string().nullable().optional(),
 })
+
+export const NodeExtraSchema = z
+  .object({
+    audioAuthoring: AudioAuthoringStateSchema.optional(),
+  })
+  .catchall(z.unknown())
 
 export const WorkflowNodeSchema = z.object({
   id: z.string(),
@@ -110,7 +131,7 @@ export const WorkflowNodeSchema = z.object({
     references: z.array(NodeReferenceSchema).optional(),
     artifacts: z.array(ArtifactSchema).optional(),
     jobId: z.string().nullable().optional(),
-    extra: z.record(z.unknown()).optional(),
+    extra: NodeExtraSchema.optional(),
   }),
 })
 
@@ -219,6 +240,7 @@ export const CreateProjectResponseSchema = z.object({
 })
 
 export { ScenarioResponseSchema }
+export { AudioAuthoringStateSchema, AudioSettingsSchema, AudioVoiceSchema }
 
 export type ProjectListLocalResponse = z.infer<typeof ProjectListLocalResponseSchema>
 export type CanvasDetailLocalResponse = z.infer<typeof CanvasDetailLocalResponseSchema>

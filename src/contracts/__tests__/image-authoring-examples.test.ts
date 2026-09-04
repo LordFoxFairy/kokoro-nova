@@ -6,7 +6,7 @@ import applyStyle from '../../../docs/api/examples/canvas-image-style-apply.requ
 import transformImage from '../../../docs/api/examples/canvas-image-transform.request.json'
 import imageModels from '../../../docs/api/examples/models-image.response.json'
 import { readImageTransformSpec } from '@/domain/image-authoring'
-import { modelsFor } from '@/domain/models'
+import { MODEL_CATALOG_VERSION, modelsFor } from '@/domain/models'
 import { applyMutations } from '@/domain/mutations'
 import type { CanvasMutation } from '@/domain/types'
 import { buildVideoWorkspace } from '@/mocks/scenarios/video-project'
@@ -31,6 +31,7 @@ describe('Image authoring API examples', () => {
   })
 
   it('keeps the documented image model response aligned with the runtime registry', () => {
+    expect(imageModels.version).toBe(MODEL_CATALOG_VERSION)
     expect(imageModels.media).toBe('image')
     expect(imageModels.items.map((model) => [model.id, model.label, model.latencyLabel])).toEqual(
       modelsFor('image').map((model) => [model.id, model.label, model.latencyLabel]),

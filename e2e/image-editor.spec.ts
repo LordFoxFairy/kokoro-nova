@@ -43,6 +43,7 @@ test('Image double click opens the inverse-scaled node authoring surface', async
   await expect(editor.getByRole('button', { name: '风格', exact: true })).toBeVisible()
   await expect(editor.getByPlaceholder(/可直接文字生图/)).toBeVisible()
   await expect(editor.getByTestId('image-output-selector')).toContainText('16:9 · 标准画质 · 2K · 1张')
+  await expect(page.getByTestId('node-shell-node_image_01')).toHaveAttribute('data-selected', 'false')
 
   await expectVisualBaseline(page, 'image-node-editor-dark-1440x900.png')
   await page.screenshot({

@@ -1,4 +1,5 @@
 import type { OutputSpec } from './types'
+import type { AudioModelCapabilities, AudioSettings } from './audio-authoring'
 
 export type ModelMedia = 'image' | 'video' | 'audio' | 'text'
 
@@ -90,6 +91,8 @@ export interface ModelDefinition {
   capabilities?: VideoModelCapabilities
   /** Versioned output rules for image models. */
   imageCapabilities?: ImageModelCapabilities
+  /** Versioned authoring rules for audio models. */
+  audioCapabilities?: AudioModelCapabilities
   membershipTier?: MembershipTier
   availability?: ModelAvailability
   /** Stable family key used by the local icon tile; never a remote asset URL. */
@@ -98,7 +101,7 @@ export interface ModelDefinition {
   description: string
 }
 
-export const MODEL_CATALOG_VERSION = '2026-09-03.1'
+export const MODEL_CATALOG_VERSION = '2026-09-03.2'
 
 export const VIDEO_MODE_LABELS: Record<VideoGenerationMode, string> = {
   text2video: '文生视频',
@@ -229,6 +232,43 @@ function imageModel(
     media: 'image',
     controls: ['aspectRatio', 'quality', 'resolution', 'count'],
     imageCapabilities: options.imageCapabilities ?? DEFAULT_IMAGE_CAPABILITIES,
+  }
+}
+
+const AUDIO_DEFAULTS: AudioSettings = {
+  language: 'zh',
+  sampleRate: '24k',
+  format: 'wav',
+  voiceId: 'voice-girl',
+  speed: 1,
+  pitch: 0,
+  volume: 1,
+  effectPitch: 0,
+  effectStrength: 0,
+  timbre: 0,
+  soundEffect: 'none',
+  stability: 'natural',
+  musicDurationSeconds: 30,
+  murekaMode: 'description',
+  instrumental: true,
+}
+
+function audioModel(
+  options: Omit<ModelDefinition, 'media' | 'controls' | 'capabilities' | 'imageCapabilities' | 'audioCapabilities'> & {
+    controls?: readonly (keyof OutputSpec)[]
+    capabilities: Omit<AudioModelCapabilities, 'defaults'> & { defaults?: Partial<AudioSettings> }
+  },
+): ModelDefinition {
+  const { capabilities, controls = [], ...model } = options
+  return {
+    ...model,
+    media: 'audio',
+    controls,
+    audioCapabilities: {
+      ...capabilities,
+      acceptsReferences: [...capabilities.acceptsReferences],
+      defaults: { ...AUDIO_DEFAULTS, ...capabilities.defaults },
+    },
   }
 }
 
@@ -749,51 +789,121 @@ export const MODELS: ModelDefinition[] = [
     capabilities: videoCapabilities({ audio: 'unsupported', modes: IMAGE_MODES }),
   }),
 
-  // ---- audio ----
-  {
+  // ---- audio — current observed catalogue order ----
+  audioModel({
+    id: 'seed-audio-1',
+    label: 'Seed Audio 1.0',
+    provider: 'Seed',
+    latencyLabel: '约 15 秒',
+    baseCredits: 1,
+    iconKey: 'seed-audio',
+    tags: ['默认', '多模态'],
+    description: '多模态音频生成，支持人声、音效、音乐一体化创作',
+    capabilities: {
+      family: 'multimodal',
+      maxCharacters: 2_000,
+      acceptsReferences: ['text', 'audio'],
+      supportsVoice: false,
+      supportsPauseTokens: false,
+      supportsCueTokens: false,
+    },
+  }),
+  audioModel({
     id: 'minimax-speech-2.8-hd',
     label: 'Minimax-speech-2.8-hd',
     provider: 'MiniMax',
-    media: 'audio',
     latencyLabel: '约 15 秒',
-    baseCredits: 6,
-    controls: ['voiceId', 'speed', 'pitch', 'volume', 'emotion'],
-    tags: ['默认', '语音'],
-    description: '默认文字转语音模型，支持语速、音调、音量与情绪控制。',
-  },
-  {
-    id: 'seed-audio-tts',
-    label: 'Seed Audio TTS',
-    provider: 'Seed',
-    media: 'audio',
-    latencyLabel: '约 12 秒',
-    baseCredits: 5,
-    controls: ['voiceId', 'speed', 'pitch', 'volume', 'emotion'],
-    tags: ['语音'],
-    description: '自然停顿与副语言提示表现良好。',
-  },
-  {
-    id: 'eleven-multilingual-v2',
-    label: 'Eleven Multilingual v2',
+    baseCredits: 1,
+    iconKey: 'minimax',
+    controls: ['voiceId', 'speed', 'pitch', 'volume'],
+    tags: ['语音', '情绪'],
+    description: '文字转语音，多元的情绪渲染',
+    capabilities: {
+      family: 'tts-minimax',
+      maxCharacters: 50_000,
+      acceptsReferences: ['text', 'audio'],
+      supportsVoice: true,
+      supportsPauseTokens: true,
+      supportsCueTokens: true,
+    },
+  }),
+  audioModel({
+    id: 'minimax-speech-2.8-turbo',
+    label: 'Minimax-speech-2.8-turbo',
+    provider: 'MiniMax',
+    latencyLabel: '约 10 秒',
+    baseCredits: 1,
+    iconKey: 'minimax',
+    controls: ['voiceId', 'speed', 'pitch', 'volume'],
+    tags: ['语音', '快速'],
+    description: '文字转语音，快速生成自然的音频效果',
+    capabilities: {
+      family: 'tts-minimax',
+      maxCharacters: 50_000,
+      acceptsReferences: ['text', 'audio'],
+      supportsVoice: true,
+      supportsPauseTokens: true,
+      supportsCueTokens: true,
+    },
+  }),
+  audioModel({
+    id: 'eleven-v3',
+    label: 'Eleven V3',
     provider: 'ElevenLabs',
-    media: 'audio',
     latencyLabel: '约 18 秒',
-    baseCredits: 9,
-    controls: ['voiceId', 'speed', 'pitch', 'volume', 'emotion'],
-    tags: ['多语言', '克隆'],
-    description: '多语言音色与声音克隆。',
-  },
-  {
-    id: 'mureka-music',
-    label: 'Mureka Music',
-    provider: 'Mureka',
-    media: 'audio',
+    baseCredits: 2,
+    iconKey: 'eleven',
+    controls: ['voiceId'],
+    tags: ['语音', '可定制'],
+    description: '文字转语音，提供高质量、可定制的语音',
+    capabilities: {
+      family: 'tts-eleven',
+      maxCharacters: 5_000,
+      acceptsReferences: ['text', 'audio'],
+      supportsVoice: true,
+      supportsPauseTokens: false,
+      supportsCueTokens: false,
+      defaults: { voiceId: 'voice-jin' },
+    },
+  }),
+  audioModel({
+    id: 'eleven-music-v3',
+    label: 'Eleven Music V3',
+    provider: 'ElevenLabs',
     latencyLabel: '约 60 秒',
-    baseCredits: 14,
+    baseCredits: 60,
+    iconKey: 'eleven',
     controls: ['durationSeconds'],
     tags: ['音乐'],
-    description: '按描述生成带结构的背景音乐。',
-  },
+    description: '智能音乐生成，高质量音乐生成',
+    capabilities: {
+      family: 'music-eleven',
+      maxCharacters: 5_000,
+      acceptsReferences: ['text', 'audio'],
+      supportsVoice: false,
+      supportsPauseTokens: false,
+      supportsCueTokens: false,
+    },
+  }),
+  audioModel({
+    id: 'mureka-v8',
+    label: 'Mureka V8',
+    provider: 'Mureka',
+    latencyLabel: '约 60 秒',
+    baseCredits: 60,
+    iconKey: 'mureka',
+    controls: ['durationSeconds'],
+    tags: ['音乐', '自然人声'],
+    description: '智能音乐生成，兼具多元风格与自然人声',
+    capabilities: {
+      family: 'music-mureka',
+      maxCharacters: 1_024,
+      acceptsReferences: ['text', 'audio'],
+      supportsVoice: false,
+      supportsPauseTokens: false,
+      supportsCueTokens: false,
+    },
+  }),
 
   // ---- language ----
   {
@@ -853,6 +963,11 @@ export function modelOutputOptions(modelId: string): VideoModelCapabilities | nu
 export function imageModelOutputOptions(modelId: string): ImageModelCapabilities | null {
   const model = MODELS_BY_ID.get(modelId)
   return model?.media === 'image' ? (model.imageCapabilities ?? null) : null
+}
+
+export function audioModelOutputOptions(modelId: string): AudioModelCapabilities | null {
+  const model = MODELS_BY_ID.get(modelId)
+  return model?.media === 'audio' ? (model.audioCapabilities ?? null) : null
 }
 
 /** Normalize image-only output and deliberately discard cross-media fields. */
@@ -919,7 +1034,7 @@ export function normalizeOutputForModel(
 export const DEFAULT_MODEL: Record<ModelMedia, string> = {
   image: 'lib-image-2',
   video: 'seedance-2-5',
-  audio: 'minimax-speech-2.8-hd',
+  audio: 'seed-audio-1',
   text: 'gvlm-3.1',
 }
 

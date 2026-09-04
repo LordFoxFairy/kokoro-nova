@@ -217,7 +217,7 @@ function CanvasInner({
                         : elementSelectable && (candidate?.selectable ?? false),
                     reason:
                       selectionMode.kind === 'reference'
-                        ? (candidate?.reason ?? '该节点不可作为参考')
+                        ? (candidate ? candidate.reason : '该节点不可作为参考')
                         : elementSelectable
                           ? (candidate?.reason ?? null)
                           : '仅可选择图片节点',
@@ -368,6 +368,11 @@ function CanvasInner({
         if (nodeId) {
           event.preventDefault()
           event.stopPropagation()
+          // Node-attached authoring is an inspection mode, not a batch canvas
+          // selection. ReactFlow's native click sequence can otherwise leave
+          // the card selected or unselected depending on render timing.
+          select([])
+          setSelectedGroupId(null)
           onOpenNode(nodeId)
         }
         return
@@ -382,7 +387,7 @@ function CanvasInner({
         return [{ op: 'addNode', node: createNode('text', at, doc.nodes) }]
       }, '新建文本节点')
     },
-    [flow, commitWith, onOpenNode, selectionMode],
+    [flow, commitWith, onOpenNode, select, selectionMode],
   )
 
   /**
@@ -486,7 +491,11 @@ function CanvasInner({
 
   return (
     <div
-      className={cn('h-full w-full', !showEdges && 'edges-hidden')}
+      className={cn(
+        'h-full w-full',
+        !showEdges && 'edges-hidden',
+        selectionMode && 'canvas-selection-active',
+      )}
       data-testid="workflow-canvas"
       // Capture before ReactFlow's controlled selection update can retarget the
       // second click from a node to the pane.

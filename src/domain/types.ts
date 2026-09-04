@@ -205,6 +205,16 @@ export interface OutputSpec {
   pitch?: number
   volume?: number
   emotion?: string
+  language?: 'zh' | 'en'
+  sampleRate?: '8k' | '16k' | '24k' | '48k'
+  format?: 'wav' | 'mp3' | 'pcm' | 'ogg_opus'
+  effectPitch?: number
+  effectStrength?: number
+  timbre?: number
+  soundEffect?: 'none' | 'echo' | 'hall' | 'telephone' | 'electronic'
+  stability?: 'lively' | 'natural' | 'steady'
+  murekaMode?: 'description' | 'lyrics'
+  instrumental?: boolean
 }
 
 export interface NodeReference {

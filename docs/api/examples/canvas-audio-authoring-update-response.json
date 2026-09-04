@@ -1,0 +1,92 @@
+{
+  "revision": 8,
+  "document": {
+    "schemaVersion": 1,
+    "nodes": [
+      {
+        "id": "node_audio_contract",
+        "type": "audio",
+        "name": "旁白音频",
+        "position": {
+          "x": 80,
+          "y": 120
+        },
+        "size": {
+          "width": 380,
+          "height": 260
+        },
+        "groupId": null,
+        "keyElement": false,
+        "createdAt": "2026-09-03T11:59:00.000Z",
+        "updatedAt": "2026-09-03T12:00:00.000Z",
+        "data": {
+          "prompt": "欢迎来到今晚的城市故事。<#0.5#>(轻笑)我们开始吧。",
+          "modelId": "minimax-speech-2.8-hd",
+          "output": {
+              "voiceId": "voice-custom-contract",
+              "speed": 1.08,
+              "pitch": 1,
+              "volume": 0.9,
+              "effectPitch": 8,
+              "effectStrength": 12,
+              "timbre": -4,
+              "soundEffect": "none"
+          },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "audioAuthoring": {
+              "schemaVersion": 1,
+              "settings": {
+                "language": "zh",
+                "sampleRate": "24k",
+                "format": "wav",
+                "voiceId": "voice-custom-contract",
+                "speed": 1.08,
+                "pitch": 1,
+                "volume": 0.9,
+                "effectPitch": 8,
+                "effectStrength": 12,
+                "timbre": -4,
+                "soundEffect": "none",
+                "stability": "natural",
+                "musicDurationSeconds": 30,
+                "murekaMode": "description",
+                "instrumental": true
+              },
+              "favoriteVoiceIds": [
+                "voice-young-green",
+                "voice-custom-contract"
+              ],
+              "customVoices": [
+                {
+                  "id": "voice-custom-contract",
+                  "name": "品牌旁白",
+                  "language": "中文",
+                  "accent": "普通话",
+                  "gender": "中性",
+                  "age": "成年",
+                  "tags": [
+                    "我的音色",
+                    "本地克隆"
+                  ],
+                  "source": "custom",
+                  "createdAt": "2026-09-03T12:00:00.000Z"
+                }
+              ],
+              "advancedOpen": true
+            }
+          }
+        }
+      }
+    ],
+    "edges": [],
+    "groups": [],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { ids } from './ids'
+import { audioExecutionOutput, defaultAudioAuthoringState } from './audio-authoring'
 import { DEFAULT_MODEL } from './models'
 import { NODE_META, type NodeType } from './nodes'
 import {
@@ -71,16 +72,18 @@ function defaultData(type: NodeType): NodeData {
         jobId: null,
         extra: { timeline: [], transitions: [], subtitles: [] },
       }
-    case 'audio':
+    case 'audio': {
+      const audioAuthoring = defaultAudioAuthoringState(DEFAULT_MODEL.audio)
       return {
         prompt: '',
         modelId: DEFAULT_MODEL.audio,
-        output: { voiceId: 'voice-cn-female-warm', speed: 1, pitch: 0, volume: 1, emotion: '自然' },
+        output: audioExecutionOutput(DEFAULT_MODEL.audio, audioAuthoring),
         references: [],
         artifacts: [],
         jobId: null,
-        extra: {},
+        extra: { audioAuthoring },
       }
+    }
     case 'script':
       return {
         prompt: '',

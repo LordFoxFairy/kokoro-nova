@@ -199,7 +199,11 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const startCanvasSelection = useCallback(
     (kind: 'reference' | 'element', targetNodeId: string) => {
       const target = useEditor.getState().document.nodes.find((node) => node.id === targetNodeId)
-      if (target?.type !== 'video' && target?.type !== 'image') return
+      const supported =
+        target?.type === 'video' ||
+        target?.type === 'image' ||
+        (target?.type === 'audio' && kind === 'reference')
+      if (!supported) return
       setLeftPanel(null)
       setStoryboardConfig(null)
       inspect(targetNodeId)
@@ -246,7 +250,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
             },
           },
         ]
-      }, '选择视频参考')
+      }, '选择画布参考')
     },
     [commitWith, selectionMode],
   )
@@ -273,7 +277,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
             },
           },
         ]
-      }, '移除视频参考')
+      }, '移除画布参考')
     },
     [commitWith],
   )
@@ -734,7 +738,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           <StoryboardView />
         )}
 
-        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && (
+        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && inspectedNode.type !== 'audio' && (
           <NodeInspector
             node={inspectedNode}
             job={inspectedJob}

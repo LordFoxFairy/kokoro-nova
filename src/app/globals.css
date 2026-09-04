@@ -291,6 +291,14 @@ body:has([data-app-shell='editor']) {
   pointer-events: none;
 }
 
+/* Candidate overlays own pointer input while choosing a canvas reference. */
+.canvas-selection-active .react-flow__edges,
+.canvas-selection-active .react-flow__edge,
+.canvas-selection-active .react-flow__edge-path,
+.canvas-selection-active .react-flow__edge-interaction {
+  pointer-events: none !important;
+}
+
 @keyframes pulse-ring {
   0% {
     box-shadow: 0 0 0 0 oklch(0.72 0.16 85 / 0.4);

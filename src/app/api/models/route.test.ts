@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ModelCatalogResponseSchema } from '@/contracts/models'
+import { MODEL_CATALOG_VERSION } from '@/domain/models'
 import { GET } from './route'
 
 describe('GET /api/models', () => {
@@ -9,7 +10,7 @@ describe('GET /api/models', () => {
     const body = ModelCatalogResponseSchema.parse(await response.json())
 
     expect(response.status).toBe(200)
-    expect(body.version).toBe('2026-09-03.1')
+    expect(body.version).toBe(MODEL_CATALOG_VERSION)
     expect(body.media).toBe('video')
     expect(body.items).toHaveLength(36)
     expect(body.items[0]).toMatchObject({

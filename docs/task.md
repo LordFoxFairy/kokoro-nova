@@ -271,3 +271,27 @@
       本地 provider 对 13 种图片比例输出正确宽高，不再回退到 `16:9`。
 - [x] 5 张 `1440×900` 本地视觉基线与官网状态配对；`pnpm verify` 全绿（40 files / 584
       tests + production build），`pnpm e2e` 全绿（59 passed / 2 production-only skipped）。
+
+## Audio / TTS / 音色库 / 音乐生成高保真批次
+
+- [x] Audio 节点从通用右侧抽屉迁移到节点附着的 `660px` 深色创作器；缩放后保持屏幕
+      宽度，模型/输出/高级/音色/停顿/语气词弹层遵循逐层 Escape。
+- [x] 冻结官网当前 6 项 Audio 模型和 5 类 `AudioModelCapabilities`：Seed Audio、两项
+      Minimax Speech、Eleven Speech、Eleven Music 与 Mureka；切换模型原子写入完整 v1 状态。
+- [x] Seed 覆盖 2 语种 × 4 采样率 × 4 格式；Minimax 覆盖 50,000 字、4 个停顿预设、
+      自定义停顿、21 个语气词、六项数值调节与五音效；Eleven 与两类音乐只显示各自参数。
+- [x] 音色库覆盖三标签、20 条首屏、327 条/17 页 fixture、搜索、语言/口音依赖、性别/年龄
+      过滤、收藏、选择、本地 WAV 试听；克隆流程为固定文本、模拟录音、授权门和确定性自定义音色。
+- [x] 画布参考引擎扩展到 Audio：只启用 text/audio，拒绝不兼容媒体和闭环；参考卡可引用、
+      定位、删除。选择态关闭 edge hit-area，避免贝塞尔曲线吞掉候选点击。
+- [x] Audio 生成复用既有 Jobs 两阶段确认门和离线 provider，成功产出真实本地 WAV，并投影到
+      Storyboard Audio 列、详情播放器与下载动作。
+- [x] API 契约升级到 `1.6.0-audio-authoring-state`：`AudioSettings / AudioVoice /
+      AudioAuthoringState / AudioModelCapabilities` 的 OpenAPI、共享 Zod、模型响应、Canvas
+      mutation 请求/响应样本和专门状态文档由 contract tests 同步验证。
+- [x] 编译器从严格规范化的 authoring state 派生 family-specific `ExecutionSpec.output`，忽略
+      节点中可能过期的输出字段；隐藏模型参数不越过 provider 边界。
+- [x] 打开 Image / Video / Audio 节点创作器时统一退出批量选择态，避免冷启动双击造成随机
+      青色边框，并与官网灰色节点边框证据一致。
+- [x] 6 张 `1440×900` 本地视觉基线已逐张检查；`pnpm verify` 全绿（42 files / 603
+      tests + production build），`pnpm e2e` 全绿（69 passed / 2 production-only skipped）。

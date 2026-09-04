@@ -1,0 +1,280 @@
+{
+  "version": "2026-09-03.2",
+  "media": "audio",
+  "query": "",
+  "items": [
+    {
+      "id": "seed-audio-1",
+      "label": "Seed Audio 1.0",
+      "provider": "Seed",
+      "latencyLabel": "约 15 秒",
+      "baseCredits": 1,
+      "iconKey": "seed-audio",
+      "tags": [
+        "默认",
+        "多模态"
+      ],
+      "description": "多模态音频生成，支持人声、音效、音乐一体化创作",
+      "media": "audio",
+      "controls": [],
+      "audioCapabilities": {
+        "family": "multimodal",
+        "maxCharacters": 2000,
+        "acceptsReferences": [
+          "text",
+          "audio"
+        ],
+        "supportsVoice": false,
+        "supportsPauseTokens": false,
+        "supportsCueTokens": false,
+        "defaults": {
+          "language": "zh",
+          "sampleRate": "24k",
+          "format": "wav",
+          "voiceId": "voice-girl",
+          "speed": 1,
+          "pitch": 0,
+          "volume": 1,
+          "effectPitch": 0,
+          "effectStrength": 0,
+          "timbre": 0,
+          "soundEffect": "none",
+          "stability": "natural",
+          "musicDurationSeconds": 30,
+          "murekaMode": "description",
+          "instrumental": true
+        }
+      }
+    },
+    {
+      "id": "minimax-speech-2.8-hd",
+      "label": "Minimax-speech-2.8-hd",
+      "provider": "MiniMax",
+      "latencyLabel": "约 15 秒",
+      "baseCredits": 1,
+      "iconKey": "minimax",
+      "tags": [
+        "语音",
+        "情绪"
+      ],
+      "description": "文字转语音，多元的情绪渲染",
+      "media": "audio",
+      "controls": [
+        "voiceId",
+        "speed",
+        "pitch",
+        "volume"
+      ],
+      "audioCapabilities": {
+        "family": "tts-minimax",
+        "maxCharacters": 50000,
+        "acceptsReferences": [
+          "text",
+          "audio"
+        ],
+        "supportsVoice": true,
+        "supportsPauseTokens": true,
+        "supportsCueTokens": true,
+        "defaults": {
+          "language": "zh",
+          "sampleRate": "24k",
+          "format": "wav",
+          "voiceId": "voice-girl",
+          "speed": 1,
+          "pitch": 0,
+          "volume": 1,
+          "effectPitch": 0,
+          "effectStrength": 0,
+          "timbre": 0,
+          "soundEffect": "none",
+          "stability": "natural",
+          "musicDurationSeconds": 30,
+          "murekaMode": "description",
+          "instrumental": true
+        }
+      }
+    },
+    {
+      "id": "minimax-speech-2.8-turbo",
+      "label": "Minimax-speech-2.8-turbo",
+      "provider": "MiniMax",
+      "latencyLabel": "约 10 秒",
+      "baseCredits": 1,
+      "iconKey": "minimax",
+      "tags": [
+        "语音",
+        "快速"
+      ],
+      "description": "文字转语音，快速生成自然的音频效果",
+      "media": "audio",
+      "controls": [
+        "voiceId",
+        "speed",
+        "pitch",
+        "volume"
+      ],
+      "audioCapabilities": {
+        "family": "tts-minimax",
+        "maxCharacters": 50000,
+        "acceptsReferences": [
+          "text",
+          "audio"
+        ],
+        "supportsVoice": true,
+        "supportsPauseTokens": true,
+        "supportsCueTokens": true,
+        "defaults": {
+          "language": "zh",
+          "sampleRate": "24k",
+          "format": "wav",
+          "voiceId": "voice-girl",
+          "speed": 1,
+          "pitch": 0,
+          "volume": 1,
+          "effectPitch": 0,
+          "effectStrength": 0,
+          "timbre": 0,
+          "soundEffect": "none",
+          "stability": "natural",
+          "musicDurationSeconds": 30,
+          "murekaMode": "description",
+          "instrumental": true
+        }
+      }
+    },
+    {
+      "id": "eleven-v3",
+      "label": "Eleven V3",
+      "provider": "ElevenLabs",
+      "latencyLabel": "约 18 秒",
+      "baseCredits": 2,
+      "iconKey": "eleven",
+      "tags": [
+        "语音",
+        "可定制"
+      ],
+      "description": "文字转语音，提供高质量、可定制的语音",
+      "media": "audio",
+      "controls": [
+        "voiceId"
+      ],
+      "audioCapabilities": {
+        "family": "tts-eleven",
+        "maxCharacters": 5000,
+        "acceptsReferences": [
+          "text",
+          "audio"
+        ],
+        "supportsVoice": true,
+        "supportsPauseTokens": false,
+        "supportsCueTokens": false,
+        "defaults": {
+          "language": "zh",
+          "sampleRate": "24k",
+          "format": "wav",
+          "voiceId": "voice-jin",
+          "speed": 1,
+          "pitch": 0,
+          "volume": 1,
+          "effectPitch": 0,
+          "effectStrength": 0,
+          "timbre": 0,
+          "soundEffect": "none",
+          "stability": "natural",
+          "musicDurationSeconds": 30,
+          "murekaMode": "description",
+          "instrumental": true
+        }
+      }
+    },
+    {
+      "id": "eleven-music-v3",
+      "label": "Eleven Music V3",
+      "provider": "ElevenLabs",
+      "latencyLabel": "约 60 秒",
+      "baseCredits": 60,
+      "iconKey": "eleven",
+      "tags": [
+        "音乐"
+      ],
+      "description": "智能音乐生成，高质量音乐生成",
+      "media": "audio",
+      "controls": [
+        "durationSeconds"
+      ],
+      "audioCapabilities": {
+        "family": "music-eleven",
+        "maxCharacters": 5000,
+        "acceptsReferences": [
+          "text",
+          "audio"
+        ],
+        "supportsVoice": false,
+        "supportsPauseTokens": false,
+        "supportsCueTokens": false,
+        "defaults": {
+          "language": "zh",
+          "sampleRate": "24k",
+          "format": "wav",
+          "voiceId": "voice-girl",
+          "speed": 1,
+          "pitch": 0,
+          "volume": 1,
+          "effectPitch": 0,
+          "effectStrength": 0,
+          "timbre": 0,
+          "soundEffect": "none",
+          "stability": "natural",
+          "musicDurationSeconds": 30,
+          "murekaMode": "description",
+          "instrumental": true
+        }
+      }
+    },
+    {
+      "id": "mureka-v8",
+      "label": "Mureka V8",
+      "provider": "Mureka",
+      "latencyLabel": "约 60 秒",
+      "baseCredits": 60,
+      "iconKey": "mureka",
+      "tags": [
+        "音乐",
+        "自然人声"
+      ],
+      "description": "智能音乐生成，兼具多元风格与自然人声",
+      "media": "audio",
+      "controls": [
+        "durationSeconds"
+      ],
+      "audioCapabilities": {
+        "family": "music-mureka",
+        "maxCharacters": 1024,
+        "acceptsReferences": [
+          "text",
+          "audio"
+        ],
+        "supportsVoice": false,
+        "supportsPauseTokens": false,
+        "supportsCueTokens": false,
+        "defaults": {
+          "language": "zh",
+          "sampleRate": "24k",
+          "format": "wav",
+          "voiceId": "voice-girl",
+          "speed": 1,
+          "pitch": 0,
+          "volume": 1,
+          "effectPitch": 0,
+          "effectStrength": 0,
+          "timbre": 0,
+          "soundEffect": "none",
+          "stability": "natural",
+          "musicDurationSeconds": 30,
+          "murekaMode": "description",
+          "instrumental": true
+        }
+      }
+    }
+  ]
+}

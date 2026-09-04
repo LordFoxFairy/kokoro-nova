@@ -27,6 +27,7 @@ import {
 import { ArtifactPreview, MediaPlaceholder, NODE_ICON, TrySuggestions } from './node-visuals'
 import { VideoNodeEditor } from './VideoNodeEditor'
 import { ImageNodeEditor } from './ImageNodeEditor'
+import { AudioNodeEditor } from './AudioNodeEditor'
 
 export interface NodeCardData extends Record<string, unknown> {
   node: WorkflowNode
@@ -358,6 +359,20 @@ function NodeCardImpl({ data, selected }: NodeProps) {
           onLocateReference={onLocateNode}
           onOpenStyle={onOpenImageStyle}
           onApplyTool={onApplyImageTool}
+        />
+      )}
+
+      {node.type === 'audio' && open && (
+        <AudioNodeEditor
+          node={node}
+          job={job}
+          onRun={onRun}
+          onCancel={onCancel}
+          selectionMode={canvasSelection?.targetNodeId === node.id ? canvasSelection.kind : null}
+          onStartSelection={onStartVideoSelection}
+          onExitSelection={onExitVideoSelection}
+          onRemoveReference={onRemoveVideoReference}
+          onLocateReference={onLocateNode}
         />
       )}
 

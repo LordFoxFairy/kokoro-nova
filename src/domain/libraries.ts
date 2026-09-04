@@ -111,7 +111,7 @@ export interface VoicePreset {
   name: string
   language: string
   accent: string
-  gender: '男' | '女' | '中性'
+  gender: '男' | '女' | '中性' | 'Character'
   age: '儿童' | '青年' | '成年' | '老年'
   tags: string[]
 }
@@ -125,18 +125,26 @@ const VOICE_SEED: [
   age: VoicePreset['age'],
   tags: string[],
 ][] = [
-  ['voice-cn-female-warm', '温暖女声', '中文', '普通话', '女', '成年', ['旁白', '广告']],
-  ['voice-cn-male-deep', '低沉男声', '中文', '普通话', '男', '成年', ['纪录片']],
-  ['voice-cn-female-young', '清亮少女', '中文', '普通话', '女', '青年', ['动画']],
-  ['voice-cn-male-young', '阳光少年', '中文', '普通话', '男', '青年', ['动画']],
-  ['voice-cn-child', '童声', '中文', '普通话', '中性', '儿童', ['动画']],
-  ['voice-cn-elder', '长者旁白', '中文', '普通话', '男', '老年', ['纪录片']],
-  ['voice-yue-female', '粤语女声', '中文', '粤语', '女', '成年', ['本地化']],
-  ['voice-en-female-news', 'English Anchor', '英文', '美式', '女', '成年', ['新闻']],
-  ['voice-en-male-narr', 'English Narrator', '英文', '英式', '男', '成年', ['纪录片']],
-  ['voice-jp-female', '日本語ナレーション', '日文', '标准', '女', '成年', ['旁白']],
-  ['voice-ko-male', '한국어 내레이션', '韩文', '标准', '男', '青年', ['旁白']],
-  ['voice-cn-female-soft', '轻柔女声', '中文', '普通话', '女', '成年', ['助眠', '广告']],
+  ['voice-young-green', '青涩青年音色', '中文', '普通话', '男', '青年', ['自然', '青年']],
+  ['voice-young-elite', '精英青年音色', '中文', '普通话', '男', '青年', ['沉稳', '商务']],
+  ['voice-young-dominant', '霸道青年音色', '中文', '普通话', '男', '青年', ['强势', '剧情']],
+  ['voice-college-student', '青年大学生音色', '中文', '普通话', '男', '青年', ['校园', '自然']],
+  ['voice-girl', '少女音色', '中文', '普通话', '女', '青年', ['清亮', '默认']],
+  ['voice-queen', '御姐音色', '中文', '普通话', '女', '成年', ['成熟', '剧情']],
+  ['voice-mature-woman', '成熟女性音色', '中文', '普通话', '女', '成年', ['沉稳', '旁白']],
+  ['voice-sweet-woman', '甜美女性音色', '中文', '普通话', '女', '青年', ['甜美', '广告']],
+  ['voice-young-green-beta', '青涩青年音色-beta', '中文', '普通话', '男', '青年', ['beta', '自然']],
+  ['voice-young-elite-beta', '精英青年音色-beta', '中文', '普通话', '男', '青年', ['beta', '商务']],
+  ['voice-young-dominant-beta', '霸道青年音色-beta', '中文', '普通话', '男', '青年', ['beta', '剧情']],
+  ['voice-college-student-beta', '青年大学生音色-beta', '中文', '普通话', '男', '青年', ['beta', '校园']],
+  ['voice-girl-beta', '少女音色-beta', '中文', '普通话', '女', '青年', ['beta', '清亮']],
+  ['voice-queen-beta', '御姐音色-beta', '中文', '普通话', '女', '成年', ['beta', '成熟']],
+  ['voice-mature-woman-beta', '成熟女性音色-beta', '中文', '普通话', '女', '成年', ['beta', '旁白']],
+  ['voice-sweet-woman-beta', '甜美女性音色-beta', '中文', '普通话', '女', '青年', ['beta', '甜美']],
+  ['voice-smart-boy', '聪明男童', '中文', '普通话', '男', '儿童', ['儿童', '聪明']],
+  ['voice-cute-boy', '可爱男童', '中文', '普通话', '男', '儿童', ['儿童', '可爱']],
+  ['voice-cute-girl', '萌萌女童', '中文', '普通话', '女', '儿童', ['儿童', '可爱']],
+  ['voice-cartoon-pig', '卡通猪小琪', '中文', '普通话', 'Character', '儿童', ['角色', '卡通']],
 ]
 
 export const VOICES: VoicePreset[] = VOICE_SEED.map(([id, name, language, accent, gender, age, tags]) => ({
@@ -149,10 +157,46 @@ export const VOICES: VoicePreset[] = VOICE_SEED.map(([id, name, language, accent
   tags,
 }))
 
+export const VOICE_CATALOG_TOTAL = 327
+export const VOICE_PAGE_SIZE = 20
+
+/**
+ * Deterministic local rows behind pages 2–17. Page one stays byte-for-byte
+ * aligned with the currently observed catalogue; the remaining names are
+ * explicit fixtures rather than copied account audio.
+ */
+export function voiceCatalogFixtures(): VoicePreset[] {
+  const languages = [
+    ['中文', '普通话'],
+    ['英文', '美式'],
+    ['英文', '英式'],
+    ['日文', '标准'],
+    ['韩文', '标准'],
+  ] as const
+  const genders = ['男', '女', '中性', 'Character'] as const
+  const ages = ['青年', '成年', '儿童', '老年'] as const
+  const generated = Array.from({ length: VOICE_CATALOG_TOTAL - VOICES.length }, (_, index): VoicePreset => {
+    const ordinal = index + VOICES.length + 1
+    const [language, accent] = languages[index % languages.length]
+    const gender = genders[index % genders.length]
+    const age = ages[index % ages.length]
+    return {
+      id: `voice-fixture-${String(ordinal).padStart(3, '0')}`,
+      name: `本地演示音色 ${String(ordinal).padStart(3, '0')}`,
+      language,
+      accent,
+      gender,
+      age,
+      tags: ['本地样本', language, age],
+    }
+  })
+  return [...VOICES.map((voice) => ({ ...voice, tags: [...voice.tags] })), ...generated]
+}
+
 /** Non-verbal cues insertable into a TTS script. */
 export const PARALINGUISTIC_CUES = [
-  '笑声', '轻笑', '大笑', '咳嗽', '清嗓', '换气', '喘气', '吸气', '呼气', '叹气',
-  '打嗝', '咂嘴', '哼唱', '口哨', '喷嚏', '抽泣', '鼓掌', '吞咽', '打哈欠', '低语', '尖叫',
+  '笑声', '轻笑', '咳嗽', '清嗓子', '正常换气', '喘气', '吸气', '呼气', '倒吸气', '吸鼻子',
+  '叹气', '喷鼻息', '打嗝', '咂嘴', '哼唱', '嘶嘶声', '嗯', '口哨', '喷嚏', '抽泣', '鼓掌',
 ] as const
 
 export const PAUSE_PRESETS = [0.25, 0.5, 1, 1.5] as const

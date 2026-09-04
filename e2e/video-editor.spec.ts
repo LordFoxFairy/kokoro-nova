@@ -47,6 +47,7 @@ test('Video double click opens an inverse-scaled node editor instead of the gene
   const atFifty = await editor.boundingBox()
   expect(atFifty?.width).toBeGreaterThanOrEqual(658)
   expect(atFifty?.width).toBeLessThanOrEqual(662)
+  await expect(page.getByTestId('node-shell-node_video_01')).toHaveAttribute('data-selected', 'false')
 
   await expectVisualBaseline(page, 'video-node-editor-dark-1440x900.png')
   await page.screenshot({

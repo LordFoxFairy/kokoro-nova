@@ -123,10 +123,10 @@ describe('local API manifest and OpenAPI', () => {
     ])
   })
 
-  it('versions and exposes the persisted Video and Image authoring metadata shapes', () => {
+  it('versions and exposes the persisted Video, Image and Audio authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.5.0-image-authoring-state')
+    expect(document.info?.version).toBe('1.6.0-audio-authoring-state')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -148,8 +148,14 @@ describe('local API manifest and OpenAPI', () => {
     expect(document.components?.schemas?.NodeExtra?.properties?.imageTransform?.$ref).toBe(
       '#/components/schemas/ImageTransformSpec',
     )
+    expect(document.components?.schemas?.NodeExtra?.properties?.audioAuthoring?.$ref).toBe(
+      '#/components/schemas/AudioAuthoringState',
+    )
     expect(document.components?.schemas?.ModelDefinition?.properties?.imageCapabilities?.$ref).toBe(
       '#/components/schemas/ImageModelCapabilities',
+    )
+    expect(document.components?.schemas?.ModelDefinition?.properties?.audioCapabilities?.$ref).toBe(
+      '#/components/schemas/AudioModelCapabilities',
     )
     expect(document.components?.schemas?.GenerationOutputSpec?.properties?.quality?.enum).toEqual([
       ...IMAGE_QUALITIES,
@@ -157,5 +163,18 @@ describe('local API manifest and OpenAPI', () => {
     expect(new Set(document.components?.schemas?.GenerationOutputSpec?.properties?.aspectRatio?.enum)).toEqual(
       new Set(['auto', ...IMAGE_ASPECT_RATIOS]),
     )
+    expect(document.components?.schemas?.GenerationOutputSpec?.properties?.sampleRate?.enum).toEqual([
+      '8k',
+      '16k',
+      '24k',
+      '48k',
+    ])
+    expect(document.components?.schemas?.GenerationOutputSpec?.properties?.soundEffect?.enum).toEqual([
+      'none',
+      'echo',
+      'hall',
+      'telephone',
+      'electronic',
+    ])
   })
 })

@@ -93,7 +93,7 @@ describe('quoteCredits / duration', () => {
 
   it('ignores duration for non-video models', () => {
     expect(credits('lib-image-2', { durationSeconds: 15 })).toBe(18)
-    expect(credits('minimax-speech-2.8-hd', { durationSeconds: 15 })).toBe(6)
+    expect(credits('minimax-speech-2.8-hd', { durationSeconds: 15 })).toBe(1)
   })
 
   it('adds an audio surcharge on top of the duration-scaled price', () => {
@@ -190,7 +190,7 @@ describe('model catalog', () => {
   })
 
   it('publishes a versioned deterministic catalog', () => {
-    expect(MODEL_CATALOG_VERSION).toBe('2026-09-03.1')
+    expect(MODEL_CATALOG_VERSION).toBe('2026-09-03.2')
     expect(DEFAULT_MODEL.video).toBe('seedance-2-5')
   })
 

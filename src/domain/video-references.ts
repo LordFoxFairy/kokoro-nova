@@ -144,6 +144,9 @@ export function orderedVideoReferences(
     .filter((item): item is OrderedVideoReference => item !== null)
 }
 
+/** Generic name used by every media authoring surface. */
+export const orderedCanvasReferences = orderedVideoReferences
+
 /** Human-readable token used by the rich prompt composer. */
 export function videoReferenceLabel(node: WorkflowNode, index: number): string {
   const media =
@@ -161,6 +164,9 @@ export function videoReferenceLabel(node: WorkflowNode, index: number): string {
   const label = labels[media ?? ''] ?? '素材'
   return `${label} ${index + 1}`
 }
+
+/** Generic name used by every media authoring surface. */
+export const canvasReferenceLabel = videoReferenceLabel
 
 function belongsToSource(value: unknown, sourceNodeId: string): boolean {
   return Boolean(value && typeof value === 'object' && 'nodeId' in value && value.nodeId === sourceNodeId)

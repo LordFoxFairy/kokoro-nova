@@ -104,6 +104,7 @@ export function StoryboardView() {
                   <button
                     key={card.nodeId}
                     type="button"
+                    data-testid={`storyboard-card-${card.nodeId}`}
                     onClick={() => setDetail(card)}
                     className="flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-ink-50"
                   >

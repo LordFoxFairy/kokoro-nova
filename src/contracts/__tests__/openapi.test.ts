@@ -282,6 +282,7 @@ describe('local API manifest and OpenAPI', () => {
       ['POST', '/api/jobs', 'CreateJobRequest', 'CreateJobResponse', ['400', '500']],
       ['GET', '/api/jobs/{jobId}', null, 'GetJobResponse', ['404', '500']],
       ['POST', '/api/jobs/{jobId}', 'TransitionJobRequest', 'TransitionJobResponse', ['400', '500']],
+      ['GET', '/api/ledger', null, 'LedgerViewProjection', ['400', '500']],
       ['GET', '/api/canvases/{canvasId}', null, 'CanvasDetailResponse', ['404', '500']],
       ['POST', '/api/canvases/{canvasId}', 'MutationRequest', 'MutationResult', ['400', '404', '409', '500']],
       ['POST', '/api/compose', 'ComposeRequest', 'ComposeResponse', ['400', '404', '500', '503', '504']],
@@ -310,6 +311,15 @@ describe('local API manifest and OpenAPI', () => {
     )
     expect(operationAt(document, 'DELETE', '/api/assets/upload').parameters).toEqual([
       expect.objectContaining({ name: 'token', in: 'query', required: true }),
+    ])
+
+    expect(operationAt(document, 'GET', '/api/ledger').parameters).toEqual([
+      expect.objectContaining({
+        name: 'limit',
+        in: 'query',
+        required: false,
+        schema: expect.objectContaining({ type: 'integer', minimum: 1, maximum: 200 }),
+      }),
     ])
 
     expect(responseSchemaRef(operationAt(document, 'GET', '/api/preview/character'), '200')).toBeUndefined()

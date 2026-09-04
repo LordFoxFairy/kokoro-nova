@@ -2315,33 +2315,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/LedgerViewProjection"
                 }
               }
             }
           },
           "400": {
             "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
             "content": {
               "application/json": {
                 "schema": {
@@ -2360,7 +2340,20 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "description": "每个集合最多返回的行数；省略时返回全部，服务端最多返回 200 行。"
+          }
+        ]
       }
     },
     "/api/media/{path}": {
@@ -10210,6 +10203,337 @@
             "items": {
               "type": "string",
               "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "type",
+          "credits",
+          "balanceAfter",
+          "logicalChargeId",
+          "jobId",
+          "note",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "grant",
+              "reserve",
+              "settle",
+              "release",
+              "purchase"
+            ]
+          },
+          "credits": {
+            "type": "number"
+          },
+          "balanceAfter": {
+            "type": "number"
+          },
+          "logicalChargeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "jobId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChargeSummary": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "state",
+          "reserved",
+          "returned",
+          "net",
+          "resolvedAt"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "held",
+              "settled",
+              "released"
+            ]
+          },
+          "reserved": {
+            "type": "number",
+            "minimum": 0
+          },
+          "returned": {
+            "type": "number",
+            "minimum": 0
+          },
+          "net": {
+            "type": "number",
+            "minimum": 0
+          },
+          "resolvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerRow": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "type",
+          "credits",
+          "balanceAfter",
+          "logicalChargeId",
+          "jobId",
+          "note",
+          "createdAt",
+          "charge"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "grant",
+              "reserve",
+              "settle",
+              "release",
+              "purchase"
+            ]
+          },
+          "credits": {
+            "type": "number"
+          },
+          "balanceAfter": {
+            "type": "number"
+          },
+          "logicalChargeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "jobId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "charge": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChargeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerTotals": {
+        "type": "object",
+        "required": [
+          "earned",
+          "reserved",
+          "returned",
+          "spent",
+          "held"
+        ],
+        "properties": {
+          "earned": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reserved": {
+            "type": "number",
+            "minimum": 0
+          },
+          "returned": {
+            "type": "number",
+            "minimum": 0
+          },
+          "spent": {
+            "type": "number",
+            "minimum": 0
+          },
+          "held": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerCounts": {
+        "type": "object",
+        "required": [
+          "earned",
+          "spent",
+          "returned"
+        ],
+        "properties": {
+          "earned": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "spent": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "returned": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerJobLink": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "projectId",
+          "canvasId",
+          "nodeId",
+          "modelId",
+          "status"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "canvasId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerViewProjection": {
+        "type": "object",
+        "required": [
+          "balance",
+          "earned",
+          "spent",
+          "returned",
+          "counts",
+          "totals",
+          "jobs"
+        ],
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "earned": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerRow"
+            }
+          },
+          "spent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerRow"
+            }
+          },
+          "returned": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerRow"
+            }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/LedgerCounts"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/LedgerTotals"
+          },
+          "jobs": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LedgerJobLink"
             }
           }
         },

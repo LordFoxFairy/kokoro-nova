@@ -978,7 +978,7 @@ export function HomeAgentComposer({
               onClick={() => {
                 if (guardPrivateAction()) return;
                 setSelectedSkill(
-                  (current) =>
+                  () =>
                     withCreationSkill(
                       creationContext,
                       selected

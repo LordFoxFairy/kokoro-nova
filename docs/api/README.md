@@ -13,10 +13,11 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；46 个 path、80 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；47 个 path、82 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/authenticated/owner/workspace 语义与后端授权交接边界 |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
+| [`COMPOSE_LIFECYCLE.md`](COMPOSE_LIFECYCLE.md) | 视频剪辑合成的持久化 task、取消、失败重试、刷新恢复与一次性产物约定 |
 | [`jobs-lifecycle.md`](jobs-lifecycle.md) | 可重放 Job fixture、停止/重试/刷新恢复和一次性账本结算 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
 | [`VIDEO_REFERENCE_STATE.md`](VIDEO_REFERENCE_STATE.md) | Video 图引用、`@` token、局部元素与运镜持久化契约 |
@@ -34,7 +35,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
 | [`skills-authoring.md`](skills-authoring.md) | Skill 草稿、文件树、审核、发布与下架的作者工作流 |
 | [`agent-skill-execution.md`](agent-skill-execution.md) | Agent 固定版本 Skill、确定性计划、确认门、工具轨迹与失败降级 |
-| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 46 个 path / 80 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
+| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 47 个 path / 82 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) | 项目软删除、30 天保留、恢复、永久删除与画布保留边界 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
@@ -110,7 +111,7 @@ OpenAPI: 3.1.0
 
 ### 后端交接授权
 
-OpenAPI 为所有 80 个 operation 显式声明 operation-level `security` 与
+OpenAPI 为所有 82 个 operation 显式声明 operation-level `security` 与
 `x-authorization`：公开读取使用 `security: []`，其余 operation 使用 `bearerAuth`。Bearer
 由 transport adapter 注入，页面和 fixture 不读取或持久化凭证。public、authenticated、owner 和
 workspace 的资源边界，以及 `401`/`403`/`404` 的交接规则见 [`AUTHORIZATION.md`](AUTHORIZATION.md)。
@@ -170,7 +171,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | TV Show 目录与详情 | `listShowcaseEntries`, `getShowcaseDetail`, `getPublishedSnapshot`；详情媒体、作者、统计和相邻作品属于独立 discovery projection，工作流仍读取冻结快照 |
 | 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
-| 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
+| 视频剪辑导出 | `composeVideo`, `getComposeTask`, `transitionComposeTask`, `readLocalMedia` |
 | 素材管理 | `listAssets`, `uploadAsset`, `registerArtifactAsAsset`, `updateAsset` |
 | Agent | `createAgentSession`, `sendAgentMessage`, `resolveAgentMessage` |
 | Skill | `listSkills`, `getSkill`, `toggleSkillFavorite`, `listAuthoredSkills`, `createAuthoredSkill`, `getAuthoredSkill`, `updateAuthoredSkill`, `transitionAuthoredSkill` |

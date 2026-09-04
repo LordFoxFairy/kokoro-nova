@@ -42,7 +42,7 @@ Presence heartbeat 要求 workspace editor。后端可实现更细粒度角色�
 | `public` | `GET /api/home`、`/api/models`、`/api/skills*`、`/api/materials*`、`/api/showcase*`、`GET /api/publish*`、预览和媒体读取。 |
 | `authenticated` | 收藏 Skill/素材、`POST /api/publish/{snapshotId}/clone`、`/api/dev/scenario` 与 `/api/dev/reset`。开发 fixture 仍须同时通过环境门，production 不暴露。 |
 | `owner` | `/api/account`、`/api/ledger`、`/api/identity`、`/api/preferences`、`/api/notifications`、`/api/creation-context`、`/api/agent/**`、`/api/skills/author/**` 以及发布/下架。 |
-| `workspace` | `/api/projects*`、`/api/folders*`、`/api/recycle-bin*`、`/api/canvases*`、`/api/assets*`、`/api/jobs*`、`/api/compose`、`/api/presence*`、`/api/script-v2/**`。 |
+| `workspace` | `/api/projects*`、`/api/folders*`、`/api/recycle-bin*`、`/api/canvases*`、`/api/assets*`、`/api/jobs*`、`/api/compose*`、`/api/presence*`、`/api/script-v2/**`。 |
 
 `*` 仅表示同一路径族中已在 OpenAPI 列出的 operation；具体 method 的 authoritative 标注始终是
 `openapi.yaml` 的 `x-authorization`。公开的 `GET /api/publish*` 只返回已发布投影；`POST`、`DELETE` 仍为 owner operation。`GET /api/media/{path}` 仅可返回已授权的公开投影或 bearer 所属 workspace 媒体，后端不得把本地 fixture 的相对路径模型照搬为跨租户文件系统访问。

@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.18.0-backend-auth-handoff` · scope: 46 paths / 80 operations
+> Contract version: `1.18.0-backend-auth-handoff` · scope: 47 paths / 82 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -14,7 +14,7 @@ transport 的一一对应。
 |---|---:|---|---|---|
 | Project / Folder / Recycle Bin | 6 / 12 | 已精确 | 空账户、默认命名、软删除 30 天保留、恢复与永久删除确认 | project/folder repository |
 | Canvas / workflow / Creation Context | 3 / 8 | 已精确 | revision、冲突、当前 document 与首页发送前上下文冻结 | document store + optimistic lock + context store |
-| Jobs / Script V2 / compose | 6 / 9 | 已精确 | quote、poll、幂等、终态与 fixture | queue/provider/render adapter |
+| Jobs / Script V2 / compose | 6 / 11 | 已精确 | quote、poll、幂等、终态、取消/重试与 fixture | queue/provider/render adapter |
 | Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
@@ -65,8 +65,8 @@ UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所�
 
 ## 后端授权与错误交接
 
-46 个 path、80 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
-13 个 public 读取明确为 `security: []`，其余 67 个 operation 使用 `bearerAuth`。后端以
+47 个 path、82 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
+13 个 public 读取明确为 `security: []`，其余 69 个 operation 使用 `bearerAuth`。后端以
 [`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
 和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。
 

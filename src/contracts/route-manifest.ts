@@ -103,8 +103,23 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('POST', '/api/canvases', 'Canvases', 'createCanvas', ['新建画布或创建画布副本']),
 
   route('POST', '/api/compose', 'Video', 'composeVideo', ['视频合成器导出到本地或画布'], [
+    'video-queued',
+    'video-running',
     'video-succeeded',
     'video-failed',
+    'video-cancelled',
+  ]),
+  route('GET', '/api/compose/{taskId}', 'Video', 'getComposeTask', ['视频合成器恢复导出进度或终态'], [
+    'video-queued',
+    'video-running',
+    'video-succeeded',
+    'video-failed',
+    'video-cancelled',
+  ]),
+  route('POST', '/api/compose/{taskId}', 'Video', 'transitionComposeTask', ['视频合成器取消导出或重试失败任务'], [
+    'video-running',
+    'video-failed',
+    'video-cancelled',
   ]),
   route('POST', '/api/dev/reset', 'Development', 'resetActiveScenario', ['Playwright 用例恢复当前 fixture'], [
     'authenticated-empty',

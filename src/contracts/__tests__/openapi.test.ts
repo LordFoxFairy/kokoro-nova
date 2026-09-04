@@ -574,7 +574,9 @@ describe('local API manifest and OpenAPI', () => {
       ['GET', '/api/ledger', null, 'LedgerViewProjection', ['400', '500']],
       ['GET', '/api/canvases/{canvasId}', null, 'CanvasDetailResponse', ['404', '500']],
       ['POST', '/api/canvases/{canvasId}', 'MutationRequest', 'MutationResult', ['400', '404', '409', '500']],
-      ['POST', '/api/compose', 'ComposeRequest', 'ComposeResponse', ['400', '404', '500', '503', '504']],
+      ['POST', '/api/compose', 'ComposeRequest', 'ComposeTaskResponse', ['400', '500']],
+      ['GET', '/api/compose/{taskId}', null, 'ComposeTaskResponse', ['404', '500']],
+      ['POST', '/api/compose/{taskId}', 'ComposeTaskAction', 'ComposeTaskResponse', ['400', '404', '500']],
     ]
 
     for (const [method, routePath, requestSchema, successSchema, errorStatuses] of contracts) {

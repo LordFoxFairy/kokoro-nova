@@ -1629,44 +1629,37 @@
         "tags": [
           "Video"
         ],
-        "summary": "将多轨视频时间线合成为本地 MP4",
-        "description": "同步合成本地 Storyboard/Video 时间线并登记一个本地 video Artifact 与 Asset；不创建普通 Job。\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。",
+        "summary": "创建持久化本地视频合成任务",
+        "description": "登记确定性的本地合成任务并立即返回 task id。客户端轮询任务 route；成片仅在 succeeded 时出现。不会发送真实 LibTV 凭证或调用远端后端。",
         "operationId": "composeVideo",
         "x-ui-triggers": [
           "视频合成器导出到本地或画布"
         ],
         "x-mock-scenarios": [
+          "video-queued",
+          "video-running",
           "video-succeeded",
-          "video-failed"
+          "video-failed",
+          "video-cancelled"
         ],
         "responses": {
           "200": {
-            "description": "合成成功，产物同时登记到个人资产库",
+            "description": "任务已持久化；queued/rendering 阶段不包含成片。",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ComposeResponse"
+                  "$ref": "#/components/schemas/ComposeTaskResponse"
                 },
                 "examples": {
-                  "multitrack": {
-                    "$ref": "#/components/examples/ComposeResponseExample"
+                  "queued": {
+                    "$ref": "#/components/examples/ComposeTaskQueuedExample"
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
+            "description": "请求参数不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -1677,26 +1670,6 @@
           },
           "500": {
             "description": "mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "本地 ffmpeg 不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "合成超过 90 秒执行预算",
             "content": {
               "application/json": {
                 "schema": {
@@ -6010,6 +5983,175 @@
           }
         },
         "x-authorization": "authenticated",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/compose/{taskId}": {
+      "get": {
+        "tags": [
+          "Video"
+        ],
+        "summary": "读取持久化视频合成任务",
+        "description": "用于刷新恢复和轮询 queued、rendering、succeeded、failed 或 cancelled 状态。",
+        "operationId": "getComposeTask",
+        "x-ui-triggers": [
+          "视频合成器恢复导出进度或终态"
+        ],
+        "x-mock-scenarios": [
+          "video-queued",
+          "video-running",
+          "video-succeeded",
+          "video-failed",
+          "video-cancelled"
+        ],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前任务状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeTaskResponse"
+                },
+                "examples": {
+                  "task": {
+                    "$ref": "#/components/examples/ComposeTaskQueuedExample"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "视频合成任务不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Video"
+        ],
+        "summary": "取消或重试持久化视频合成任务",
+        "description": "cancel 只作用于 queued/rendering 任务且不会创建成片；retry 只将 failed 任务重新排队，保持 task id。",
+        "operationId": "transitionComposeTask",
+        "x-ui-triggers": [
+          "视频合成器取消导出或重试失败任务"
+        ],
+        "x-mock-scenarios": [
+          "video-running",
+          "video-failed",
+          "video-cancelled"
+        ],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeTaskAction"
+              },
+              "examples": {
+                "cancel": {
+                  "value": {
+                    "action": "cancel"
+                  }
+                },
+                "retry": {
+                  "value": {
+                    "action": "retry"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的任务状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeTaskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "任务动作不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "视频合成任务不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "workspace",
         "security": [
           {
             "bearerAuth": []
@@ -15230,6 +15372,116 @@
           }
         },
         "additionalProperties": false
+      },
+      "ComposeTaskStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "rendering",
+          "succeeded",
+          "failed",
+          "cancelled"
+        ]
+      },
+      "ComposeTask": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "artifact",
+          "assetId",
+          "subtitleMode",
+          "notes",
+          "failure",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ComposeTaskStatus"
+          },
+          "artifact": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Artifact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assetId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subtitleMode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "burned",
+              "muxed",
+              "none",
+              null
+            ]
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Durable local compositor state. artifact, assetId and subtitleMode are populated only after succeeded; failure is populated only after failed."
+      },
+      "ComposeTaskResponse": {
+        "type": "object",
+        "required": [
+          "task"
+        ],
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/ComposeTask"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComposeTaskAction": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel",
+              "retry"
+            ]
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {
@@ -15919,6 +16171,21 @@
       },
       "ShowcaseClone": {
         "externalValue": "./examples/showcase-clone.response.json"
+      },
+      "ComposeTaskQueuedExample": {
+        "value": {
+          "task": {
+            "id": "compose_task_fixture_001",
+            "status": "queued",
+            "artifact": null,
+            "assetId": null,
+            "subtitleMode": null,
+            "notes": [],
+            "failure": null,
+            "createdAt": "2026-09-04T00:00:00.000Z",
+            "updatedAt": "2026-09-04T00:00:00.000Z"
+          }
+        }
       }
     }
   },

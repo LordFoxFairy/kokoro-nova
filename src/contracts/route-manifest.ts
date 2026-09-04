@@ -282,6 +282,11 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
 
   route('GET', '/api/skills/{skillId}', 'Skills', 'getSkill', ['打开 Skill 详情']),
   route('POST', '/api/skills/{skillId}', 'Skills', 'toggleSkillFavorite', ['Skill 卡或详情收藏']),
+  route('GET', '/api/skills/author/{skillId}', 'Skills', 'getAuthoredSkill', ['作者工作台打开草稿或版本']),
+  route('PATCH', '/api/skills/author/{skillId}', 'Skills', 'updateAuthoredSkill', ['作者工作台保存元数据或文件树']),
+  route('POST', '/api/skills/author/{skillId}', 'Skills', 'transitionAuthoredSkill', ['提交审核、发布或下架本地 Skill']),
+  route('GET', '/api/skills/author', 'Skills', 'listAuthoredSkills', ['“我的”打开作者工作台']),
+  route('POST', '/api/skills/author', 'Skills', 'createAuthoredSkill', ['作者工作台创建草稿']),
   route('GET', '/api/skills', 'Skills', 'listSkills', [
     '首页推荐与 Skill 市场',
     '打开附件、参考、Skill 与生成模式上下文',

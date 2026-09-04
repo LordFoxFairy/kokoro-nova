@@ -46,7 +46,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.14.0-generation-lifecycle
+Contract version: 1.15.0-skill-authoring
 OpenAPI: 3.1.0
 ```
 
@@ -210,6 +210,17 @@ drawer 的确定性空态和 `503` 错误态。`category`、`collection` 的未�
 说明和当前 workspace 的 `favourite` 投影。收藏请求表达目标状态而不是 flip，因此重试和
 重复点击是幂等的。Skill catalogue 是只读本地 fixture，收藏 id 按 space 持久化，不会污染
 共享种子数据。
+
+作者工作流使用本地 deterministic mock：
+
+```text
+GET|POST /api/skills/author
+GET|PATCH|POST /api/skills/author/SKILL_ID
+```
+
+它固定覆盖 `create → draft → 编辑文件树/语义版本 → submit_review → publish → 我的可见 → unpublish`。
+仅 `published` 版本投影到 `collection=我的`；发布未通过审核或不完整草稿会给出可行动校验错误。完整字段说明见
+[`skills-authoring.md`](skills-authoring.md)。
 
 ### 模型目录契约
 

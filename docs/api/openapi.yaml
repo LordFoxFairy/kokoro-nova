@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.14.0-generation-lifecycle",
+    "version": "1.15.0-skill-authoring",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -5121,6 +5121,311 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateCreationAgentRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/author": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "summary": "列出本地作者 Skill",
+        "operationId": "listAuthoredSkills",
+        "x-ui-triggers": [
+          "“我的”打开作者工作台"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorSkillListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Skills"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "summary": "创建本地 Skill 草稿",
+        "operationId": "createAuthoredSkill",
+        "x-ui-triggers": [
+          "作者工作台创建草稿"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAuthoredSkillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAuthoredSkillResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/author/{skillId}": {
+      "get": {
+        "tags": [
+          "Skills"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "summary": "读取本地作者 Skill",
+        "operationId": "getAuthoredSkill",
+        "x-ui-triggers": [
+          "作者工作台打开草稿或版本"
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAuthoredSkillResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "草稿不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Skills"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "summary": "保存作者元数据或文件树",
+        "operationId": "updateAuthoredSkill",
+        "x-ui-triggers": [
+          "作者工作台保存元数据或文件树"
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAuthoredSkillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateAuthoredSkillResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "已发布版本不可编辑",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Skills"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "summary": "提交审核、发布或下架 Skill",
+        "operationId": "transitionAuthoredSkill",
+        "x-ui-triggers": [
+          "提交审核、发布或下架本地 Skill"
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorSkillActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorSkillActionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "生命周期前置条件不满足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "发布校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
               }
             }
           }
@@ -13812,6 +14117,324 @@
         "properties": {
           "request": {
             "$ref": "#/components/schemas/CreationAgentRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillAuthorFile": {
+        "type": "object",
+        "required": [
+          "path",
+          "language",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "json",
+              "text"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 20000
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillAuthorReviewCheck": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "passed",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "name",
+              "summary",
+              "category",
+              "skill-file",
+              "semantic-version"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillAuthorReview": {
+        "type": "object",
+        "required": [
+          "status",
+          "checkedAt",
+          "checks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_requested",
+              "approved",
+              "changes_requested"
+            ]
+          },
+          "checkedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillAuthorReviewCheck"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthoredSkill": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "category",
+          "version",
+          "status",
+          "review",
+          "files",
+          "tags",
+          "createdAt",
+          "updatedAt",
+          "publishedAt",
+          "author",
+          "hue"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "叙事分镜",
+              "角色一致性",
+              "广告文案",
+              "提示词工程",
+              "声音与配乐",
+              "交付规范"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "published",
+              "unpublished"
+            ]
+          },
+          "review": {
+            "$ref": "#/components/schemas/SkillAuthorReview"
+          },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/SkillAuthorFile"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "author": {
+            "type": "string"
+          },
+          "hue": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 359
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthorSkillListResponse": {
+        "type": "object",
+        "required": [
+          "skills"
+        ],
+        "properties": {
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthoredSkill"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateAuthoredSkillRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateAuthoredSkillResponse": {
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/components/schemas/AuthoredSkill"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAuthoredSkillResponse": {
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/components/schemas/AuthoredSkill"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAuthoredSkillRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "叙事分镜",
+              "角色一致性",
+              "广告文案",
+              "提示词工程",
+              "声音与配乐",
+              "交付规范"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/SkillAuthorFile"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAuthoredSkillResponse": {
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/components/schemas/AuthoredSkill"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthorSkillActionRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "submit_review",
+              "publish",
+              "unpublish"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthorSkillActionResponse": {
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/components/schemas/AuthoredSkill"
           }
         },
         "additionalProperties": false

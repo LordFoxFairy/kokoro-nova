@@ -135,3 +135,72 @@ export type SkillComposerSkill = z.infer<typeof SkillComposerSkillSchema>
 export type SkillComposerMode = z.infer<typeof SkillComposerModeSchema>
 export type SkillComposerContextResponse = z.infer<typeof SkillComposerContextResponseSchema>
 export type SkillComposerModesResponse = z.infer<typeof SkillComposerModesResponseSchema>
+
+/* -------------------------------------------------------------------------- */
+/* Local Skill authoring lifecycle                                             */
+/* -------------------------------------------------------------------------- */
+
+export const SkillAuthorStatusSchema = z.enum(['draft', 'in_review', 'published', 'unpublished'])
+export const SkillReviewStatusSchema = z.enum(['not_requested', 'approved', 'changes_requested'])
+export const SemanticVersionSchema = z.string().regex(/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/, '必须是语义版本号，例如 0.1.0')
+
+export const SkillAuthorFileSchema = z.object({
+  path: z.string().regex(/^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/, '文件路径不合法'),
+  language: z.enum(['markdown', 'json', 'text']),
+  content: z.string().max(20_000),
+}).strict()
+
+export const SkillAuthorReviewSchema = z.object({
+  status: SkillReviewStatusSchema,
+  checkedAt: z.string().datetime().nullable(),
+  checks: z.array(z.object({
+    id: z.enum(['name', 'summary', 'category', 'skill-file', 'semantic-version']),
+    label: z.string(),
+    passed: z.boolean(),
+    message: z.string(),
+  }).strict()),
+}).strict()
+
+export const AuthoredSkillSchema = z.object({
+  id: StableIdSchema,
+  name: z.string().max(80),
+  summary: z.string().max(280),
+  category: SkillCategorySchema.exclude(['全部']),
+  version: SemanticVersionSchema,
+  status: SkillAuthorStatusSchema,
+  review: SkillAuthorReviewSchema,
+  files: z.array(SkillAuthorFileSchema).min(1),
+  tags: z.array(z.string().min(1).max(24)).max(8),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  publishedAt: z.string().datetime().nullable(),
+  author: z.string(),
+  hue: z.number().int().min(0).max(359),
+}).strict()
+
+export const AuthorSkillListResponseSchema = z.object({ skills: z.array(AuthoredSkillSchema) }).strict()
+export const CreateAuthoredSkillRequestSchema = z.object({
+  name: z.string().max(80).optional(),
+}).strict()
+export const CreateAuthoredSkillResponseSchema = z.object({ skill: AuthoredSkillSchema }).strict()
+export const GetAuthoredSkillResponseSchema = z.object({ skill: AuthoredSkillSchema }).strict()
+export const UpdateAuthoredSkillRequestSchema = z.object({
+  name: z.string().max(80).optional(),
+  summary: z.string().max(280).optional(),
+  category: SkillCategorySchema.exclude(['全部']).optional(),
+  version: SemanticVersionSchema.optional(),
+  files: z.array(SkillAuthorFileSchema).min(1).optional(),
+  tags: z.array(z.string().min(1).max(24)).max(8).optional(),
+}).strict()
+export const UpdateAuthoredSkillResponseSchema = GetAuthoredSkillResponseSchema
+export const AuthorSkillActionRequestSchema = z.object({ action: z.enum(['submit_review', 'publish', 'unpublish']) }).strict()
+export const AuthorSkillActionResponseSchema = GetAuthoredSkillResponseSchema
+
+export type SkillAuthorStatus = z.infer<typeof SkillAuthorStatusSchema>
+export type SkillAuthorFile = z.infer<typeof SkillAuthorFileSchema>
+export type SkillAuthorReview = z.infer<typeof SkillAuthorReviewSchema>
+export type AuthoredSkill = z.infer<typeof AuthoredSkillSchema>
+export type AuthorSkillListResponse = z.infer<typeof AuthorSkillListResponseSchema>
+export type CreateAuthoredSkillRequest = z.infer<typeof CreateAuthoredSkillRequestSchema>
+export type UpdateAuthoredSkillRequest = z.infer<typeof UpdateAuthoredSkillRequestSchema>
+export type AuthorSkillActionRequest = z.infer<typeof AuthorSkillActionRequestSchema>

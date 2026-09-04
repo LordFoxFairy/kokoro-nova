@@ -1,0 +1,31 @@
+{
+  "skill": {
+    "id": "skill-local-001",
+    "name": "镜头节奏助手",
+    "summary": "将镜头表整理为节奏明确、可执行的短片创作任务。",
+    "category": "叙事分镜",
+    "version": "1.2.0",
+    "status": "published",
+    "review": {
+      "status": "approved",
+      "checkedAt": "2026-09-04T12:03:20.000Z",
+      "checks": [
+        { "id": "name", "label": "名称", "passed": true, "message": "名称至少需要 2 个字符。" },
+        { "id": "summary", "label": "简介", "passed": true, "message": "简介至少需要 12 个字符。" },
+        { "id": "category", "label": "分类", "passed": true, "message": "请选择一个 Skill 分类。" },
+        { "id": "skill-file", "label": "SKILL.md", "passed": true, "message": "请补充根目录 SKILL.md 的执行规范。" },
+        { "id": "semantic-version", "label": "语义版本", "passed": true, "message": "版本必须符合 MAJOR.MINOR.PATCH。" }
+      ]
+    },
+    "files": [
+      { "path": "SKILL.md", "language": "markdown", "content": "# 镜头节奏助手\n\n## 执行步骤\n1. 读取镜头表。" },
+      { "path": "notes/review.md", "language": "markdown", "content": "# 审核说明" }
+    ],
+    "tags": ["节奏", "镜头"],
+    "createdAt": "2026-09-04T12:00:00.000Z",
+    "updatedAt": "2026-09-04T12:03:20.000Z",
+    "publishedAt": "2026-09-04T12:03:20.000Z",
+    "author": "本地创作者",
+    "hue": 204
+  }
+}

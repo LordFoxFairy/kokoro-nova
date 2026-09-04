@@ -26,6 +26,7 @@ import {
 import { LibTvLogo } from '../shell/LibTvLogo'
 import { PromoStrip } from '../shell/PromoStrip'
 import { SkillMarketComposer } from './SkillMarketComposer'
+import { SkillAuthorStudio } from './SkillAuthorStudio'
 
 interface SkillListResponse {
   skills: SkillCard[]
@@ -167,7 +168,7 @@ export function SkillGallery() {
 
       <main className="mx-auto max-w-[1320px] px-4 pb-16 sm:px-8" aria-labelledby="skill-gallery-title">
         <section className="relative pt-10 sm:pt-12">
-          <h1 id="skill-gallery-title" className="text-center font-serif text-[23px] font-medium tracking-wide text-white/90 sm:text-[25px]">一个 Skill，慢慢打磨你的故事</h1>
+          <h1 id="skill-gallery-title" className="text-center font-serif text-[23px] font-medium tracking-wide text-white/90 sm:text-[25px]">用 Skill，开启今天的故事</h1>
           <div data-testid="skill-status" role="status" aria-live="polite" className="sr-only">
             {requestState === 'initial-loading' ? '正在加载技能库…' : requestState === 'refreshing' ? '正在刷新技能库…' : ''}
           </div>
@@ -203,6 +204,13 @@ export function SkillGallery() {
             ))}
           </div>
         </section>
+
+        {collection === '我的' && (
+          <section data-testid="skill-author-entry" className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#60c9ef]/18 bg-[#102630]/55 px-4 py-3.5">
+            <div><p className="text-[13px] font-medium text-[#b9eafa]">我的 Skill</p><p className="mt-1 text-[11px] text-[#80b3c2]">本地 mock 工作台支持草稿、文件树、语义版本、审核、发布与下架。</p></div>
+            <SkillAuthorStudio onPublished={() => setReloadToken((token) => token + 1)} />
+          </section>
+        )}
 
         <div className="min-h-[400px]" aria-busy={loading}>
           {!initialised || (loading && skills.length === 0) ? (
@@ -257,7 +265,7 @@ function SkillGridCard({ skill, mediaIndex, busy, onToggleFavourite }: { skill: 
 function CollectionEmptyState({ collection, filtered, onClear }: { collection: SkillCollection; filtered: boolean; onClear: () => void }) {
   if (filtered) return <EmptyState icon={<IconSearch size={28} />} title="没有匹配的 Skill" description={collection === '全部' ? '换个分类或搜索词试试。' : `「${collection}」里没有符合当前分类和搜索词的能力包。`} action={<button type="button" data-testid="skill-clear-filters" onClick={onClear} className="rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515]">清除筛选</button>} />
   if (collection === '收藏') return <EmptyState icon={<IconSparkle size={30} />} title="当前暂无 Skill" description="收藏过的能力包会集中在这里，方便下次直接加载。" />
-  if (collection === '我的') return <EmptyState icon={<IconSparkle size={30} />} title="还没有自建 Skill" description="把反复用到的步骤、约束和产出格式沉淀成一份执行契约。" />
+  if (collection === '我的') return <EmptyState icon={<IconSparkle size={30} />} title="当前暂无Skill" description="点击“创建Skill”，把反复用到的步骤、约束和产出格式沉淀成执行契约。" />
   return <EmptyState icon={<IconSparkle size={30} />} title="技能库还没有内容" description="能力包会在这里按分类陈列，加载后 Agent 就按它写定的契约工作。" />
 }
 

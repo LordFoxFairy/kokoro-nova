@@ -11,7 +11,7 @@ test.describe('Skill discovery parity', () => {
     await page.goto('/skills')
     await expect(page.getByTestId('skill-gallery')).toBeVisible()
     await expect(page.getByTestId('skill-card-skill-storyboard-breakdown')).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: '一个 Skill，慢慢打磨你的故事' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '用 Skill，开启今天的故事' })).toBeVisible()
     const favourite = page.getByTestId('skill-favourite-skill-storyboard-breakdown')
     await favourite.click()
     await expect(favourite).toHaveAttribute('aria-pressed', 'true')

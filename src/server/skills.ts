@@ -12,6 +12,7 @@ import {
 } from '@/domain/skills'
 import { HttpError } from './http'
 import { DEFAULT_SPACE_ID, readState, withState, type WorkspaceState } from './store'
+import { publishedAuthorSkillCards } from './skills-authoring'
 
 /*
  * Persistence constraint: `WorkspaceState` is owned by src/server/store.ts and
@@ -70,22 +71,38 @@ export async function listSkills(input: SkillListInput = {}): Promise<SkillListR
   const collection = parseSkillCollection(input.collection)
   const narrow = { category, query: input.query, favouriteIds }
 
+  const baseFor = (target: SkillCollection) => toSkillCards(selectSkills(SKILL_CATALOGUE, { ...narrow, collection: target }), favouriteIds)
+  // Local authoring rows deliberately project only to “我的”. A draft never
+  // leaks into a market feed; publishing is the explicit visibility boundary.
+  const authored = await publishedAuthorSkillCards()
+  const query = input.query?.trim().toLocaleLowerCase('zh-CN') ?? ''
+  const authoredMatching = authored.filter((skill) => {
+    const categoryMatches = category === '全部' || skill.category === category
+    const haystack = [skill.name, skill.summary, skill.author, ...skill.tags].join(' ').toLocaleLowerCase('zh-CN')
+    return categoryMatches && (!query || haystack.includes(query))
+  }).map((skill) => ({ ...skill, favourite: favouriteIds.includes(skill.id) }))
+  const mine = [...baseFor('我的'), ...authoredMatching]
+
   return {
-    skills: toSkillCards(selectSkills(SKILL_CATALOGUE, { ...narrow, collection }), favouriteIds),
+    skills: collection === '我的' ? mine : baseFor(collection),
     category,
     collection,
     counts: {
-      all: selectSkills(SKILL_CATALOGUE, { ...narrow, collection: '全部' }).length,
-      favourite: selectSkills(SKILL_CATALOGUE, { ...narrow, collection: '收藏' }).length,
-      mine: selectSkills(SKILL_CATALOGUE, { ...narrow, collection: '我的' }).length,
+      all: baseFor('全部').length,
+      favourite: baseFor('收藏').length,
+      mine: mine.length,
     },
   }
 }
 
 export async function getSkill(skillId: string): Promise<SkillCard> {
   const skill = findSkill(skillId)
-  if (!skill) throw new HttpError(404, 'Skill 不存在或已下架')
   const state = await readState()
+  if (!skill) {
+    const authored = (await publishedAuthorSkillCards()).find((candidate) => candidate.id === skillId)
+    if (!authored) throw new HttpError(404, 'Skill 不存在或已下架')
+    return { ...authored, favourite: readFavouriteIds(state, DEFAULT_SPACE_ID).includes(skillId) }
+  }
   return toSkillCards([skill], readFavouriteIds(state, DEFAULT_SPACE_ID))[0]
 }
 
@@ -98,12 +115,13 @@ export async function getSkill(skillId: string): Promise<SkillCard> {
  */
 export async function setSkillFavourite(skillId: string, favourite: boolean): Promise<SkillCard> {
   const skill = findSkill(skillId)
-  if (!skill) throw new HttpError(404, 'Skill 不存在或已下架')
+  const authored = skill ? undefined : (await publishedAuthorSkillCards()).find((candidate) => candidate.id === skillId)
+  if (!skill && !authored) throw new HttpError(404, 'Skill 不存在或已下架')
 
   return withState((state) => {
     const current = readFavouriteIds(state, DEFAULT_SPACE_ID)
     // The catalogue itself is never touched — only this space's id list moves.
     writeFavouriteIds(state, DEFAULT_SPACE_ID, applyFavourite(current, skillId, favourite))
-    return { ...skill, favourite }
+    return { ...(skill ?? authored!), favourite }
   })
 }

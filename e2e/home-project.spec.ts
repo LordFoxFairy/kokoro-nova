@@ -222,6 +222,7 @@ test('home Agent composer keeps context controls local, accessible and keyboard 
   await composer.focus()
   await expect(page.getByTestId('home-agent-composer')).toHaveAttribute('data-state', 'expanded')
   await expect(page.getByTestId('home-agent-send')).toBeDisabled()
+  await page.screenshot({ path: 'docs/screenshots/libtv-home-composer-expanded-1440x900.png', scale: 'css' })
 
   await page.getByTestId('home-attachment-trigger').click()
   await expect(page.getByTestId('home-attachment-menu')).toBeVisible()

@@ -1,0 +1,18 @@
+{
+  "material": {
+    "id": "style-cine-teal",
+    "kind": "style",
+    "name": "电影青橙",
+    "category": "推荐",
+    "author": "Lib 官方",
+    "commercial": true,
+    "usageCount": 40055,
+    "modelId": "lib-image-2",
+    "modelLabel": "Lib Image",
+    "modelIds": ["lib-image-2", "lib-navo-pro", "lib-navo-2"],
+    "hue": 190,
+    "description": "青橙对比的电影调色，暗部偏青、肤色偏暖。",
+    "favourite": true,
+    "recent": true
+  }
+}

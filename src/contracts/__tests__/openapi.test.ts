@@ -10,6 +10,10 @@ import quoteResponseExample from '../../../docs/api/examples/script-v2-quote.res
 import runRequestExample from '../../../docs/api/examples/script-v2-run.request.json'
 import runResponseExample from '../../../docs/api/examples/script-v2-run.response.json'
 import officialRecomputeExample from '../../../docs/api/examples/script-v2-official-recompute.sanitized.json'
+import materialsStyleExample from '../../../docs/api/examples/materials-style.response.json'
+import materialsDetailExample from '../../../docs/api/examples/materials-detail.response.json'
+import materialsFavouriteRequestExample from '../../../docs/api/examples/materials-favourite.request.json'
+import materialsFavouriteResponseExample from '../../../docs/api/examples/materials-favourite.response.json'
 import {
   CreateScriptV2RunRequestSchema,
   OfficialPromptRecomputeEnvelopeSchema,
@@ -18,6 +22,12 @@ import {
   ScriptV2RunResponseSchema,
   ScriptV2StateSchema,
 } from '@/contracts/script-v2'
+import {
+  GetMaterialResponseSchema,
+  MaterialCatalogResponseSchema,
+  ToggleMaterialFavouriteRequestSchema,
+  ToggleMaterialFavouriteResponseSchema,
+} from '@/contracts/materials'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 type OpenApiOperation = {
@@ -320,6 +330,43 @@ describe('local API manifest and OpenAPI', () => {
       { $ref: '#/components/schemas/SkillComposerAssetContextResponse' },
       { $ref: '#/components/schemas/SkillComposerSkillContextResponse' },
     ])
+  })
+
+  it('documents the independent style/effect catalog, pagination and favourite boundary', () => {
+    const document = openApiDocument()
+    const list = operationAt(document, 'GET', '/api/materials')
+    const detail = operationAt(document, 'GET', '/api/materials/{materialId}')
+    const favourite = operationAt(document, 'POST', '/api/materials/{materialId}')
+
+    expect(responseSchemaRef(list, '200')).toBe('#/components/schemas/MaterialCatalogResponse')
+    expect(responseSchemaRef(detail, '200')).toBe('#/components/schemas/GetMaterialResponse')
+    expect(responseSchemaRef(favourite, '200')).toBe('#/components/schemas/ToggleMaterialFavouriteResponse')
+    expect(favourite.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/ToggleMaterialFavouriteRequest',
+    )
+    expect(list.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'scope', in: 'query' }),
+        expect.objectContaining({ name: 'category', in: 'query' }),
+        expect.objectContaining({ name: 'commercialOnly', in: 'query' }),
+        expect.objectContaining({ name: 'modelId', in: 'query' }),
+        expect.objectContaining({ name: 'offset', in: 'query' }),
+        expect.objectContaining({ name: 'limit', in: 'query' }),
+      ]),
+    )
+    expect(document.components?.schemas?.MaterialCatalogItem?.properties?.modelIds?.items?.$ref).toBeUndefined()
+    expect(document.components?.schemas?.ToggleMaterialFavouriteRequest?.properties?.action?.enum).toEqual([
+      'favourite',
+      'unfavourite',
+    ])
+    expect(MaterialCatalogResponseSchema.parse(materialsStyleExample)).toEqual(materialsStyleExample)
+    expect(GetMaterialResponseSchema.parse(materialsDetailExample)).toEqual(materialsDetailExample)
+    expect(ToggleMaterialFavouriteRequestSchema.parse(materialsFavouriteRequestExample)).toEqual(
+      materialsFavouriteRequestExample,
+    )
+    expect(ToggleMaterialFavouriteResponseSchema.parse(materialsFavouriteResponseExample)).toEqual(
+      materialsFavouriteResponseExample,
+    )
   })
 
   it('pins key surface request/response schemas and handler-accurate HTTP statuses', () => {

@@ -4,18 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   CHARACTER_FILTERS,
   CHARACTER_PRESETS,
-  EFFECT_CATEGORIES,
-  EFFECT_PRESETS,
-  STYLE_CATEGORIES,
-  STYLE_PRESETS,
   type CharacterPreset,
 } from '@/domain/libraries'
+import type { MaterialCatalogItem, MaterialKind, MaterialScope } from '@/contracts/materials'
 import { PRESET_CATEGORIES, TOOLBOX_PRESETS, type ToolboxPreset } from '@/domain/presets'
 import type { Artifact, WorkflowNode } from '@/domain/types'
+import { ApiError, client } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import { Dialog } from '../ui/Dialog'
-import { EmptyState, SegmentedControl } from '../ui/controls'
+import { EmptyState, SegmentedControl, Spinner } from '../ui/controls'
 import { IconCheck, IconHistory, IconSearch } from '../icons'
 
 export type MaterialTab = 'market' | 'favorites' | 'recent'
@@ -41,14 +39,16 @@ export function filterMaterialPresets<T extends MaterialPresetLike>(
     category: string
     commercialOnly: boolean
     query: string
+    favouriteIds: readonly string[]
+    recentIds: readonly string[]
   }> = {},
 ): T[] {
   const kind = options.kind ?? 'style'
   const tab = options.tab ?? 'market'
   const category = options.category ?? '全部'
   const query = options.query?.trim().toLocaleLowerCase('zh-CN') ?? ''
-  const favorites = new Set(['style-cine-teal', 'style-film-grain', 'style-soft-portrait'])
-  const recent = new Set(['style-cine-teal', 'style-noir', 'style-isometric', 'style-anime-cel'])
+  const favorites = new Set(options.favouriteIds ?? ['style-cine-teal', 'style-film-grain', 'style-soft-portrait'])
+  const recent = new Set(options.recentIds ?? ['style-cine-teal', 'style-noir', 'style-isometric', 'style-anime-cel'])
 
   return items.filter((item) => {
     if (kind === 'style' && tab === 'favorites' && !favorites.has(item.id)) return false
@@ -203,6 +203,8 @@ export function ToolboxPanel({
  * Style / effect market
  * ------------------------------------------------------------------ */
 
+const MATERIAL_PAGE_SIZE = 6
+
 export function MaterialPanel({
   open,
   kind,
@@ -210,84 +212,194 @@ export function MaterialPanel({
   onApply,
 }: {
   open: boolean
-  kind: 'style' | 'effect'
+  kind: MaterialKind
   onClose: () => void
-  onApply: (preset: { id: string; name: string; hue: number }, kind: 'style' | 'effect') => void
+  onApply: (preset: { id: string; name: string; hue: number }, kind: MaterialKind) => void
 }) {
-  const [tab, setTab] = useState<'market' | 'favorites' | 'recent'>('market')
+  const [scope, setScope] = useState<MaterialScope>('market')
   const [category, setCategory] = useState('全部')
   const [commercialOnly, setCommercialOnly] = useState(false)
+  const [modelId, setModelId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-
-  const categories = kind === 'style' ? STYLE_CATEGORIES : EFFECT_CATEGORIES
+  const [items, setItems] = useState<MaterialCatalogItem[]>([])
+  const [categories, setCategories] = useState<string[]>([])
+  const [models, setModels] = useState<{ id: string; label: string }[]>([])
+  const [page, setPage] = useState({ total: 0, hasMore: false, nextOffset: null as number | null })
+  const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
+  const [detail, setDetail] = useState<MaterialCatalogItem | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   useEffect(() => {
-    // A style-only tab or category should never leak into the effect sheet
-    // when the parent switches kind while the panel stays mounted.
-    setTab('market')
+    // A style-only scope, category or model must never leak into the effect
+    // sheet when the parent switches kind while the panel stays mounted.
+    setScope('market')
     setCategory('全部')
     setCommercialOnly(false)
+    setModelId(null)
     setQuery('')
+    setDetail(null)
+    setError(null)
   }, [kind])
 
-  const filtered = useMemo(() => {
-    const options = { kind, tab, category, commercialOnly, query }
-    return kind === 'style'
-      ? filterMaterialPresets(STYLE_PRESETS, options)
-      : filterMaterialPresets(EFFECT_PRESETS, options)
-  }, [kind, tab, category, commercialOnly, query])
-  const filtersActive = category !== '全部' || commercialOnly || query.trim().length > 0 || tab !== 'market'
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    setItems([])
+    void client.materials
+      .list({
+        kind,
+        scope,
+        category,
+        commercialOnly,
+        modelId,
+        query,
+        offset: 0,
+        limit: MATERIAL_PAGE_SIZE,
+      })
+      .then((response) => {
+        if (cancelled) return
+        setItems(response.items)
+        setCategories(response.categories)
+        setModels(response.models)
+        setPage({
+          total: response.page.total,
+          hasMore: response.page.hasMore,
+          nextOffset: response.page.nextOffset,
+        })
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) return
+        setError(cause instanceof ApiError ? cause.message : '素材目录加载失败，请重试。')
+        setPage({ total: 0, hasMore: false, nextOffset: null })
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, kind, scope, category, commercialOnly, modelId, query, reloadToken])
+
+  const loadMore = async () => {
+    if (loading || loadingMore || !page.hasMore || page.nextOffset === null) return
+    setLoadingMore(true)
+    setError(null)
+    try {
+      const response = await client.materials.list({
+        kind,
+        scope,
+        category,
+        commercialOnly,
+        modelId,
+        query,
+        offset: page.nextOffset,
+        limit: MATERIAL_PAGE_SIZE,
+      })
+      setItems((current) => [...current, ...response.items])
+      setPage({
+        total: response.page.total,
+        hasMore: response.page.hasMore,
+        nextOffset: response.page.nextOffset,
+      })
+    } catch (cause: unknown) {
+      setError(cause instanceof ApiError ? cause.message : '更多素材加载失败，请重试。')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const toggleFavourite = async (item: MaterialCatalogItem) => {
+    const nextFavourite = !item.favourite
+    setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, favourite: nextFavourite } : candidate))
+    try {
+      const response = await client.materials.setFavourite(item.id, nextFavourite)
+      setItems((current) => current.map((candidate) => candidate.id === item.id ? response.material : candidate))
+      setDetail((current) => current?.id === item.id ? response.material : current)
+    } catch (cause: unknown) {
+      setItems((current) => current.map((candidate) => candidate.id === item.id ? item : candidate))
+      setError(cause instanceof ApiError ? cause.message : '收藏状态更新失败，请重试。')
+    }
+  }
+
+  const showDetail = async (item: MaterialCatalogItem) => {
+    setDetail(item)
+    setDetailLoading(true)
+    try {
+      const response = await client.materials.get(item.id)
+      setDetail(response.material)
+    } catch (cause: unknown) {
+      setError(cause instanceof ApiError ? cause.message : '素材详情加载失败，请重试。')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const apply = (item: MaterialCatalogItem) => {
+    // Detail is a nested dialog with its own backdrop. Clear it before closing
+    // the catalog so a subsequent style/effect sheet is never blocked by a
+    // stale modal layer.
+    setDetail(null)
+    onApply({ id: item.id, name: item.name, hue: item.hue }, kind)
+    onClose()
+  }
+
+  const dismissPanel = () => {
+    setDetail(null)
+    onClose()
+  }
+
+  const clearFilters = () => {
+    setScope('market')
+    setCategory('全部')
+    setCommercialOnly(false)
+    setModelId(null)
+    setQuery('')
+  }
+  const filtersActive = category !== '全部' || commercialOnly || modelId !== null || query.trim().length > 0 || scope !== 'market'
+  const scopeLabels = kind === 'style'
+    ? { market: '风格广场', favorites: '我的收藏', recent: '最近使用' }
+    : { market: '特效广场', favorites: '我的收藏', recent: '最近使用' }
 
   return (
-    <Dialog open={open} onClose={onClose} variant="panel" width={880} hideHeader testId="material-panel">
-      <div className="flex items-center justify-between gap-4 border-b border-ink-100 px-6 py-4">
-        {kind === 'style' ? (
-          <nav aria-label="风格来源" className="flex items-center gap-5">
-            {[
-              ['market', '风格广场'],
-              ['favorites', '我的收藏'],
-              ['recent', '最近使用'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-current={tab === value ? 'page' : undefined}
-                aria-pressed={tab === value}
-                onClick={() => {
-                  setTab(value as typeof tab)
-                  setCategory('全部')
-                }}
-                className={cn(
-                  'relative py-1 text-[14px] transition-colors after:absolute after:inset-x-1 after:-bottom-[17px] after:h-0.5 after:rounded-full',
-                  tab === value
-                    ? 'font-semibold text-ink-900 after:bg-ink-900'
-                    : 'text-ink-500 after:bg-transparent hover:text-ink-800',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-        ) : (
-          <h2 className="text-[15px] font-semibold text-ink-900">特效库</h2>
-        )}
-        <div className="flex items-center gap-2">
+    <Dialog open={open} onClose={dismissPanel} variant="panel" width={980} hideHeader testId="material-panel">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-ink-100 px-6 py-4">
+        <nav aria-label={kind === 'style' ? '风格来源' : '特效来源'} className="flex items-center gap-5">
+          {(['market', 'favorites', 'recent'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-current={scope === value ? 'page' : undefined}
+              aria-pressed={scope === value}
+              onClick={() => {
+                setScope(value)
+                setCategory('全部')
+              }}
+              className={cn(
+                'relative py-1 text-[14px] transition-colors after:absolute after:inset-x-1 after:-bottom-[17px] after:h-0.5 after:rounded-full',
+                scope === value ? 'font-semibold text-ink-900 after:bg-ink-900' : 'text-ink-500 after:bg-transparent hover:text-ink-800',
+              )}
+            >
+              {scopeLabels[value]}
+            </button>
+          ))}
+        </nav>
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
             <IconSearch size={14} className="text-ink-400" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder={kind === 'style' ? '搜索风格名称、作者' : '搜索特效名称、作者'}
               aria-label={kind === 'style' ? '搜索风格名称、作者' : '搜索特效名称、作者'}
               className="w-40 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
             />
           </div>
-          <label
-            className={cn(
-              'flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
-              commercialOnly ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
-            )}
-          >
+          <label className={cn('flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors', commercialOnly ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600')}>
             <input
               type="checkbox"
               checked={commercialOnly}
@@ -299,82 +411,125 @@ export function MaterialPanel({
             </span>
             仅看可商用
           </label>
+          <label className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5 text-[12px] text-ink-600">
+            <span className="text-ink-400">模型</span>
+            <select
+              value={modelId ?? ''}
+              aria-label={kind === 'style' ? '筛选风格模型' : '筛选特效模型'}
+              data-testid="material-model-filter"
+              onChange={(event) => setModelId(event.target.value || null)}
+              className="max-w-32 bg-transparent outline-none"
+            >
+              <option value="">全部</option>
+              {models.map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+            </select>
+          </label>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 px-6 py-3">
-        {categories.map((c) => (
+      <div className="flex flex-wrap gap-1.5 border-b border-ink-100 px-6 py-3">
+        {categories.map((value) => (
           <button
-            key={c}
+            key={value}
             type="button"
-            aria-pressed={c === category}
-            onClick={() => setCategory(c)}
-            className={cn(
-              'rounded-full px-3 py-1 text-[12px] transition-colors',
-              c === category ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
-            )}
+            aria-pressed={value === category}
+            onClick={() => setCategory(value)}
+            className={cn('rounded-full px-3 py-1 text-[12px] transition-colors', value === category ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200')}
           >
-            {c}
+            {value}
           </button>
         ))}
       </div>
 
-      <div className="flex items-center justify-between px-6 pb-1 text-[11px] text-ink-400">
-        <span data-testid="material-result-count" aria-live="polite">
-          {filtered.length} 个结果
-        </span>
-        {filtersActive && (
-          <button
-            type="button"
-            data-testid="material-clear-filters"
-            onClick={() => {
-              setTab('market')
-              setCategory('全部')
-              setCommercialOnly(false)
-              setQuery('')
-            }}
-            className="rounded px-1.5 py-0.5 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
-          >
-            清除筛选
-          </button>
+      <div className="flex items-center justify-between px-6 py-2 text-[11px] text-ink-400">
+        <span data-testid="material-result-count" aria-live="polite">{page.total} 个结果</span>
+        {filtersActive && <button type="button" data-testid="material-clear-filters" onClick={clearFilters} className="rounded px-1.5 py-0.5 text-ink-500 hover:bg-ink-50 hover:text-ink-900">清除筛选</button>}
+      </div>
+
+      <div className="thin-scrollbar max-h-[54vh] overflow-y-auto px-6 pb-6">
+        {loading ? (
+          <div className="flex min-h-48 items-center justify-center" data-testid="material-loading"><Spinner /></div>
+        ) : error && items.length === 0 ? (
+          <EmptyState
+            title="素材目录暂时不可用"
+            description={error}
+            action={<button type="button" data-testid="material-retry" onClick={() => setReloadToken((value) => value + 1)} className="rounded-lg bg-ink-900 px-3 py-1.5 text-[12px] font-medium text-white">重试</button>}
+          />
+        ) : items.length === 0 ? (
+          <div data-testid="material-empty"><EmptyState title="没有匹配的结果" description="调整分类、商用筛选、模型或搜索词后重试。" /></div>
+        ) : (
+          <>
+            <div className="grid grid-cols-4 gap-3.5">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  data-testid={`material-${item.id}`}
+                  role="group"
+                  aria-label={`${item.name}素材卡`}
+                  className="group overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
+                >
+                  <div className="relative h-28" style={{ background: `linear-gradient(140deg, hsl(${item.hue} 62% 62%), hsl(${(item.hue + 45) % 360} 58% 42%))` }}>
+                    <div className="absolute left-2 top-2 rounded bg-black/25 px-1.5 py-0.5 text-[10px] text-white" data-testid={`material-model-${item.id}`}>{item.modelLabel}</div>
+                    <button
+                      type="button"
+                      aria-label={`${item.name}${item.favourite ? '取消收藏' : '收藏'}`}
+                      data-testid={`material-favourite-${item.id}`}
+                      onClick={(event) => { event.stopPropagation(); void toggleFavourite(item) }}
+                      className="absolute right-2 top-2 rounded-full bg-black/25 px-1.5 py-0.5 text-[15px] leading-5 text-white hover:bg-black/45"
+                    >
+                      {item.favourite ? '★' : '☆'}
+                    </button>
+                    <div className="absolute inset-x-2 bottom-2 z-20 flex items-center justify-end gap-1">
+                      <button type="button" data-testid={`material-detail-${item.id}`} onClick={(event) => { event.stopPropagation(); void showDetail(item) }} className="rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink-800 shadow-sm">详情</button>
+                      <button type="button" data-testid={`material-apply-${item.id}`} onClick={(event) => { event.stopPropagation(); apply(item) }} className="rounded-lg bg-ink-900/90 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">应用</button>
+                    </div>
+                  </div>
+                  <div className="p-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 truncate text-[12px] font-medium text-ink-900">{item.name}</div>
+                      {item.commercial && <span className="shrink-0 rounded bg-success/12 px-1 text-[10px] text-success">可商用</span>}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-1.5 text-[10px] text-ink-400">
+                      <span className="truncate">{item.author}</span>
+                      <span className="shrink-0">{item.usageCount.toLocaleString('zh-CN')} 次使用</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {error && <div role="alert" className="mt-3 rounded-lg bg-danger/8 px-3 py-2 text-[11px] text-danger">{error}</div>}
+            <div className="flex justify-center pt-4">
+              {page.hasMore ? (
+                <button type="button" data-testid="material-load-more" onClick={() => void loadMore()} disabled={loadingMore} className="rounded-lg border border-ink-200 px-4 py-2 text-[12px] font-medium text-ink-600 transition-colors hover:bg-ink-50 disabled:cursor-wait disabled:opacity-60">
+                  {loadingMore ? <span className="flex items-center gap-2"><Spinner />加载中…</span> : '加载更多'}
+                </button>
+              ) : <span className="text-[11px] text-ink-400">已展示全部结果</span>}
+            </div>
+          </>
         )}
       </div>
 
-      <div className="thin-scrollbar grid max-h-[54vh] grid-cols-4 gap-3.5 overflow-y-auto px-6 pb-6">
-        {filtered.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            data-testid={`material-${item.id}`}
-            onClick={() => {
-              onApply({ id: item.id, name: item.name, hue: item.hue }, kind)
-              onClose()
-            }}
-            className="overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
-          >
-            <div
-              className="h-28"
-              style={{
-                background: `linear-gradient(140deg, hsl(${item.hue} 62% 62%), hsl(${(item.hue + 45) % 360} 58% 42%))`,
-              }}
-            />
-            <div className="p-2.5">
-              <div className="truncate text-[12px] font-medium text-ink-900">{item.name}</div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-ink-400">
-                <span className="truncate">{item.author}</span>
-                {item.commercial && (
-                  <span className="rounded bg-success/12 px-1 text-success">可商用</span>
-                )}
-              </div>
+      <Dialog open={Boolean(detail)} onClose={() => setDetail(null)} title={detail?.name} width={440}>
+        {detail && (
+          <div className="space-y-4 text-[13px] leading-relaxed text-ink-600">
+            <div className="h-36 rounded-xl" style={{ background: `linear-gradient(140deg, hsl(${detail.hue} 62% 62%), hsl(${(detail.hue + 45) % 360} 58% 42%))` }} />
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-400">
+              <span>{detail.author}</span><span>·</span><span>{detail.modelLabel}</span><span>·</span><span>{detail.usageCount.toLocaleString('zh-CN')} 次使用</span>
+              {detail.commercial && <span className="rounded bg-success/12 px-1.5 py-0.5 text-success">可商用</span>}
             </div>
-          </button>
-        ))}
-        {filtered.length === 0 && (
-          <div className="col-span-4" data-testid="material-empty">
-            <EmptyState title="没有匹配的结果" description="调整分类、商用筛选或搜索词后重试。" />
+            <p>{detail.description}</p>
+            <div className="rounded-xl bg-ink-50 p-3 text-[12px]">
+              <div className="mb-1 font-medium text-ink-700">支持模型</div>
+              <div className="flex flex-wrap gap-1.5">{detail.modelIds.map((id) => <span key={id} className="rounded bg-surface px-2 py-1 text-ink-500">{id}</span>)}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" data-testid={`material-detail-favourite-${detail.id}`} onClick={() => void toggleFavourite(detail)} className="rounded-lg border border-ink-200 px-3 py-2 text-[12px] text-ink-600">{detail.favourite ? '取消收藏' : '收藏'}</button>
+              <button type="button" data-testid={`material-detail-apply-${detail.id}`} onClick={() => apply(detail)} className="flex-1 rounded-lg bg-ink-900 py-2 text-[13px] font-medium text-white">应用并创建{kind === 'style' ? '风格' : '特效'}节点</button>
+            </div>
+            {detailLoading && <div className="flex items-center gap-2 text-[11px] text-ink-400"><Spinner />同步详情…</div>}
           </div>
         )}
-      </div>
+      </Dialog>
     </Dialog>
   )
 }

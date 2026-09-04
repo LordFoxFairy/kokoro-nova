@@ -1,0 +1,36 @@
+{
+  "version": "2026-09-04.1",
+  "kind": "style",
+  "scope": "market",
+  "query": "",
+  "category": "全部",
+  "commercialOnly": false,
+  "modelId": null,
+  "categories": ["全部", "推荐", "摄影写真", "电商营销", "动漫游戏", "风格插画", "平面设计", "建筑及室内设计", "创意玩法", "文创周边", "小说推文"],
+  "models": [
+    { "id": "lib-image-2", "label": "Lib Image" },
+    { "id": "lib-navo-pro", "label": "Lib Navo Pro" },
+    { "id": "lib-navo-2", "label": "Lib Navo 2" },
+    { "id": "midjourney-niji-7", "label": "Midjourney Niji 7" },
+    { "id": "seedream-5-pro", "label": "Seedream 5 Pro" }
+  ],
+  "items": [
+    {
+      "id": "style-cine-teal",
+      "kind": "style",
+      "name": "电影青橙",
+      "category": "推荐",
+      "author": "Lib 官方",
+      "commercial": true,
+      "usageCount": 40055,
+      "modelId": "lib-image-2",
+      "modelLabel": "Lib Image",
+      "modelIds": ["lib-image-2", "lib-navo-pro", "lib-navo-2"],
+      "hue": 190,
+      "description": "青橙对比的电影调色，暗部偏青、肤色偏暖。",
+      "favourite": true,
+      "recent": true
+    }
+  ],
+  "page": { "offset": 0, "limit": 6, "total": 24, "hasMore": true, "nextOffset": 6 }
+}

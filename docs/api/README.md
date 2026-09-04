@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；32 个 path、56 个 operation |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；37 个 path、62 个 operation |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
@@ -26,6 +26,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
+| [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) | 风格/特效独立目录、分页 facets、详情和幂等收藏动作 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
@@ -143,6 +144,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |
 | Video 参考、元素、运镜 | `mutateCanvas`（同一 revision 的边与节点元数据事务） |
 | Image 参考、风格、预设、派生工具 | `mutateCanvas`（原子图 mutation 与可重放 metadata） |
+| 画布风格/特效目录 | `listMaterials`, `getMaterial`, `toggleMaterialFavorite`；应用动作再走 `mutateCanvas` 创建专用节点 |
 | Audio/TTS/音乐、音色与参考 | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 WAV） |
 | Text 生成、手写文档与三个启动 Workflow | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 TXT + 内联文本） |
 | Script V2 三阶段脚本 | `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run`；状态写回仍走 `mutateCanvas` |

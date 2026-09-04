@@ -75,6 +75,10 @@
     {
       "name": "Account",
       "description": "共享身份、钱包、偏好与通知"
+    },
+    {
+      "name": "Materials",
+      "description": "风格与特效独立素材目录"
     }
   ],
   "paths": {
@@ -4254,6 +4258,328 @@
           },
           "500": {
             "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/materials": {
+      "get": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "读取风格/特效目录页",
+        "description": "返回独立的风格或特效目录，支持广场、收藏、最近使用、分类、商用、模型、搜索与确定性分页。",
+        "operationId": "listMaterials",
+        "x-ui-triggers": [
+          "打开风格库或特效库",
+          "搜索、分类、商用、模型筛选和加载更多"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "description": "目录类型",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "style",
+                "effect"
+              ],
+              "default": "style"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "description": "目录范围",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "market",
+                "favorites",
+                "recent"
+              ],
+              "default": "market"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "按当前目录分类筛选",
+            "schema": {
+              "type": "string",
+              "default": "全部"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "在名称、作者、说明和模型 ID 中搜索",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commercialOnly",
+            "in": "query",
+            "required": false,
+            "description": "仅返回可商用卡片",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "modelId",
+            "in": "query",
+            "required": false,
+            "description": "按支持的基础模型 ID 筛选",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "结果偏移量",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "页大小",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 48,
+              "default": 6
+            }
+          },
+          {
+            "name": "fixture",
+            "in": "query",
+            "required": false,
+            "description": "仅 local mock：固定空态或 503",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "empty",
+                "error"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "带 facets 的稳定目录页",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialCatalogResponse"
+                },
+                "examples": {
+                  "styleCatalog": {
+                    "$ref": "#/components/examples/MaterialCatalogResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/materials/{materialId}": {
+      "get": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "打开风格或特效详情",
+        "operationId": "getMaterial",
+        "x-ui-triggers": [
+          "打开风格或特效详情"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "materialId",
+            "in": "path",
+            "required": true,
+            "description": "风格或特效稳定 ID",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "素材详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMaterialResponse"
+                },
+                "examples": {
+                  "detail": {
+                    "$ref": "#/components/examples/MaterialDetailResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Materials"
+        ],
+        "summary": "收藏或取消收藏风格/特效",
+        "operationId": "toggleMaterialFavorite",
+        "x-ui-triggers": [
+          "收藏或取消收藏风格/特效"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "materialId",
+            "in": "path",
+            "required": true,
+            "description": "风格或特效稳定 ID",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleMaterialFavouriteRequest"
+              },
+              "examples": {
+                "favourite": {
+                  "$ref": "#/components/examples/MaterialFavouriteRequestExample"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "收藏后的素材详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleMaterialFavouriteResponse"
+                },
+                "examples": {
+                  "favourite": {
+                    "$ref": "#/components/examples/MaterialFavouriteResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -11613,6 +11939,261 @@
           }
         },
         "additionalProperties": false
+      },
+      "MaterialKind": {
+        "type": "string",
+        "enum": [
+          "style",
+          "effect"
+        ]
+      },
+      "MaterialScope": {
+        "type": "string",
+        "enum": [
+          "market",
+          "favorites",
+          "recent"
+        ]
+      },
+      "MaterialModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "MaterialCatalogItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "category",
+          "author",
+          "commercial",
+          "usageCount",
+          "modelId",
+          "modelLabel",
+          "modelIds",
+          "hue",
+          "description",
+          "favourite",
+          "recent"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MaterialKind"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "author": {
+            "type": "string",
+            "minLength": 1
+          },
+          "commercial": {
+            "type": "boolean"
+          },
+          "usageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "modelLabel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "modelIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "hue": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 359
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "favourite": {
+            "type": "boolean"
+          },
+          "recent": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MaterialPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "offset",
+          "limit",
+          "total",
+          "hasMore",
+          "nextOffset"
+        ],
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextOffset": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          }
+        }
+      },
+      "MaterialCatalogResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "kind",
+          "scope",
+          "query",
+          "category",
+          "commercialOnly",
+          "modelId",
+          "categories",
+          "models",
+          "items",
+          "page"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MaterialKind"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MaterialScope"
+          },
+          "query": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "commercialOnly": {
+            "type": "boolean"
+          },
+          "modelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaterialModel"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaterialCatalogItem"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/MaterialPage"
+          }
+        }
+      },
+      "GetMaterialResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "material"
+        ],
+        "properties": {
+          "material": {
+            "$ref": "#/components/schemas/MaterialCatalogItem"
+          }
+        }
+      },
+      "ToggleMaterialFavouriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "favourite",
+              "unfavourite"
+            ]
+          }
+        }
+      },
+      "ToggleMaterialFavouriteResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "material"
+        ],
+        "properties": {
+          "material": {
+            "$ref": "#/components/schemas/MaterialCatalogItem"
+          }
+        }
       }
     },
     "examples": {
@@ -12259,6 +12840,18 @@
         "value": {
           "revoked": 1
         }
+      },
+      "MaterialCatalogResponseExample": {
+        "externalValue": "./examples/materials-style.response.json"
+      },
+      "MaterialDetailResponseExample": {
+        "externalValue": "./examples/materials-detail.response.json"
+      },
+      "MaterialFavouriteRequestExample": {
+        "externalValue": "./examples/materials-favourite.request.json"
+      },
+      "MaterialFavouriteResponseExample": {
+        "externalValue": "./examples/materials-favourite.response.json"
       }
     }
   },

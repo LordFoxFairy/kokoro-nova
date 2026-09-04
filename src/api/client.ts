@@ -5,6 +5,14 @@ import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import { LedgerViewProjectionSchema } from '@/contracts/ledger'
 import { ModelCatalogResponseSchema } from '@/contracts/models'
 import {
+  GetMaterialResponseSchema,
+  MaterialCatalogResponseSchema,
+  ToggleMaterialFavouriteRequestSchema,
+  ToggleMaterialFavouriteResponseSchema,
+  type MaterialKind,
+  type MaterialScope,
+} from '@/contracts/materials'
+import {
   GetPublishedSnapshotResponseSchema,
   ListPublishedSnapshotsResponseSchema,
   PublishCanvasResponseSchema,
@@ -188,6 +196,42 @@ export function createApiClient(transport: JsonTransport = fetch) {
         if (input.query?.trim()) params.set('q', input.query.trim())
         const suffix = params.toString()
         return requestTyped(ModelCatalogResponseSchema, `/api/models${suffix ? `?${suffix}` : ''}`)
+      },
+    },
+    materials: {
+      list: (input: {
+        kind?: MaterialKind
+        scope?: MaterialScope
+        category?: string
+        commercialOnly?: boolean
+        modelId?: string | null
+        query?: string
+        offset?: number
+        limit?: number
+      } = {}) => {
+        const params = new URLSearchParams()
+        if (input.kind) params.set('kind', input.kind)
+        if (input.scope) params.set('scope', input.scope)
+        if (input.category) params.set('category', input.category)
+        if (input.commercialOnly) params.set('commercialOnly', 'true')
+        if (input.modelId) params.set('modelId', input.modelId)
+        if (input.query?.trim()) params.set('q', input.query.trim())
+        if (input.offset !== undefined) params.set('offset', String(input.offset))
+        if (input.limit !== undefined) params.set('limit', String(input.limit))
+        const suffix = params.toString()
+        return requestTyped(MaterialCatalogResponseSchema, `/api/materials${suffix ? `?${suffix}` : ''}`)
+      },
+      get: (materialId: string) =>
+        requestTyped(GetMaterialResponseSchema, `/api/materials/${encodeURIComponent(materialId)}`),
+      setFavourite: (materialId: string, favourite: boolean) => {
+        const body = ToggleMaterialFavouriteRequestSchema.parse({
+          action: favourite ? 'favourite' : 'unfavourite',
+        })
+        return requestTyped(
+          ToggleMaterialFavouriteResponseSchema,
+          `/api/materials/${encodeURIComponent(materialId)}`,
+          jsonInit('POST', body),
+        )
       },
     },
     ledger: {

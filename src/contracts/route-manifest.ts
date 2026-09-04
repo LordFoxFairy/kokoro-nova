@@ -9,6 +9,7 @@ export type LocalApiTag =
   | 'Workflow'
   | 'Jobs'
   | 'Models'
+  | 'Materials'
   | 'Video'
   | 'Assets'
   | 'Agent'
@@ -140,6 +141,14 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('GET', '/api/models', 'Models', 'listModels', ['打开模型目录', '搜索或筛选模型'], [
     'anonymous',
     'authenticated-populated',
+  ]),
+  route('GET', '/api/materials', 'Materials', 'listMaterials', [
+    '打开风格库或特效库',
+    '搜索、分类、商用、模型筛选和加载更多',
+  ]),
+  route('GET', '/api/materials/{materialId}', 'Materials', 'getMaterial', ['打开风格或特效详情']),
+  route('POST', '/api/materials/{materialId}', 'Materials', 'toggleMaterialFavorite', [
+    '收藏或取消收藏风格/特效',
   ]),
   route('GET', '/api/presence/{canvasId}', 'Presence', 'getCanvasPresence', ['画布协作者和跟随状态']),
   route('POST', '/api/presence/{canvasId}', 'Presence', 'updateCanvasPresence', ['光标、视口、跟随和编辑租约心跳'], [

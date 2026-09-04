@@ -53,7 +53,10 @@ async function startListener(port: number) {
 async function startGroupedListener(port: number) {
   const source = `import http from "node:http"; http.createServer((_, res) => res.end("fixture")).listen(${port}, "127.0.0.1");`;
   const child = spawn(
-    "zsh",
+    // `zsh` is available on the developer machines but not on GitHub's Linux
+    // runner. The test only needs POSIX background-job/process-group syntax,
+    // which `/bin/sh` provides on both supported runners.
+    "sh",
     [
       "-c",
       `${JSON.stringify(process.execPath)} --input-type=module --eval ${JSON.stringify(source)} & wait`,

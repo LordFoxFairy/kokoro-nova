@@ -332,13 +332,16 @@ async function failJob(jobId: string, error: string): Promise<GenerationJob> {
 
 async function validateArtifacts(job: GenerationJob, artifacts: unknown): Promise<void> {
   const expectedCount = job.spec.output.count ?? 1
+  const expectedKind = MODELS_BY_ID.get(job.modelId)?.media
   if (!Array.isArray(artifacts) || artifacts.length === 0) throw new Error('provider 未返回有效产物')
   if (artifacts.length > expectedCount) throw new Error('provider 返回的产物数量超出请求')
+  if (!expectedKind) throw new Error('任务缺少有效产物模型')
 
   for (const artifact of artifacts) {
     if (!isRecord(artifact)) throw new Error('provider 返回了非法产物')
     if (!ARTIFACT_KINDS.has(artifact.kind as Artifact['kind'])) throw new Error('provider 返回了非法产物类型')
-    if (typeof artifact.modelId !== 'string' || artifact.modelId.length === 0) throw new Error('provider 返回了非法产物模型')
+    if (artifact.kind !== expectedKind) throw new Error('provider 返回了与任务模型不匹配的产物类型')
+    if (artifact.modelId !== job.modelId) throw new Error('provider 返回了与任务不匹配的产物模型')
     if (!validDimension(artifact.width) || !validDimension(artifact.height) || !validDuration(artifact.durationSeconds)) {
       throw new Error('provider 返回了非法产物尺寸')
     }

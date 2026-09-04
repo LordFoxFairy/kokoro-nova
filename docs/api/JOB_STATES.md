@@ -1,5 +1,7 @@
 # Generation Job 状态机
 
+本地 deterministic job runner 对 Image、Video、Audio、Text 和 Script（以文本产物结算）使用同一套状态、刷新恢复和账本边界；节点类型只决定冻结的 `ExecutionSpec` 与产物 kind，不改变 lifecycle。
+
 ## 对象边界
 
 节点的“草稿”不是一个 `GenerationJob`。只有用户点击生成并完成编译/报价后才创建 job：
@@ -19,6 +21,18 @@ queued ── provider accepted ──▶ running
 ```
 
 终态集合：`succeeded`、`failed`、`cancelled`、`compliance_blocked`。
+
+## 媒体覆盖
+
+| 节点 | 冻结模型媒体类型 | 成功产物 | 账本语义 |
+|---|---|---|---|
+| Image | `image` | `image` | `reserve → settle`；失败/取消为 `reserve → release` |
+| Video | `video` | `video` | `reserve → settle`；失败/取消为 `reserve → release` |
+| Audio | `audio` | `audio` | `reserve → settle`；失败/取消为 `reserve → release` |
+| Text | `text` | `text` | `reserve → settle`；失败/取消为 `reserve → release` |
+| Script | `text` | `text` | `reserve → settle`；失败/取消为 `reserve → release` |
+
+成功响应中的 artifact 必须同时匹配 job 的 `modelId` 和该模型的媒体类型；不匹配的 provider 响应按失败处理并全额 release。
 
 ## 状态定义
 
@@ -116,6 +130,8 @@ GET /api/jobs/{jobId}
 
 ## 确定性场景
 
+下表的 Video fixture 是可视化基线；相同 fixture ID 可传给任何上述节点。`invocationId` 持久化 fixture outcome，因此 Image、Audio、Text 和 Script 与 Video 共享相同的 `pending → queued → running → terminal`、retry 与刷新重挂接路径。
+
 | 场景 | status | progress | balance | error |
 |---|---|---:|---:|---|
 | `video-awaiting-confirmation` | awaiting_confirmation | 0 | 478 | null（报价已过期） |
@@ -141,7 +157,7 @@ GET /api/jobs/{jobId}
 | cancelled | 已取消 | 重新生成 |
 | compliance_blocked | 素材合规校验未通过 | 查看规则、替换素材 |
 
-刷新后 UI 必须从 API 重建标签和可用动作，不依赖组件内定时器记忆。
+刷新后 UI 必须从 API 重建标签和可用动作，不依赖组件内定时器记忆。所有媒体编辑器对 `awaiting_confirmation`、`queued`、`running` 统一锁定重复生成；只轮询 `queued` / `running`，而确认报价仍由 ConfirmGate 恢复。
 
 ## 本地生命周期 fixture
 

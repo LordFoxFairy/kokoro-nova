@@ -17,6 +17,7 @@ import {
 import type { GenerationJob, NodeData, OutputSpec, WorkflowNode } from '@/domain/types'
 import { orderedVideoReferences, readVideoElementMarks } from '@/domain/video-references'
 import { cn } from '@/lib/cn'
+import { generationStatusCopy, isGenerationLocked, isGenerationPolling } from './generation-status'
 import { useEditor } from '@/lib/editor-store'
 import {
   IconClose,
@@ -145,7 +146,9 @@ export function ImageNodeEditor({
   const output = capabilities
     ? normalizeImageOutputForModel(node.data.modelId!, node.data.output)
     : (node.data.output ?? {})
-  const running = job?.status === 'running' || job?.status === 'queued'
+  const running = isGenerationPolling(job?.status)
+  const generationLocked = isGenerationLocked(job?.status)
+  const generationStatus = generationStatusCopy(job?.status)
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, output).credits : 0
   const references = useMemo(() => orderedVideoReferences(workflow, node.id), [workflow, node.id])
   const elementMarks = readVideoElementMarks(node.data.extra)
@@ -410,6 +413,8 @@ export function ImageNodeEditor({
               <span className="ml-1 flex shrink-0 items-center gap-0.5 text-[11px] tabular-nums text-ink-500"><IconCredit size={12} />{cost}</span>
               {running ? (
                 <button type="button" aria-label="取消生成" onClick={() => job && onCancel(job.id)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-ink-800"><IconStop size={13} /></button>
+              ) : generationLocked ? (
+                <button type="button" data-testid="image-run" aria-label={generationStatus?.label ?? '等待确认'} title={generationStatus?.description} disabled className="flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-white/15 text-ink-400"><IconPlay size={13} /></button>
               ) : (
                 <button
                   type="button"
@@ -424,9 +429,9 @@ export function ImageNodeEditor({
               )}
             </div>
 
-            {running && (
-              <div className="flex items-center gap-2 px-1 text-[11px] text-ink-500">
-                <Spinner size={12} /><span>生成中 {job?.progress ?? 0}%</span><div className="flex-1"><ProgressBar value={job?.progress ?? 0} /></div>
+            {generationStatus && (
+              <div data-testid="image-generation-status" className="flex items-center gap-2 px-1 text-[11px] text-ink-500">
+                {running && <Spinner size={12} />}<span>{generationStatus.label}</span><span className="text-ink-400">{running ? `${job?.progress ?? 0}% · ` : '· '}{generationStatus.description}</span><div className="flex-1"><ProgressBar value={job?.progress ?? 0} /></div>
               </div>
             )}
           </div>

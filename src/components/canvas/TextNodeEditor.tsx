@@ -19,6 +19,7 @@ import { MEDIA_OF_NODE } from '@/domain/nodes'
 import { canvasReferenceLabel, orderedCanvasReferences } from '@/domain/video-references'
 import type { GenerationJob, NodeData, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
+import { generationStatusCopy, isGenerationLocked, isGenerationPolling } from './generation-status'
 import { useEditor } from '@/lib/editor-store'
 import { TextModelCatalog, TextModelMark } from '../text/TextModelCatalog'
 import {
@@ -311,7 +312,9 @@ export function TextNodeEditor({
   const model = MODELS_BY_ID.get(modelId)
   const capabilities = textModelOutputOptions(modelId)
   const references = useMemo(() => orderedCanvasReferences(document, node.id), [document, node.id])
-  const running = job?.status === 'running' || job?.status === 'queued'
+  const running = isGenerationPolling(job?.status)
+  const generationLocked = isGenerationLocked(job?.status)
+  const generationStatus = generationStatusCopy(job?.status)
   const artifact = node.data.artifacts?.find((item) => item.kind === 'text') ?? null
   const canRun = prompt.trim().length > 0 || references.some(({ node: source }) => {
     const media = source.type === 'assetLibrary'
@@ -599,9 +602,9 @@ export function TextNodeEditor({
           )}
 
           {running ? (
-            <div className="ml-auto flex items-center gap-2 text-[11px] text-ink-500">
+            <div data-testid="text-generation-status" className="ml-auto flex items-center gap-2 text-[11px] text-ink-500">
               <Spinner size={13} />
-              <span>{job?.progress ?? 0}%</span>
+              <span>{generationStatus?.label} · {job?.progress ?? 0}%</span>
               <div className="w-20"><ProgressBar value={job?.progress ?? 0} /></div>
               <button type="button" aria-label="取消文本生成" onClick={() => job && onCancel(job.id)} className="rounded-full p-1.5 text-ink-400 hover:bg-white/8 hover:text-danger"><IconStop size={13} /></button>
             </div>
@@ -613,8 +616,9 @@ export function TextNodeEditor({
               <button
                 type="button"
                 data-testid="text-run"
-                aria-label="生成文本"
-                disabled={!canRun}
+                aria-label={generationLocked ? (generationStatus?.label ?? '等待确认') : '生成文本'}
+                title={generationLocked ? generationStatus?.description : undefined}
+                disabled={generationLocked || !canRun}
                 onPointerDown={() => {
                   skipNextPromptBlur.current = globalThis.document.activeElement?.getAttribute('data-testid') === 'text-prompt'
                 }}

@@ -17,6 +17,7 @@ import {
   type VideoGenerationMode,
 } from '@/domain/models'
 import type { GenerationJob, NodeData, OutputSpec, WorkflowNode } from '@/domain/types'
+import { generationStatusCopy, isGenerationLocked, isGenerationPolling } from './generation-status'
 import {
   orderedVideoReferences,
   readVideoElementMarks,
@@ -66,23 +67,10 @@ interface VideoNodeEditorProps {
 
 type OpenPopover = 'models' | 'modes' | 'output' | 'camera' | 'advanced' | null
 
-const VIDEO_GENERATION_LOCKED_STATUSES = ['awaiting_confirmation', 'queued', 'running'] as const
-
-export function isVideoGenerationLocked(status: GenerationJob['status'] | undefined) {
-  return status !== undefined && VIDEO_GENERATION_LOCKED_STATUSES.includes(status as (typeof VIDEO_GENERATION_LOCKED_STATUSES)[number])
-}
+export const isVideoGenerationLocked = isGenerationLocked
 
 export function videoGenerationStatusCopy(status: GenerationJob['status'] | undefined) {
-  switch (status) {
-    case 'awaiting_confirmation':
-      return { label: '等待确认', description: '已提交，等待确认后开始生成' }
-    case 'queued':
-      return { label: '排队中', description: '已进入生成队列，请稍候' }
-    case 'running':
-      return { label: '生成中', description: '正在生成视频，请稍候' }
-    default:
-      return null
-  }
+  return generationStatusCopy(status)
 }
 
 export function videoPromptNeedsFlush(prompt: string, storedPrompt: string | undefined) {
@@ -157,7 +145,7 @@ export function VideoNodeEditor({
     ? normalizeOutputForModel(node.data.modelId!, node.data.output, availableVideoModes(document, node.id))
     : (node.data.output ?? {})
   const modeRows = videoModeOptions(document, node.id)
-  const running = job?.status === 'running' || job?.status === 'queued'
+  const running = isGenerationPolling(job?.status)
   const generationLocked = isVideoGenerationLocked(job?.status)
   const generationStatus = videoGenerationStatusCopy(job?.status)
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, output).credits : 0

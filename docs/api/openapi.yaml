@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.13.0-local-identity",
+    "version": "1.14.0-generation-lifecycle",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -2046,10 +2046,10 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "确认或取消生成任务",
+        "summary": "确认、取消或幂等重试生成任务",
         "operationId": "transitionGenerationJob",
         "x-ui-triggers": [
-          "确认生成报价或取消已有任务"
+          "确认生成报价、停止已有任务或为终态任务创建幂等 retry 报价"
         ],
         "x-mock-scenarios": [
           "video-awaiting-confirmation",
@@ -2131,7 +2131,7 @@
             "/api/task/generation/stop/batch"
           ],
           "evidence": "bundle-confirmed",
-          "mapping": "confirm 对应 provider submit/create；cancel 对应批量停止。轮询只使用 GET。"
+          "mapping": "confirm 对应 provider submit/create；cancel 对应批量停止；retry 创建独立本地报价。轮询只使用 GET。"
         }
       }
     },
@@ -6298,9 +6298,26 @@
           "nodeId": {
             "type": "string",
             "minLength": 1
+          },
+          "fixture": {
+            "$ref": "#/components/schemas/JobFixture",
+            "description": "仅 frontend-only local mock 的确定性 provider outcome；真实后端不得接受或转发。"
           }
         },
         "additionalProperties": false
+      },
+      "JobFixture": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "compliance_blocked",
+          "network_offline",
+          "capability_unsupported",
+          "expired_quote"
+        ]
       },
       "TransitionJobRequest": {
         "type": "object",
@@ -6312,7 +6329,8 @@
             "type": "string",
             "enum": [
               "confirm",
-              "cancel"
+              "cancel",
+              "retry"
             ]
           }
         },

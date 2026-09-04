@@ -86,7 +86,7 @@ GET /api/jobs/{jobId}
 
 | 当前 | 动作 | 下一状态 | 副作用 |
 |---|---|---|---|
-| `awaiting_confirmation` | confirm | `queued` | 校验报价；预留积分；attempt +1 |
+| `awaiting_confirmation` | confirm | `queued` | 校验报价与能力；预留积分；attempt +1 |
 | `awaiting_confirmation` | cancel | `cancelled` | 不返还，因未预留 |
 | `queued` | provider accepted | `running` | 保存 provider handle |
 | `queued` | submit failed | `failed` | 全额返还预留 |
@@ -96,6 +96,7 @@ GET /api/jobs/{jobId}
 | `running` | poll failure | `failed` | 写错误、返还预留、清 node jobId |
 | `running` | compliance result | `compliance_blocked` | 写原因、返还预留、清 node jobId |
 | `running` | cancel | `cancelled` | 取消竞争收敛、返还预留 |
+| `failed` / `cancelled` / `compliance_blocked` | retry | 新 `awaiting_confirmation` job | 新报价；不继承预留；同一 source 仅创建一个 retry job |
 | 任一终态 | poll | 原状态 | 无副作用 |
 
 ## 不变量
@@ -110,6 +111,8 @@ GET /api/jobs/{jobId}
 8. 节点最新产物放在数组头部；
 9. 取消与成功竞争时，以服务端首先提交的终态为准；
 10. 终态 job 不再被后续 poll 改写。
+11. fixture outcome 从 `invocationId` 重建；清空进程内 handle 后只会用同一 invocation 重挂接。
+12. `retry` 创建独立 job，旧 job 的 reservation、产物和终态永不回写。
 
 ## 确定性场景
 
@@ -139,3 +142,7 @@ GET /api/jobs/{jobId}
 | compliance_blocked | 素材合规校验未通过 | 查看规则、替换素材 |
 
 刷新后 UI 必须从 API 重建标签和可用动作，不依赖组件内定时器记忆。
+
+## 本地生命周期 fixture
+
+完整的 `pending/succeeded/failed/cancelled/compliance_blocked/network_offline/capability_unsupported/expired_quote` 注入矩阵、reload 语义与 retry 幂等键见 [`jobs-lifecycle.md`](jobs-lifecycle.md)。这些输入只在 local mock 使用，绝不转发给真实 provider。

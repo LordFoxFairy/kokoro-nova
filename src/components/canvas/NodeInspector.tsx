@@ -38,6 +38,7 @@ interface NodeInspectorProps {
   onPatch: (nodeId: string, patch: Partial<NodeData>) => void
   onRun: (nodeId: string) => void
   onCancel: (jobId: string) => void
+  onRetry: (jobId: string) => void
   onAddToAgent: (nodeId: string) => void
   onApplySlash: (nodeId: string, presetId: string) => void
   /** Opens the full-screen editor a director or script node owns. */
@@ -60,6 +61,7 @@ export function NodeInspector({
   onPatch,
   onRun,
   onCancel,
+  onRetry,
   onAddToAgent,
   onApplySlash,
   onOpenStudio,
@@ -552,11 +554,11 @@ export function NodeInspector({
               <button
                 type="button"
                 data-testid="inspector-run"
-                onClick={() => onRun(node.id)}
+                onClick={() => job && (job.status === 'failed' || job.status === 'cancelled' || job.status === 'compliance_blocked') ? onRetry(job.id) : onRun(node.id)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink-900 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
               >
                 <IconPlay size={13} />
-                生成
+                {job && (job.status === 'failed' || job.status === 'cancelled' || job.status === 'compliance_blocked') ? '重新报价' : '生成'}
                 <span className="flex items-center gap-0.5 text-ink-300">
                   <IconCredit size={12} />
                   {cost.credits}

@@ -181,6 +181,7 @@ describe('local API manifest and OpenAPI', () => {
     expect(document.components?.schemas?.TransitionJobRequest?.properties?.action?.enum).toEqual([
       'confirm',
       'cancel',
+      'retry',
     ])
   })
 

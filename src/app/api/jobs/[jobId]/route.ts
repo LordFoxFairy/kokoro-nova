@@ -1,7 +1,7 @@
 import { TransitionJobRequestSchema } from '@/contracts/jobs'
 import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { activeScenarioId, readState } from '@/server/store'
-import { cancelJob, confirmJob, pollJob } from '@/server/generation/runner'
+import { cancelJob, confirmJob, pollJob, retryJob } from '@/server/generation/runner'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +37,11 @@ export async function POST(request: Request, { params }: Params) {
   return handle(async () => {
     const { jobId } = await params
     const body = await parseJsonBody(request, TransitionJobRequestSchema)
-    const job = body.action === 'cancel' ? await cancelJob(jobId) : await confirmJob(jobId)
+    const job = body.action === 'cancel'
+      ? await cancelJob(jobId)
+      : body.action === 'retry'
+        ? await retryJob(jobId)
+        : await confirmJob(jobId)
     const state = await readState()
     return { job, balance: state.balances[job.spaceId] ?? 0 }
   })

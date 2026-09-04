@@ -122,7 +122,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   ]),
 
   route('GET', '/api/jobs/{jobId}', 'Jobs', 'getGenerationJob', ['节点和详情轮询单个任务'], VIDEO_STATES),
-  route('POST', '/api/jobs/{jobId}', 'Jobs', 'transitionGenerationJob', ['确认生成报价或取消已有任务'], VIDEO_STATES),
+  route('POST', '/api/jobs/{jobId}', 'Jobs', 'transitionGenerationJob', ['确认生成报价、停止已有任务或为终态任务创建幂等 retry 报价'], VIDEO_STATES),
   route('GET', '/api/jobs', 'Jobs', 'listGenerationJobs', ['历史记录和画布初始化任务列表'], VIDEO_STATES),
   route('POST', '/api/jobs', 'Jobs', 'createGenerationJob', ['节点点击生成并创建报价'], [
     'authenticated-populated',

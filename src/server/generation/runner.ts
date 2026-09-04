@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { ids } from '@/domain/ids'
+import { fixtureForInvocation, invocationIdForFixture, retryInvocationId, type JobFixtureId } from '@/domain/jobs'
 import { compileNode } from '@/domain/compile'
 import { MODELS_BY_ID } from '@/domain/models'
 import type { Artifact, GenerationJob, WorkflowDocument } from '@/domain/types'
@@ -34,6 +35,8 @@ function jobById(state: WorkspaceState, jobId: string): GenerationJob | undefine
 export async function createJob(params: {
   canvasId: string
   nodeId: string
+  /** Local deterministic mock outcome. Never forwarded to real providers. */
+  fixture?: JobFixtureId
 }): Promise<GenerationJob> {
   return withState((state) => {
     const canvas = findCanvas(state, params.canvasId)
@@ -43,6 +46,7 @@ export async function createJob(params: {
 
     const { spec, quote } = compileNode(canvas.document, params.nodeId)
 
+    const fixture = params.fixture
     const job: GenerationJob = {
       id: ids.job(),
       spaceId: project.spaceId,
@@ -51,11 +55,13 @@ export async function createJob(params: {
       nodeId: params.nodeId,
       modelId: spec.modelId,
       status: 'awaiting_confirmation',
-      invocationId: ids.invocation(),
+      invocationId: invocationIdForFixture(ids.invocation(), fixture),
       attempt: 0,
       progress: 0,
       spec,
-      quote,
+      quote: fixture === 'expired_quote'
+        ? { ...quote, expiresAt: '2000-01-01T00:00:00.000Z', priceVersion: `${quote.priceVersion}+fixture/expired_quote` }
+        : quote,
       artifacts: [],
       error: null,
       createdAt: new Date().toISOString(),
@@ -85,6 +91,12 @@ export async function confirmJob(jobId: string): Promise<GenerationJob> {
       throw new Error('报价已过期，请重新确认')
     }
 
+    if (fixtureForInvocation(job.invocationId) === 'capability_unsupported') {
+      // Keep the quote intact and do not reserve. The user can change the
+      // model/input then explicitly retry from the same node.
+      throw new Error('当前模型不能执行该生成能力（generation fixture: capability_unsupported）')
+    }
+
     // Reservation and status transition commit together.
     reserve(state, job.spaceId, job.id, job.quote.credits, `生成任务 ${job.spec.nodeType}`)
     job.status = 'queued'
@@ -107,7 +119,9 @@ export async function confirmJob(jobId: string): Promise<GenerationJob> {
     handles.set(job.id, handle)
     const live = await withState((state) => {
       const live = jobById(state, job.id)
-      if (live && live.status === 'queued') live.status = 'running'
+      // `queued` is the durable pending phase. The pending fixture keeps it
+      // observable until the next GET poll, matching a provider queue reload.
+      if (live && live.status === 'queued' && fixtureForInvocation(live.invocationId) !== 'pending') live.status = 'running'
       return live ?? job
     })
     if (live.status === 'cancelled') await cancelProviderOnce(job.id, provider, handle)
@@ -223,6 +237,52 @@ export async function pollJob(jobId: string): Promise<GenerationJob> {
   }
 }
 
+/**
+ * Retry creates one new quoted job from a terminal source. It does not inherit
+ * a reservation or provider handle. Repeating the same API action returns the
+ * same durable retry job, so reload/replay cannot duplicate charges.
+ */
+export async function retryJob(jobId: string): Promise<GenerationJob> {
+  return withState((state) => {
+    const source = jobById(state, jobId)
+    if (!source) throw new Error('任务不存在')
+    if (!isRetryable(source.status)) throw new Error('当前任务不能重试')
+
+    const invocationId = retryInvocationId(source.invocationId)
+    const existing = state.jobs.find((job) => job.invocationId === invocationId)
+    if (existing) return existing
+
+    const canvas = findCanvas(state, source.canvasId)
+    if (!canvas) throw new Error('画布不存在')
+    const now = new Date().toISOString()
+    const job: GenerationJob = {
+      ...source,
+      id: ids.job(),
+      invocationId,
+      status: 'awaiting_confirmation',
+      // Attempt counts submits for this concrete job, not its predecessor.
+      attempt: 0,
+      progress: 0,
+      // A retry always produces a fresh local quote. Earlier expired quotes
+      // therefore cannot be revived by a stale browser POST.
+      quote: {
+        ...source.quote,
+        priceVersion: `${source.quote.priceVersion}+retry`,
+        expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      },
+      artifacts: [],
+      error: null,
+      createdAt: now,
+      startedAt: null,
+      finishedAt: null,
+    }
+    state.jobs.push(job)
+    const node = canvas.document.nodes.find((candidate) => candidate.id === job.nodeId)
+    if (node) node.data.jobId = job.id
+    return job
+  })
+}
+
 export async function cancelJob(jobId: string): Promise<GenerationJob> {
   const transition = await withState((state) => {
     const job = jobById(state, jobId)
@@ -317,6 +377,10 @@ function validDuration(value: unknown): boolean {
   return value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
 }
 
+function isRetryable(status: GenerationJob['status']): boolean {
+  return status === 'failed' || status === 'cancelled' || status === 'compliance_blocked'
+}
+
 function isTerminal(status: GenerationJob['status']): boolean {
   return status === 'succeeded' || status === 'failed' || status === 'cancelled' || status === 'compliance_blocked'
 }
@@ -333,4 +397,10 @@ function writeArtifactsToNode(doc: WorkflowDocument, nodeId: string, artifacts: 
 function clearNodeJob(doc: WorkflowDocument | undefined, nodeId: string) {
   const node = doc?.nodes.find((n) => n.id === nodeId)
   if (node) node.data.jobId = null
+}
+
+/** Test seam: simulates the volatile process-local handle table after a reload. */
+export function __resetGenerationRunnerForTests() {
+  handles.clear()
+  providerCancelClaims.clear()
 }

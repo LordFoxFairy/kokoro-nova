@@ -1,19 +1,24 @@
 import { z } from 'zod'
 
 import { GenerationJobSchema, WorkflowDocumentSchema } from './local'
+import { JOB_FIXTURE_IDS } from '@/domain/jobs'
 
 const StableIdSchema = z.string().trim().min(1)
+
+/** Local-only deterministic provider outcomes; production adapters ignore this field. */
+export const JobFixtureSchema = z.enum(JOB_FIXTURE_IDS)
 
 export const CreateJobRequestSchema = z
   .object({
     canvasId: StableIdSchema,
     nodeId: StableIdSchema,
+    fixture: JobFixtureSchema.optional(),
   })
   .strict()
 
 export const TransitionJobRequestSchema = z
   .object({
-    action: z.enum(['confirm', 'cancel']),
+    action: z.enum(['confirm', 'cancel', 'retry']),
   })
   .strict()
 
@@ -45,6 +50,7 @@ export const TransitionJobResponseSchema = z
   })
   .strict()
 
+export type JobFixture = z.infer<typeof JobFixtureSchema>
 export type CreateJobRequest = z.infer<typeof CreateJobRequestSchema>
 export type TransitionJobRequest = z.infer<typeof TransitionJobRequestSchema>
 export type TransitionJobAction = TransitionJobRequest['action']

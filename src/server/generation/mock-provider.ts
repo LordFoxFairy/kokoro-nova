@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import path from 'node:path'
 import type { Artifact } from '@/domain/types'
 import { MODELS_BY_ID } from '@/domain/models'
+import { fixtureForInvocation } from '@/domain/jobs'
 import { hashString, mulberry32, renderArtSvg, renderWav } from './art'
 import type { GenerationProvider, ProviderHandle, ProviderSubmitRequest } from './provider'
 
@@ -24,7 +25,7 @@ interface MockRun {
   durationMs: number
   request: ProviderSubmitRequest
   cancelled: boolean
-  outcome: 'succeed' | 'fail' | 'compliance'
+  outcome: 'succeed' | 'fail' | 'compliance' | 'cancelled'
   artifacts: Omit<Artifact, 'id' | 'jobId' | 'assetId' | 'createdAt'>[] | null
   error: string | null
 }
@@ -259,10 +260,19 @@ export const mockProvider: GenerationProvider = {
     const baseMs = { image: 2600, video: 6200, audio: 2000, text: 1600 }[media]
     const rand = mulberry32(hashString(request.invocationId))
 
-    // Interactive runs are the canonical happy path. Failure and compliance
-    // states live in named scenarios instead of being selected from a generated
-    // invocation id; this keeps demos and E2E runs reproducible across retries.
-    const outcome: MockRun['outcome'] = 'succeed'
+    // The fixture is encoded in invocationId by the runner, so it survives a
+    // refresh without relying on an in-memory scenario table.
+    const fixture = fixtureForInvocation(request.invocationId)
+    if (fixture === 'network_offline') {
+      throw new Error('本地网络连接已断开（generation fixture: network_offline）')
+    }
+    const outcome: MockRun['outcome'] = fixture === 'failed'
+      ? 'fail'
+      : fixture === 'compliance_blocked'
+        ? 'compliance'
+        : fixture === 'cancelled'
+          ? 'cancelled'
+          : 'succeed'
 
     const handle: ProviderHandle = {
       providerId: this.id,
@@ -311,6 +321,9 @@ export const mockProvider: GenerationProvider = {
 
     if (run.outcome === 'fail') {
       return { state: 'failed', error: run.error ?? '生成失败，请调整提示词后重试' }
+    }
+    if (run.outcome === 'cancelled') {
+      return { state: 'cancelled' }
     }
     if (run.outcome === 'compliance') {
       return { state: 'compliance_blocked', error: '素材未通过人像合规校验，请更换参考图后重试' }

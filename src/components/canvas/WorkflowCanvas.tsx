@@ -220,6 +220,7 @@ const CANVAS_FOCUS_STYLES = `
 interface WorkflowCanvasProps {
   onRun: (nodeId: string) => void
   onCancelJob: (jobId: string) => void
+  onRetryJob: (jobId: string) => void
   onOpenNode: (nodeId: string | null) => void
   openNodeId: string | null
   onStitch: (groupId: string) => void
@@ -240,6 +241,7 @@ interface WorkflowCanvasProps {
 function CanvasInner({
   onRun,
   onCancelJob,
+  onRetryJob,
   onOpenNode,
   openNodeId,
   onStitch,
@@ -619,6 +621,7 @@ function CanvasInner({
           job: jobByNode.get(node.id) ?? null,
           onRun,
           onCancel: onCancelJob,
+          onRetry: onRetryJob,
           onDuplicate: handleDuplicate,
           onDelete: handleDelete,
           onToggleKeyElement: handleToggleKeyElement,
@@ -675,6 +678,7 @@ function CanvasInner({
       jobByNode,
       onRun,
       onCancelJob,
+      onRetryJob,
       handleDuplicate,
       handleDelete,
       handleToggleKeyElement,

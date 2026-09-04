@@ -40,6 +40,7 @@ export interface NodeCardData extends Record<string, unknown> {
   job: GenerationJob | null
   onRun: (nodeId: string) => void
   onCancel: (jobId: string) => void
+  onRetry: (jobId: string) => void
   onDuplicate: (nodeId: string) => void
   onDelete: (nodeId: string) => void
   onToggleKeyElement: (nodeId: string) => void
@@ -89,6 +90,7 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     job,
     onRun,
     onCancel,
+    onRetry,
     onDuplicate,
     onDelete,
     onToggleKeyElement,
@@ -347,7 +349,7 @@ function NodeCardImpl({ data, selected }: NodeProps) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => onRun(node.id)}
+                  onClick={() => job && onRetry(job.id)}
                   className="rounded-md px-2 py-1 text-[11px] font-medium text-ink-600 transition-colors hover:bg-ink-100"
                 >
                   重试
@@ -361,7 +363,7 @@ function NodeCardImpl({ data, selected }: NodeProps) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => onRun(node.id)}
+                  onClick={() => job && onRetry(job.id)}
                   className="rounded-md px-2 py-1 text-[11px] font-medium text-ink-600 transition-colors hover:bg-ink-100"
                 >
                   重新生成

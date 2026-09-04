@@ -249,8 +249,10 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         setBalance(balance)
         setPendingJob(null)
       } catch (error) {
+        // Keep the confirmation gate mounted so typed fixture/capability errors
+        // remain actionable instead of disappearing behind a toast.
         toast(error instanceof Error ? error.message : '确认失败', 'error')
-        setPendingJob(null)
+        throw error
       }
     },
     [upsertJob, setBalance, toast],
@@ -265,6 +267,21 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         setPendingJob(null)
       } catch (error) {
         toast(error instanceof Error ? error.message : '取消失败', 'error')
+      }
+    },
+    [upsertJob, setBalance, toast],
+  )
+
+  /** A terminal retry is server-idempotent and always reopens the confirmation gate. */
+  const retryJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const { job, balance } = await client.jobs.transition(jobId, 'retry')
+        upsertJob(job)
+        setBalance(balance)
+        setPendingJob(job)
+      } catch (error) {
+        toast(error instanceof Error ? error.message : '重试失败', 'error')
       }
     },
     [upsertJob, setBalance, toast],
@@ -1097,6 +1114,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
             <WorkflowCanvas
               onRun={runNode}
               onCancelJob={cancelJob}
+              onRetryJob={retryJob}
               onOpenNode={inspect}
               openNodeId={inspectedNodeId}
               onStitch={stitchGroup}
@@ -1161,6 +1179,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
             onPatch={patchNode}
             onRun={runNode}
             onCancel={cancelJob}
+            onRetry={retryJob}
             onAddToAgent={(nodeId) => {
               const node = document.nodes.find((n) => n.id === nodeId)
               if (node) useEditor.getState().pushAgentRef({ id: node.id, label: node.name, kind: 'node' })

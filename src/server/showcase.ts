@@ -4,6 +4,9 @@ import { HttpError } from './http'
 import { findViewableSnapshot as findSnapshotRecord, listPublishedSnapshots } from './publish'
 import { SHOWCASE_DISCOVERY_CATALOG, findShowcaseFixtureSnapshot } from '@/mocks/showcase'
 import type { PublishedSnapshot, SnapshotSummary } from '@/domain/publish'
+import { readState, type WorkspaceState } from './store'
+
+type SnapshotCarrier = WorkspaceState & { publishedSnapshots?: PublishedSnapshot[] }
 
 function firstVideo(snapshot: PublishedSnapshot | SnapshotSummary): Artifact | null {
   if (!('document' in snapshot)) return null
@@ -71,9 +74,28 @@ export async function listShowcaseEntries(): Promise<ShowcaseEntryProjection[]> 
   return [...publishedEntries, ...fixtureEntries].sort((left, right) => right.publishedAt.localeCompare(left.publishedAt))
 }
 
+/**
+ * Discovery fixtures fill the local catalogue when a scenario has no stored
+ * publication. A stored hidden or revoked snapshot always wins, so takedown
+ * remains a real public boundary rather than being masked by a fixture.
+ */
+export async function findViewableShowcaseSnapshot(snapshotId: string): Promise<PublishedSnapshot> {
+  try {
+    return await findSnapshotRecord(snapshotId)
+  } catch (error) {
+    const state = (await readState()) as SnapshotCarrier
+    if (state.publishedSnapshots?.some((snapshot) => snapshot.id === snapshotId)) throw error
+    const fixture = findShowcaseFixtureSnapshot(snapshotId)
+    if (fixture) return fixture
+    throw error
+  }
+}
+
 export async function findShowcaseDetail(snapshotId: string): Promise<ShowcaseDetailResponse> {
-  const snapshot = await findSnapshotRecord(snapshotId).catch(() => findShowcaseFixtureSnapshot(snapshotId))
-  if (!snapshot) throw new HttpError(404, '作品不存在或已下架')
+  const snapshot = await findViewableShowcaseSnapshot(snapshotId).catch((error: unknown) => {
+    if (error instanceof HttpError) throw error
+    throw new HttpError(404, '作品不存在或已下架')
+  })
   const entry = entryFor(snapshot)
   const related = await listShowcaseEntries()
   return {

@@ -40,7 +40,7 @@ test('TV Show catalog keeps category and search discovery states visible', async
   await expect(page.getByRole('heading', { name: 'TV Show' })).toBeVisible()
   await expect(page.getByTestId('showcase-card-pub_city_night_01')).toBeVisible()
   await expect(page.getByTestId('showcase-category-全部')).toHaveAttribute('data-selected', 'true')
-  await page.screenshot({ path: `${SHOTS}/showcase-gallery-catalog.png` })
+  await page.screenshot({ path: `${SHOTS}/showcase-gallery-catalog.png`, scale: 'css' })
   await page.getByTestId('showcase-category-专业影视').click()
   await expect(page.getByTestId('showcase-category-专业影视')).toHaveAttribute('data-selected', 'true')
 
@@ -51,7 +51,7 @@ test('TV Show catalog keeps category and search discovery states visible', async
   await expect(page.getByTestId('showcase-category-全部')).toHaveCount(0)
   await expect(page.getByTestId('showcase-card-pub_city_night_01')).toBeVisible()
   await expect(page.getByTestId('showcase-search-feedback')).toContainText('未找到')
-  await page.screenshot({ path: `${SHOTS}/showcase-gallery-filters.png` })
+  await page.screenshot({ path: `${SHOTS}/showcase-gallery-filters.png`, scale: 'css' })
 
   await page.getByTestId('showcase-clear-search').click()
   await expect(page.getByTestId('showcase-category-全部')).toBeVisible()
@@ -78,7 +78,7 @@ test('TV Show detail, player and read-only process preserve the public work cont
   await expect(page.getByTestId('showcase-watch')).toBeVisible()
   await expect(page.getByTestId('showcase-process')).toBeVisible()
   await expect(page.getByTestId('showcase-related')).toBeVisible()
-  await page.screenshot({ path: `${SHOTS}/showcase-detail.png` })
+  await page.screenshot({ path: `${SHOTS}/showcase-detail.png`, scale: 'css' })
 
   await page.getByTestId('showcase-watch').click()
   await expect(page.getByTestId('showcase-player')).toBeVisible()
@@ -100,7 +100,7 @@ test('TV Show detail, player and read-only process preserve the public work cont
   await page.getByTestId('showcase-quality-720p').click()
   await expect(page.getByTestId('showcase-player-quality')).toContainText('720p 高清')
 
-  await page.screenshot({ path: `${SHOTS}/showcase-detail-player.png` })
+  await page.screenshot({ path: `${SHOTS}/showcase-detail-player.png`, scale: 'css' })
 
   await page.getByTestId('showcase-player-back').click()
   await page.getByTestId('showcase-process').click()

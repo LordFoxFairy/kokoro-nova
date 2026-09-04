@@ -136,6 +136,22 @@ async function readScriptV2State(page: Page) {
   return script.data.extra.scriptV2
 }
 
+/**
+ * Script V2 is a full-screen, high-density authoring surface.  Keep visual
+ * regressions separate from the semantic flow assertions below: an interaction
+ * can still pass after a panel silently drifts out of its documented geometry.
+ */
+async function expectVisualBaseline(page: Page, name: string) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
+  await page.evaluate(() => document.fonts.ready)
+  await expect(page).toHaveScreenshot(name, {
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+    maxDiffPixelRatio: 0.0001,
+  })
+}
+
 test('script v2 node exposes the three exact entry paths in official order', async ({ page }) => {
   await createProject(page)
   const node = await addScriptV2Node(page)
@@ -1260,4 +1276,62 @@ test('script v2 materialization is one undo frame and the surviving topology rel
   await expect(page.getByTestId('workflow-canvas')).toBeVisible()
   await expect(page.locator('[data-node-type="image"]')).toHaveCount(4)
   await expect(page.locator('[data-node-type="script"]')).toHaveCount(1)
+})
+
+test('script v2 preserves desktop visual baselines through its three-stage authoring flow', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const nodeShell = node.locator('[data-testid^="node-shell-"]')
+  // React Flow may finish its post-insert selection reconciliation after the
+  // mutation response. Select the node deliberately so the canvas chrome and
+  // node ring are part of a stable, explicit visual state.
+  await nodeShell.click({ position: { x: 380, y: 280 } })
+  await expect(nodeShell).toHaveAttribute('data-selected', 'true')
+  await expectVisualBaseline(page, 'script-v2-node-empty-1440x900.png')
+
+  let persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '剧本生成分镜脚本', exact: true }).click()
+  await persisted
+  const generator = page.getByTestId('script-v2-generator')
+  await expect(generator).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-generator-1440x900.png')
+
+  await generator.getByRole('button', { name: /GVLM 3\.1/ }).click()
+  await expect(page.getByTestId('script-v2-model-catalog')).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-model-catalog-1440x900.png')
+  await page.keyboard.press('Escape')
+
+  await generator.getByPlaceholder('描述剧情片段、故事，为你生成分镜脚本').fill(
+    '雨夜的旧车站里，一名旅人把迟到十年的信交给守灯人。',
+  )
+  await generator.getByRole('button', { name: '生成分镜脚本', exact: true }).click()
+  const resource = node.getByTestId('script-v2-resource-card')
+  await expect(resource).toBeVisible({ timeout: 20_000 })
+  await resource.getByRole('button', { name: '打开脚本节点 →', exact: true }).click()
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  await expect(workspace).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-shots-1440x900.png')
+
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await persisted
+  await expect(workspace.getByTestId('script-v2-assets')).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-assets-1440x900.png')
+
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^合成提示词/ }).click()
+  await persisted
+  const prompts = workspace.getByTestId('script-v2-prompt-stage')
+  await expect(prompts).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-prompts-1440x900.png')
+
+  await prompts.getByRole('button', { name: '查看镜头 1 最终提示词', exact: true }).click()
+  await expect(page.getByTestId('script-v2-prompt-detail-dialog')).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-prompt-detail-1440x900.png')
+  await page.getByRole('button', { name: '关闭提示词', exact: true }).click()
+
+  await workspace.getByTestId('script-v2-batch-image').click()
+  await expect(page.getByTestId('script-v2-batch-materialize-dialog')).toBeVisible()
+  await expectVisualBaseline(page, 'script-v2-batch-image-1440x900.png')
 })

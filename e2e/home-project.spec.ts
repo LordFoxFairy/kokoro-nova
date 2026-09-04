@@ -350,3 +350,73 @@ test('home CreationContext persists every official composer control and freezes 
   expect(body.request.context.generationMode).toBe('auto')
   await page.waitForURL(/\/canvas\?.*creationRequestId=creation-request-/)
 })
+
+test.describe('首页与项目页 1440×900 状态和可访问性交互基准', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })
+
+  test('首页在加载、失败重试与空最近项目之间保持可读主路径', async ({ page, request }) => {
+    let homeRequests = 0
+    await page.route('**/api/home', async (route) => {
+      homeRequests += 1
+      if (homeRequests === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: '首页 mock 暂时不可用' }),
+        })
+        return
+      }
+      await route.continue()
+    })
+
+    await page.goto('/')
+    await expect(page.getByTestId('home-loading')).toBeVisible()
+    await expect(page.getByTestId('home-loading')).toHaveAttribute('role', 'status')
+    await expect(page.getByTestId('home-load-error')).toBeVisible()
+    await page.getByTestId('home-retry').focus()
+    await expect(page.getByTestId('home-retry')).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('home-surface')).toBeVisible()
+
+    const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-empty' } })
+    expect(selected.ok()).toBe(true)
+    await page.reload()
+    await expect(page.getByTestId('home-recent-empty')).toBeVisible()
+    await expect(page.getByRole('link', { name: '管理项目' })).toHaveAttribute('href', '/project')
+  })
+
+  test('项目页在加载、失败重试和空工作区之间保留焦点和桌面密度', async ({ page, request }) => {
+    let projectRequests = 0
+    await page.route('**/api/projects', async (route) => {
+      projectRequests += 1
+      if (projectRequests === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: '项目 mock 暂时不可用' }),
+        })
+        return
+      }
+      await route.continue()
+    })
+
+    await page.goto('/project')
+    await expect(page.getByTestId('project-loading')).toBeVisible()
+    await expect(page.getByTestId('project-loading')).toHaveAttribute('role', 'status')
+    await expect(page.getByTestId('project-load-error')).toBeVisible()
+    await page.getByTestId('project-retry').focus()
+    await expect(page.getByTestId('project-retry')).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('project-grid')).toBeVisible()
+
+    const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-empty' } })
+    expect(selected.ok()).toBe(true)
+    await page.reload()
+    await expect(page.getByTestId('project-empty-state')).toContainText('还没有项目')
+    await expect(page.getByRole('button', { name: '开始第一个项目' })).toBeEnabled()
+    const grid = await page.getByTestId('project-grid').boundingBox()
+    expect(grid?.width).toBeGreaterThan(880)
+  })
+})

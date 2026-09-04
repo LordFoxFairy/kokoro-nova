@@ -404,7 +404,11 @@ function ProjectListSurface() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-106px)] min-w-0 bg-[#111]" aria-busy={loading || refreshing || undefined}>
+    <div
+      data-testid="project-surface"
+      className="min-h-[calc(100vh-106px)] min-w-0 bg-[#111]"
+      aria-busy={loading || refreshing || undefined}
+    >
         <ProjectToolbar
           title={openFolder?.name ?? '全部项目'}
           inFolder={Boolean(openFolder)}
@@ -419,7 +423,13 @@ function ProjectListSurface() {
 
         <section aria-label="项目列表" className="min-w-0 px-10 pb-16 pt-[26px] max-[1100px]:px-4">
           {loading ? (
-            <div className="flex w-4/5 justify-center py-20 text-white/35 max-[1100px]:w-full">
+            <div
+              role="status"
+              aria-live="polite"
+              aria-label="正在加载项目列表"
+              data-testid="project-loading"
+              className="flex w-4/5 justify-center py-20 text-white/35 max-[1100px]:w-full"
+            >
               <Spinner size={22} />
             </div>
           ) : !hasLoaded ? (
@@ -504,12 +514,13 @@ function ProjectListSurface() {
               {emptyState && (
                 <div
                   data-testid="project-empty-state"
+                  aria-labelledby="project-empty-title"
                   className="flex w-4/5 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/[0.09] bg-[#151515] px-6 py-12 text-center max-[1100px]:w-full"
                 >
                   <span className="text-white/24">
                     {emptyState.kind === 'search' ? <span aria-hidden="true" className="text-2xl">⌕</span> : <IconFolder size={30} />}
                   </span>
-                  <h2 className="text-[14px] font-medium text-white/70">{emptyState.title}</h2>
+                  <h2 id="project-empty-title" className="text-[14px] font-medium text-white/70">{emptyState.title}</h2>
                   <p className="text-[12px] text-white/38">
                     {emptyState.kind === 'search'
                       ? `试试其他关键词，或清除「${query.trim()}」`

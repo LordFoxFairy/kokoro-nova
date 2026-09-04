@@ -209,14 +209,14 @@ export function ShowcaseGallery() {
         </nav>
       </header>
 
-      <main className="px-4 pb-16 sm:px-8" aria-labelledby="showcase-title">
+      <main className="px-4 pb-16 sm:px-8" aria-labelledby="showcase-title" aria-describedby="showcase-status">
         <div className="mx-auto max-w-[1500px]">
           <div className="flex flex-wrap items-baseline justify-between gap-2 pt-7">
             <div>
               <h1 id="showcase-title" className="text-[18px] font-semibold tracking-tight text-white">TV Show</h1>
               <p className="mt-1 text-[12px] text-white/45">公开探索 · 只读浏览发布时冻结的制作过程</p>
             </div>
-            <div className="text-[12px] text-white/45" data-testid="showcase-status" role="status" aria-live="polite">
+            <div id="showcase-status" className="text-[12px] text-white/45" data-testid="showcase-status" role="status" aria-live="polite">
               {requestState === 'loading' ? '正在加载公开作品…' : requestState === 'refreshing' ? '正在刷新公开作品…' : ''}
             </div>
           </div>
@@ -294,31 +294,33 @@ export function ShowcaseGallery() {
             {searchFeedback}
           </p>
 
-          <div aria-busy={loading}>
-        {loading && snapshots.length === 0 ? (
-          <div className="flex justify-center py-20 text-white/50" role="status" aria-label="正在加载公开作品">
-            <Spinner size={22} />
-          </div>
-        ) : error && snapshots.length === 0 ? (
-          <EmptyState
-            icon={<IconPlay size={30} />}
-            title="公开作品暂时加载失败"
-            description={error}
-            action={
-              <button
-                type="button"
-                data-testid="showcase-retry"
-                onClick={retry}
-                disabled={loading}
-                aria-busy={loading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515] transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <IconRefresh size={14} className={loading ? 'animate-spin' : undefined} />
-                {loading ? '重试中…' : '重试'}
-              </button>
-            }
-          />
-        ) : error ? (
+          <div data-testid="showcase-results" aria-busy={loading || undefined}>
+            {loading && snapshots.length === 0 ? (
+              <div data-testid="showcase-loading" className="flex justify-center py-20 text-white/50" role="status" aria-live="polite" aria-label="正在加载公开作品">
+                <Spinner size={22} />
+              </div>
+            ) : error && snapshots.length === 0 ? (
+              <div data-testid="showcase-load-error">
+                <EmptyState
+                  icon={<IconPlay size={30} />}
+                  title="公开作品暂时加载失败"
+                  description={error}
+                  action={
+                    <button
+                      type="button"
+                      data-testid="showcase-retry"
+                      onClick={retry}
+                      disabled={loading}
+                      aria-busy={loading}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515] transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <IconRefresh size={14} className={loading ? 'animate-spin' : undefined} />
+                      {loading ? '重试中…' : '重试'}
+                    </button>
+                  }
+                />
+              </div>
+            ) : error ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert">
             <span>刷新失败，仍显示上次成功读取的作品：{error}</span>
             <button
@@ -333,11 +335,12 @@ export function ShowcaseGallery() {
             </button>
           </div>
         ) : filtered.entries.length === 0 ? (
-          <EmptyState
-            icon={<IconPlay size={30} />}
-            title={category === '全部' ? '暂无公开作品' : `${category}暂无作品`}
-            description={query ? `没有找到“${query}”对应的作品。` : '把画布发布之后，作品会出现在这里，任何人都可以浏览它的制作过程。'}
-            action={
+          <div data-testid="showcase-empty-state">
+            <EmptyState
+              icon={<IconPlay size={30} />}
+              title={category === '全部' ? '暂无公开作品' : `${category}暂无作品`}
+              description={query ? `没有找到“${query}”对应的作品。` : '把画布发布之后，作品会出现在这里，任何人都可以浏览它的制作过程。'}
+              action={
               query || category !== '全部' ? (
                 <button
                   type="button"
@@ -355,8 +358,9 @@ export function ShowcaseGallery() {
                   去我的项目
                 </Link>
               )
-            }
-          />
+              }
+            />
+          </div>
         ) : (
           <>
             <div

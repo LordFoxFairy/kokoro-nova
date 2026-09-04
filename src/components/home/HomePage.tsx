@@ -16,7 +16,14 @@ type CreatorTool = HomeDiscoveryResponse['creatorTools'][number]
 
 function HomeLoading() {
   return (
-    <div aria-busy="true" aria-label="正在加载首页" className="min-w-0 px-10 pb-20 pt-2 max-[1100px]:px-6 max-[850px]:px-4">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="正在加载首页"
+      data-testid="home-loading"
+      className="min-w-0 px-10 pb-20 pt-2 max-[1100px]:px-6 max-[850px]:px-4"
+    >
       <div className="aspect-[8/1] w-full animate-pulse rounded-[24px] bg-white/[0.045]" />
       <div className="mt-6 h-[200px] animate-pulse rounded-xl bg-white/[0.035]" />
     </div>
@@ -27,13 +34,15 @@ function HomeLoadError({ message, onRetry }: { message: string | null; onRetry: 
   return (
     <div
       role="alert"
+      aria-labelledby="home-load-error-title"
+      aria-describedby="home-load-error-description"
       data-testid="home-load-error"
       className="mx-10 flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-2xl border border-white/[0.08] bg-[#171717] px-6 text-center max-[1100px]:mx-6 max-[850px]:mx-4"
     >
       <span className="text-2xl text-white/25" aria-hidden="true">⌁</span>
       <div>
-        <h1 className="text-[15px] font-medium text-white/78">首页暂时无法加载</h1>
-        <p className="mt-1 text-[12px] text-white/40">{message ?? '请稍后重试'}</p>
+        <h1 id="home-load-error-title" className="text-[15px] font-medium text-white/78">首页暂时无法加载</h1>
+        <p id="home-load-error-description" className="mt-1 text-[12px] text-white/40">{message ?? '请稍后重试'}</p>
       </div>
       <button
         type="button"
@@ -100,7 +109,7 @@ function HomeSurface() {
   }
 
   return (
-    <div className="min-w-0 px-10 pb-4 pt-2 max-[1100px]:px-6 max-[850px]:px-4">
+    <div data-testid="home-surface" className="min-w-0 px-10 pb-4 pt-2 max-[1100px]:px-6 max-[850px]:px-4">
       <section aria-label="当前活动" className="relative aspect-[8/1] w-full overflow-hidden rounded-[24px] bg-black">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

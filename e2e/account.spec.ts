@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const SHOTS = "docs/screenshots";
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation";
 
 test.beforeEach(async ({ request }) => {
   const selected = await request.post("/api/dev/scenario", {
@@ -26,9 +26,8 @@ test("account surface renders the dark shared identity shell and wallet baseline
   ).toBeVisible();
   await expect(page.getByTestId("account-identity-mini")).toBeVisible();
   await page.unroute(accountRoute);
-  await expect(page.getByTestId("account-identity-card")).toContainText(
-    "188****2606",
-  );
+  await expect(page.getByTestId("account-identity-card")).toContainText("UUID");
+  await expect(page.getByTestId("account-identity-card")).toContainText("cd••••5d");
   await expect(page.getByTestId("account-identity-card")).toContainText(
     "通用 20 · LibTV 80",
   );

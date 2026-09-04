@@ -36,3 +36,7 @@ nextDistDir=<本地 runner 时的 Next 输出目录>
 默认 isolated 模式由 Playwright 直接拥有 `next dev` 子进程；测试结束时由 Playwright 负责停止它。
 `reuseExistingServer: false` 使 `:3210` 已被占用时立即失败，不会复用、探测或终止任何已有监听者。
 这避免了测试进程误杀交互演示服务；`:3200` 始终不在 runner 的目标集合中。
+
+普通 `pnpm e2e` 将过程截图写入 `test-results/documentation/`，不会改写版本控制中的
+`docs/screenshots/`。审核过的文档截图需要显式刷新时，才传入
+`VISUAL_ARTIFACTS_DIR=docs/screenshots`。

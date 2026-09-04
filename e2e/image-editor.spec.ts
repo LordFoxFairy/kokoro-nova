@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
+
 const PROJECT_URL = '/canvas?projectId=prj_video_demo&canvasId=can_video_main'
 
 async function selectPopulated(request: APIRequestContext) {
@@ -47,7 +49,7 @@ test('Image double click opens the inverse-scaled node authoring surface', async
 
   await expectVisualBaseline(page, 'image-node-editor-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/image-node-editor-dark-1440x900.png',
+    path: `${SHOTS}/image-node-editor-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -70,7 +72,7 @@ test('Image model catalogue exposes the seven observed models with keyboard laye
   await expect(catalog).toContainText('7 个结果')
   await expectVisualBaseline(page, 'image-model-catalog-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/image-model-catalog-dark-1440x900.png',
+    path: `${SHOTS}/image-model-catalog-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -102,7 +104,7 @@ test('Image output popover exposes and persists the exact option matrix', async 
   await expect(output.getByRole('button', { name: /生成数量/ })).toHaveCount(3)
   await expectVisualBaseline(page, 'image-output-popover-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/image-output-popover-dark-1440x900.png',
+    path: `${SHOTS}/image-output-popover-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -132,7 +134,7 @@ test('Image references and style application persist graph dependencies', async 
   await expect(textCandidate).toContainText('取消选择')
   await expectVisualBaseline(page, 'image-reference-selection-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/image-reference-selection-dark-1440x900.png',
+    path: `${SHOTS}/image-reference-selection-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -147,7 +149,7 @@ test('Image references and style application persist graph dependencies', async 
   await expect(market).toContainText('风格广场')
   await expectVisualBaseline(page, 'image-style-market-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/image-style-market-dark-1440x900.png',
+    path: `${SHOTS}/image-style-market-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })

@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test'
  * project → canvas → nodes → connect → generate → storyboard → agent.
  */
 
-const SHOTS = 'docs/screenshots'
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
 
 // The workspace store is file-backed and survives between runs, so without a
 // reset each run inherits the previous run's projects and folders.

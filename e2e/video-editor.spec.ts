@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
+
 const PROJECT_URL = '/canvas?projectId=prj_video_demo&canvasId=can_video_main'
 const CANVAS_API_PATH = '/api/canvases/can_video_main'
 
@@ -78,7 +80,7 @@ test('Video double click opens an inverse-scaled node editor instead of the gene
 
   await expectVisualBaseline(page, 'video-node-editor-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/video-node-editor-dark-1440x900.png',
+    path: `${SHOTS}/video-node-editor-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -119,7 +121,7 @@ test('Video model catalogue exposes all 36 observed models and Escape closes one
 
   await expectVisualBaseline(page, 'video-model-catalog-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/video-model-catalog-dark-1440x900.png',
+    path: `${SHOTS}/video-model-catalog-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -267,7 +269,7 @@ test('Video reference mode toggles graph edges and restores the node editor chro
   await expect(cyclicCandidate).toHaveAttribute('title', '该连线会形成循环依赖')
   await expectVisualBaseline(page, 'video-reference-picker-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/video-reference-picker-dark-1440x900.png',
+    path: `${SHOTS}/video-reference-picker-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
@@ -382,7 +384,7 @@ test('camera movement library mirrors the 23-card plaza, favorites and Escape la
 
   await expectVisualBaseline(page, 'video-camera-library-dark-1440x900.png')
   await page.screenshot({
-    path: 'docs/screenshots/video-camera-library-dark-1440x900.png',
+    path: `${SHOTS}/video-camera-library-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })

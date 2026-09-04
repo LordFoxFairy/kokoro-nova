@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
+
 async function selectScenario(request: APIRequestContext, scenarioId: string) {
   const response = await request.post('/api/dev/scenario', { data: { scenarioId } })
   expect(response.ok()).toBe(true)
@@ -114,6 +116,6 @@ test.describe('项目管理交互夹具', () => {
 
   test('项目列表桌面卡片保留 1440×900 视觉基线', async ({ page, request }) => {
     await openProjects(page, request)
-    await page.screenshot({ path: 'docs/screenshots/project-manager-actions-1440x900.png', scale: 'css' })
+    await page.screenshot({ path: `${SHOTS}/project-manager-actions-1440x900.png`, scale: 'css' })
   })
 })

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const SHOTS = 'docs/screenshots'
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
 
 test.use({
   viewport: { width: 1440, height: 900 },

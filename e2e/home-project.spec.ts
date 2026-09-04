@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
+
 async function selectPopulatedScenario(request: APIRequestContext) {
   const selected = await request.post('/api/dev/scenario', {
     data: { scenarioId: 'authenticated-populated' },
@@ -90,7 +92,7 @@ test('project manager matches the four-card desktop layout and local interaction
   expect(firstCard?.width).toBeLessThanOrEqual(214)
   expect(firstCard?.y).toBeGreaterThanOrEqual(178)
   expect(firstCard?.y).toBeLessThanOrEqual(194)
-  await page.screenshot({ path: 'docs/screenshots/libtv-project-local-1440x900.png', scale: 'css' })
+  await page.screenshot({ path: `${SHOTS}/libtv-project-local-1440x900.png`, scale: 'css' })
 
   await page.getByRole('button', { name: '收起侧边栏' }).click()
   await expect.poll(async () => (await page.getByTestId('project-grid-item').first().boundingBox())?.x).toBeLessThanOrEqual(110)
@@ -99,7 +101,7 @@ test('project manager matches the four-card desktop layout and local interaction
   expect(collapsedFirstCard?.x).toBeLessThanOrEqual(110)
   expect(collapsedFirstCard?.width).toBeGreaterThanOrEqual(244)
   expect(collapsedFirstCard?.width).toBeLessThanOrEqual(252)
-  await page.screenshot({ path: 'docs/screenshots/libtv-project-collapsed-local-1440x900.png', scale: 'css' })
+  await page.screenshot({ path: `${SHOTS}/libtv-project-collapsed-local-1440x900.png`, scale: 'css' })
   await page.getByRole('button', { name: '展开侧边栏' }).click()
   await expect.poll(async () => (await page.getByTestId('project-grid-item').first().boundingBox())?.x).toBeGreaterThanOrEqual(276)
 
@@ -172,7 +174,7 @@ test('home reproduces the campaign, creation, recent, Agent and TV Show hierarch
     .evaluateAll((images) => images.map((image) => image.getAttribute('src')))
   expect(coverUrls.every((url) => url?.startsWith('/fixtures/libtv/'))).toBe(true)
 
-  await page.screenshot({ path: 'docs/screenshots/libtv-home-local-1440x900.png', scale: 'css' })
+  await page.screenshot({ path: `${SHOTS}/libtv-home-local-1440x900.png`, scale: 'css' })
 
   await page.getByRole('button', { name: '专业影视', exact: true }).click()
   await expect(page.getByTestId('home-showcase-card')).toHaveCount(3)
@@ -222,7 +224,7 @@ test('home Agent composer keeps context controls local, accessible and keyboard 
   await composer.focus()
   await expect(page.getByTestId('home-agent-composer')).toHaveAttribute('data-state', 'expanded')
   await expect(page.getByTestId('home-agent-send')).toBeDisabled()
-  await page.screenshot({ path: 'docs/screenshots/libtv-home-composer-expanded-1440x900.png', scale: 'css' })
+  await page.screenshot({ path: `${SHOTS}/libtv-home-composer-expanded-1440x900.png`, scale: 'css' })
 
   await page.getByTestId('home-attachment-trigger').click()
   await expect(page.getByTestId('home-attachment-menu')).toBeVisible()

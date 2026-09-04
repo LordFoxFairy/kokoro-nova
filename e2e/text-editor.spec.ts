@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
-const SHOTS = 'docs/screenshots'
+const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
 
 async function selectEmpty(request: APIRequestContext) {
   const response = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-empty' } })

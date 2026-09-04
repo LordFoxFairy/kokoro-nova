@@ -210,6 +210,56 @@ test('clip edits persist on the videoComposite node across close and reload', as
   await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(2)
 })
 
+test('selected clips expose draggable, keyboard-accessible trim handles', async ({ page, request }) => {
+  await openCompositor(page, request)
+  await page
+    .getByTestId('clip-source-video-art_video_01')
+    .getByRole('button', { name: '添加到时间线' })
+    .click()
+
+  const clip = page.locator('[data-testid^="timeline-clip-"]').first()
+  await clip.click()
+  const clipId = (await clip.getAttribute('data-testid'))!.replace('timeline-clip-', '')
+  const inHandle = page.getByTestId(`trim-handle-in-${clipId}`)
+  const outHandle = page.getByTestId(`trim-handle-out-${clipId}`)
+  await expect(inHandle).toHaveAttribute('role', 'slider')
+  await expect(outHandle).toHaveAttribute('aria-valuenow', '15')
+
+  const inBox = await inHandle.boundingBox()
+  expect(inBox).not.toBeNull()
+  if (!inBox) return
+  await page.mouse.move(inBox.x + inBox.width / 2, inBox.y + inBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(inBox.x + inBox.width / 2 + 80, inBox.y + inBox.height / 2)
+  await page.mouse.up()
+
+  await expect(inHandle).toHaveAttribute('aria-valuenow', '2')
+  await expect(page.getByRole('spinbutton', { name: '片段入点' })).toHaveValue('2')
+
+  await inHandle.focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect.poll(() => inHandle.getAttribute('aria-valuenow')).toBe('1.9')
+
+  await visualBaseline(page, 'video-compositor-trim-1440x900.png')
+})
+
+test('compositor stacks the source rail above the workspace on compact viewports', async ({ page, request }) => {
+  await page.setViewportSize({ width: 800, height: 900 })
+  await openCompositor(page, request)
+
+  const editor = page.getByTestId('clip-editor')
+  await expect(editor).toHaveCSS('grid-template-columns', '768px')
+  const sourceRail = page.getByTestId('clip-editor-source-rail')
+  const workspace = page.getByTestId('clip-editor-workspace')
+  const sourceBox = await sourceRail.boundingBox()
+  const workspaceBox = await workspace.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(workspaceBox).not.toBeNull()
+  if (!sourceBox || !workspaceBox) return
+  expect(workspaceBox.y).toBeGreaterThan(sourceBox.y + sourceBox.height - 1)
+  expect(workspaceBox.x).toBeCloseTo(sourceBox.x, 0)
+})
+
 test('independent audio supports trim, placement, gain, mute-ready persistence and reload', async ({ page, request }) => {
   await selectScenario(request)
   await addFixtureAudioSource(request)

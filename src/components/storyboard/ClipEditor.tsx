@@ -77,6 +77,12 @@ interface TimelineFeedback {
   message: string
 }
 
+interface TrimPreview {
+  clipId: string
+  inPoint: number
+  outPoint: number
+}
+
 const PX_PER_SECOND = 40
 const TIMELINE_HEIGHT = 255
 const PLAYHEAD_STEP_SECONDS = 0.1
@@ -154,6 +160,31 @@ function compositeNodeOf(document: WorkflowDocument): WorkflowNode | null {
 
 function clipSeconds(clip: CompositeClip) {
   return (clip.outPoint - clip.inPoint) / clip.speed
+}
+
+export type TrimEdge = 'in' | 'out'
+
+/** Convert a timeline drag into source-space trim points. */
+export function trimPointsForDrag(
+  clip: CompositeClip,
+  edge: TrimEdge,
+  deltaPixels: number,
+  pixelsPerSecond: number,
+): Pick<CompositeClip, 'inPoint' | 'outPoint'> {
+  if (!Number.isFinite(deltaPixels) || !Number.isFinite(pixelsPerSecond) || pixelsPerSecond <= 0) {
+    return { inPoint: clip.inPoint, outPoint: clip.outPoint }
+  }
+  const sourceDelta = (deltaPixels / pixelsPerSecond) * clip.speed
+  if (edge === 'in') {
+    return {
+      inPoint: Math.max(0, Math.min(clip.outPoint - MIN_CLIP_SECONDS, clip.inPoint + sourceDelta)),
+      outPoint: clip.outPoint,
+    }
+  }
+  return {
+    inPoint: clip.inPoint,
+    outPoint: Math.max(clip.inPoint + MIN_CLIP_SECONDS, Math.min(clip.durationSeconds, clip.outPoint + sourceDelta)),
+  }
 }
 
 export function playheadValueForKey(current: number, key: string, total: number): number | null {
@@ -275,7 +306,7 @@ export function ClipEditor({
     [allSources],
   )
   const compositeNode = useMemo(() => compositeNodeOf(workflow), [workflow])
-  const timeline = useMemo(
+  const persistedTimeline = useMemo(
     () => readCompositeDocument(compositeNode?.data.extra, allSources),
     [allSources, compositeNode?.data.extra],
   )
@@ -287,8 +318,9 @@ export function ClipEditor({
   const [subtitleTab, setSubtitleTab] = useState<SubtitleTab>('subtitle')
   const [subtitleSearch, setSubtitleSearch] = useState('')
   const [subtitleDrafts, setSubtitleDrafts] = useState<Record<string, string>>({})
-  const [playhead, setPlayhead] = useState(timeline.playheadSeconds)
+  const [playhead, setPlayhead] = useState(persistedTimeline.playheadSeconds)
   const [playing, setPlaying] = useState(false)
+  const [trimPreview, setTrimPreview] = useState<TrimPreview | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [rendering, setRendering] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -302,6 +334,16 @@ export function ClipEditor({
   const trackViewportRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const aliveRef = useRef(true)
+
+  const timeline = useMemo(() => {
+    if (!trimPreview) return persistedTimeline
+    return {
+      ...persistedTimeline,
+      clips: persistedTimeline.clips.map((clip) => clip.id === trimPreview.clipId
+        ? { ...clip, inPoint: trimPreview.inPoint, outPoint: trimPreview.outPoint }
+        : clip),
+    }
+  }, [persistedTimeline, trimPreview])
 
   const selectedClip = timeline.clips.find((clip) => clip.id === selectedClipId) ?? null
   const selectedClipIndex = selectedClip ? timeline.clips.findIndex((clip) => clip.id === selectedClip.id) : -1
@@ -356,6 +398,7 @@ export function ClipEditor({
   const close = useCallback(() => {
     setPlaying(false)
     setExportOpen(false)
+    setTrimPreview(null)
     void persist(
       (document) => ({ ...document, playheadSeconds: Math.min(compositeDuration(document), playhead) }),
       '保存视频编辑位置',
@@ -560,6 +603,36 @@ export function ClipEditor({
         edge === 'out' ? sourceSeconds : current.outPoint,
       )
     }, edge === 'in' ? '设置片段入点' : '设置片段出点')
+  }
+
+  const previewTrim = (clipId: string, edge: TrimEdge, deltaPixels: number) => {
+    const clip = persistedTimeline.clips.find((item) => item.id === clipId)
+    if (!clip) return
+    const points = trimPointsForDrag(clip, edge, deltaPixels, pixelsPerSecond)
+    setTrimPreview({ clipId, ...points })
+  }
+
+  const finishTrim = () => {
+    const preview = trimPreview
+    setTrimPreview(null)
+    if (!preview) return
+    void persist(
+      (document) => setClipTrim(document, preview.clipId, preview.inPoint, preview.outPoint),
+      '拖拽裁切视频片段',
+    )
+  }
+
+  const nudgeTrim = (clipId: string, edge: TrimEdge, deltaSeconds: number) => {
+    void persist((document) => {
+      const current = document.clips.find((clip) => clip.id === clipId)
+      if (!current) return document
+      return setClipTrim(
+        document,
+        clipId,
+        edge === 'in' ? current.inPoint + deltaSeconds * current.speed : current.inPoint,
+        edge === 'out' ? current.outPoint + deltaSeconds * current.speed : current.outPoint,
+      )
+    }, '键盘调整片段裁切')
   }
 
   const splitSelected = () => {
@@ -879,6 +952,9 @@ export function ClipEditor({
             onSplit={splitSelected}
             onTrimIn={() => trimSelectedAtPlayhead('in')}
             onTrimOut={() => trimSelectedAtPlayhead('out')}
+            onTrimPreview={previewTrim}
+            onTrimEnd={finishTrim}
+            onTrimNudge={nudgeTrim}
             onReorder={(clipId, targetIndex) => void persist((document) => {
               let next = document
               let currentIndex = next.clips.findIndex((clip) => clip.id === clipId)
@@ -1633,6 +1709,9 @@ function TimelinePanel({
   onSplit,
   onTrimIn,
   onTrimOut,
+  onTrimPreview,
+  onTrimEnd,
+  onTrimNudge,
   onReorder,
   onDelete,
   onZoom,
@@ -1660,6 +1739,9 @@ function TimelinePanel({
   onSplit: () => void
   onTrimIn: () => void
   onTrimOut: () => void
+  onTrimPreview: (clipId: string, edge: TrimEdge, deltaPixels: number) => void
+  onTrimEnd: () => void
+  onTrimNudge: (clipId: string, edge: TrimEdge, deltaSeconds: number) => void
   onReorder: (clipId: string, targetIndex: number) => void
   onDelete: () => void
   onZoom: (zoom: number) => void
@@ -1667,9 +1749,39 @@ function TimelinePanel({
   onDrop: (event: DragEvent) => void
 }) {
   const selection = Boolean(selectedClipId || selectedAudioId || selectedSubtitleId)
+  const trimDragRef = useRef<{ clipId: string; edge: TrimEdge; startX: number; pointerId: number } | null>(null)
   const seekAt = (event: MouseEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
     onSeek((event.clientX - bounds.left + event.currentTarget.scrollLeft) / pixelsPerSecond)
+  }
+  const beginTrim = (event: React.PointerEvent<HTMLSpanElement>, clipId: string, edge: TrimEdge) => {
+    event.preventDefault()
+    event.stopPropagation()
+    trimDragRef.current = { clipId, edge, startX: event.clientX, pointerId: event.pointerId }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    onTrimPreview(clipId, edge, 0)
+  }
+  const moveTrim = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const drag = trimDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    event.preventDefault()
+    event.stopPropagation()
+    onTrimPreview(drag.clipId, drag.edge, event.clientX - drag.startX)
+  }
+  const endTrim = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const drag = trimDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    event.stopPropagation()
+    trimDragRef.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    onTrimEnd()
+  }
+  const nudgeTrimFromKeyboard = (event: React.KeyboardEvent<HTMLSpanElement>, clipId: string, edge: TrimEdge) => {
+    const direction = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0
+    if (!direction) return
+    event.preventDefault()
+    event.stopPropagation()
+    onTrimNudge(clipId, edge, direction * 0.1)
   }
   return (
     <section
@@ -1801,7 +1913,7 @@ function TimelinePanel({
                     onSelectClip(clip)
                   }}
                   className={cn(
-                    'absolute top-1 h-12 overflow-hidden rounded ring-2',
+                    'group absolute top-1 h-12 overflow-hidden rounded ring-2',
                     clip.id === selectedClipId ? 'ring-accent' : 'ring-transparent',
                   )}
                   style={{
@@ -1816,6 +1928,32 @@ function TimelinePanel({
                   <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 text-left text-[9px] text-white">
                     {clip.nodeName} · {clip.speed}×
                   </span>
+                  {(['in', 'out'] as const).map((edge) => (
+                    <span
+                      key={edge}
+                      role="slider"
+                      tabIndex={0}
+                      data-testid={`trim-handle-${edge}-${clip.id}`}
+                      aria-label={`${clip.nodeName}${edge === 'in' ? '入点' : '出点'}`}
+                      aria-valuemin={edge === 'in' ? 0 : clip.inPoint + MIN_CLIP_SECONDS}
+                      aria-valuemax={edge === 'in' ? clip.outPoint - MIN_CLIP_SECONDS : clip.durationSeconds}
+                      aria-valuenow={edge === 'in' ? clip.inPoint : clip.outPoint}
+                      aria-valuetext={`${edge === 'in' ? '入点' : '出点'} ${timeLabel(edge === 'in' ? clip.inPoint : clip.outPoint)}`}
+                      className={cn(
+                        'absolute inset-y-0 z-10 w-2 cursor-ew-resize bg-white/70 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus:opacity-100 focus-visible:outline-2 focus-visible:outline-accent',
+                        edge === 'in' ? 'left-0' : 'right-0',
+                        clip.id === selectedClipId && 'opacity-100',
+                      )}
+                      onPointerDown={(event) => beginTrim(event, clip.id, edge)}
+                      onPointerMove={moveTrim}
+                      onPointerUp={endTrim}
+                      onPointerCancel={endTrim}
+                      onKeyDown={(event) => nudgeTrimFromKeyboard(event, clip.id, edge)}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-ink-500/70" />
+                    </span>
+                  ))}
                   {clip.transitionAfter && index < timeline.clips.length - 1 && (
                     <span className="absolute right-0 top-0 bg-accent px-1 text-[8px]">◆</span>
                   )}

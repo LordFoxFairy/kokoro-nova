@@ -12,6 +12,7 @@
 | 转场库与属性 | [`storyboard-video-editor-transition-library-and-properties.png`](../pages/canvas/screenshots/storyboard-video-editor-transition-library-and-properties.png) | [`libtv-video-compositor-transition-local-1440x900.png`](../../../screenshots/libtv-video-compositor-transition-local-1440x900.png) |
 | 字幕面板与轨道 | [`storyboard-video-editor-subtitle-panel-empty-state.png`](../pages/canvas/screenshots/storyboard-video-editor-subtitle-panel-empty-state.png) | [`libtv-video-compositor-subtitle-local-1440x900.png`](../../../screenshots/libtv-video-compositor-subtitle-local-1440x900.png) |
 | 有效片段时间线 | 官网当前账户没有生成专用素材以继续付费路径 | [`libtv-video-compositor-timeline-local-1440x900.png`](../../../screenshots/libtv-video-compositor-timeline-local-1440x900.png) |
+| 片段裁切与检查器 | 官网当前账户没有生成专用素材以继续付费路径 | [`libtv-video-compositor-trim-local-1440x900.png`](../../../screenshots/libtv-video-compositor-trim-local-1440x900.png) |
 
 ## 几何与层级契约
 
@@ -32,7 +33,7 @@
 
 ## 已实现交互
 
-- 素材按钮添加或拖入；视频片段可选择、播放头定位、设置入/出点、分割、
+- 素材按钮添加或拖入；视频片段可选择、播放头定位、拖拽或键盘调整入/出点、设置入/出点、分割、
   `0.5×/1×/2×` 变速、按钮/拖拽重排、静音和删除；
 - 原生 video 预览与播放头同步，支持空格播放/暂停、回到开始、缩放、适配和全屏；
 - 三种转场为淡入淡出、黑场与白场，保存在前一片段并允许调整 `0.08..2s`；

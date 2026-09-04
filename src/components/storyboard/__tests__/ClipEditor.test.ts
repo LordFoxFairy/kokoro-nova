@@ -13,6 +13,7 @@ import {
   sourceAspectRatio,
   sourceAspectRatioLabel,
   splitValidationMessage,
+  trimPointsForDrag,
 } from '../ClipEditor'
 
 function artifact(id: string, kind: Artifact['kind'], width: number | null, height: number | null): Artifact {
@@ -78,6 +79,19 @@ describe('ClipEditor timeline accessibility helpers', () => {
   it('reports when a clip is too short to leave both minimum split sides', () => {
     const document = appendClip(emptyCompositeDocument(), source('short', 0.1))
     expect(splitValidationMessage(document, document.clips[0].id, 0.05)).toContain('太短')
+  })
+
+  it('maps trim-handle drags to source points while preserving a minimum clip duration', () => {
+    const clip = appendClip(emptyCompositeDocument(), source('trim')).clips[0]
+
+    expect(trimPointsForDrag(clip, 'in', 80, 40)).toEqual({ inPoint: 2, outPoint: 10 })
+    expect(trimPointsForDrag({ ...clip, speed: 2 }, 'out', -80, 40)).toEqual({ inPoint: 0, outPoint: 6 })
+    expect(trimPointsForDrag(clip, 'in', -9999, 40)).toEqual({ inPoint: 0, outPoint: 10 })
+    expect(trimPointsForDrag(clip, 'out', 9999, 40)).toEqual({ inPoint: 0, outPoint: 10 })
+    expect(trimPointsForDrag({ ...clip, inPoint: 4, outPoint: 6 }, 'out', -9999, 40)).toEqual({
+      inPoint: 4,
+      outPoint: 4.05,
+    })
   })
 })
 

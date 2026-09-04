@@ -142,6 +142,24 @@ body:has([data-app-shell='authenticated']) {
   background: var(--color-canvas);
 }
 
+/* Keep the compositor usable when the desktop two-column geometry no longer
+ * has enough room for a readable source rail and inspector. */
+@media (max-width: 900px) {
+  [data-video-compositor='open'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: 220px minmax(680px, 1fr);
+    overflow-y: auto;
+  }
+
+  [data-video-compositor='open'] [data-testid='clip-editor-source-rail'] {
+    min-height: 0;
+  }
+
+  [data-video-compositor='open'] [data-testid='clip-editor-workspace'] {
+    min-height: 680px;
+  }
+}
+
 body:has([data-app-shell='editor']) {
   background: #141414;
 }

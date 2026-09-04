@@ -6,7 +6,7 @@
 
 ## 结论
 
-首页首屏、项目管理、画布、Storyboard 和节点编辑器已经有本地 mock、交互验证及桌面视觉基线。公开发现的后半段仍有三个必须显式收敛的差异：TV Show 全量目录/详情、Skill 广场/详情、共享账户域。
+首页首屏、项目管理、画布、Storyboard 和节点编辑器已经有本地 mock、交互验证及桌面视觉基线。公开发现的后半段仍有三个必须显式收敛的差异：TV Show 详情/播放器、Skill 广场/详情、共享账户域。
 
 这些页面当前均能在本地独立访问，且各自有最小的 API 和交互测试；但它们没有复用当前深色 LibTV Shell，也没有覆盖官网已观察到的完整信息架构与状态。它们因此保留为 `PARTIAL`，不进入 `VERIFIED_LOCAL`。
 
@@ -16,8 +16,10 @@
 复核了 `/showcase`、`/skills`、`/account`。三个页面均为可运行的 local mock，不读取远端
 数据；它们也使下述差异成为可复现的当前事实，而不是仅由源码推断：
 
-- `/showcase` 是浅色、单卡、左上品牌加“我的项目”的宽松画廊；没有 LibTV TV Show 的深色
-  应用 Shell、分类条、搜索、作品详情媒体背景或播放器控制。
+- `/showcase` 已升级为深色 TV Show 目录：活动条、LibTV 品牌、分类、提交式搜索、空查询
+  推荐回退、作者/作品卡层级和公开流程入口都由 `e2e/public-discovery.spec.ts` 覆盖，并留有
+  `docs/screenshots/showcase-gallery-{catalog,filters}.png` 两张本地 1440×900 证据。它仍没有
+  官方详情的沉浸媒体背景、播放器控制或相邻作品带。
 - `/skills` 是浅色满宽技能瀑布流，具备分类、搜索和收藏星标；它不保留官网顶部创作 composer
   或详情中的媒体轮播/lightbox 链路。
 - `/account` 是浅色居中 ledger，余额预留/结算的领域投影完整；它与官网深色头像账户菜单、
@@ -51,7 +53,7 @@ Storyboard 都可渲染，`复制项目` enabled 后会打开本地登录门。�
 
 | Surface | 官网已观察的事实 | 当前本地实现 | Fidelity 缺口 | 进入 `VERIFIED_LOCAL` 的最小验收 |
 | --- | --- | --- | --- | --- |
-| TV Show 目录与详情 | 分类/搜索、媒体卡、详情沉浸背景、播放控制、相邻作品带、只读制作过程、登录后复制门槛；见 [`pages/showcase/README.md`](../pages/showcase/README.md) | 首页 `TvShowFeed` 有本地分类、即时过滤、详情摘要弹层与 `/showcase` 跳转；`ShowcaseGallery` 是独立浅色冻结快照网格 | `/showcase` 与首页 TV Show 的深色视觉、作品详情、播放器、搜索回退、过程入口和上下文连续性不一致 | 一个共享 `ShowcaseEntry` fixture；目录、详情/播放器、只读 Workflow/Storyboard、认证复制门分别有确定性 mock 状态、API operation、1440×900 快照与键盘流程 |
+| TV Show 目录与详情 | 分类/搜索、媒体卡、详情沉浸背景、播放控制、相邻作品带、只读制作过程、登录后复制门槛；见 [`pages/showcase/README.md`](../pages/showcase/README.md) | 首页与 `/showcase` 都使用深色 TV Show 层级；目录覆盖分类、提交式搜索、无精确匹配回退、作者/互动信息和只读快照卡 | 详情/播放器、相邻作品带、共享 `ShowcaseEntry` API 与首页目录之间仍未统一；当前目录仍从 `PublishedSnapshot` 只读投影派生 | 一个版本化 `ShowcaseEntry` fixture；详情/播放器、只读 Workflow/Storyboard、认证复制门分别有确定性 mock 状态、API operation、1440×900 快照与键盘流程 |
 | Skill 广场与详情 | 顶部创作输入、全部/收藏/我的、分类、卡片、详情四图轮播/原图层、添加 Skill/收藏/分享语义；见 [`pages/skills/README.md`](../pages/skills/README.md) | `/skills` 提供浅色列表、搜索、分类、收藏和结构化详情；首页与画布已分别有 Skill 上下文 | 页面 shell、详情媒体轮播/原图层、未登录与登录的收藏/我的门、详情“添加”到 composer 的回流没有按官网链路实现 | Skill 目录与详情共用版本化 mock；收藏、添加、认证门、轮播/lightbox、返回 composer 上下文各有 E2E；目录和详情各有桌面视觉基线 |
 | 账户与共享账户域 | 深色头像菜单内有身份、会员、积分/余额池、存储、主题、水印、通知和个人中心入口；钱包/资产/订阅跨 LibTV 与主站共享；见 [`pages/account/README.md`](../pages/account/README.md) | `/account` 是浅色本地 ledger；编辑器/首页有积分余额但没有官网账户菜单投影 | ledger 的预留/返还领域正确，但外层导航、主题偏好、通知/水印/存储入口及共享账户边界没有被表达 | 深色账户菜单以显式的 local identity fixture 驱动；余额池、ledger、偏好和入口状态写入契约；菜单键盘、余额刷新/错误、积分账本各有 E2E 与桌面基线 |
 

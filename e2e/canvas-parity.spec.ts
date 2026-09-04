@@ -206,6 +206,28 @@ test('populated workflow uses minimal media nodes, bezier edges and hover handle
   await expect(imageShell).toHaveAttribute('data-selected', 'true')
 })
 
+test('workflow edges support focusable selection and keyboard deletion', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-populated')
+  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+
+  const edge = page.locator('.react-flow__edge').first()
+  await expect(edge).toHaveAttribute('aria-label', /连线/)
+  await edge.click()
+  await expect(edge).toHaveClass(/selected/)
+  await expect(edge).toHaveAttribute('aria-selected', 'true')
+  await expect(edge).toHaveAttribute('aria-label', /已选中/)
+
+  const persisted = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return response.request().method() === 'POST' && /^\/api\/canvases\/[^/]+$/.test(url.pathname) && response.ok()
+  })
+  await page.keyboard.press('Delete')
+  await persisted
+  await expect(page.locator('.react-flow__edge')).toHaveCount(2)
+  await expect(page.getByTestId('canvas-live-region')).toHaveText('已选择 0 个节点。')
+})
+
 test('storyboard preserves the document while matching default, expanded and Agent layouts', async ({ page, request }) => {
   await selectScenario(request, 'authenticated-populated')
   await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')

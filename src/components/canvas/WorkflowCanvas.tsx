@@ -9,6 +9,7 @@ import {
   useReactFlow,
   useStore,
   type Edge,
+  type EdgeChange,
   type Node as FlowNode,
   type NodeChange,
   type OnConnect,
@@ -22,7 +23,7 @@ import { canConvertToStoryboardGroup } from '@/domain/mutations'
 import { videoReferenceCandidates } from '@/domain/video-references'
 import { createTextStarterMutations } from '@/domain/text-workflows'
 import type { TextStarterIntent } from '@/domain/text-authoring'
-import type { CanvasMutation, NodeType, WorkflowNode } from '@/domain/types'
+import type { CanvasMutation, NodeType, WorkflowDocument, WorkflowNode } from '@/domain/types'
 import type { ScriptV2State } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -64,8 +65,12 @@ export function getCanvasSelectionAnnouncement(
   mode: { kind: 'reference' | 'element'; targetNodeId: string } | null,
   candidateCount: number,
   selectedCount: number,
+  selectedEdgeCount = 0,
 ): string {
-  if (!mode) return `已选择 ${selectedCount} 个节点。`
+  if (!mode) {
+    if (selectedEdgeCount > 0) return `已选择 ${selectedEdgeCount} 条连线。`
+    return `已选择 ${selectedCount} 个节点。`
+  }
   const label = mode.kind === 'reference' ? '参考选择模式' : '元素选择模式'
   if (candidateCount <= 0) return `${label}：暂无可用候选。按 Escape 退出。`
   return `${label}：${candidateCount} 个候选，已选择 ${selectedCount} 个。按 Escape 退出。`
@@ -83,6 +88,35 @@ export function formatCanvasError(code: string, message: string): string {
   return detail
     ? `画布操作失败（${normalizedCode}）：${detail}`
     : `画布操作失败（${normalizedCode}）。`
+}
+
+/** Apply React Flow's controlled edge selection events without mutating the document. */
+export function applyCanvasEdgeSelectionChanges(current: string[], changes: EdgeChange[]): string[] {
+  const next = new Set(current)
+  for (const change of changes) {
+    if (change.type === 'select') {
+      if (change.selected) next.add(change.id)
+      else next.delete(change.id)
+    } else if (change.type === 'remove' || change.type === 'replace') {
+      next.delete(change.id)
+    }
+  }
+  return [...next]
+}
+
+/** Rewire an existing edge while preserving its identity for selection and history. */
+export function createEdgeReconnectMutations(
+  document: WorkflowDocument,
+  edgeId: string,
+  source: string,
+  target: string,
+): CanvasMutation[] {
+  const edge = document.edges.find((candidate) => candidate.id === edgeId)
+  if (!edge || !source || !target || (edge.source === source && edge.target === target)) return []
+  return [
+    { op: 'removeEdge', edgeId },
+    { op: 'addEdge', edge: { ...edge, source, target } },
+  ]
 }
 
 export function shouldYieldNativeCanvasKey(input: {
@@ -168,6 +202,7 @@ function CanvasInner({
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
   const selection = useEditor((s) => s.selection)
+  const edgeSelection = useEditor((s) => s.edgeSelection)
   const showEdges = useEditor((s) => s.showEdges)
   const snapToGrid = useEditor((s) => s.snapToGrid)
   const showMinimap = useEditor((s) => s.showMinimap)
@@ -176,6 +211,7 @@ function CanvasInner({
   const commitWith = useEditor((s) => s.commitWith)
   const patchLocal = useEditor((s) => s.patchLocal)
   const select = useEditor((s) => s.select)
+  const selectEdges = useEditor((s) => s.selectEdges)
   const pushAgentRef = useEditor((s) => s.pushAgentRef)
   const setZoom = useEditor((s) => s.setZoom)
   const toast = useEditor((s) => s.toast)
@@ -408,9 +444,10 @@ function CanvasInner({
         selectionMode,
         candidateStats.candidateCount,
         selectionMode ? candidateStats.selectedCount : selection.length,
+        selectionMode ? 0 : edgeSelection.length,
       ),
     )
-  }, [candidateStats, selection, selectionMode])
+  }, [candidateStats, edgeSelection, selection, selectionMode])
 
   useEffect(() => {
     const root = canvasRef.current
@@ -451,6 +488,12 @@ function CanvasInner({
       button.setAttribute('data-selection-state', selected ? 'selected' : selectable ? 'available' : 'unavailable')
     }
   }, [document.nodes, referenceCandidateByNode, selectionMode])
+
+  useEffect(() => {
+    const validIds = new Set(document.edges.map((edge) => edge.id))
+    const next = edgeSelection.filter((edgeId) => validIds.has(edgeId))
+    if (next.length !== edgeSelection.length) selectEdges(next)
+  }, [document.edges, edgeSelection, selectEdges])
 
   useEffect(() => {
     if (!selectionMode) return
@@ -584,10 +627,42 @@ function CanvasInner({
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        type: 'default',
+        type: 'default' as const,
         animated: false,
+        selected: edgeSelection.includes(edge.id),
+        selectable: !selectionMode,
+        deletable: true,
+        reconnectable: !selectionMode,
+        focusable: !selectionMode,
+        ariaRole: 'group',
+        ariaLabel: `${document.nodes.find((node) => node.id === edge.source)?.name ?? edge.source} → ${
+          document.nodes.find((node) => node.id === edge.target)?.name ?? edge.target
+        } 连线${edgeSelection.includes(edge.id) ? '，已选中' : ''}`,
+        domAttributes: { 'aria-selected': edgeSelection.includes(edge.id) },
+        interactionWidth: 24,
       })),
-    [document.edges],
+    [document.edges, document.nodes, edgeSelection, selectionMode],
+  )
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const current = useEditor.getState().edgeSelection
+      const next = applyCanvasEdgeSelectionChanges(current, changes)
+      const changed = next.length !== current.length || current.some((id) => !next.includes(id))
+      if (changed) selectEdges(next)
+    },
+    [selectEdges],
+  )
+
+  const onReconnect = useCallback(
+    (oldEdge: Edge, connection: { source: string | null; target: string | null }) => {
+      if (!connection.source || !connection.target) return
+      void commitWith(
+        (current) => createEdgeReconnectMutations(current, oldEdge.id, connection.source!, connection.target!),
+        '重连',
+      )
+    },
+    [commitWith],
   )
 
   const onNodesChange = useCallback(
@@ -852,8 +927,14 @@ function CanvasInner({
         edges={edges}
         nodeTypes={NODE_TYPES_MAP}
         onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         onNodeDragStart={onNodeDragStart}
         onConnect={onConnect}
+        onReconnect={onReconnect}
+        onEdgeClick={() => {
+          onOpenNode(null)
+          setSelectedGroupId(null)
+        }}
         onInit={(instance) => {
           instanceRef.current = instance
         }}
@@ -882,6 +963,8 @@ function CanvasInner({
         onError={handleFlowError}
         deleteKeyCode={null}
         multiSelectionKeyCode={MULTI_SELECT_KEYS}
+        edgesFocusable={!selectionMode}
+        edgesReconnectable={!selectionMode}
         nodesDraggable={toolMode === 'select' && !selectionMode}
         elevateNodesOnSelect
         elevateEdgesOnSelect
@@ -1000,6 +1083,7 @@ export function useCanvasCommands() {
   const commitWith = useEditor((s) => s.commitWith)
   const document = useEditor((s) => s.document)
   const selection = useEditor((s) => s.selection)
+  const edgeSelection = useEditor((s) => s.edgeSelection)
   const toast = useEditor((s) => s.toast)
   const select = useEditor((s) => s.select)
 
@@ -1103,13 +1187,16 @@ export function useCanvasCommands() {
   }, [selection, document, commit, select])
 
   const deleteSelection = useCallback(async () => {
-    if (selection.length === 0) return
+    if (selection.length === 0 && edgeSelection.length === 0) return
     await commit(
-      selection.map((nodeId) => ({ op: 'removeNode' as const, nodeId })),
-      '删除节点',
+      [
+        ...edgeSelection.map((edgeId) => ({ op: 'removeEdge' as const, edgeId })),
+        ...selection.map((nodeId) => ({ op: 'removeNode' as const, nodeId })),
+      ],
+      edgeSelection.length > 0 && selection.length === 0 ? '删除连线' : '删除节点和连线',
     )
     select([])
-  }, [selection, commit, select])
+  }, [selection, edgeSelection, commit, select])
 
   const connectSelection = useCallback(async () => {
     if (selection.length < 2) {

@@ -51,6 +51,7 @@ interface EditorState {
 
   viewMode: ViewMode
   selection: string[]
+  edgeSelection: string[]
   /** Node whose inspector/detail drawer is open. */
   inspectedNodeId: string | null
   leftPanel: LeftPanel
@@ -86,6 +87,7 @@ interface EditorActions {
 
   setViewMode: (mode: ViewMode) => void
   select: (ids: string[]) => void
+  selectEdges: (ids: string[]) => void
   toggleSelect: (id: string, additive: boolean) => void
   inspect: (nodeId: string | null) => void
   setLeftPanel: (panel: LeftPanel) => void
@@ -127,6 +129,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
 
   viewMode: 'workflow',
   selection: [],
+  edgeSelection: [],
   inspectedNodeId: null,
   leftPanel: null,
   assetSidebarOpen: false,
@@ -171,6 +174,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
         undoStack: [],
         redoStack: [],
         selection: [],
+        edgeSelection: [],
         inspectedNodeId: null,
       })
     } catch (error) {
@@ -196,6 +200,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
       jobs: data.jobs,
       balance: data.balance,
       selection: [],
+      edgeSelection: [],
       inspectedNodeId: null,
       undoStack: [],
       redoStack: [],
@@ -299,6 +304,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
         undoStack: state.undoStack.slice(0, -1),
         redoStack: [...state.redoStack, frame],
         selection: [],
+        edgeSelection: [],
       }))
     } catch (error) {
       get().toast(error instanceof Error ? error.message : '撤销失败', 'error')
@@ -325,6 +331,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
         redoStack: state.redoStack.slice(0, -1),
         undoStack: [...state.undoStack, frame],
         selection: [],
+        edgeSelection: [],
       }))
     } catch (error) {
       get().toast(error instanceof Error ? error.message : '重做失败', 'error')
@@ -332,7 +339,8 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
   },
 
   setViewMode: (viewMode) => set({ viewMode, leftPanel: null }),
-  select: (selection) => set({ selection }),
+  select: (selection) => set({ selection, edgeSelection: [] }),
+  selectEdges: (edgeSelection) => set({ edgeSelection, selection: [] }),
   toggleSelect: (id, additive) =>
     set((state) => {
       if (!additive) return { selection: [id] }

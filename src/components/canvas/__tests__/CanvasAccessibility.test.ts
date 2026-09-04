@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyCanvasEdgeSelectionChanges,
+  createEdgeReconnectMutations,
   formatCanvasError,
   getCanvasSelectionAnnouncement,
   getCanvasZoomAnnouncement,
   getNextCanvasCandidateIndex,
   shouldYieldNativeCanvasKey,
 } from '../WorkflowCanvas'
+import type { EdgeChange } from '@xyflow/react'
+import { createEdge, createNode } from '@/domain/factory'
+import type { WorkflowDocument } from '@/domain/types'
 
 describe('canvas accessibility behavior', () => {
   it('wraps keyboard navigation across available reference candidates', () => {
@@ -64,5 +69,34 @@ describe('canvas accessibility behavior', () => {
     expect(
       shouldYieldNativeCanvasKey({ tagName: 'DIV', isContentEditable: false }),
     ).toBe(false)
+  })
+
+  it('keeps edge selection changes additive and removes deselected edges', () => {
+    const changes: EdgeChange[] = [
+      { id: 'edge-2', type: 'select', selected: true },
+      { id: 'edge-1', type: 'select', selected: false },
+    ]
+
+    expect(applyCanvasEdgeSelectionChanges(['edge-1'], changes)).toEqual(['edge-2'])
+    expect(getCanvasSelectionAnnouncement(null, 0, 0, 1)).toBe('已选择 1 条连线。')
+  })
+
+  it('reconnects an edge with its stable id so selection survives the rewrite', () => {
+    const source = createNode('text', { x: 0, y: 0 }, [], { id: 'text-1' })
+    const oldTarget = createNode('image', { x: 500, y: 0 }, [source], { id: 'image-1' })
+    const newTarget = createNode('video', { x: 1_000, y: 0 }, [source, oldTarget], { id: 'video-1' })
+    const edge = { ...createEdge(source.id, oldTarget.id), id: 'edge-1' }
+    const document: WorkflowDocument = {
+      schemaVersion: 1,
+      nodes: [source, oldTarget, newTarget],
+      edges: [edge],
+      groups: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    }
+
+    expect(createEdgeReconnectMutations(document, edge.id, source.id, newTarget.id)).toEqual([
+      { op: 'removeEdge', edgeId: edge.id },
+      { op: 'addEdge', edge: { ...edge, target: newTarget.id } },
+    ])
   })
 })

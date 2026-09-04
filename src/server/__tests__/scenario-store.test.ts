@@ -1,9 +1,14 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
+import { CREATION_CONTEXT_EMPTY_FIXTURE } from '@/mocks/creation-context'
+import { DEFAULT_LOCAL_PREFERENCES } from '@/mocks/identity'
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
 import { buildScenario } from '@/mocks/scenarios/build'
+import { readHomeCreationContext, writeHomeCreationContext } from '@/server/creation-context'
+import { readLocalIdentity, readLocalPreferences, updateLocalPreferences, updateLocalSession } from '@/server/identity'
+import { heartbeat, presenceDebug } from '@/server/presence'
 import { activeScenarioId, DATA_DIR, invalidateCache, readState, resetStore, withState } from '@/server/store'
 
 describe.sequential('scenario-backed workspace store', () => {
@@ -68,5 +73,68 @@ describe.sequential('scenario-backed workspace store', () => {
     const restored = await resetStore()
     expect(restored.projects.map((project) => project.id)).toContain('prj_video_demo')
     expect(restored.jobs[0].status).toBe('running')
+  })
+
+  it('resets companion fixture stores at the same lifecycle boundary', async () => {
+    await resetStore('authenticated-populated')
+    writeHomeCreationContext({
+      ...CREATION_CONTEXT_EMPTY_FIXTURE,
+      generationMode: 'auto',
+      model: { id: 'fixture-model', label: 'Fixture model', media: 'video', catalogVersion: 'test' },
+    })
+    heartbeat('cvs_lifecycle', {
+      participantId: 'lifecycle-user',
+      name: '生命周期用户',
+      color: '#4c7ef3',
+      cursor: { x: 1, y: 2 },
+      viewport: { x: 0, y: 0, zoom: 1 },
+    })
+    await updateLocalPreferences({ theme: 'light', aiWatermark: false })
+    await updateLocalSession({ action: 'signOut', returnTo: '/' })
+
+    await resetStore('authenticated-empty')
+
+    expect(readHomeCreationContext()).toEqual(CREATION_CONTEXT_EMPTY_FIXTURE)
+    expect(presenceDebug()).toMatchObject({ rooms: 0, timers: 0 })
+    await expect(readLocalPreferences()).resolves.toEqual(DEFAULT_LOCAL_PREFERENCES)
+    await expect(readLocalIdentity()).resolves.toMatchObject({ session: { status: 'authenticated' } })
+  })
+
+  it('keeps a reset final when an older bundle finishes its queued write late', async () => {
+    await resetStore('authenticated-empty')
+    let entered!: () => void
+    const enteredWrite = new Promise<void>((resolve) => { entered = resolve })
+    let release!: () => void
+    const releaseWrite = new Promise<void>((resolve) => { release = resolve })
+
+    // This reference models one Next route graph. It has its own module-local
+    // promise chain, so the assertion exercises the on-disk lock rather than
+    // merely the current module's queue.
+    const staleWrite = withState(async (state) => {
+      entered()
+      await releaseWrite
+      state.projects.push({
+        id: 'prj_late_bundle',
+        spaceId: 'sp_default',
+        folderId: null,
+        name: '迟到写入',
+        canvasIds: [],
+        coverUrl: null,
+        createdAt: '2026-09-04T00:00:00.000Z',
+        updatedAt: '2026-09-04T00:00:00.000Z',
+      })
+    })
+    await enteredWrite
+
+    vi.resetModules()
+    const foreignBundle = await import('@/server/store')
+    const reset = foreignBundle.resetStore('video-running')
+    release()
+    await Promise.all([staleWrite, reset])
+
+    const finalState = await foreignBundle.readState()
+    expect(await foreignBundle.activeScenarioId()).toBe('video-running')
+    expect(finalState.projects.map((project) => project.id)).toContain('prj_video_demo')
+    expect(finalState.projects.map((project) => project.id)).not.toContain('prj_late_bundle')
   })
 })

@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 
 import {
@@ -22,7 +23,7 @@ import {
   LOCAL_IDENTITY_FIXTURE,
   LOCAL_NOTIFICATION_FIXTURE,
 } from '@/mocks/identity'
-import { activeScenarioId, DATA_DIR } from '@/server/store'
+import { activeScenarioId, activeScenarioIdWhileLocked, DATA_DIR, withWorkspaceLock } from '@/server/store'
 
 const IDENTITY_FILE = path.join(DATA_DIR, 'local-identity.json')
 
@@ -32,8 +33,6 @@ type StoredIdentityState = {
   preferences: LocalPreferences
   readNotificationIds: string[]
 }
-
-let writeChain: Promise<unknown> = Promise.resolve()
 
 function defaultStatus(scenarioId: string): LocalSession['status'] {
   return scenarioId === 'anonymous' || scenarioId === 'public-showcase' ? 'anonymous' : 'authenticated'
@@ -64,8 +63,8 @@ function parseStoredState(value: unknown, scenarioId: string): StoredIdentitySta
   }
 }
 
-async function loadStoredState(): Promise<StoredIdentityState> {
-  const scenarioId = await activeScenarioId()
+async function loadStoredState(alreadyLocked = false): Promise<StoredIdentityState> {
+  const scenarioId = alreadyLocked ? await activeScenarioIdWhileLocked() : await activeScenarioId()
   try {
     const parsed = parseStoredState(JSON.parse(await fs.readFile(IDENTITY_FILE, 'utf8')) as unknown, scenarioId)
     // Scenario changes are an explicit fixture reset boundary. Preferences
@@ -81,20 +80,27 @@ async function loadStoredState(): Promise<StoredIdentityState> {
 
 async function persist(state: StoredIdentityState) {
   await fs.mkdir(DATA_DIR, { recursive: true })
-  const temporary = `${IDENTITY_FILE}.${process.pid}.tmp`
+  const temporary = `${IDENTITY_FILE}.${process.pid}.${randomUUID()}.tmp`
   await fs.writeFile(temporary, JSON.stringify(state, null, 2), 'utf8')
   await fs.rename(temporary, IDENTITY_FILE)
 }
 
 async function mutate<T>(operation: (state: StoredIdentityState) => T | Promise<T>): Promise<T> {
-  const next = writeChain.then(async () => {
-    const state = await loadStoredState()
+  return withWorkspaceLock(async () => {
+    const state = await loadStoredState(true)
     const value = await operation(state)
     await persist(state)
     return value
   })
-  writeChain = next.catch(() => undefined)
-  return next
+}
+
+/**
+ * Invoked by `resetStore` while it owns the workspace lifecycle lock. Keeping
+ * identity in that transaction prevents a stale account preference/session
+ * write from landing between the workspace and scenario reset files.
+ */
+export async function resetLocalIdentityStore(scenarioId: string): Promise<void> {
+  await persist(defaultStoredState(scenarioId))
 }
 
 function toSummary(state: StoredIdentityState): NotificationSummary {
@@ -126,7 +132,7 @@ function toIdentityResponse(state: StoredIdentityState, returnTo?: string): Iden
 }
 
 export async function readLocalIdentity(returnTo?: string): Promise<IdentityResponse> {
-  return toIdentityResponse(await loadStoredState(), returnTo)
+  return withWorkspaceLock(async () => toIdentityResponse(await loadStoredState(true), returnTo))
 }
 
 export async function updateLocalSession(input: UpdateSessionRequest): Promise<IdentityResponse> {
@@ -137,7 +143,7 @@ export async function updateLocalSession(input: UpdateSessionRequest): Promise<I
 }
 
 export async function readLocalPreferences(): Promise<LocalPreferences> {
-  return (await loadStoredState()).preferences
+  return withWorkspaceLock(async () => (await loadStoredState(true)).preferences)
 }
 
 export async function updateLocalPreferences(input: UpdatePreferencesRequest): Promise<LocalPreferences> {
@@ -148,7 +154,7 @@ export async function updateLocalPreferences(input: UpdatePreferencesRequest): P
 }
 
 export async function readNotificationSummary(): Promise<NotificationSummary> {
-  return toSummary(await loadStoredState())
+  return withWorkspaceLock(async () => toSummary(await loadStoredState(true)))
 }
 
 export async function markAllLocalNotificationsRead(): Promise<NotificationSummary> {

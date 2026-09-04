@@ -14,6 +14,10 @@ type CreationContextStore = {
 
 const STORE_KEY = "__kokoroCreationContextStore";
 
+type CreationContextStoreHost = {
+  [STORE_KEY]?: CreationContextStore;
+};
+
 function initialStore(): CreationContextStore {
   return {
     home: structuredClone(CREATION_CONTEXT_EMPTY_FIXTURE),
@@ -23,11 +27,15 @@ function initialStore(): CreationContextStore {
 }
 
 function store(): CreationContextStore {
-  const host = globalThis as typeof globalThis & {
-    [STORE_KEY]?: CreationContextStore;
-  };
-  host[STORE_KEY] ??= initialStore();
-  return host[STORE_KEY];
+  // App routes are evaluated in independent module graphs by Next dev. `process`
+  // is shared by those graphs, whereas globalThis is not, so a draft written by
+  // PUT and a request created by POST must meet at this process-level fixture.
+  const processHost = process as typeof process & CreationContextStoreHost;
+  const globalHost = globalThis as typeof globalThis & CreationContextStoreHost;
+  const value = processHost[STORE_KEY] ?? globalHost[STORE_KEY] ?? initialStore();
+  processHost[STORE_KEY] = value;
+  globalHost[STORE_KEY] = value;
+  return value;
 }
 
 export function readHomeCreationContext(): CreationContext {
@@ -70,8 +78,9 @@ export function listCreationAgentRequests(): CreationAgentRequest[] {
 }
 
 export function resetCreationContextStore() {
-  const host = globalThis as typeof globalThis & {
-    [STORE_KEY]?: CreationContextStore;
-  };
-  host[STORE_KEY] = initialStore();
+  const value = initialStore();
+  const processHost = process as typeof process & CreationContextStoreHost;
+  const globalHost = globalThis as typeof globalThis & CreationContextStoreHost;
+  processHost[STORE_KEY] = value;
+  globalHost[STORE_KEY] = value;
 }

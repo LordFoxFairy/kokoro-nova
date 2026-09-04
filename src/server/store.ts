@@ -94,7 +94,7 @@ async function load(): Promise<WorkspaceState> {
     const raw = await fs.readFile(STATE_FILE, 'utf8')
     return JSON.parse(raw) as WorkspaceState
   } catch {
-    const state = buildScenario(await activeScenarioId())
+    const state = buildScenario(await readActiveScenarioId())
     await writeAtomically(STATE_FILE, JSON.stringify(state, null, 2))
     return state
   }
@@ -123,6 +123,22 @@ async function persistScenarioId(scenarioId: ScenarioId) {
 }
 
 export async function activeScenarioId(): Promise<ScenarioId> {
+  return enqueueWrite(readActiveScenarioId)
+}
+
+/**
+ * Read the scenario marker while the caller already owns the workspace lock.
+ *
+ * This is intentionally exported for the small number of fixture stores which
+ * persist beside `workspace.json` (currently local identity). Calling the
+ * public `activeScenarioId` from inside `withWorkspaceLock` would queue behind
+ * itself and deadlock; keeping this explicit makes that boundary auditable.
+ */
+export async function activeScenarioIdWhileLocked(): Promise<ScenarioId> {
+  return readActiveScenarioId()
+}
+
+async function readActiveScenarioId(): Promise<ScenarioId> {
   await ensureDirs()
 
   try {
@@ -175,8 +191,29 @@ function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
   return next
 }
 
+/**
+ * Execute a fixture operation under the same cross-bundle lock as workspace
+ * mutations. This is for volatile companion stores only; workspace documents
+ * must keep using `withState` so their persistence remains centralised here.
+ */
+export function withWorkspaceLock<T>(operation: () => Promise<T>): Promise<T> {
+  return enqueueWrite(operation)
+}
+
 export async function readState(): Promise<WorkspaceState> {
-  return load()
+  // Reads participate in the lock as well. A reset replaces both the scenario
+  // marker and workspace document, so an unlocked reader could otherwise
+  // combine the marker from one fixture generation with the document from the
+  // next one.
+  return enqueueWrite(load)
+}
+
+/** A linearizable fixture snapshot for routes that expose scenario + state. */
+export async function readScenarioState(): Promise<{ scenarioId: ScenarioId; state: WorkspaceState }> {
+  return enqueueWrite(async () => ({
+    scenarioId: await readActiveScenarioId(),
+    state: await load(),
+  }))
 }
 
 /**
@@ -202,15 +239,49 @@ export function invalidateCache() {}
 
 export async function resetStore(scenarioId?: ScenarioId) {
   return enqueueWrite(async () => {
-    __resetScriptV2Runs()
-    const selected = scenarioId === undefined ? await activeScenarioId() : ScenarioIdSchema.parse(scenarioId)
+    const selected = scenarioId === undefined ? await readActiveScenarioId() : ScenarioIdSchema.parse(scenarioId)
     const next = buildScenario(selected)
     await ensureDirs()
     await seedFixtureMedia(true)
     await persist(next)
     await persistScenarioId(selected)
+    await resetVolatileFixtureState(selected)
     return next
   })
+}
+
+/**
+ * Reset every stateful local fixture as one lifecycle boundary.
+ *
+ * App routes are independently bundled by Next in development. The workspace
+ * lock above is the shared ordering point, while these modules keep their
+ * state either process-global or in DATA_DIR. Imports stay lazy to avoid a
+ * store -> feature -> store evaluation cycle during Next route compilation.
+ */
+async function resetVolatileFixtureState(scenarioId: ScenarioId) {
+  __resetScriptV2Runs()
+  const [
+    creationContext,
+    identity,
+    presence,
+    generationRunner,
+    mockProvider,
+    compose,
+  ] = await Promise.all([
+    import('./creation-context'),
+    import('./identity'),
+    import('./presence'),
+    import('./generation/runner'),
+    import('./generation/mock-provider'),
+    import('./compose'),
+  ])
+
+  creationContext.resetCreationContextStore()
+  presence.resetPresence()
+  generationRunner.__resetGenerationRunnerForTests()
+  mockProvider.__resetMockProvider()
+  compose.__resetComposeCapabilities()
+  await identity.resetLocalIdentityStore(scenarioId)
 }
 
 /* ------------------------------------------------------------------ *

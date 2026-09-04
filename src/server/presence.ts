@@ -122,16 +122,29 @@ interface Room {
   sweeper: ReturnType<typeof setInterval>
 }
 
-let nextStreamToken = 1
+interface PresenceRepository {
+  nextStreamToken: number
+  rooms: Map<string, Room>
+  /** Live timer count, maintained only in startSweeper/destroyRoom. */
+  liveTimers: number
+}
 
-const rooms = new Map<string, Room>()
+type PresenceRepositoryHost = {
+  __kokoroPresenceRepository?: PresenceRepository
+}
 
-/**
- * Live timer count, maintained only in `startSweeper`/`destroyRoom`. It exists
- * so a test can assert that the last unsubscribe really cleared the interval
- * rather than merely dropping the reference to it.
- */
-let liveTimers = 0
+// Next development route bundles do not reliably share globalThis. Keep the
+// ephemeral hub on process so stream, heartbeat and reset routes all operate
+// on one room table. This remains process-local by design; it is not durable
+// fixture data and resetStore deliberately clears it.
+const processHost = process as typeof process & PresenceRepositoryHost
+const globalHost = globalThis as typeof globalThis & PresenceRepositoryHost
+const repository = processHost.__kokoroPresenceRepository
+  ?? globalHost.__kokoroPresenceRepository
+  ?? { nextStreamToken: 1, rooms: new Map<string, Room>(), liveTimers: 0 }
+processHost.__kokoroPresenceRepository = repository
+globalHost.__kokoroPresenceRepository = repository
+const { rooms } = repository
 
 /* ------------------------------------------------------------------ *
  * Room lifecycle
@@ -161,7 +174,7 @@ function unrefTimer(timer: unknown) {
 }
 
 function startSweeper(canvasId: string) {
-  liveTimers += 1
+  repository.liveTimers += 1
   const timer = setInterval(() => {
     sweepRoom(canvasId)
   }, PRESENCE_SWEEP_MS)
@@ -184,7 +197,7 @@ function ensureRoom(canvasId: string): Room {
 
 function destroyRoom(canvasId: string, room: Room) {
   clearInterval(room.sweeper)
-  liveTimers -= 1
+  repository.liveTimers -= 1
   room.listeners.clear()
   room.participants.clear()
   room.owners.clear()
@@ -341,8 +354,8 @@ export function attachStream(
   now = Date.now(),
 ): { participant: Participant; token: number } {
   const participant = heartbeat(canvasId, input, now)
-  const token = nextStreamToken
-  nextStreamToken += 1
+  const token = repository.nextStreamToken
+  repository.nextStreamToken += 1
   // `heartbeat` created the room if it did not exist, so this lookup is safe.
   rooms.get(canvasId)?.owners.set(participant.id, token)
   return { participant, token }
@@ -402,7 +415,7 @@ export function sweepAll(now = Date.now()): number {
 export function presenceDebug() {
   return {
     rooms: rooms.size,
-    timers: liveTimers,
+    timers: repository.liveTimers,
     canvases: [...rooms.entries()].map(([id, room]) => ({
       id,
       listeners: room.listeners.size,
@@ -414,4 +427,8 @@ export function presenceDebug() {
 /** Drop every room. Test isolation only; never called by a route. */
 export function resetPresence() {
   for (const [canvasId, room] of [...rooms]) destroyRoom(canvasId, room)
+  // Keep stream tokens monotonic across fixture generations. A stale SSE
+  // teardown from before reset must never match a freshly attached stream that
+  // happens to reuse the same participant id and canvas id.
+  repository.liveTimers = 0
 }

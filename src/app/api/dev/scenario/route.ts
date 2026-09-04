@@ -1,7 +1,7 @@
 import { ScenarioIdSchema } from '@/contracts/scenario'
 import { SCENARIO_CATALOG } from '@/mocks/scenarios/catalog'
 import { handle, HttpError } from '@/server/http'
-import { activeScenarioId, readState, resetStore, type WorkspaceState } from '@/server/store'
+import { readScenarioState, resetStore, type WorkspaceState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,8 +26,8 @@ function responseFor(scenarioId: keyof typeof SCENARIO_CATALOG, state: Workspace
 export async function GET() {
   return handle(async () => {
     assertDevelopment()
-    const scenarioId = await activeScenarioId()
-    return responseFor(scenarioId, await readState())
+    const { scenarioId, state } = await readScenarioState()
+    return responseFor(scenarioId, state)
   })
 }
 

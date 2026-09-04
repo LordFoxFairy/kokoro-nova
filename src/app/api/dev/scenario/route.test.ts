@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
+import { buildScenario } from '@/mocks/scenarios/build'
 import { resetStore } from '@/server/store'
 import { GET, POST } from './route'
 
@@ -54,5 +55,27 @@ describe.sequential('/api/dev/scenario', () => {
     expect(read.status).toBe(403)
     expect(write.status).toBe(403)
     expect(await read.json()).toEqual({ error: '该接口仅在开发环境可用' })
+  })
+
+  it('never combines a scenario marker with another generation of workspace data', async () => {
+    const ids = ['authenticated-empty', 'video-running', 'video-failed', 'authenticated-populated'] as const
+    const responses = await Promise.all(
+      Array.from({ length: 24 }, (_, index) => {
+        const scenarioId = ids[index % ids.length]
+        return index % 2 === 0 ? POST(postRequest({ scenarioId })) : GET()
+      }),
+    )
+
+    for (const response of responses) {
+      expect(response.status).toBe(200)
+      const body = await response.json()
+      const expected = buildScenario(body.scenario.id)
+      expect(body.state).toEqual({
+        projects: expected.projects.length,
+        canvases: expected.canvases.length,
+        jobs: expected.jobs.length,
+        assets: expected.assets.length,
+      })
+    }
   })
 })

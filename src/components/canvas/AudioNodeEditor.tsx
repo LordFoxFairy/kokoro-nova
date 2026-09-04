@@ -205,10 +205,9 @@ export function AudioNodeEditor({
   }
 
   const toggleTokenPopover = (nextPopover: Extract<OpenPopover, 'pause' | 'cues'>) => {
-    // Keep the DOM selection before a toolbar action can move focus. This also
-    // handles programmatic selection (for example keyboard automation), which
-    // does not always dispatch React's onSelect event.
-    syncPromptSelection()
+    // The pointer handler captured the native textarea range before focus can
+    // move. Re-reading it here is too late in some browsers: a toolbar click
+    // has already collapsed the range by the time the click handler runs.
     setPopover((current) => (current === nextPopover ? null : nextPopover))
   }
 
@@ -542,6 +541,13 @@ export function AudioNodeEditor({
               <button
                 key={seconds}
                 type="button"
+                onPointerDown={(event) => {
+                  // Keep the prompt focused until addPromptToken commits the
+                  // replacement. Otherwise its blur handler can enqueue the
+                  // pre-token prompt after this action and overwrite it.
+                  event.preventDefault()
+                  event.stopPropagation()
+                }}
                 onClick={() => addPromptToken(`<#${seconds}#>`)}
                 className="block h-8 w-full rounded-lg px-2 text-left text-[11px] text-ink-700 hover:bg-white/8"
               >
@@ -589,6 +595,12 @@ export function AudioNodeEditor({
               <button
                 key={cue}
                 type="button"
+                onPointerDown={(event) => {
+                  // See pause presets above: token insertion is one atomic
+                  // prompt edit, not a blur-save followed by a second edit.
+                  event.preventDefault()
+                  event.stopPropagation()
+                }}
                 onClick={() => addPromptToken(`(${cue})`)}
                 className="h-8 rounded-lg px-2 text-left text-[11px] text-ink-700 hover:bg-white/8"
               >

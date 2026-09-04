@@ -28,6 +28,7 @@ import type {
   WorkflowDocument,
   WorkflowNode,
 } from '@/domain/types'
+import { changeAssetLifecycle } from '@/api/assets'
 import { client } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -75,6 +76,22 @@ export type RegenerationStatus =
   | 'failed'
   | 'cancelled'
   | 'compliance_blocked'
+
+export type AssetRecoveryState = 'idle' | 'restoring' | 'succeeded' | 'failed'
+type AssetRecoveryTarget = Pick<NonNullable<StoryboardCard['degradation']>, 'availability' | 'assetId'>
+
+/** A storyboard card can restore only an attributable, soft-deleted local asset. */
+export function canRecoverStoryboardAsset(target: AssetRecoveryTarget | null | undefined): boolean {
+  return target?.availability === 'recoverable' && Boolean(target.assetId)
+}
+
+/** Keep recovery feedback stable while a failed local request remains retryable. */
+export function assetRecoveryMessage(state: AssetRecoveryState, error?: string | null): string | null {
+  if (state === 'restoring') return '正在恢复资产…'
+  if (state === 'succeeded') return '资产已恢复，故事板已更新。'
+  if (state === 'failed') return `${error || '恢复资产失败'}，可再次尝试。`
+  return null
+}
 
 const GENERATION_STATUS_LABELS: Record<JobStatus, string> = {
   awaiting_confirmation: '等待确认',
@@ -207,6 +224,8 @@ export function MediaDetailDrawer({
   const [runJobId, setRunJobId] = useState<string | null>(null)
   const [runAction, setRunAction] = useState<'saving' | 'creating' | 'confirming' | 'cancelling' | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
+  const [assetRecoveryState, setAssetRecoveryState] = useState<AssetRecoveryState>('idle')
+  const [assetRecoveryError, setAssetRecoveryError] = useState<string | null>(null)
   const runBusyRef = useRef(false)
   const pollInFlight = useRef(false)
   const drawerRef = useRef<HTMLElement>(null)
@@ -234,6 +253,8 @@ export function MediaDetailDrawer({
     setActiveTool(null)
     setRunJobId(null)
     setRunError(null)
+    setAssetRecoveryState('idle')
+    setAssetRecoveryError(null)
     setPromptDirty(false)
   }, [card?.nodeId]) // A drawer follows the selected node, not a stale card snapshot.
 
@@ -569,6 +590,22 @@ export function MediaDetailDrawer({
     })
   }
 
+  const restoreAsset = useCallback(async () => {
+    const assetId = card?.degradation?.assetId
+    if (!canRecoverStoryboardAsset(card?.degradation) || !assetId || assetRecoveryState === 'restoring') return
+    setAssetRecoveryState('restoring')
+    setAssetRecoveryError(null)
+    try {
+      // The typed local asset contract dispatches the lifecycle event that
+      // StoryboardView uses to re-project the same workflow card.
+      await changeAssetLifecycle(assetId, 'restore')
+      setAssetRecoveryState('succeeded')
+    } catch (error) {
+      setAssetRecoveryError(errorMessage(error, '恢复资产失败'))
+      setAssetRecoveryState('failed')
+    }
+  }, [assetRecoveryState, card?.degradation])
+
   if (!card) return null
 
   return (
@@ -675,7 +712,7 @@ export function MediaDetailDrawer({
         ) : (
           <>
             <div className="overflow-hidden rounded-xl bg-ink-100" style={{ aspectRatio: mediaAspectRatio(card) }}>
-              {artifact ? (
+              {artifact && !card.degradation ? (
                 <ArtifactPreview
                   url={artifact.url}
                   kind={artifact.kind}
@@ -696,8 +733,17 @@ export function MediaDetailDrawer({
               {card.videoKind && <Chip tone="accent">{card.videoKind === 'final' ? '成片' : '片段'}</Chip>}
             </div>
 
+            {card.degradation && (
+              <AssetRecoveryPanel
+                degradation={card.degradation}
+                state={assetRecoveryState}
+                error={assetRecoveryError}
+                onRestore={() => void restoreAsset()}
+              />
+            )}
+
             {/* Image tools operate on a generated still and never edit it in place. */}
-            {card.column === 'image' && artifact && (
+            {card.column === 'image' && artifact && !card.degradation && (
               <Section title="图片工具">
                 <div className="flex flex-wrap gap-1.5">
                   <ToolButton label="人像质感" onClick={() => setActiveTool('emotion')} />
@@ -1028,8 +1074,8 @@ export function MediaDetailDrawer({
                   id: 'download',
                   label: '下载',
                   icon: <IconDownload size={14} />,
-                  disabled: !artifact,
-                  disabledReason: '没有生成结果',
+                  disabled: !artifact || Boolean(card.degradation),
+                  disabledReason: card.degradation ? '资产媒体当前不可用' : '没有生成结果',
                   onSelect: () => {
                     if (!artifact) return
                     const link = window.document.createElement('a')
@@ -1054,6 +1100,58 @@ export function MediaDetailDrawer({
         />
       )}
     </aside>
+  )
+}
+
+function AssetRecoveryPanel({
+  degradation,
+  state,
+  error,
+  onRestore,
+}: {
+  degradation: NonNullable<StoryboardCard['degradation']>
+  state: AssetRecoveryState
+  error: string | null
+  onRestore: () => void
+}) {
+  const recoverable = canRecoverStoryboardAsset(degradation)
+  const message = assetRecoveryMessage(state, error)
+
+  return (
+    <Section title="资产可用性">
+      <div data-testid="detail-asset-recovery" className="space-y-2.5 rounded-xl border border-danger/20 bg-danger/6 p-3">
+        <div className="flex items-start gap-2 text-[12px] text-danger">
+          <IconWarning size={14} className="mt-px shrink-0" />
+          <span>
+            {degradation.availability === 'recoverable' ? '该资产已被移除，但仍可恢复。' : '该资产媒体当前不可用。'}
+          </span>
+        </div>
+        {message && (
+          <p
+            id="detail-asset-recovery-status"
+            data-testid="detail-asset-recovery-status"
+            role="status"
+            aria-live="polite"
+            className={cn('text-[11px]', state === 'failed' ? 'text-danger' : 'text-ink-600')}
+          >
+            {message}
+          </p>
+        )}
+        {recoverable && (
+          <button
+            type="button"
+            data-testid="detail-restore-asset"
+            aria-describedby={message ? 'detail-asset-recovery-status' : undefined}
+            disabled={state === 'restoring'}
+            onClick={onRestore}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink-900 py-2 text-[12px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60"
+          >
+            {state === 'restoring' ? <Spinner size={12} /> : <IconRefresh size={13} />}
+            {state === 'restoring' ? '恢复中…' : state === 'failed' ? '再次尝试恢复' : '恢复资产'}
+          </button>
+        )}
+      </div>
+    </Section>
   )
 }
 

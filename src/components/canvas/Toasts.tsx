@@ -15,7 +15,7 @@ export function Toasts() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          role="status"
+          role={toast.tone === 'error' ? 'alert' : 'status'}
           data-testid="toast"
           className={cn(
             'pointer-events-auto flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] shadow-[var(--shadow-panel)]',

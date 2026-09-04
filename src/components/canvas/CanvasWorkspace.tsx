@@ -160,7 +160,6 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const applyServerDocument = useEditor((s) => s.applyServerDocument)
   const select = useEditor((s) => s.select)
   const toast = useEditor((s) => s.toast)
-  const toasts = useEditor((s) => s.toasts)
   const zoom = useEditor((s) => s.zoom)
   const showMinimap = useEditor((s) => s.showMinimap)
   const assetSidebarOpen = useEditor((s) => s.assetSidebarOpen)
@@ -947,9 +946,6 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     : null
 
   const loadFailure = loadError ?? (!project ? '画布加载失败，请重试。' : null)
-  const latestErrorToast = [...toasts].reverse().find((item) => item.tone === 'error')
-  const latestStatusToast = [...toasts].reverse().find((item) => item.tone !== 'error')
-
   const handleCanvasError = useCallback(
     (message: string) => {
       setCanvasError(message)
@@ -1338,25 +1334,6 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       )}
 
       <Toasts />
-
-      <div
-        data-testid="canvas-status-live"
-        className="sr-only"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {latestStatusToast?.message ?? ''}
-      </div>
-      <div
-        data-testid="canvas-error-live"
-        className="sr-only"
-        role="alert"
-        aria-live="assertive"
-        aria-atomic="true"
-      >
-        {latestErrorToast?.message ?? ''}
-      </div>
 
       {/* Selection hint used by the empty-canvas starter shortcuts */}
       {document.nodes.length === 0 && viewMode === 'workflow' && <EmptyCanvasStarters onPick={usePreset} />}

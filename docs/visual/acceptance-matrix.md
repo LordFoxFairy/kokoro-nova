@@ -4,7 +4,7 @@
 - 复核范围：`docs/visual/kokoro-nova-parity.md`、`docs/visual/state-visibility.md`、`docs/visual/responsive-followup.md`
 - 视口：`1440×900`、`1024×768`、`768×700`
 - 数据边界：仅本地 mock/scenario；浏览器复核使用临时 `DATA_DIR` 与临时端口
-- 本次收尾：不重新启动服务、不触发真实生成、不写截图基线
+- 本次复核：隔离 `DATA_DIR` + 临时端口执行状态回归；视觉基线仅在人工核验后更新，不调用真实 provider。
 
 ## 结论速览
 
@@ -45,5 +45,5 @@
 ## 证据与边界
 
 - 既有浏览器记录：`docs/visual/state-visibility.md`、`docs/visual/responsive-followup.md` 及其列出的 Playwright 快照。
-- 本轮收尾没有重新启动服务器或执行长时间浏览器套件；因此没有新增截图，也没有把“未补齐的窄屏抽屉/有效报价”记为通过。
+- 本轮已重新执行本地浏览器套件：音频、图片、视频、剪辑、文本、脚本、画布、首页/项目与场景旅程均覆盖 1440×900。更新的截图只反映已人工核验的局部 UI 演进：画布键盘焦点不再在指针打开编辑器时常驻描边，参考选择横幅显示 Escape 提示，剪辑侧栏补充来源/规格元数据。
 - 生成状态均由本地 scenario fixture 提供；验收不调用 provider、不使用真实凭证或远端接口。

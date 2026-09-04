@@ -23,6 +23,12 @@ const STATUS_FIXTURES = [
   ['video-compliance-blocked', '素材合规校验未通过'],
 ] as const
 
+// This suite deliberately mutates deterministic scenarios and is designed to
+// run against a disposable DATA_DIR. Keep the everyday `pnpm e2e` command
+// side-effect free for a developer's active local preview; CI/regression jobs
+// opt in with REGRESSION_BASE_URL and an isolated server.
+test.skip(!REGRESSION_BASE_URL, '需要 REGRESSION_BASE_URL 指向隔离本地服务')
+
 test.use({
   baseURL: REGRESSION_BASE_URL ?? 'http://127.0.0.1:PORT',
   locale: 'zh-CN',

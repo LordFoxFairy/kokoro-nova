@@ -109,8 +109,7 @@ const FLOW_ARIA_LABEL_CONFIG: Partial<AriaLabelConfig> = {
 }
 
 const CANVAS_FOCUS_STYLES = `
-[data-testid="workflow-canvas"] .react-flow__node:focus-visible,
-[data-testid="workflow-canvas"] .react-flow__node:focus-within {
+[data-testid="workflow-canvas"] .react-flow__node:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
   box-shadow: 0 0 0 4px rgba(103, 209, 243, 0.22);

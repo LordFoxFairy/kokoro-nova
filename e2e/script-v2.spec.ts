@@ -252,3 +252,196 @@ test('script v2 node manual entry creates one blank medium five-second shot and 
     expect.objectContaining({ shotNumber: 1, durationSeconds: 5, shotSize: '中景', plotDescription: '' }),
   ])
 })
+
+test('script v2 stage 1 exposes the observed stage metrics, semantic headers and footer actions', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  const stages = workspace.getByTestId('script-v2-stages').getByRole('button')
+  await expect(stages.nth(0)).toHaveAccessibleName('确认镜头 1个镜头已就绪')
+  await expect(stages.nth(1)).toHaveAccessibleName('准备资产 0/0 已生成')
+  await expect(stages.nth(2)).toHaveAccessibleName('合成提示词 0/1 已合成')
+  await expect(workspace.getByText('1/3 完成后可批量生视频', { exact: true })).toBeVisible()
+  await expect(workspace.getByRole('button', { name: '关闭 (ESC)', exact: true })).toBeVisible()
+  await expect(workspace.getByRole('columnheader')).toHaveText([
+    '镜号',
+    '时长',
+    '画面描述',
+    '景别',
+    '光影氛围',
+    '对白·旁白',
+    '音效',
+    '运镜',
+    '最终提示词',
+    '操作',
+  ])
+  await expect(workspace.getByRole('button', { name: '添加镜头', exact: true })).toBeVisible()
+  await expect(workspace.getByRole('button', { name: '一键合成全部提示词', exact: true })).toBeDisabled()
+})
+
+test('script v2 shot table clamps duration and exposes every observed shot size', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  const duration = workspace.locator('button[aria-label^="镜头 1 时长"]')
+  await duration.click()
+
+  const durationEditor = workspace.getByRole('dialog', { name: '设置镜头时长', exact: true })
+  await expect(durationEditor.getByText('范围 5–15 秒；失焦自动保存', { exact: true })).toBeVisible()
+  const durationInput = durationEditor.getByRole('spinbutton', { name: '镜头时长（秒）', exact: true })
+  await durationInput.fill('2')
+  expect((await readScriptV2State(page)).rows).toEqual([
+    expect.objectContaining({ durationSeconds: 5 }),
+  ])
+  await durationEditor.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(durationEditor).toHaveCount(0)
+  await expect(duration).toHaveAccessibleName('镜头 1 时长 5 秒')
+
+  await duration.click()
+  await durationEditor.getByRole('spinbutton', { name: '镜头时长（秒）', exact: true }).fill('99')
+  let saved = waitForCanvasMutation(page)
+  await durationEditor.getByRole('button', { name: '保存', exact: true }).click()
+  await saved
+  await expect(duration).toHaveAccessibleName('镜头 1 时长 15 秒')
+
+  await workspace.getByRole('button', { name: '镜头 1 景别 中景', exact: true }).click()
+  const shotSizes = workspace.getByRole('listbox', { name: '选择景别', exact: true })
+  await expect(shotSizes.getByRole('option')).toHaveText([
+    '大远景',
+    '远景',
+    '全景',
+    '中远景',
+    '中景',
+    '中近景',
+    '近景',
+    '特写',
+    '大特写',
+    '头肩景',
+    '半身景',
+    '全身景',
+  ])
+  saved = waitForCanvasMutation(page)
+  await shotSizes.getByRole('option', { name: '特写', exact: true }).click()
+  await saved
+  await expect(workspace.getByRole('button', { name: '镜头 1 景别 特写', exact: true })).toBeVisible()
+})
+
+test('script v2 shot table keeps text drafts local and autosaves them on blur', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  await workspace.getByRole('button', { name: '编辑镜头 1 画面描述', exact: true }).click()
+  const editor = workspace.getByRole('dialog', { name: '编辑画面描述', exact: true })
+  const input = editor.getByRole('textbox', { name: '画面描述', exact: true })
+  await input.fill('雨夜车站里，林默俯身拾起一盘旧录音带。')
+
+  expect((await readScriptV2State(page)).rows).toEqual([
+    expect.objectContaining({ plotDescription: '' }),
+  ])
+
+  const saved = waitForCanvasMutation(page)
+  await input.press('Tab')
+  await saved
+  expect((await readScriptV2State(page)).rows).toEqual([
+    expect.objectContaining({ plotDescription: '雨夜车站里，林默俯身拾起一盘旧录音带。' }),
+  ])
+  await expect(workspace.getByRole('button', { name: '编辑镜头 1 画面描述', exact: true }))
+    .toContainText('雨夜车站里，林默俯身拾起一盘旧录音带。')
+})
+
+test('script v2 shot table reorders once, manages color labels and confirms persisted deletion', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  let persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByRole('button', { name: '添加镜头', exact: true }).click()
+  await persisted
+
+  const before = await readScriptV2State(page) as {
+    rows: Array<{ id: string; shotNumber: number; colorLabel: string | null }>
+  }
+  const [firstId, secondId] = before.rows.map((row) => row.id)
+  const mutationBodies: Array<{ mutations?: unknown[] }> = []
+  const captureMutation = (request: import('@playwright/test').Request) => {
+    const url = new URL(request.url())
+    if (request.method() !== 'POST' || !/^\/api\/canvases\/[^/]+$/.test(url.pathname)) return
+    mutationBodies.push(request.postDataJSON() as { mutations?: unknown[] })
+  }
+  page.on('request', captureMutation)
+
+  persisted = waitForCanvasMutation(page)
+  await workspace
+    .getByTestId(`script-v2-shot-row-${firstId}`)
+    .getByRole('button', { name: '拖动镜头 1', exact: true })
+    .dragTo(
+      workspace
+        .getByTestId(`script-v2-shot-row-${secondId}`)
+        .getByRole('button', { name: '拖动镜头 2', exact: true }),
+    )
+  await persisted
+  page.off('request', captureMutation)
+
+  expect(mutationBodies).toHaveLength(1)
+  expect(mutationBodies[0].mutations).toHaveLength(1)
+  let state = await readScriptV2State(page) as typeof before
+  expect(state.rows.map((row) => row.id)).toEqual([secondId, firstId])
+  expect(state.rows.map((row) => row.shotNumber)).toEqual([1, 2])
+
+  const firstStableRow = workspace.getByTestId(`script-v2-shot-row-${firstId}`)
+  await firstStableRow.getByRole('button', { name: '镜头 2 行操作', exact: true }).click()
+  const rowMenu = workspace.getByRole('menu', { name: '镜头行操作', exact: true })
+  await expect(rowMenu.getByRole('menuitem')).toHaveText([
+    '清除颜色',
+    '红色',
+    '黄色',
+    '绿色',
+    '蓝色',
+    '灰色',
+    '删除镜头',
+  ])
+  persisted = waitForCanvasMutation(page)
+  await rowMenu.getByRole('menuitem', { name: '红色', exact: true }).click()
+  await persisted
+  await expect(firstStableRow).toHaveAttribute('data-color-label', 'red')
+
+  await firstStableRow.getByRole('button', { name: '镜头 2 行操作', exact: true }).click()
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByRole('menuitem', { name: '清除颜色', exact: true }).click()
+  await persisted
+  await expect(firstStableRow).toHaveAttribute('data-color-label', 'none')
+
+  await firstStableRow.getByRole('button', { name: '镜头 2 行操作', exact: true }).click()
+  await workspace.getByRole('menuitem', { name: '删除镜头', exact: true }).click()
+  const confirm = page.getByTestId('confirm-dialog')
+  await expect(confirm).toContainText('删除镜头 2？')
+  await expect(confirm).toContainText('删除后其镜头编号会自动顺延，此操作可通过画布历史撤销。')
+  persisted = waitForCanvasMutation(page)
+  await confirm.getByRole('button', { name: '删除', exact: true }).click()
+  await persisted
+
+  state = await readScriptV2State(page) as typeof before
+  expect(state.rows.map((row) => row.id)).toEqual([secondId])
+  expect(state.rows.map((row) => row.shotNumber)).toEqual([1])
+
+  await page.reload()
+  await expect(page.getByTestId('script-v2-resource-card')).toBeVisible()
+  await page.getByRole('button', { name: /打开脚本节点/ }).click()
+  await expect(page.getByTestId('script-v2-workspace').locator('[data-testid^="script-v2-shot-row-"]')).toHaveCount(1)
+  expect(((await readScriptV2State(page)) as typeof before).rows[0].id).toBe(secondId)
+})

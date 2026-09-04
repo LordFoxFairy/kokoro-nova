@@ -461,31 +461,31 @@ git commit -m "feat: reproduce script v2 canvas node"
 - Produces: `ScriptV2ShotTable` callbacks for patch, append, move, color, delete and prompt detail.
 - Consumes: `useEditor.commitWith` for serialized persisted edits.
 
-- [ ] **Step 1: Add failing stage/header/table accessibility test**
+- [x] **Step 1: Add failing stage/header/table accessibility test**
 
 Assert three stage buttons, dynamic subtitles, global `N/3`, close label, semantic header order and bottom `添加镜头`/current action.
 
-- [ ] **Step 2: Implement full-screen shell and exact stage metrics**
+- [x] **Step 2: Implement full-screen shell and exact stage metrics**
 
 Use fixed top and bottom chrome, horizontally scrollable table and theme-aware dark/light surfaces. Pressing Escape closes only when no child surface is open.
 
-- [ ] **Step 3: Add failing duration/shot-size/editor tests**
+- [x] **Step 3: Add failing duration/shot-size/editor tests**
 
 Assert 5–15 clamping, helper copy, save button, all 12 shot sizes, text popover autosave on blur, and no save before blur.
 
-- [ ] **Step 4: Implement cell editors with local drafts and commit queue**
+- [x] **Step 4: Implement cell editors with local drafts and commit queue**
 
 Each popover snapshots the current row, commits only changed fields, and flushes on blur, Enter where appropriate, stage change and close.
 
-- [ ] **Step 5: Add failing reorder/color/delete tests**
+- [x] **Step 5: Add failing reorder/color/delete tests**
 
 Drag row 1 below row 2 and assert stable ids with dense shot numbers; choose red then clear; delete with confirmation; reload and assert persistence.
 
-- [ ] **Step 6: Implement row actions and one-mutation drag settlement**
+- [x] **Step 6: Implement row actions and one-mutation drag settlement**
 
 Pointer move uses local visual order; pointer up sends one `updateNode` mutation carrying canonical state.
 
-- [ ] **Step 7: Run and commit**
+- [x] **Step 7: Run and commit**
 
 Run: `pnpm e2e e2e/script-v2.spec.ts --grep "stage 1|shot table" --reporter=line`
 

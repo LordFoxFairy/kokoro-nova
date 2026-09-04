@@ -31,7 +31,7 @@ import { AgentPanel } from '../agent/AgentPanel'
 import { AssetLibraryPanel } from '../assets/AssetLibraryPanel'
 import { DirectorStudio, type CapturedShot, type DirectorScene } from '../director/DirectorStudio'
 import { ScriptWizard } from '../script/ScriptWizard'
-import { ScriptV2Workspace } from '../script/ScriptV2Workspace'
+import { ScriptV2Workspace, type ScriptV2StateChange } from '../script/ScriptV2Workspace'
 import type { ScriptDraft } from '../script/script-model'
 import { readScriptV2State } from '@/domain/script-v2'
 import { StoryboardView } from '../storyboard/StoryboardView'
@@ -183,6 +183,33 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       void commit([{ op: 'updateNode', nodeId, patch: { data: { ...node.data, ...patch } } }], '编辑节点')
     },
     [commit],
+  )
+
+  const persistScriptV2State = useCallback(
+    async (nodeId: string, change: ScriptV2StateChange, label = '编辑脚本节点') => {
+      await commitWith((current) => {
+        const node = current.nodes.find((candidate) => candidate.id === nodeId)
+        if (!node || node.type !== 'script') return []
+        const currentState = readScriptV2State(node.data.extra, node.id)
+        const state = typeof change === 'function' ? change(currentState) : change
+        if (state === currentState) return []
+        return [
+          {
+            op: 'updateNode' as const,
+            nodeId,
+            patch: {
+              data: {
+                ...node.data,
+                prompt: state.originalStoryText,
+                modelId: state.generator.modelId,
+                extra: { ...node.data.extra, scriptV2: state },
+              },
+            },
+          },
+        ]
+      }, label)
+    },
+    [commitWith],
   )
 
   const locateNode = useCallback(
@@ -813,6 +840,11 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         open={studioNode?.type === 'script'}
         nodeName={studioNode?.name ?? '脚本 V2'}
         state={studioNode?.type === 'script' ? readScriptV2State(studioNode.data.extra, studioNode.id) : null}
+        onStateChange={(state, label) =>
+          studioNode?.type === 'script'
+            ? persistScriptV2State(studioNode.id, state, label)
+            : undefined
+        }
         onClose={() => setStudioNodeId(null)}
       />
 

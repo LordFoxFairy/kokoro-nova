@@ -28,7 +28,10 @@ const webServer =
           env: {
             ...process.env,
             DATA_DIR: runner.serverDataDir,
-            NEXT_DIST_DIR: runner.nextDistDirEnv,
+            // startsServer is only true for the isolated plan, but retain a
+            // concrete fallback so Playwright's string-only env contract is
+            // preserved under TypeScript narrowing.
+            NEXT_DIST_DIR: runner.nextDistDirEnv ?? ".next-e2e",
           },
         }
       : undefined;

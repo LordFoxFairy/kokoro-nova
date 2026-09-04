@@ -195,6 +195,23 @@ export function AudioNodeEditor({
     setPopover(null)
   }
 
+  const syncPromptSelection = () => {
+    const textarea = promptRef.current
+    if (!textarea) return
+    promptSelectionRef.current = {
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd,
+    }
+  }
+
+  const toggleTokenPopover = (nextPopover: Extract<OpenPopover, 'pause' | 'cues'>) => {
+    // Keep the DOM selection before a toolbar action can move focus. This also
+    // handles programmatic selection (for example keyboard automation), which
+    // does not always dispatch React's onSelect event.
+    syncPromptSelection()
+    setPopover((current) => (current === nextPopover ? null : nextPopover))
+  }
+
   const addPromptToken = (token: string) => {
     const { start: selectionStart, end: selectionEnd } = promptSelectionRef.current
     const next = insertAudioToken(prompt, selectionStart, selectionEnd, token)
@@ -221,6 +238,7 @@ export function AudioNodeEditor({
       className="node-floating-ui nodrag nowheel nopan absolute bottom-14 left-1/2 z-30 w-[660px] -translate-x-1/2 translate-y-full origin-top"
       style={{ transform: `scale(${1 / Math.max(zoom, 0.01)})` }}
       onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
     >
       <section className="relative flex min-h-[236px] w-full flex-col overflow-visible rounded-2xl border border-white/10 bg-[#242424] shadow-[0_14px_45px_rgba(0,0,0,0.42)]">
@@ -252,7 +270,17 @@ export function AudioNodeEditor({
               <button
                 type="button"
                 aria-expanded={popover === 'pause'}
-                onClick={() => setPopover(popover === 'pause' ? null : 'pause')}
+                aria-controls="audio-pause-menu"
+                onPointerDown={(event) => {
+                  // Do not blur the prompt before React records its caret.
+                  event.preventDefault()
+                  event.stopPropagation()
+                  syncPromptSelection()
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  toggleTokenPopover('pause')
+                }}
                 className="h-7 rounded-lg bg-white/[0.055] px-2.5 text-[11px] text-ink-700 hover:bg-white/10"
               >
                 {'<#> 停顿'}
@@ -260,7 +288,17 @@ export function AudioNodeEditor({
               <button
                 type="button"
                 aria-expanded={popover === 'cues'}
-                onClick={() => setPopover(popover === 'cues' ? null : 'cues')}
+                aria-controls="audio-cue-menu"
+                onPointerDown={(event) => {
+                  // Preserve the selected prompt range while opening the menu.
+                  event.preventDefault()
+                  event.stopPropagation()
+                  syncPromptSelection()
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  toggleTokenPopover('cues')
+                }}
                 className="h-7 rounded-lg bg-white/[0.055] px-2.5 text-[11px] text-ink-700 hover:bg-white/10"
               >
                 {'() 语气词'}

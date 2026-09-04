@@ -68,9 +68,12 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
 - `a472e01`：将 Skill 市场和详情媒体轮播对齐为深色发现面，并通过隔离 Playwright；
 - `5e0b382` / `86ada28`：补齐 TV Show 详情、播放器、公开制作过程、登录门和键盘播放控制；
 - `28bef6d`：故事板卡片可定位源节点或在工作流中创建副本，隔离 Playwright 2/2 通过；
-- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（74 files / 778 tests）、production build，
-  并对 Skills、TV Show、Storyboard 在隔离 1440×900 服务中复跑浏览器旅程；用户已有 `.gitignore`
-  始终不修改、不暂存。
+- `05be07a`：项目管理动作按 LibTV 暗色信息密度收敛：hover/focus 菜单、键盘子菜单、删除确认焦点恢复，
+  并新增 1440×900 基准与隔离 Playwright 4/4；
+- `c9e61bb`：账户页接入身份、会员、钱包、偏好和通知的确定性 mock，同时添加 `GET /api/account`、Zod、
+  OpenAPI 与后端交接文档；隔离 Playwright 2/2 通过；
+- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（75 files / 780 tests）、production build，
+  并对项目管理与账户在隔离 1440×900 服务中复跑浏览器旅程；用户已有 `.gitignore` 始终不修改、不暂存。
 
 主控职责：检查跨 surface 契约、在主仓库复跑验证、把官网新观察转为本地 fixture/API docs
 约束，并只在有明确证据时更新 parity 结论。

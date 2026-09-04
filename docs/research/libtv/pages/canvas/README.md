@@ -259,6 +259,39 @@
 | 旧版默认态 | [script-legacy-node-default-reference-inputs.png](screenshots/script-legacy-node-default-reference-inputs.png) | 旧版 Beta 提供剧本、视频参考和角色参考三种分镜脚本入口，仍使用节点内大输入框。 |
 | 旧版视频预设 | [script-legacy-video-reference-preset-graph.png](screenshots/script-legacy-video-reference-preset-graph.png) | “视频参考”会创建预设分组、空视频节点、脚本节点并自动连线；调研后已删除整组临时节点。 |
 
+Script V2 的本地实现是 frontend-only local mock：脚本状态只保存在
+`node.data.extra.scriptV2`，不读取真实 LibTV 凭证、不调用真实后端。报价、四种任务
+operation、轮询和取消/重试的本地契约见 [`SCRIPT_V2_STATE.md`](../../../../api/SCRIPT_V2_STATE.md)
+与 [`docs/api/openapi.yaml`](../../../../api/openapi.yaml)；官网请求形状和证据等级见
+[`Script V2 协议捕获`](../../api/captures/2026-09-03-script-v2.md)。
+
+| 本地 operation | UI 连接 |
+|---|---|
+| `quoteScriptV2` | 生成/资产识别/提示词合成/AI 资产生成前的报价门，不收费。 |
+| `createScriptV2Run` | 提交 `generate-full`、`recognize-assets-only`、`recompute-prompts` 或 `generate-asset`。 |
+| `getScriptV2Run` | 刷新安全的进度轮询；确定性 mock 从 queued 推进 running 再到 succeeded。 |
+| `transitionScriptV2Run` | 取消 queued/running，或重试 failed/cancelled。 |
+
+### Storyboard 与关键媒体 API 边界
+
+Storyboard 没有独立的持久化 route：它是 `GET /api/canvases/{canvasId}` 返回的同一份
+`WorkflowDocument`（`groups`、`nodes`、`artifacts`）的投影。列、镜头详情和再生成面板
+通过 `POST /api/canvases/{canvasId}` 的 `expectedRevision` mutation 写回；生成进度从
+`/api/jobs` 轮询，导出由 `/api/compose` 同步登记本地 video artifact/asset。分组缩略图
+使用 `/api/preview/stitch`，角色参考预览使用 `/api/preview/character`；两者都返回本地
+SVG 字节流，不返回 JSON envelope。
+
+| Surface | 本地 contract | 脱敏样本/证据 |
+|---|---|---|
+| Storyboard bootstrap | `CanvasDetailResponse` | [`openapi.yaml`](../../../../api/openapi.yaml) |
+| Storyboard / Video job | `ListJobsResponse`、`GetJobResponse`、`TransitionJobResponse` | [`jobs-get.response.json`](../../../../api/examples/jobs-get.response.json) |
+| Video compose | `ComposeRequest` → `ComposeResponse` | [`compose.request.json`](../../../../api/examples/compose.request.json)、[`compose.response.json`](../../../../api/examples/compose.response.json) |
+| Script V2 state/result | `ScriptV2State`、四种 operation-discriminated run | [`SCRIPT_V2_STATE.md`](../../../../api/SCRIPT_V2_STATE.md)、[Script V2 capture](../../api/captures/2026-09-03-script-v2.md) |
+
+以上均属于 frontend-only local mock：媒体 URL 只允许本地 `/api/media/*` 或 fixture 路径，
+不读取真实 LibTV 凭证、不发送 Cookie/Authorization，也不把 Storyboard 状态复制到第二个
+文档或远端资源。
+
 ### 视频合成
 
 | 状态 | 截图 | 观察结论 |

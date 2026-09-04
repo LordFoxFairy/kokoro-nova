@@ -614,6 +614,12 @@ export async function commitUploads(
       row.width = decision.size.width
       row.height = decision.size.height
     }
+    // Validation can rebuild SVG bytes after the staging row was persisted.
+    // `withState` deliberately reloads the authoritative document for each
+    // transaction, so this row is not guaranteed to share object identity
+    // with the staged descriptor. Carry the rewritten byte count across by id
+    // rather than relying on an in-process reference surviving the round trip.
+    row.byteSize = decision.staged.asset.byteSize
     row.state = 'committed'
     assets.push(row)
   }

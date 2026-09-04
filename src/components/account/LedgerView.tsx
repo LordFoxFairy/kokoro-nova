@@ -32,6 +32,11 @@ import {
 
 type Collection = 'earned' | 'spent' | 'returned'
 
+export function getLedgerTabStatus(collection: Collection, count: number): string {
+  const label = collection === 'earned' ? '获取' : collection === 'spent' ? '消耗' : '返还'
+  return count > 0 ? `当前查看“${label}”，共 ${count} 条记录。` : `当前查看“${label}”，暂无记录。`
+}
+
 const COLLECTIONS: { value: Collection; label: string }[] = [
   { value: 'earned', label: '获取' },
   { value: 'spent', label: '消耗' },
@@ -82,23 +87,28 @@ export function LedgerView({
   const exhausted = rows.length < limit
 
   return (
-    <section data-testid="ledger-view">
+    <section data-testid="ledger-view" aria-busy={loadingMore}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-[15px] font-semibold text-ink-900">积分明细</h2>
-        <SegmentedControl
-          value={collection}
-          onChange={setCollection}
-          options={COLLECTIONS.map((c) => ({
-            value: c.value,
-            testId: `ledger-tab-${c.value}`,
-            label: (
-              <>
-                {c.label}
-                <span className="tabular-nums text-ink-400">{counts[c.value]}</span>
-              </>
-            ),
-          }))}
-        />
+        <div role="group" aria-label="积分明细分类">
+          <SegmentedControl
+            value={collection}
+            onChange={setCollection}
+            options={COLLECTIONS.map((c) => ({
+              value: c.value,
+              testId: `ledger-tab-${c.value}`,
+              label: (
+                <>
+                  {c.label}
+                  <span className="tabular-nums text-ink-600">{' '}{counts[c.value]}</span>
+                </>
+              ),
+            }))}
+          />
+        </div>
+      </div>
+      <div className="sr-only" role="status" aria-live="polite">
+        {getLedgerTabStatus(collection, total)}
       </div>
 
       {rows.length === 0 ? (
@@ -121,14 +131,15 @@ export function LedgerView({
                 data-testid="ledger-load-more"
                 onClick={onLoadMore}
                 disabled={loadingMore}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-3.5 py-2 text-[13px] text-ink-600 transition-colors hover:bg-ink-50 disabled:text-ink-300"
+                aria-busy={loadingMore}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-3.5 py-2 text-[13px] text-ink-700 transition-colors hover:bg-ink-50 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {loadingMore && <Spinner size={13} />}
                 加载更多（还有 {total - rows.length} 条）
               </button>
             </div>
           ) : (
-            <div className="pt-6 text-center text-[13px] text-ink-300">
+            <div className="pt-6 text-center text-[13px] text-ink-600" role="status" aria-live="polite">
               {rows.length < total ? `仅展示最近 ${rows.length} 条` : '没有更多了'}
             </div>
           )}
@@ -152,7 +163,7 @@ function Row({ row, job }: { row: LedgerRow; job: JobLink | null }) {
       <span
         className={cn(
           'mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
-          row.credits > 0 ? 'bg-success/10 text-success' : row.credits < 0 ? 'bg-ink-100 text-ink-500' : 'bg-accent-soft text-accent-ink',
+          row.credits > 0 ? 'bg-success/10 text-ink-700' : row.credits < 0 ? 'bg-ink-100 text-ink-600' : 'bg-accent-soft text-accent-ink',
         )}
       >
         {iconOf(row)}
@@ -163,7 +174,7 @@ function Row({ row, job }: { row: LedgerRow; job: JobLink | null }) {
           <span className="text-[13px] text-ink-900">{row.note}</span>
           {status && <Badge tone={status.tone}>{status.text}</Badge>}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-ink-400">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-ink-600">
           <span className="tabular-nums">{formatTime(row.createdAt)}</span>
           {job ? (
             <>
@@ -171,7 +182,7 @@ function Row({ row, job }: { row: LedgerRow; job: JobLink | null }) {
               <Link
                 href={`/canvas?projectId=${job.projectId}&canvasId=${job.canvasId}`}
                 data-testid={`ledger-job-link-${row.id}`}
-                className="inline-flex items-center gap-0.5 text-accent-ink transition-opacity hover:opacity-70"
+                className="inline-flex items-center gap-0.5 text-accent-ink transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 回到任务
                 <IconChevronRight size={12} />
@@ -193,17 +204,17 @@ function Row({ row, job }: { row: LedgerRow; job: JobLink | null }) {
           className={cn(
             'text-[13px] font-medium tabular-nums',
             refunded
-              ? 'text-ink-300 line-through'
+              ? 'text-ink-600 line-through'
               : row.credits > 0
-                ? 'text-success'
+                ? 'text-ink-700'
                 : row.credits < 0
                   ? 'text-ink-900'
-                  : 'text-ink-400',
+                  : 'text-ink-600',
           )}
         >
           {formatAmount(row.credits)}
         </div>
-        <div className="mt-0.5 text-[11px] tabular-nums text-ink-400">余额 {row.balanceAfter}</div>
+        <div className="mt-0.5 text-[11px] tabular-nums text-ink-600">余额 {row.balanceAfter}</div>
       </div>
     </li>
   )
@@ -217,9 +228,9 @@ function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
       className={cn(
         'inline-flex items-center rounded-full px-2 py-[3px] text-[11px]',
         tone === 'success'
-          ? 'bg-success/10 text-success'
+          ? 'bg-success/10 text-ink-700'
           : tone === 'running'
-            ? 'bg-running/15 text-running'
+            ? 'bg-running/15 text-ink-700'
             : 'bg-ink-100 text-ink-600',
       )}
     >

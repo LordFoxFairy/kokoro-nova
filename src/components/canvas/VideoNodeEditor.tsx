@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore as useFlowStore } from '@xyflow/react'
 import { availableVideoModes, videoModeOptions } from '@/domain/compile'
+import { createNode } from '@/domain/factory'
 import { newId } from '@/domain/ids'
 import { CAMERA_MOVES } from '@/domain/libraries'
 import {
@@ -43,6 +44,7 @@ import {
   IconVideo,
 } from '../icons'
 import { ProgressBar, Spinner, Toggle } from '../ui/controls'
+import { MaterialPanel } from './LibraryPanels'
 import {
   formatVideoOutputSummary,
   formatVideoResolution,
@@ -63,6 +65,29 @@ interface VideoNodeEditorProps {
 }
 
 type OpenPopover = 'models' | 'modes' | 'output' | 'camera' | 'advanced' | null
+
+const VIDEO_GENERATION_LOCKED_STATUSES = ['awaiting_confirmation', 'queued', 'running'] as const
+
+export function isVideoGenerationLocked(status: GenerationJob['status'] | undefined) {
+  return status !== undefined && VIDEO_GENERATION_LOCKED_STATUSES.includes(status as (typeof VIDEO_GENERATION_LOCKED_STATUSES)[number])
+}
+
+export function videoGenerationStatusCopy(status: GenerationJob['status'] | undefined) {
+  switch (status) {
+    case 'awaiting_confirmation':
+      return { label: '等待确认', description: '已提交，等待确认后开始生成' }
+    case 'queued':
+      return { label: '排队中', description: '已进入生成队列，请稍候' }
+    case 'running':
+      return { label: '生成中', description: '正在生成视频，请稍候' }
+    default:
+      return null
+  }
+}
+
+export function videoPromptNeedsFlush(prompt: string, storedPrompt: string | undefined) {
+  return prompt !== (storedPrompt ?? '')
+}
 
 /**
  * The current LibTV canvas keeps the Video composer attached to its node while
@@ -89,6 +114,10 @@ export function VideoNodeEditor({
   const [prompt, setPrompt] = useState(node.data.prompt ?? '')
   const [popover, setPopover] = useState<OpenPopover>(null)
   const [previewNodeId, setPreviewNodeId] = useState<string | null>(null)
+  const [localEffectPanelOpen, setLocalEffectPanelOpen] = useState(false)
+  const [runInFlight, setRunInFlight] = useState(false)
+  const promptCommitRef = useRef<Promise<boolean> | null>(null)
+  const runInFlightRef = useRef(false)
 
   useEffect(() => setPrompt(node.data.prompt ?? ''), [node.id, node.data.prompt])
 
@@ -118,8 +147,8 @@ export function VideoNodeEditor({
 
   const patchNode = (patch: Partial<NodeData>) => {
     const current = useEditor.getState().document.nodes.find((item) => item.id === node.id)
-    if (!current) return
-    void commit([{ op: 'updateNode', nodeId: node.id, patch: { data: { ...current.data, ...patch } } }], '编辑视频节点')
+    if (!current) return Promise.resolve(false)
+    return commit([{ op: 'updateNode', nodeId: node.id, patch: { data: { ...current.data, ...patch } } }], '编辑视频节点')
   }
 
   const model = node.data.modelId ? MODELS_BY_ID.get(node.data.modelId) : undefined
@@ -129,6 +158,8 @@ export function VideoNodeEditor({
     : (node.data.output ?? {})
   const modeRows = videoModeOptions(document, node.id)
   const running = job?.status === 'running' || job?.status === 'queued'
+  const generationLocked = isVideoGenerationLocked(job?.status)
+  const generationStatus = videoGenerationStatusCopy(job?.status)
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, output).credits : 0
   const advanced = (node.data.extra?.advanced as
     | { webSearch?: boolean; autoCompliance?: boolean; autoLink?: boolean }
@@ -193,6 +224,63 @@ export function VideoNodeEditor({
     })
   }
 
+  const flushPrompt = () => {
+    const flush = async () => {
+      const pendingCommit = promptCommitRef.current
+      if (pendingCommit) {
+        if (!(await pendingCommit)) return false
+        const persistedPrompt = useEditor.getState().document.nodes.find((item) => item.id === node.id)?.data.prompt
+        if (!videoPromptNeedsFlush(prompt, persistedPrompt)) return true
+      }
+
+      const currentPrompt = useEditor.getState().document.nodes.find((item) => item.id === node.id)?.data.prompt
+      if (!videoPromptNeedsFlush(prompt, currentPrompt)) return true
+
+      const nextCommit = patchNode({ prompt })
+      promptCommitRef.current = nextCommit
+      try {
+        return await nextCommit
+      } finally {
+        if (promptCommitRef.current === nextCommit) promptCommitRef.current = null
+      }
+    }
+
+    return flush()
+  }
+
+  const handleRun = async () => {
+    if (generationLocked || runInFlightRef.current) return
+    runInFlightRef.current = true
+    setRunInFlight(true)
+    try {
+      if (await flushPrompt()) await onRun(node.id)
+    } finally {
+      runInFlightRef.current = false
+      setRunInFlight(false)
+    }
+  }
+
+  const openEffectMaterialPanel = () => {
+    setLocalEffectPanelOpen(true)
+  }
+
+  const applyLocalEffect = async (preset: { id: string; name: string; hue: number }) => {
+    const currentDocument = useEditor.getState().document
+    const effectNode = createNode(
+      'effect',
+      { x: node.position.x + node.size.width + 120, y: node.position.y },
+      currentDocument.nodes,
+      { name: preset.name },
+    )
+    effectNode.data.extra = {
+      ...effectNode.data.extra,
+      presetId: preset.id,
+      presetName: preset.name,
+      hue: preset.hue,
+    }
+    if (await commit([{ op: 'addNode', node: effectNode }], '添加特效节点')) setLocalEffectPanelOpen(false)
+  }
+
   return (
     <div
       data-testid="video-node-editor"
@@ -224,7 +312,7 @@ export function VideoNodeEditor({
               active={popover === 'camera'}
               onClick={() => setPopover(popover === 'camera' ? null : 'camera')}
             />
-            <QuickAction label="特效" icon={<IconEffect size={14} />} onClick={() => setLeftPanel('material')} />
+            <QuickAction label="特效" icon={<IconEffect size={14} />} onClick={openEffectMaterialPanel} />
             <button
               type="button"
               aria-label="关闭视频编辑器"
@@ -325,9 +413,7 @@ export function VideoNodeEditor({
               rows={mentions.length > 0 || elementMarks.length > 0 ? 2 : references.length > 0 ? 3 : 5}
               placeholder="描述你想要生成的画面内容，@引用素材"
               onChange={(event) => setPrompt(event.target.value)}
-              onBlur={() => {
-                if (prompt !== (node.data.prompt ?? '')) patchNode({ prompt })
-              }}
+              onBlur={() => void flushPrompt()}
               className="min-h-[56px] w-full resize-none bg-transparent text-[13px] leading-relaxed text-ink-800 outline-none placeholder:text-ink-400"
             />
           </div>
@@ -406,12 +492,23 @@ export function VideoNodeEditor({
               >
                 <IconStop size={13} />
               </button>
+            ) : generationLocked || runInFlight ? (
+              <button
+                type="button"
+                data-testid="video-run"
+                disabled
+                aria-label={generationStatus?.label ?? '正在保存提示词'}
+                title={generationStatus?.description ?? '正在保存提示词，请稍候'}
+                className="flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-white/15 text-ink-400"
+              >
+                <IconPlay size={13} />
+              </button>
             ) : (
               <button
                 type="button"
                 data-testid="video-run"
                 aria-label="生成视频"
-                onClick={() => onRun(node.id)}
+                onClick={() => void handleRun()}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d9dadb] text-[#1f1f1f] hover:bg-white"
               >
                 <IconPlay size={13} />
@@ -419,10 +516,11 @@ export function VideoNodeEditor({
             )}
           </div>
 
-          {running && (
+          {generationStatus && (
             <div className="flex items-center gap-2 px-1 text-[11px] text-ink-500">
-              <Spinner size={12} />
-              <span>生成中 {job?.progress ?? 0}%</span>
+              {running && <Spinner size={12} />}
+              <span data-testid="video-generation-status">{generationStatus.label}</span>
+              <span className="text-ink-400">{running ? `${job?.progress ?? 0}% · ` : '· '}{generationStatus.description}</span>
               <div className="flex-1"><ProgressBar value={job?.progress ?? 0} /></div>
             </div>
           )}
@@ -448,10 +546,10 @@ export function VideoNodeEditor({
           />
         )}
         {popover === 'modes' && (
-          <ModePopover rows={modeRows} value={output.mode} onChange={(mode) => setOutput({ mode })} />
+          <ModePopover rows={modeRows} value={output.mode} onChange={(mode) => { setOutput({ mode }); setPopover(null) }} />
         )}
         {popover === 'output' && capabilities && (
-          <OutputPopover capabilities={capabilities} output={output} onChange={setOutput} />
+          <OutputPopover capabilities={capabilities} output={output} onChange={(patch) => { setOutput(patch); setPopover(null) }} />
         )}
         {popover === 'camera' && (
           <CameraLibraryPortal
@@ -480,6 +578,12 @@ export function VideoNodeEditor({
           <AdvancedPopover advanced={advanced} onChange={setAdvanced} />
         )}
       </section>
+      <MaterialPanel
+        open={localEffectPanelOpen}
+        kind="effect"
+        onClose={() => setLocalEffectPanelOpen(false)}
+        onApply={(preset) => void applyLocalEffect(preset)}
+      />
     </div>
   )
 }

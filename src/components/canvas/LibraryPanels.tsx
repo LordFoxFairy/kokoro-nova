@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   CHARACTER_FILTERS,
   CHARACTER_PRESETS,
@@ -17,6 +17,48 @@ import { useEditor } from '@/lib/editor-store'
 import { Dialog } from '../ui/Dialog'
 import { EmptyState, SegmentedControl } from '../ui/controls'
 import { IconCheck, IconHistory, IconSearch } from '../icons'
+
+export type MaterialTab = 'market' | 'favorites' | 'recent'
+
+type MaterialPresetLike = {
+  id: string
+  name: string
+  category: string
+  author: string
+  commercial: boolean
+}
+
+/**
+ * Shared filter semantics for the style/effect sheets. Keeping this outside
+ * the component makes the local catalogue deterministic and gives the empty
+ * state a single, testable definition instead of two subtly different ones.
+ */
+export function filterMaterialPresets<T extends MaterialPresetLike>(
+  items: readonly T[],
+  options: Partial<{
+    kind: 'style' | 'effect'
+    tab: MaterialTab
+    category: string
+    commercialOnly: boolean
+    query: string
+  }> = {},
+): T[] {
+  const kind = options.kind ?? 'style'
+  const tab = options.tab ?? 'market'
+  const category = options.category ?? '全部'
+  const query = options.query?.trim().toLocaleLowerCase('zh-CN') ?? ''
+  const favorites = new Set(['style-cine-teal', 'style-film-grain', 'style-soft-portrait'])
+  const recent = new Set(['style-cine-teal', 'style-noir', 'style-isometric', 'style-anime-cel'])
+
+  return items.filter((item) => {
+    if (kind === 'style' && tab === 'favorites' && !favorites.has(item.id)) return false
+    if (kind === 'style' && tab === 'recent' && !recent.has(item.id)) return false
+    if (category !== '全部' && item.category !== category) return false
+    if (options.commercialOnly && !item.commercial) return false
+    if (query && !`${item.name}\n${item.author}\n${item.id}`.toLocaleLowerCase('zh-CN').includes(query)) return false
+    return true
+  })
+}
 
 /* ------------------------------------------------------------------ *
  * Toolbox
@@ -178,17 +220,23 @@ export function MaterialPanel({
   const [query, setQuery] = useState('')
 
   const categories = kind === 'style' ? STYLE_CATEGORIES : EFFECT_CATEGORIES
-  const items = kind === 'style' ? STYLE_PRESETS : EFFECT_PRESETS
 
-  const filtered = items.filter((item) => {
-    if (kind === 'style' && tab === 'favorites' && !['style-cine-teal', 'style-film-grain', 'style-soft-portrait'].includes(item.id)) return false
-    if (kind === 'style' && tab === 'recent' && !['style-cine-teal', 'style-noir', 'style-isometric', 'style-anime-cel'].includes(item.id)) return false
-    if (category !== '全部' && item.category !== category) return false
-    if (commercialOnly && !item.commercial) return false
-    const needle = query.trim().toLocaleLowerCase('zh-CN')
-    if (needle && !`${item.name}\n${item.author}`.toLocaleLowerCase('zh-CN').includes(needle)) return false
-    return true
-  })
+  useEffect(() => {
+    // A style-only tab or category should never leak into the effect sheet
+    // when the parent switches kind while the panel stays mounted.
+    setTab('market')
+    setCategory('全部')
+    setCommercialOnly(false)
+    setQuery('')
+  }, [kind])
+
+  const filtered = useMemo(() => {
+    const options = { kind, tab, category, commercialOnly, query }
+    return kind === 'style'
+      ? filterMaterialPresets(STYLE_PRESETS, options)
+      : filterMaterialPresets(EFFECT_PRESETS, options)
+  }, [kind, tab, category, commercialOnly, query])
+  const filtersActive = category !== '全部' || commercialOnly || query.trim().length > 0 || tab !== 'market'
 
   return (
     <Dialog open={open} onClose={onClose} variant="panel" width={880} hideHeader testId="material-panel">
@@ -204,6 +252,7 @@ export function MaterialPanel({
                 key={value}
                 type="button"
                 aria-current={tab === value ? 'page' : undefined}
+                aria-pressed={tab === value}
                 onClick={() => {
                   setTab(value as typeof tab)
                   setCategory('全部')
@@ -258,6 +307,7 @@ export function MaterialPanel({
           <button
             key={c}
             type="button"
+            aria-pressed={c === category}
             onClick={() => setCategory(c)}
             className={cn(
               'rounded-full px-3 py-1 text-[12px] transition-colors',
@@ -267,6 +317,27 @@ export function MaterialPanel({
             {c}
           </button>
         ))}
+      </div>
+
+      <div className="flex items-center justify-between px-6 pb-1 text-[11px] text-ink-400">
+        <span data-testid="material-result-count" aria-live="polite">
+          {filtered.length} 个结果
+        </span>
+        {filtersActive && (
+          <button
+            type="button"
+            data-testid="material-clear-filters"
+            onClick={() => {
+              setTab('market')
+              setCategory('全部')
+              setCommercialOnly(false)
+              setQuery('')
+            }}
+            className="rounded px-1.5 py-0.5 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
+          >
+            清除筛选
+          </button>
+        )}
       </div>
 
       <div className="thin-scrollbar grid max-h-[54vh] grid-cols-4 gap-3.5 overflow-y-auto px-6 pb-6">
@@ -299,7 +370,7 @@ export function MaterialPanel({
           </button>
         ))}
         {filtered.length === 0 && (
-          <div className="col-span-4">
+          <div className="col-span-4" data-testid="material-empty">
             <EmptyState title="没有匹配的结果" description="调整分类、商用筛选或搜索词后重试。" />
           </div>
         )}

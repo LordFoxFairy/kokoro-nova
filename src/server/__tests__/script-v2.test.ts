@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import persistedState from '../../../docs/api/examples/script-v2-state.json'
 import type { CreateScriptV2RunRequest, ScriptV2QuoteRequest } from '@/contracts/script-v2'
@@ -47,8 +47,40 @@ beforeEach(() => {
   __resetScriptV2Runs()
 })
 
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
 describe('Script V2 deterministic quotes', () => {
+  it('uses the current runtime clock when MOCK_NOW_MS is not set', () => {
+    vi.stubEnv('MOCK_NOW_MS', undefined)
+    const beforeMs = Date.now()
+    const quote = quoteScriptV2({ operation: 'generate-full', modelId: 'gvlm-3.1' })
+    const afterMs = Date.now()
+    const expiresAtMs = Date.parse(quote.quote.expiresAt)
+
+    expect(expiresAtMs).toBeGreaterThanOrEqual(beforeMs + 5 * 60 * 1_000)
+    expect(expiresAtMs).toBeLessThanOrEqual(afterMs + 5 * 60 * 1_000)
+  })
+
+  it('keeps quotes valid for the runtime TTL and deterministic under MOCK_NOW_MS', () => {
+    const mockNowMs = Date.parse('2026-09-04T06:30:00.000Z')
+    vi.stubEnv('MOCK_NOW_MS', String(mockNowMs))
+    const input: ScriptV2QuoteRequest = { operation: 'generate-full', modelId: 'gvlm-3.1' }
+
+    const first = quoteScriptV2(input)
+    const second = quoteScriptV2(structuredClone(input))
+
+    expect(first.quote.expiresAt).toBe('2026-09-04T06:35:00.000Z')
+    expect(Date.parse(first.quote.expiresAt)).toBeGreaterThan(mockNowMs)
+    expect(second).toEqual(first)
+
+    vi.stubEnv('MOCK_NOW_MS', String(mockNowMs + 5 * 60 * 1_000 + 1))
+    expect(Date.parse(first.quote.expiresAt)).toBeLessThan(Number(process.env.MOCK_NOW_MS))
+  })
+
   it('locks the observed generation, recompute and Lib Image costs', () => {
+    vi.stubEnv('MOCK_NOW_MS', String(Date.parse('2026-09-04T06:30:00.000Z')))
     const cases: Array<[ScriptV2QuoteRequest, number]> = [
       [{ operation: 'generate-full', modelId: 'gvlm-3.1' }, 6],
       [{ operation: 'recompute-prompts', modelId: 'gvlm-3.1', shotCount: 1 }, 6],
@@ -73,7 +105,7 @@ describe('Script V2 deterministic quotes', () => {
         operation: input.operation,
         credits,
         priceVersion: 'script-v2-local-1',
-        expiresAt: '2026-09-04T00:05:00.000Z',
+        expiresAt: '2026-09-04T06:35:00.000Z',
       })
       expect(quoteScriptV2(structuredClone(input))).toEqual(first)
     }
@@ -106,6 +138,13 @@ describe('Script V2 run repository', () => {
     firstModule.__resetScriptV2Runs()
     const created = firstModule.createScriptV2Run(generateRequest('script_hmr_survival'))
 
+    // Next's development route graphs do not share their globalThis object.
+    // Remove the first graph's marker to model that boundary while retaining
+    // the Node process that owns both route handlers.
+    const graphGlobal = globalThis as typeof globalThis & {
+      __libtvScriptV2RunRepository?: unknown
+    }
+    delete graphGlobal.__libtvScriptV2RunRepository
     vi.resetModules()
     const reloadedModule = await import('@/server/script-v2')
     expect(reloadedModule.getScriptV2Run(created.id)).toMatchObject({
@@ -188,6 +227,7 @@ describe('Script V2 run repository', () => {
 
 describe('Script V2 Route Handlers', () => {
   it('returns strict quote and run responses for valid requests', async () => {
+    vi.stubEnv('MOCK_NOW_MS', String(Date.parse('2026-09-04T06:30:00.000Z')))
     const quote = await quoteRoute(
       request('http://localhost/api/script-v2/quotes', {
         operation: 'generate-full',

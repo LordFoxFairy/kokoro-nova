@@ -1,4 +1,5 @@
 import { constants as fsConstants, promises as fs } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { ScenarioIdSchema, type ScenarioId } from '@/contracts/scenario'
 import { buildScenario } from '@/mocks/scenarios/build'
@@ -49,15 +50,13 @@ export interface WorkspaceState {
 export const DATA_DIR = path.resolve(process.cwd(), process.env.DATA_DIR?.trim() || '.data')
 const STATE_FILE = path.join(DATA_DIR, 'workspace.json')
 const SCENARIO_FILE = path.join(DATA_DIR, 'scenario.json')
+const WRITE_LOCK_FILE = path.join(DATA_DIR, '.workspace.lock')
 export const MEDIA_DIR = path.join(DATA_DIR, 'media')
 const PUBLIC_FIXTURE_MEDIA_DIR = path.join(process.cwd(), 'public', 'fixtures', 'libtv', 'media')
 const SEEDED_FIXTURE_MEDIA = ['city-night.mp4', 'compositor-bed.wav'] as const
 
 export const DEFAULT_SPACE_ID = 'sp_default'
 
-let cache: WorkspaceState | null = null
-let cacheMtimeNs: bigint | null = null
-let activeScenarioCache: ScenarioId | null = null
 let writeChain: Promise<unknown> = Promise.resolve()
 
 async function seedFixtureMedia(overwrite = false) {
@@ -88,55 +87,91 @@ async function ensureDirs() {
 async function load(): Promise<WorkspaceState> {
   await ensureDirs()
   try {
-    const stat = await fs.stat(STATE_FILE, { bigint: true })
-    if (cache && cacheMtimeNs === stat.mtimeNs) return cache
+    // The file is the authority. Next dev can load this module once per route
+    // bundle, so an mtime-guarded process-local cache can hide a write made by
+    // another bundle (and filesystems are allowed to coalesce mtimes).
     const raw = await fs.readFile(STATE_FILE, 'utf8')
-    cache = JSON.parse(raw) as WorkspaceState
-    cacheMtimeNs = (await fs.stat(STATE_FILE, { bigint: true })).mtimeNs
+    return JSON.parse(raw) as WorkspaceState
   } catch {
-    cache = buildScenario(await activeScenarioId())
-    await fs.writeFile(STATE_FILE, JSON.stringify(cache, null, 2), 'utf8')
-    cacheMtimeNs = (await fs.stat(STATE_FILE, { bigint: true })).mtimeNs
+    const state = buildScenario(await activeScenarioId())
+    await writeAtomically(STATE_FILE, JSON.stringify(state, null, 2))
+    return state
   }
-  return cache
+}
+
+async function writeAtomically(file: string, contents: string) {
+  // Include a UUID: route bundles share a process id but not necessarily a
+  // module-local counter, so a pid-only temp name can collide under load.
+  const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`
+  try {
+    await fs.writeFile(tmp, contents, 'utf8')
+    await fs.rename(tmp, file)
+  } finally {
+    await fs.rm(tmp, { force: true }).catch(() => undefined)
+  }
 }
 
 async function persist(state: WorkspaceState) {
   await ensureDirs()
-  // Atomic-ish replace: write a temp file then rename, so a crash mid-write
-  // cannot truncate the authoritative document.
-  const tmp = `${STATE_FILE}.${process.pid}.tmp`
-  await fs.writeFile(tmp, JSON.stringify(state, null, 2), 'utf8')
-  await fs.rename(tmp, STATE_FILE)
-  cacheMtimeNs = (await fs.stat(STATE_FILE, { bigint: true })).mtimeNs
+  await writeAtomically(STATE_FILE, JSON.stringify(state, null, 2))
 }
 
 async function persistScenarioId(scenarioId: ScenarioId) {
   await ensureDirs()
-  const tmp = `${SCENARIO_FILE}.${process.pid}.tmp`
-  await fs.writeFile(tmp, JSON.stringify({ scenarioId }, null, 2), 'utf8')
-  await fs.rename(tmp, SCENARIO_FILE)
+  await writeAtomically(SCENARIO_FILE, JSON.stringify({ scenarioId }, null, 2))
 }
 
 export async function activeScenarioId(): Promise<ScenarioId> {
-  if (activeScenarioCache) return activeScenarioCache
   await ensureDirs()
+
   try {
+    // Always read the marker. The active scenario is a cross-bundle control
+    // value, not a safe process-local cache entry; mtime checks can miss a
+    // replacement made with a coarser or preserved timestamp.
     const raw = JSON.parse(await fs.readFile(SCENARIO_FILE, 'utf8')) as unknown
     const parsed = ScenarioIdSchema.safeParse(
       raw && typeof raw === 'object' && 'scenarioId' in raw ? (raw as { scenarioId: unknown }).scenarioId : raw,
     )
     if (parsed.success) {
-      activeScenarioCache = parsed.data
       return parsed.data
     }
   } catch {
     // Missing or malformed metadata falls through to the deterministic default.
   }
 
-  activeScenarioCache = DEFAULT_SCENARIO_ID
   await persistScenarioId(DEFAULT_SCENARIO_ID)
   return DEFAULT_SCENARIO_ID
+}
+
+async function acquireWriteLock(): Promise<() => Promise<void>> {
+  await ensureDirs()
+  while (true) {
+    try {
+      const handle = await fs.open(WRITE_LOCK_FILE, 'wx')
+      return async () => {
+        await handle.close().catch(() => undefined)
+        await fs.unlink(WRITE_LOCK_FILE).catch(() => undefined)
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      await new Promise<void>((resolve) => setTimeout(resolve, 5))
+    }
+  }
+}
+
+/** Serialize writes both within a bundle and across Next route bundles. */
+function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const run = async () => {
+    const release = await acquireWriteLock()
+    try {
+      return await operation()
+    } finally {
+      await release()
+    }
+  }
+  const next = writeChain.then(run, run)
+  writeChain = next.catch(() => undefined)
+  return next
 }
 
 export async function readState(): Promise<WorkspaceState> {
@@ -154,30 +189,27 @@ export async function withState<T>(mutator: (state: WorkspaceState) => T | Promi
     await persist(state)
     return result
   }
-  const next = writeChain.then(run, run)
-  // Keep the chain alive even if this link rejects.
-  writeChain = next.catch(() => undefined)
-  return next
+  return enqueueWrite(run)
 }
 
-/** Test/dev helper: drop the in-memory cache so the next read re-reads disk. */
-export function invalidateCache() {
-  cache = null
-  cacheMtimeNs = null
-  activeScenarioCache = null
-}
+/**
+ * Kept as a compatibility seam for tests and future storage adapters.
+ * The file-backed implementation reads disk for every operation, so there is
+ * no process-local cache to invalidate.
+ */
+export function invalidateCache() {}
 
 export async function resetStore(scenarioId?: ScenarioId) {
-  __resetScriptV2Runs()
-  const selected = scenarioId === undefined ? await activeScenarioId() : ScenarioIdSchema.parse(scenarioId)
-  const next = buildScenario(selected)
-  await ensureDirs()
-  await seedFixtureMedia(true)
-  await persist(next)
-  await persistScenarioId(selected)
-  cache = next
-  activeScenarioCache = selected
-  return next
+  return enqueueWrite(async () => {
+    __resetScriptV2Runs()
+    const selected = scenarioId === undefined ? await activeScenarioId() : ScenarioIdSchema.parse(scenarioId)
+    const next = buildScenario(selected)
+    await ensureDirs()
+    await seedFixtureMedia(true)
+    await persist(next)
+    await persistScenarioId(selected)
+    return next
+  })
 }
 
 /* ------------------------------------------------------------------ *

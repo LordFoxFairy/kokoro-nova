@@ -71,7 +71,7 @@ export function ScriptV2NodeEditor({
   const runs = useScriptV2Runs({
     nodeId: node.id,
     state,
-    onStateChange: (next) => void onStateChange(next, '生成分镜脚本'),
+    onStateChange: (next) => onStateChange(next, '生成分镜脚本'),
   })
 
   useEffect(() => setPrompt(state.generator.prompt), [node.id, state.generator.prompt])

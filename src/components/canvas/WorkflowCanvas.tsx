@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -13,6 +13,7 @@ import {
   type NodeChange,
   type OnConnect,
   type ReactFlowInstance,
+  type AriaLabelConfig,
 } from '@xyflow/react'
 import { createEdge, createGroup, createNode, NODE_SIZE } from '@/domain/factory'
 import type { ImageTransformRequest } from '@/domain/image-authoring'
@@ -22,7 +23,6 @@ import { videoReferenceCandidates } from '@/domain/video-references'
 import { createTextStarterMutations } from '@/domain/text-workflows'
 import type { TextStarterIntent } from '@/domain/text-authoring'
 import type { CanvasMutation, NodeType, WorkflowNode } from '@/domain/types'
-import { createScriptV2BatchMutations } from '@/domain/script-v2-mock'
 import type { ScriptV2State } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -41,6 +41,92 @@ const PAN_BUTTONS = [1, 2]
 const PRO_OPTIONS = { hideAttribution: true }
 const MULTI_SELECT_KEYS = ['Meta', 'Shift']
 
+export type CanvasCandidateDirection = 'next' | 'previous' | 'first' | 'last'
+
+/** Keep candidate focus navigation deterministic, including an empty canvas. */
+export function getNextCanvasCandidateIndex(
+  currentIndex: number,
+  direction: CanvasCandidateDirection,
+  count: number,
+): number {
+  const size = Math.floor(count)
+  if (!Number.isFinite(size) || size <= 0) return -1
+  if (direction === 'first') return 0
+  if (direction === 'last') return size - 1
+
+  const current = Number.isFinite(currentIndex) ? Math.trunc(currentIndex) : -1
+  if (current < 0) return direction === 'previous' ? size - 1 : 0
+  const offset = direction === 'previous' ? -1 : 1
+  return ((current + offset) % size + size) % size
+}
+
+export function getCanvasSelectionAnnouncement(
+  mode: { kind: 'reference' | 'element'; targetNodeId: string } | null,
+  candidateCount: number,
+  selectedCount: number,
+): string {
+  if (!mode) return `已选择 ${selectedCount} 个节点。`
+  const label = mode.kind === 'reference' ? '参考选择模式' : '元素选择模式'
+  if (candidateCount <= 0) return `${label}：暂无可用候选。按 Escape 退出。`
+  return `${label}：${candidateCount} 个候选，已选择 ${selectedCount} 个。按 Escape 退出。`
+}
+
+export function getCanvasZoomAnnouncement(zoom: number): string {
+  const normalized = Number.isFinite(zoom) ? Math.min(2.5, Math.max(0.1, zoom)) : 1
+  const percentage = Math.round(normalized * 100)
+  return `画布缩放 ${percentage}%。使用 Command/Ctrl 加号或减号调整，Command/Ctrl+0 重置为 100%。`
+}
+
+export function formatCanvasError(code: string, message: string): string {
+  const normalizedCode = code.trim() || 'unknown'
+  const detail = message.trim()
+  return detail
+    ? `画布操作失败（${normalizedCode}）：${detail}`
+    : `画布操作失败（${normalizedCode}）。`
+}
+
+export function shouldYieldNativeCanvasKey(input: {
+  tagName?: string
+  isContentEditable?: boolean
+  hasFocusableAncestor?: boolean
+}): boolean {
+  const tagName = input.tagName?.toUpperCase()
+  return Boolean(
+    input.isContentEditable ||
+      input.hasFocusableAncestor ||
+      (tagName && ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(tagName)),
+  )
+}
+
+const FLOW_ARIA_LABEL_CONFIG: Partial<AriaLabelConfig> = {
+  'node.a11yDescription.default': '按 Enter 或空格选择节点；按 Delete 删除；按 Escape 取消选择。',
+  'node.a11yDescription.keyboardDisabled': '此节点当前不可用键盘操作。',
+  'node.a11yDescription.ariaLiveMessage': ({ direction, x, y }) =>
+    `已向${direction}移动所选节点，位置 ${Math.round(x)}, ${Math.round(y)}。`,
+  'edge.a11yDescription.default': '连接两个工作流节点的连线。',
+  'minimap.ariaLabel': '画布小地图，可拖动平移并滚动缩放。',
+  'handle.ariaLabel': '工作流连接点。',
+}
+
+const CANVAS_FOCUS_STYLES = `
+[data-testid="workflow-canvas"] .react-flow__node:focus-visible,
+[data-testid="workflow-canvas"] .react-flow__node:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(103, 209, 243, 0.22);
+}
+[data-testid="workflow-canvas"] button[data-testid^="reference-candidate-"]:focus-visible,
+[data-testid="workflow-canvas"] button[data-testid^="element-candidate-"]:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(18, 101, 232, 0.5);
+}
+[data-testid="workflow-canvas"] [data-testid="rf__minimap"]:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+`
+
 interface WorkflowCanvasProps {
   onRun: (nodeId: string) => void
   onCancelJob: (jobId: string) => void
@@ -57,6 +143,8 @@ interface WorkflowCanvasProps {
   onOpenImageStyle: (nodeId: string) => void
   onApplyImageTool: (sourceNodeId: string, request: ImageTransformRequest) => void
   onOpenScriptWorkspace: (nodeId: string) => void
+  onMaterializeScriptBatch: (nodeId: string, kind: 'image' | 'video') => void
+  onCanvasError?: (message: string) => void
 }
 
 function CanvasInner({
@@ -75,6 +163,8 @@ function CanvasInner({
   onOpenImageStyle,
   onApplyImageTool,
   onOpenScriptWorkspace,
+  onMaterializeScriptBatch,
+  onCanvasError,
 }: WorkflowCanvasProps) {
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
@@ -96,6 +186,9 @@ function CanvasInner({
   // Subscribe to the transform so group frames track pan/zoom every frame.
   const transform = useStore((s) => s.transform)
   const instanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [liveMessage, setLiveMessage] = useState('')
+  const [flowErrorMessage, setFlowErrorMessage] = useState('')
   /** Positions captured at drag start, so one drag becomes one undo frame. */
   const dragOrigin = useRef<Map<string, { x: number; y: number }> | null>(null)
 
@@ -121,6 +214,27 @@ function CanvasInner({
       return new Map<string, ReturnType<typeof videoReferenceCandidates>[number]>()
     }
   }, [document, selectionMode])
+
+  const candidateStats = useMemo(() => {
+    if (!selectionMode) return { candidateCount: 0, selectedCount: 0 }
+
+    let candidateCount = 0
+    let selectedCount = 0
+    for (const candidate of referenceCandidateByNode.values()) {
+      const media =
+        candidate.node.type === 'assetLibrary'
+          ? ((candidate.node.data.extra?.assetKind as 'image' | 'video' | 'audio' | undefined) ?? null)
+          : MEDIA_OF_NODE[candidate.node.type]
+      const selectable =
+        selectionMode.kind === 'reference'
+          ? candidate.selectable
+          : media === 'image' && candidate.selectable
+      if (!selectable) continue
+      candidateCount += 1
+      if (candidate.selected) selectedCount += 1
+    }
+    return { candidateCount, selectedCount }
+  }, [referenceCandidateByNode, selectionMode])
 
   const handleDuplicate = useCallback(
     (nodeId: string) => {
@@ -216,33 +330,141 @@ function CanvasInner({
     [commitWith],
   )
 
-  const handleMaterializeScriptBatch = useCallback(
-    async (nodeId: string, kind: 'image' | 'video') => {
-      let createdNodeIds: string[] = []
-      let blockedReason: string | null = null
-      const ok = await commitWith((current) => {
-        const source = current.nodes.find((candidate) => candidate.id === nodeId)
-        if (!source || source.type !== 'script') return []
-        const state = source.data.extra?.scriptV2 as ScriptV2State | undefined
-        if (!state) return []
-        const result = createScriptV2BatchMutations(current, nodeId, state, kind)
-        createdNodeIds = result.createdNodeIds
-        blockedReason = result.blockedReason
-        return result.mutations
-      }, kind === 'image' ? '批量生成分镜' : '批量生视频')
-      if (blockedReason) {
-        toast(blockedReason, 'error')
-        return
-      }
-      if (!ok || createdNodeIds.length === 0) return
-      onOpenNode(null)
-      select(createdNodeIds)
+  const focusCanvasNode = useCallback((nodeId: string) => {
+    const root = canvasRef.current
+    if (!root) return
+    const nodeElement = [...root.querySelectorAll<HTMLElement>('.react-flow__node')].find(
+      (element) => element.dataset.id === nodeId,
+    )
+    nodeElement?.focus()
+  }, [])
+
+  const handleSelectCanvasCandidate = useCallback(
+    (nodeId: string) => {
+      const focusAfterSelection =
+        selectionMode?.kind === 'element' ? selectionMode.targetNodeId : nodeId
+      onSelectCanvasCandidate(nodeId)
       window.requestAnimationFrame(() => {
-        flow.fitView({ nodes: createdNodeIds.map((id) => ({ id })), duration: 400, padding: 0.24 })
+        const root = canvasRef.current
+        const candidateButton = root
+          ? [...root.querySelectorAll<HTMLButtonElement>('button[data-testid]')].find(
+              (button) => button.dataset.testid === `${selectionMode?.kind}-candidate-${nodeId}`,
+            )
+          : null
+        if (candidateButton && !candidateButton.disabled) {
+          candidateButton.focus()
+          return
+        }
+        focusCanvasNode(focusAfterSelection)
       })
     },
-    [commitWith, flow, onOpenNode, select, toast],
+    [focusCanvasNode, onSelectCanvasCandidate, selectionMode],
   )
+
+  const onCanvasKeyDownCapture = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (!selectionMode) return
+      const target = event.target as HTMLElement | null
+      const candidate = target?.closest<HTMLButtonElement>(
+        `button[data-testid^="${selectionMode.kind}-candidate-"]`,
+      )
+      if (!candidate || candidate.disabled) return
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        onExitVideoSelection()
+        return
+      }
+
+      const direction: CanvasCandidateDirection | null =
+        event.key === 'ArrowRight' || event.key === 'ArrowDown'
+          ? 'next'
+          : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+            ? 'previous'
+            : event.key === 'Home'
+              ? 'first'
+              : event.key === 'End'
+                ? 'last'
+                : null
+      if (!direction) return
+
+      const buttons = [
+        ...(canvasRef.current?.querySelectorAll<HTMLButtonElement>(
+          `button[data-testid^="${selectionMode.kind}-candidate-"]`,
+        ) ?? []),
+      ].filter((button) => !button.disabled)
+      const nextIndex = getNextCanvasCandidateIndex(buttons.indexOf(candidate), direction, buttons.length)
+      if (nextIndex < 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      buttons[nextIndex]?.focus()
+    },
+    [onExitVideoSelection, selectionMode],
+  )
+
+  useEffect(() => {
+    setLiveMessage(
+      getCanvasSelectionAnnouncement(
+        selectionMode,
+        candidateStats.candidateCount,
+        selectionMode ? candidateStats.selectedCount : selection.length,
+      ),
+    )
+  }, [candidateStats, selection, selectionMode])
+
+  useEffect(() => {
+    const root = canvasRef.current
+    if (!root || !selectionMode) return
+
+    const prefix = `${selectionMode.kind}-candidate-`
+    for (const button of root.querySelectorAll<HTMLButtonElement>('button[data-testid]')) {
+      const testId = button.dataset.testid ?? ''
+      if (!testId.startsWith(prefix)) continue
+      const nodeId = testId.slice(prefix.length)
+      const candidate = referenceCandidateByNode.get(nodeId)
+      const candidateNode = document.nodes.find((node) => node.id === nodeId)
+      const media =
+        candidateNode?.type === 'assetLibrary'
+          ? ((candidateNode.data.extra?.assetKind as 'image' | 'video' | 'audio' | undefined) ?? null)
+          : candidateNode
+            ? MEDIA_OF_NODE[candidateNode.type]
+            : null
+      const selected = selectionMode.kind === 'reference' && Boolean(candidate?.selected)
+      const selectable = selectionMode.kind === 'reference'
+        ? Boolean(candidate?.selectable)
+        : media === 'image' && Boolean(candidate?.selectable)
+      const name = candidate?.node.name ?? nodeId
+      button.setAttribute('aria-pressed', String(selected))
+      button.setAttribute('aria-describedby', 'canvas-selection-instructions')
+      button.setAttribute(
+        'aria-label',
+        selectionMode.kind === 'reference'
+          ? selected
+            ? `取消选择参考：${name}`
+            : selectable
+              ? `添加参考：${name}`
+              : `不可用参考：${name}`
+          : selectable
+            ? `标记元素：${name}`
+            : `不可选择：${name}`,
+      )
+      button.setAttribute('data-selection-state', selected ? 'selected' : selectable ? 'available' : 'unavailable')
+    }
+  }, [document.nodes, referenceCandidateByNode, selectionMode])
+
+  useEffect(() => {
+    if (!selectionMode) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[role="dialog"], [role="menu"]')) return
+      event.preventDefault()
+      onExitVideoSelection()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onExitVideoSelection, selectionMode])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -264,6 +486,15 @@ function CanvasInner({
         type: 'card',
         position: node.position,
         selected: selection.includes(node.id),
+        focusable: true,
+        ariaRole: 'group',
+        ariaLabel: `${node.name}，${NODE_META[node.type].label}节点${
+          selection.includes(node.id) ? '，已选中' : '，未选中'
+        }${openNodeId === node.id ? '，正在编辑' : ''}`,
+        domAttributes: {
+          'aria-selected': selection.includes(node.id),
+          'data-selection-state': selection.includes(node.id) ? 'selected' : 'not-selected',
+        },
         // Groups render behind nodes; a member still drags independently.
         data: {
           node,
@@ -277,7 +508,7 @@ function CanvasInner({
           onSetIntent: handleSetIntent,
           onStartVideoSelection,
           onExitVideoSelection,
-          onSelectCanvasCandidate,
+          onSelectCanvasCandidate: handleSelectCanvasCandidate,
           onRemoveVideoReference,
           onLocateNode,
           onOpenImageStyle,
@@ -285,7 +516,7 @@ function CanvasInner({
           onOpenNode,
           onOpenScriptWorkspace,
           onScriptStateChange: handleScriptStateChange,
-          onMaterializeScriptBatch: handleMaterializeScriptBatch,
+          onMaterializeScriptBatch,
           canvasSelection: selectionMode
             ? node.id === selectionMode.targetNodeId
               ? {
@@ -333,7 +564,7 @@ function CanvasInner({
       handleSetIntent,
       onStartVideoSelection,
       onExitVideoSelection,
-      onSelectCanvasCandidate,
+      handleSelectCanvasCandidate,
       onRemoveVideoReference,
       onLocateNode,
       onOpenImageStyle,
@@ -341,7 +572,7 @@ function CanvasInner({
       onOpenNode,
       onOpenScriptWorkspace,
       handleScriptStateChange,
-      handleMaterializeScriptBatch,
+      onMaterializeScriptBatch,
       selectionMode,
       referenceCandidateByNode,
       openNodeId,
@@ -577,6 +808,20 @@ function CanvasInner({
     [document, toast],
   )
 
+  const handleFlowError = useCallback(
+    (code: string, message: string) => {
+      const formatted = formatCanvasError(code, message)
+      setFlowErrorMessage(formatted)
+      setLiveMessage(formatted)
+      if (onCanvasError) {
+        onCanvasError(formatted)
+      } else {
+        toast(formatted, 'error')
+      }
+    },
+    [onCanvasError, toast],
+  )
+
   useEffect(() => {
     const instance = instanceRef.current
     if (!instance) return
@@ -588,16 +833,21 @@ function CanvasInner({
 
   return (
     <div
+      ref={canvasRef}
       className={cn(
         'h-full w-full',
         !showEdges && 'edges-hidden',
         selectionMode && 'canvas-selection-active',
       )}
       data-testid="workflow-canvas"
+      role="region"
+      aria-label="工作流画布区域"
+      onKeyDownCapture={onCanvasKeyDownCapture}
       // Capture before ReactFlow's controlled selection update can retarget the
       // second click from a node to the pane.
       onDoubleClickCapture={onCanvasDoubleClickCapture}
     >
+      <style>{CANVAS_FOCUS_STYLES}</style>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -626,6 +876,11 @@ function CanvasInner({
         zoomOnDoubleClick={false}
         defaultViewport={document.viewport}
         proOptions={PRO_OPTIONS}
+        aria-label="工作流画布。使用 Tab 浏览节点，Enter 或空格选择，方向键移动。"
+        ariaLabelConfig={FLOW_ARIA_LABEL_CONFIG}
+        nodesFocusable
+        autoPanOnNodeFocus
+        onError={handleFlowError}
         deleteKeyCode={null}
         multiSelectionKeyCode={MULTI_SELECT_KEYS}
         nodesDraggable={toolMode === 'select' && !selectionMode}
@@ -645,6 +900,7 @@ function CanvasInner({
             nodeStrokeColor="#9aa3b2"
             nodeStrokeWidth={2}
             maskColor="rgba(244,245,247,0.72)"
+            ariaLabel="画布小地图，可拖动平移并滚动缩放。"
           />
         )}
         {/*
@@ -670,6 +926,24 @@ function CanvasInner({
           />
         </ViewportLayer>
       </ReactFlow>
+      <div
+        data-testid="canvas-live-region"
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {liveMessage}
+      </div>
+      <div
+        data-testid="canvas-error-live-region"
+        className="sr-only"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        {flowErrorMessage}
+      </div>
     </div>
   )
 }

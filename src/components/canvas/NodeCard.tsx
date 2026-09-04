@@ -1,13 +1,15 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useState, type KeyboardEvent } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { NODE_META } from '@/domain/nodes'
 import { MODELS_BY_ID, quoteCredits } from '@/domain/models'
 import type { ImageTransformRequest } from '@/domain/image-authoring'
 import { readTextAuthoringState, type TextStarterIntent } from '@/domain/text-authoring'
-import type { GenerationJob, JobStatus, WorkflowNode } from '@/domain/types'
+import type { Asset, GenerationJob, JobStatus, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
+import { api } from '@/lib/api'
+import { useEditor } from '@/lib/editor-store'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
 import { ProgressBar, Spinner } from '../ui/controls'
 import {
@@ -111,8 +113,12 @@ function NodeCardImpl({ data, selected }: NodeProps) {
   const Icon = NODE_ICON[node.type]
   const menu = useMenuAnchor()
   const [hovered, setHovered] = useState(false)
+  const [savingAsset, setSavingAsset] = useState(false)
+  const [savedArtifactId, setSavedArtifactId] = useState<string | null>(null)
+  const toast = useEditor((state) => state.toast)
 
   const artifact = (node.data.artifacts ?? [])[0] ?? null
+  const assetSaved = Boolean(artifact && (artifact.assetId || savedArtifactId === artifact.id))
   const model = node.data.modelId ? MODELS_BY_ID.get(node.data.modelId) : null
   const running = job ? job.status === 'running' || job.status === 'queued' : false
   const awaiting = job?.status === 'awaiting_confirmation'
@@ -129,6 +135,32 @@ function NodeCardImpl({ data, selected }: NodeProps) {
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, node.data.output).credits : 0
   const textAuthoring = node.type === 'text' ? readTextAuthoringState(node.data.extra) : null
   const isManualText = textAuthoring?.mode === 'document'
+
+  const saveAsset = async () => {
+    if (!artifact || savingAsset || assetSaved) return
+
+    setSavingAsset(true)
+    try {
+      await api.post<Asset>('/api/assets', { artifactId: artifact.id, name: node.name })
+      setSavedArtifactId(artifact.id)
+      toast('已保存到资产库', 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : '保存资产失败', 'error')
+    } finally {
+      setSavingAsset(false)
+    }
+  }
+
+  const onCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // Let controls and editors keep their native keyboard behavior. The card
+    // itself is the keyboard entry point for the same inspector opened by a
+    // canvas double click.
+    if (event.target !== event.currentTarget) return
+    if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenNode(node.id)
+  }
 
   const menuSections: MenuSection[] = [
     {
@@ -153,9 +185,15 @@ function NodeCardImpl({ data, selected }: NodeProps) {
         {
           id: 'save-asset',
           label: '保存资产',
-          disabled: !artifact,
-          disabledReason: '没有生成结果时不可保存',
-          onSelect: () => undefined,
+          disabled: !artifact || assetSaved || savingAsset,
+          disabledReason: !artifact
+            ? '没有生成结果时不可保存'
+            : assetSaved
+              ? '该结果已在资产库中'
+              : savingAsset
+                ? '正在保存到资产库'
+                : undefined,
+          onSelect: saveAsset,
         },
         {
           id: 'delete',
@@ -172,6 +210,12 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      tabIndex={0}
+      // Keep the card as a focusable group: its nested controls remain real
+      // buttons instead of becoming descendants of an ARIA button.
+      role="group"
+      aria-label={`${node.name}，按 Enter 或空格打开编辑${open ? '，编辑面板已打开' : ''}`}
+      onKeyDown={onCardKeyDown}
       data-testid={`node-${node.id}`}
       data-node-type={node.type}
       className="group relative"

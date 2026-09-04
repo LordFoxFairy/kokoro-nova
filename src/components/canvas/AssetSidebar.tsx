@@ -1,14 +1,61 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NODE_META, NODE_TYPES } from '@/domain/nodes'
-import type { Asset, NodeType } from '@/domain/types'
+import type { Asset, AssetKind, AssetNamespace, NodeType } from '@/domain/types'
+import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import { Menu, useMenuAnchor } from '../ui/Menu'
-import { EmptyState, InlineRename, SegmentedControl } from '../ui/controls'
-import { IconChevronDown, IconChevronLeft, IconLocate, IconMore, IconSearch } from '../icons'
+import { EmptyState, InlineRename, SegmentedControl, Spinner } from '../ui/controls'
+import {
+  IconAssetLibrary,
+  IconAudio,
+  IconChevronDown,
+  IconChevronLeft,
+  IconImage,
+  IconLocate,
+  IconMore,
+  IconRefresh,
+  IconSearch,
+  IconText,
+  IconUpload,
+  IconVideo,
+  IconWarning,
+} from '../icons'
 import { NODE_ICON } from './node-visuals'
+import { UploadDropzone } from '../assets/UploadDropzone'
+
+export type SidebarAssetKind = AssetKind | 'all'
+
+const SIDEBAR_ASSET_LABELS: Record<SidebarAssetKind, string> = {
+  all: '全部',
+  image: '图片',
+  video: '视频',
+  audio: '音频',
+  text: '文本',
+}
+
+export function sidebarAssetKindLabel(kind: AssetKind): string {
+  return SIDEBAR_ASSET_LABELS[kind]
+}
+
+/** Filter the compact library view without mutating the server response. */
+export function filterSidebarAssets(
+  assets: readonly Asset[],
+  options: { query?: string; kind?: SidebarAssetKind } = {},
+): Asset[] {
+  const kind = options.kind ?? 'all'
+  const query = options.query?.trim().toLocaleLowerCase('zh-CN') ?? ''
+  return assets
+    .filter((asset) => {
+      if (kind !== 'all' && asset.kind !== kind) return false
+      if (!query) return true
+      return `${asset.name}\n${asset.tags.join(' ')}`.toLocaleLowerCase('zh-CN').includes(query)
+    })
+    .slice()
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+}
 
 /**
  * Two-level asset management.
@@ -21,10 +68,16 @@ export function AssetSidebar({
   onLocateNode,
   onRenameNode,
   onDuplicateNode,
+  onInsertAsset,
+  onOpenLibrary,
 }: {
   onLocateNode: (nodeId: string) => void
   onRenameNode: (nodeId: string, name: string) => void
   onDuplicateNode: (nodeId: string) => void
+  /** Optional bridge for hosts that want a compact card to insert directly. */
+  onInsertAsset?: (asset: Asset) => void
+  /** Opens the full library sheet when the host exposes that affordance. */
+  onOpenLibrary?: () => void
 }) {
   const open = useEditor((s) => s.assetSidebarOpen)
   const setOpen = useEditor((s) => s.setAssetSidebar)
@@ -33,9 +86,16 @@ export function AssetSidebar({
   const canvases = useEditor((s) => s.canvases)
   const canvasId = useEditor((s) => s.canvasId)
   const selection = useEditor((s) => s.selection)
+  const toast = useEditor((s) => s.toast)
 
   const [tab, setTab] = useState<'canvas' | 'assets'>('canvas')
-  const [assetNamespace, setAssetNamespace] = useState<'personal' | 'agent'>('personal')
+  const [assetNamespace, setAssetNamespace] = useState<AssetNamespace>('personal')
+  const [assetKind, setAssetKind] = useState<SidebarAssetKind>('all')
+  const [assetQuery, setAssetQuery] = useState('')
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [assetLoading, setAssetLoading] = useState(false)
+  const [assetError, setAssetError] = useState<string | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState<NodeType | 'all'>('all')
   const [query, setQuery] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -45,6 +105,7 @@ export function AssetSidebar({
   const typeMenu = useMenuAnchor()
   const rowMenu = useMenuAnchor()
   const [menuNodeId, setMenuNodeId] = useState<string | null>(null)
+  const assetRequestSeq = useRef(0)
 
   const nodes = useMemo(() => {
     let list = [...document.nodes].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -53,8 +114,51 @@ export function AssetSidebar({
     return list
   }, [document.nodes, typeFilter, query])
 
-  // Personal/agent library — empty until artifacts are explicitly registered.
-  const assets: Asset[] = []
+  const loadAssets = useCallback(async () => {
+    const seq = assetRequestSeq.current + 1
+    assetRequestSeq.current = seq
+    setAssetLoading(true)
+    setAssetError(null)
+    try {
+      const data = await api.get<{ assets: Asset[] }>(
+        `/api/assets?namespace=${encodeURIComponent(assetNamespace)}`,
+      )
+      if (assetRequestSeq.current !== seq) return
+      setAssets(data.assets.filter((asset) => asset.state === 'committed'))
+    } catch (error) {
+      if (assetRequestSeq.current !== seq) return
+      setAssetError(error instanceof Error ? error.message : '资产加载失败')
+    } finally {
+      if (assetRequestSeq.current === seq) setAssetLoading(false)
+    }
+  }, [assetNamespace])
+
+  useEffect(() => {
+    if (!open || tab !== 'assets') return
+    void loadAssets()
+  }, [open, tab, loadAssets])
+
+  useEffect(() => {
+    setAssetQuery('')
+    setAssetKind('all')
+    setAssets([])
+    setAssetError(null)
+  }, [assetNamespace])
+
+  const visibleAssets = useMemo(
+    () => filterSidebarAssets(assets, { query: assetQuery, kind: assetKind }),
+    [assets, assetQuery, assetKind],
+  )
+
+  const openLibrary = () => {
+    if (onOpenLibrary) onOpenLibrary()
+    else toast('可从画布工具栏打开完整资产库', 'info')
+  }
+
+  const handleUploaded = (asset: Asset) => {
+    setAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)])
+    toast(`已加入${assetNamespace === 'agent' ? ' Agent' : ''}资产库：${asset.name}`, 'success')
+  }
 
   if (!open) return null
 
@@ -190,33 +294,165 @@ export function AssetSidebar({
         </>
       ) : (
         <>
-          <div className="px-3 py-2">
-            <SegmentedControl
-              size="sm"
-              value={assetNamespace}
-              onChange={setAssetNamespace}
-              options={[
-                { value: 'personal', label: '个人' },
-                { value: 'agent', label: 'Agent' },
-              ]}
-            />
+          <div className="space-y-2 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <SegmentedControl
+                size="sm"
+                value={assetNamespace}
+                onChange={setAssetNamespace}
+                options={[
+                  { value: 'personal', label: '个人', testId: 'sidebar-assets-personal' },
+                  { value: 'agent', label: 'Agent', testId: 'sidebar-assets-agent' },
+                ]}
+              />
+              <button
+                type="button"
+                data-testid="sidebar-upload"
+                aria-label="上传资产"
+                title="上传资产"
+                onClick={() => setUploadOpen(true)}
+                className="ml-auto rounded-lg bg-ink-900 p-1.5 text-white transition-opacity hover:opacity-85"
+              >
+                <IconUpload size={14} />
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
+              <IconSearch size={13} className="shrink-0 text-ink-400" />
+              <input
+                value={assetQuery}
+                data-testid="sidebar-asset-search"
+                onChange={(event) => setAssetQuery(event.target.value)}
+                placeholder="搜索资产"
+                aria-label="搜索资产"
+                className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {(['all', 'image', 'video', 'audio', 'text'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  data-testid={`sidebar-asset-kind-${kind}`}
+                  aria-pressed={assetKind === kind}
+                  onClick={() => setAssetKind(kind)}
+                  className={cn(
+                    'rounded-md px-1.5 py-1 text-[10px] transition-colors',
+                    assetKind === kind ? 'bg-ink-900 text-white' : 'bg-ink-50 text-ink-500 hover:bg-ink-100',
+                  )}
+                >
+                  <span className="mr-0.5 opacity-70"><SidebarAssetIcon kind={kind} size={11} /></span>
+                  {SIDEBAR_ASSET_LABELS[kind]}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              data-testid="sidebar-open-library"
+              onClick={openLibrary}
+              className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-2 py-1.5 text-[11px] text-ink-600 transition-colors hover:bg-ink-50"
+            >
+              <IconAssetLibrary size={13} />
+              打开完整资产库
+            </button>
           </div>
-          <div className="flex-1">
-            {assets.length === 0 && (
+
+          <div className="thin-scrollbar flex-1 overflow-y-auto px-2" data-testid="sidebar-asset-list">
+            {assetError && assets.length > 0 && (
+              <div
+                className="mb-2 flex items-start gap-2 rounded-lg border border-danger/20 bg-danger/6 px-2.5 py-2 text-[11px] text-danger"
+                role="alert"
+                data-testid="sidebar-asset-error"
+              >
+                <IconWarning size={13} className="mt-px shrink-0" />
+                <span className="min-w-0 flex-1">资产刷新失败：{assetError}</span>
+                <button
+                  type="button"
+                  data-testid="sidebar-asset-retry"
+                  onClick={() => void loadAssets()}
+                  className="shrink-0 rounded px-1.5 py-0.5 font-medium hover:bg-danger/10"
+                >
+                  重试
+                </button>
+              </div>
+            )}
+
+            {assetLoading && visibleAssets.length === 0 ? (
+              <div className="flex h-40 items-center justify-center text-ink-300" data-testid="sidebar-asset-loading">
+                <Spinner size={20} />
+              </div>
+            ) : assetError && assets.length === 0 ? (
               <EmptyState
                 compact
-                title={assetNamespace === 'personal' ? '暂无资产' : '暂无素材'}
-                description={
-                  assetNamespace === 'personal'
-                    ? '生成结果使用「保存资产」后会出现在这里。'
-                    : 'Agent 产生的素材是独立命名空间。'
+                icon={<IconWarning size={26} />}
+                title="资产加载失败"
+                description={assetError}
+                action={
+                  <button
+                    type="button"
+                    data-testid="sidebar-asset-retry"
+                    onClick={() => void loadAssets()}
+                    className="flex items-center gap-1 rounded-lg bg-ink-900 px-3 py-1.5 text-[11px] font-medium text-white"
+                  >
+                    <IconRefresh size={12} />
+                    重试
+                  </button>
                 }
               />
+            ) : visibleAssets.length === 0 ? (
+              <EmptyState
+                compact
+                icon={<IconAssetLibrary size={26} />}
+                title={assetQuery.trim() || assetKind !== 'all' ? '没有匹配的资产' : assetNamespace === 'personal' ? '暂无资产' : '暂无素材'}
+                description={
+                  assetQuery.trim() || assetKind !== 'all'
+                    ? '调整搜索词或类型筛选后重试。'
+                    : assetNamespace === 'personal'
+                      ? '上传或保存生成结果后，素材会出现在这里。'
+                      : 'Agent 产生的素材是独立命名空间。'
+                }
+                action={
+                  <button
+                    type="button"
+                    data-testid="sidebar-empty-upload"
+                    onClick={() => setUploadOpen(true)}
+                    className="rounded-lg bg-ink-900 px-3 py-1.5 text-[11px] font-medium text-white"
+                  >
+                    上传资产
+                  </button>
+                }
+              />
+            ) : (
+              <div className="space-y-1 py-1">
+                {visibleAssets.map((asset) => (
+                  <SidebarAssetCard
+                    key={asset.id}
+                    asset={asset}
+                    onActivate={() => {
+                      if (onInsertAsset) onInsertAsset(asset)
+                      else toast(`已选择资产：${asset.name}`, 'info')
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
           <div className="border-t border-ink-100 px-3 py-2.5 text-[11px] text-ink-400">
-            {project?.name} · {canvases.find((c) => c.id === canvasId)?.name}
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate">{project?.name} · {canvases.find((c) => c.id === canvasId)?.name}</span>
+              <span className="shrink-0 tabular-nums">{visibleAssets.length} 项</span>
+            </div>
           </div>
+
+          <UploadDropzone
+            open={uploadOpen}
+            onClose={() => {
+              setUploadOpen(false)
+              void loadAssets()
+            }}
+            namespace={assetNamespace}
+            folderId={null}
+            onUploaded={handleUploaded}
+          />
         </>
       )}
 
@@ -268,4 +504,57 @@ export function AssetSidebar({
       )}
     </aside>
   )
+}
+
+function SidebarAssetCard({ asset, onActivate }: { asset: Asset; onActivate: () => void }) {
+  return (
+    <button
+      type="button"
+      data-testid={`sidebar-asset-${asset.id}`}
+      aria-label={`插入资产 ${asset.name}`}
+      title="点击插入画布"
+      onClick={onActivate}
+      className="group flex w-full items-center gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-ink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+    >
+      <span className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md bg-ink-100">
+        {asset.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={asset.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span
+            className="flex h-full w-full items-center justify-center text-white/85"
+            style={{
+              background: `linear-gradient(145deg, hsl(${sidebarAssetHue(asset.id)} 58% 66%), hsl(${(sidebarAssetHue(asset.id) + 42) % 360} 48% 44%))`,
+            }}
+          >
+            <SidebarAssetIcon kind={asset.kind} size={18} />
+          </span>
+        )}
+        <span className="absolute bottom-0.5 right-0.5 rounded bg-ink-900/60 px-1 text-[9px] text-white">
+          {sidebarAssetKindLabel(asset.kind)}
+        </span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-medium text-ink-800">{asset.name}</span>
+        <span className="mt-0.5 block truncate text-[10px] text-ink-400">
+          {asset.width && asset.height ? `${asset.width}×${asset.height}` : asset.durationSeconds ? `${asset.durationSeconds}s` : asset.tags[0] ?? '本地资产'}
+        </span>
+      </span>
+      <IconChevronDown size={12} className="-rotate-90 shrink-0 text-ink-300 opacity-0 transition-opacity group-hover:opacity-100" />
+    </button>
+  )
+}
+
+function SidebarAssetIcon({ kind, size }: { kind: SidebarAssetKind; size: number }) {
+  if (kind === 'all') return <IconAssetLibrary size={size} />
+  if (kind === 'image') return <IconImage size={size} />
+  if (kind === 'video') return <IconVideo size={size} />
+  if (kind === 'audio') return <IconAudio size={size} />
+  return <IconText size={size} />
+}
+
+function sidebarAssetHue(id: string): number {
+  let hash = 0
+  for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) % 360
+  return hash
 }

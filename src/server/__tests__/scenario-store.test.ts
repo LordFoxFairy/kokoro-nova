@@ -4,7 +4,7 @@ import path from 'node:path'
 
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
 import { buildScenario } from '@/mocks/scenarios/build'
-import { activeScenarioId, invalidateCache, readState, resetStore, withState } from '@/server/store'
+import { activeScenarioId, DATA_DIR, invalidateCache, readState, resetStore, withState } from '@/server/store'
 
 describe.sequential('scenario-backed workspace store', () => {
   afterAll(async () => {
@@ -47,11 +47,26 @@ describe.sequential('scenario-backed workspace store', () => {
 
     const stateFromAnotherBundle = buildScenario('authenticated-populated')
     await fs.writeFile(
-      path.join(process.cwd(), '.data', 'workspace.json'),
+      path.join(DATA_DIR, 'workspace.json'),
       JSON.stringify(stateFromAnotherBundle, null, 2),
       'utf8',
     )
 
     expect((await readState()).projects.map((project) => project.id)).toContain('prj_video_demo')
+  })
+
+  it('refreshes the active scenario when another route bundle rewrites its marker file', async () => {
+    await resetStore('authenticated-empty')
+    expect(await activeScenarioId()).toBe('authenticated-empty')
+
+    const marker = path.join(DATA_DIR, 'scenario.json')
+    const temporary = `${marker}.foreign-bundle.tmp`
+    await fs.writeFile(temporary, JSON.stringify({ scenarioId: 'video-running' }), 'utf8')
+    await fs.rename(temporary, marker)
+
+    expect(await activeScenarioId()).toBe('video-running')
+    const restored = await resetStore()
+    expect(restored.projects.map((project) => project.id)).toContain('prj_video_demo')
+    expect(restored.jobs[0].status).toBe('running')
   })
 })

@@ -21,6 +21,7 @@ import {
   IconClose,
   IconHistory,
   IconPlus,
+  IconRefresh,
   IconSend,
   IconShare,
   IconSkill,
@@ -29,6 +30,34 @@ import {
   IconWarning,
 } from '../icons'
 import { NODE_ICON } from '../canvas/node-visuals'
+
+export type AgentRunState = 'idle' | 'running' | 'success' | 'error'
+
+export function agentRunStateLabel(state: AgentRunState): string {
+  if (state === 'running') return '运行中'
+  if (state === 'success') return '已完成'
+  if (state === 'error') return '需要重试'
+  return '就绪'
+}
+
+export function shouldSubmitAgentKey(input: { key: string; shiftKey?: boolean }): boolean {
+  return input.key === 'Enter' && !input.shiftKey
+}
+
+export function mergeAgentMessages(current: readonly AgentMessage[], incoming: readonly AgentMessage[]): AgentMessage[] {
+  const byId = new Map(current.map((message) => [message.id, message]))
+  for (const message of incoming) byId.set(message.id, message)
+  return [...byId.values()].sort((a, b) => a.seq - b.seq || a.id.localeCompare(b.id))
+}
+
+type AgentOperation =
+  | { kind: 'send'; text: string; context: AgentContextChip[] }
+  | {
+      kind: 'resolve'
+      messageId: string
+      action: 'answer' | 'apply' | 'reject' | 'ignore'
+      answer?: string
+    }
 
 /**
  * Agent side panel.
@@ -57,18 +86,26 @@ export function AgentPanel() {
   const [draft, setDraft] = useState('')
   const [chips, setChips] = useState<AgentContextChip[]>([])
   const [sending, setSending] = useState(false)
+  const [runState, setRunState] = useState<AgentRunState>('idle')
+  const [runError, setRunError] = useState<string | null>(null)
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [sessionsError, setSessionsError] = useState<string | null>(null)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const modelMenu = useMenuAnchor()
   const skillMenu = useMenuAnchor()
   const mentionMenu = useMenuAnchor()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const lastOperation = useRef<AgentOperation | null>(null)
 
   const ensureSession = useCallback(async (): Promise<AgentSession | null> => {
     if (session) return session
     if (!projectId) return null
     const created = await api.post<AgentSession>('/api/agent/sessions', { projectId, canvasId })
     setSession(created)
+    setSessions((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
     return created
   }, [session, projectId, canvasId])
 
@@ -86,42 +123,112 @@ export function AgentPanel() {
     clearAgentRefs()
   }, [pendingRefs, clearAgentRefs])
 
+  const loadSessions = useCallback(async () => {
+    if (!projectId) return
+    setSessionsLoading(true)
+    setSessionsError(null)
+    try {
+      const result = await api.get<{ sessions: AgentSession[] }>(
+        `/api/agent/sessions?projectId=${encodeURIComponent(projectId)}`,
+      )
+      setSessions(result.sessions)
+    } catch (error) {
+      lastOperation.current = null
+      setSessionsError(error instanceof Error ? error.message : '历史会话加载失败')
+    } finally {
+      setSessionsLoading(false)
+    }
+  }, [projectId])
+
   useEffect(() => {
     if (!open || !projectId) return
-    api
-      .get<{ sessions: AgentSession[] }>(`/api/agent/sessions?projectId=${projectId}`)
-      .then((r) => setSessions(r.sessions))
-      .catch(() => undefined)
-  }, [open, projectId, session])
+    void loadSessions()
+  }, [open, projectId, loadSessions])
+
+  useEffect(() => {
+    if (open) return
+    setHistoryOpen(false)
+    setRunState('idle')
+    setRunError(null)
+    setResolvingId(null)
+  }, [open])
+
+  // This side panel is not a Dialog, so give it the same predictable Escape
+  // affordance while allowing the floating Menu component to consume Escape
+  // first in its capture-phase listener.
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        // Menus and modal sheets own Escape. Without the dialog guard a
+        // simultaneously open Director/Asset sheet could close underneath the
+        // agent panel as well, leaving the focus stack in an unexpected state.
+        if (window.document.querySelector('[data-testid="menu"], [role="dialog"]')) return
+        event.preventDefault()
+        setOpen(false)
+        return
+      }
+      if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const target = event.target as HTMLElement | null
+        if (
+          target?.tagName === 'INPUT' ||
+          target?.tagName === 'TEXTAREA' ||
+          target?.isContentEditable ||
+          window.document.querySelector('[role="dialog"]')
+        ) return
+        event.preventDefault()
+        composerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, setOpen])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
-  const send = async () => {
-    const text = draft.trim()
+  const send = async (operation?: Extract<AgentOperation, { kind: 'send' }>) => {
+    const text = (operation?.text ?? draft).trim()
+    const context = operation?.context ?? chips
     if (!text || sending) return
+    lastOperation.current = { kind: 'send', text, context: context.map((chip) => ({ ...chip })) }
     setSending(true)
+    setRunState('running')
+    setRunError(null)
     try {
       const active = await ensureSession()
-      if (!active) return
+      if (!active) throw new Error('当前没有绑定项目或画布')
       const result = await api.post<{ session: AgentSession; messages: AgentMessage[] }>(
         `/api/agent/sessions/${active.id}/messages`,
-        { text, context: chips },
+        { text, context },
       )
       setSession(result.session)
-      setMessages((prev) => [...prev, ...result.messages])
+      setMessages((prev) => mergeAgentMessages(prev, result.messages))
       setDraft('')
       setChips([])
+      setRunState('success')
+      lastOperation.current = null
     } catch (error) {
-      toast(error instanceof Error ? error.message : '发送失败', 'error')
+      const message = error instanceof Error ? error.message : '发送失败'
+      setRunState('error')
+      setRunError(message)
+      toast(message, 'error')
     } finally {
       setSending(false)
     }
   }
 
-  const resolve = async (messageId: string, action: 'answer' | 'apply' | 'reject' | 'ignore', answer?: string) => {
-    if (!session) return
+  const resolve = async (
+    messageId: string,
+    action: 'answer' | 'apply' | 'reject' | 'ignore',
+    answer?: string,
+  ) => {
+    if (!session || resolvingId) return
+    lastOperation.current = { kind: 'resolve', messageId, action, answer }
+    setResolvingId(messageId)
+    setRunState('running')
+    setRunError(null)
     try {
       const result = await api.patch<{
         session: AgentSession
@@ -131,17 +238,49 @@ export function AgentPanel() {
       }>(`/api/agent/sessions/${session.id}/messages`, { messageId, action, answer })
 
       setSession(result.session)
-      setMessages((prev) => {
-        const map = new Map(prev.map((m) => [m.id, m]))
-        for (const message of result.messages) map.set(message.id, message)
-        return [...map.values()].sort((a, b) => a.seq - b.seq)
-      })
+      setMessages((prev) => mergeAgentMessages(prev, result.messages))
       if (result.document && typeof result.revision === 'number') {
         applyServerDocument(result.document, result.revision)
         toast('已应用到画布', 'success')
       }
+      setRunState('success')
+      lastOperation.current = null
     } catch (error) {
-      toast(error instanceof Error ? error.message : '操作失败', 'error')
+      const message = error instanceof Error ? error.message : '操作失败'
+      setRunState('error')
+      setRunError(message)
+      toast(message, 'error')
+    } finally {
+      setResolvingId(null)
+    }
+  }
+
+  const retryOperation = () => {
+    const operation = lastOperation.current
+    if (!operation) return
+    if (operation.kind === 'send') {
+      void send(operation)
+      return
+    }
+    void resolve(operation.messageId, operation.action, operation.answer)
+  }
+
+  const updateSessionSettings = async (patch: {
+    generationMode?: AgentSession['settings']['generationMode']
+    modelId?: string
+  }) => {
+    try {
+      const active = await ensureSession()
+      if (!active) throw new Error('当前没有绑定项目或画布')
+      const updated = await api.patch<AgentSession>(`/api/agent/sessions/${active.id}`, patch)
+      setSession(updated)
+      setSessions((prev) => [updated, ...prev.filter((item) => item.id !== updated.id)])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '会话设置保存失败'
+      lastOperation.current = null
+      setRunState('error')
+      setRunError(message)
+      toast(message, 'error')
     }
   }
 
@@ -188,12 +327,33 @@ export function AgentPanel() {
         <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-900">
           {session?.title ?? '新会话'}
         </span>
+        <span
+          data-testid="agent-run-status"
+          data-state={runState}
+          aria-live="polite"
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px]',
+            runState === 'running'
+              ? 'bg-running/10 text-running'
+              : runState === 'error'
+                ? 'bg-danger/10 text-danger'
+                : runState === 'success'
+                  ? 'bg-success/10 text-success'
+                  : 'bg-ink-100 text-ink-500',
+          )}
+        >
+          {agentRunStateLabel(runState)}
+        </span>
         <IconButton
           label="新建会话"
           onClick={() => {
             setSession(null)
             setMessages([])
             setChips([])
+            setDraft('')
+            setRunState('idle')
+            setRunError(null)
+            lastOperation.current = null
           }}
         >
           <IconPlus size={15} />
@@ -206,8 +366,16 @@ export function AgentPanel() {
           disabled={messages.length === 0}
           onClick={async () => {
             if (!session) return
-            await api.patch(`/api/agent/sessions/${session.id}`, { shared: true })
-            toast('分享链接已复制', 'success')
+            try {
+              await api.patch(`/api/agent/sessions/${session.id}`, { shared: true })
+              toast('分享链接已复制', 'success')
+            } catch (error) {
+              const message = error instanceof Error ? error.message : '分享失败'
+              lastOperation.current = null
+              setRunState('error')
+              setRunError(message)
+              toast(message, 'error')
+            }
           }}
         >
           <IconShare size={15} />
@@ -219,7 +387,24 @@ export function AgentPanel() {
 
       {historyOpen && (
         <div className="thin-scrollbar max-h-48 overflow-y-auto border-y border-ink-100 bg-ink-50 p-2">
-          {sessions.length === 0 ? (
+          {sessionsLoading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-[12px] text-ink-400" data-testid="agent-history-loading">
+              <Spinner size={13} /> 加载会话
+            </div>
+          ) : sessionsError ? (
+            <div className="flex items-start gap-2 rounded-lg border border-danger/20 bg-danger/6 p-2.5 text-[11px] text-danger" role="alert" data-testid="agent-history-error">
+              <IconWarning size={13} className="mt-px shrink-0" />
+              <span className="min-w-0 flex-1">{sessionsError}</span>
+              <button
+                type="button"
+                data-testid="agent-history-retry"
+                onClick={() => void loadSessions()}
+                className="shrink-0 rounded px-1.5 py-0.5 font-medium hover:bg-danger/10"
+              >
+                重试
+              </button>
+            </div>
+          ) : sessions.length === 0 ? (
             <EmptyState compact title="暂无历史会话" />
           ) : (
             sessions.map((s) => (
@@ -227,12 +412,23 @@ export function AgentPanel() {
                 <button
                   type="button"
                   onClick={async () => {
-                    const data = await api.get<{ session: AgentSession; messages: AgentMessage[] }>(
-                      `/api/agent/sessions/${s.id}`,
-                    )
-                    setSession(data.session)
-                    setMessages(data.messages)
-                    setHistoryOpen(false)
+                    try {
+                      const data = await api.get<{ session: AgentSession; messages: AgentMessage[] }>(
+                        `/api/agent/sessions/${s.id}`,
+                      )
+                      setSession(data.session)
+                      setMessages(mergeAgentMessages([], data.messages))
+                      setRunState('idle')
+                      setRunError(null)
+                      setHistoryOpen(false)
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : '会话加载失败'
+                      lastOperation.current = null
+                      setSessionsError(message)
+                      setRunState('error')
+                      setRunError(message)
+                      toast(message, 'error')
+                    }
                   }}
                   className="min-w-0 flex-1 truncate text-left text-[12px] text-ink-700"
                 >
@@ -242,11 +438,20 @@ export function AgentPanel() {
                   type="button"
                   aria-label="删除会话"
                   onClick={async () => {
-                    await api.del(`/api/agent/sessions/${s.id}`)
-                    setSessions((prev) => prev.filter((x) => x.id !== s.id))
-                    if (session?.id === s.id) {
-                      setSession(null)
-                      setMessages([])
+                    try {
+                      await api.del(`/api/agent/sessions/${s.id}`)
+                      setSessions((prev) => prev.filter((x) => x.id !== s.id))
+                      if (session?.id === s.id) {
+                        setSession(null)
+                        setMessages([])
+                        setRunState('idle')
+                        setRunError(null)
+                      }
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : '删除会话失败'
+                      lastOperation.current = null
+                      setSessionsError(message)
+                      toast(message, 'error')
                     }
                   }}
                   className="rounded p-1 text-ink-400 opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
@@ -268,12 +473,33 @@ export function AgentPanel() {
           />
         ) : (
           messages.map((message) => (
-            <MessageBubble key={message.id} message={message} onResolve={resolve} />
+            <MessageBubble key={message.id} message={message} onResolve={resolve} busy={resolvingId === message.id} />
           ))
         )}
         {sending && (
           <div className="flex items-center gap-2 text-[12px] text-ink-400">
             <Spinner size={13} /> 思考中
+          </div>
+        )}
+        {runState === 'error' && runError && (
+          <div
+            className="flex items-start gap-2 rounded-xl border border-danger/20 bg-danger/6 px-3 py-2 text-[11px] text-danger"
+            role="alert"
+            data-testid="agent-run-error"
+          >
+            <IconWarning size={14} className="mt-px shrink-0" />
+            <span className="min-w-0 flex-1">{runError}</span>
+            {lastOperation.current && (
+              <button
+                type="button"
+                data-testid="agent-retry"
+                onClick={retryOperation}
+                className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-medium hover:bg-danger/10"
+              >
+                <IconRefresh size={12} />
+                重试
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -296,19 +522,22 @@ export function AgentPanel() {
         )}
 
         <textarea
+          ref={composerRef}
           value={draft}
           data-testid="agent-input"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (shouldSubmitAgentKey(e)) {
               e.preventDefault()
               void send()
             }
           }}
+          aria-keyshortcuts="Enter"
           rows={3}
           placeholder="描述你想制作的内容，或选中画布节点后提问"
           className="w-full resize-none rounded-xl border border-ink-200 p-2.5 text-[13px] leading-relaxed outline-none transition-colors placeholder:text-ink-300 focus:border-accent"
         />
+        <div className="mt-1 text-[10px] text-ink-300">Enter 发送 · Shift+Enter 换行 · Esc 收起面板</div>
 
         <div className="mt-2 flex items-center gap-1">
           <IconButton label="附件" onClick={() => toast('请从画布或资产库选择素材', 'info')}>
@@ -333,14 +562,7 @@ export function AgentPanel() {
             <SegmentedControl
               size="sm"
               value={session?.settings.generationMode ?? 'manual'}
-              onChange={async (mode) => {
-                const active = await ensureSession()
-                if (!active) return
-                const updated = await api.patch<AgentSession>(`/api/agent/sessions/${active.id}`, {
-                  generationMode: mode,
-                })
-                setSession(updated)
-              }}
+              onChange={(mode) => void updateSessionSettings({ generationMode: mode })}
               options={[
                 { value: 'manual', label: '手动' },
                 { value: 'auto', label: '自动' },
@@ -350,7 +572,7 @@ export function AgentPanel() {
               type="button"
               data-testid="agent-send"
               disabled={!draft.trim() || sending}
-              onClick={send}
+              onClick={() => void send()}
               className={cn(
                 'rounded-full p-2 transition-colors',
                 draft.trim() && !sending ? 'bg-ink-900 text-white hover:opacity-85' : 'bg-ink-100 text-ink-300',
@@ -380,14 +602,7 @@ export function AgentPanel() {
                 label: model.label,
                 shortcut: model.latencyLabel,
                 checked: model.id === session?.settings.modelId,
-                onSelect: async () => {
-                  const active = await ensureSession()
-                  if (!active) return
-                  const updated = await api.patch<AgentSession>(`/api/agent/sessions/${active.id}`, {
-                    modelId: model.id,
-                  })
-                  setSession(updated)
-                },
+                onSelect: () => void updateSessionSettings({ modelId: model.id }),
               })),
             },
           ]}
@@ -460,9 +675,11 @@ function IconButton({
 function MessageBubble({
   message,
   onResolve,
+  busy = false,
 }: {
   message: AgentMessage
   onResolve: (messageId: string, action: 'answer' | 'apply' | 'reject' | 'ignore', answer?: string) => void
+  busy?: boolean
 }) {
   const [answer, setAnswer] = useState('')
 
@@ -486,10 +703,19 @@ function MessageBubble({
   }
 
   if (message.role === 'tool') {
+    const toolStatus = message.payload?.kind === 'tool_call' ? message.payload.status : 'ok'
     return (
-      <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
-        <span className="h-1 w-1 rounded-full bg-success" />
-        {message.content}
+      <div
+        className={cn(
+          'flex items-center gap-1.5 text-[11px]',
+          toolStatus === 'error' ? 'text-danger' : toolStatus === 'running' ? 'text-running' : 'text-ink-400',
+        )}
+        data-testid="agent-tool-status"
+        data-state={toolStatus}
+      >
+        <span className={cn('h-1.5 w-1.5 rounded-full', toolStatus === 'error' ? 'bg-danger' : toolStatus === 'running' ? 'bg-running' : 'bg-success')} />
+        <span className="min-w-0 flex-1">{message.content}</span>
+        <span className="shrink-0">{toolStatus === 'running' ? '运行中' : toolStatus === 'error' ? '失败' : '完成'}</span>
       </div>
     )
   }
@@ -516,6 +742,7 @@ function MessageBubble({
           <div className="mt-2 flex justify-end gap-1.5">
             <button
               type="button"
+              disabled={busy}
               onClick={() => onResolve(message.id, 'ignore')}
               className="rounded-lg px-2.5 py-1.5 text-[12px] text-ink-500 hover:bg-ink-50"
             >
@@ -524,7 +751,7 @@ function MessageBubble({
             <button
               type="button"
               data-testid="ask-human-submit"
-              disabled={!answer.trim()}
+              disabled={!answer.trim() || busy}
               onClick={() => onResolve(message.id, 'answer', answer)}
               className={cn(
                 'rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors',
@@ -552,6 +779,7 @@ function MessageBubble({
             <div className="mt-2.5 flex justify-end gap-1.5">
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => onResolve(message.id, 'reject')}
                 className="rounded-lg px-2.5 py-1.5 text-[12px] text-ink-500 hover:bg-ink-50"
               >
@@ -560,10 +788,11 @@ function MessageBubble({
               <button
                 type="button"
                 data-testid="apply-mutations"
+                disabled={busy}
                 onClick={() => onResolve(message.id, 'apply')}
-                className="rounded-lg bg-ink-900 px-3 py-1.5 text-[12px] font-medium text-white"
+                className="rounded-lg bg-ink-900 px-3 py-1.5 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                应用到画布
+                {busy ? '处理中…' : '应用到画布'}
               </button>
             </div>
           ) : (

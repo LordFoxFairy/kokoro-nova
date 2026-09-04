@@ -45,7 +45,7 @@ export interface ScriptV2RunControllerOptions {
   canvasId: string
   nodeId: string
   getState(): ScriptV2State
-  onStateChange(state: ScriptV2State): void
+  onStateChange(state: ScriptV2State): void | Promise<void>
   api?: ScriptV2RunApi
   flushPendingPromptEdits?(): void | Promise<void>
   onRunChange?(run: ScriptV2Run | null): void
@@ -74,6 +74,31 @@ export interface ScriptV2RunController {
   getActiveRun(): ScriptV2Run | null
   getProgressByRowId(): Record<string, number>
   dispose(): void
+}
+
+/**
+ * The canvas revision queue intentionally makes editor props eventually
+ * consistent. A render may therefore briefly carry a snapshot that predates
+ * an optimistic controller checkpoint. Never let that snapshot move a prompt
+ * batch backwards (for example, from the first completed 20-shot batch back
+ * to `running` while the 21st shot is being submitted).
+ */
+function promptBatchStateIsBehind(
+  incoming: ScriptV2State,
+  current: ScriptV2State,
+): boolean {
+  for (const currentRun of current.promptBatchRuns) {
+    const incomingRun = incoming.promptBatchRuns.find((run) => run.runId === currentRun.runId)
+    if (!incomingRun) return true
+    if (currentRun.status === 'completed' && incomingRun.status !== 'completed') return true
+
+    for (const currentBatch of currentRun.batches) {
+      const incomingBatch = incomingRun.batches.find((batch) => batch.batchId === currentBatch.batchId)
+      if (!incomingBatch) return true
+      if (currentBatch.status === 'succeeded' && incomingBatch.status !== 'succeeded') return true
+    }
+  }
+  return false
 }
 
 function abortError(): Error {
@@ -129,6 +154,13 @@ export function createScriptV2RunController(
   let disposed = false
   let resumeInFlight = false
   let progressByRowId: Record<string, number> = {}
+  /**
+   * Canvas writes are asynchronous. Track them so a completed local run does
+   * not resolve while its final state is still waiting behind the editor's
+   * revision queue. This is especially important for 20+1 prompt batches,
+   * which persist several intermediate checkpoints.
+   */
+  const pendingStateWrites = new Set<Promise<void>>()
 
   const emitRun = (run: ScriptV2Run | null) => {
     activeRun = run ? structuredClone(run) : null
@@ -144,7 +176,23 @@ export function createScriptV2RunController(
   }
 
   const commitState = (state: ScriptV2State) => {
-    if (!disposed) options.onStateChange(state)
+    if (disposed) return
+    const result = options.onStateChange(state)
+    if (!result || typeof (result as PromiseLike<void>).then !== 'function') return
+    const pending = Promise.resolve(result)
+    pendingStateWrites.add(pending)
+    // Handle rejection immediately; the operation's flush boundary still
+    // observes and propagates it through Promise.all.
+    void pending.then(
+      () => pendingStateWrites.delete(pending),
+      () => pendingStateWrites.delete(pending),
+    )
+  }
+
+  const flushStateWrites = async () => {
+    while (pendingStateWrites.size > 0) {
+      await Promise.all([...pendingStateWrites])
+    }
   }
 
   const delay = (signal: AbortSignal) =>
@@ -337,6 +385,7 @@ export function createScriptV2RunController(
             run.result.assets.props.length +
             1,
         })
+        await flushStateWrites()
         return run
       } finally {
         finish(operation)
@@ -362,6 +411,7 @@ export function createScriptV2RunController(
           throw new Error('Script V2 资产识别结果与 operation 不匹配')
         }
         commitState({ ...options.getState(), assets: run.result.assets })
+        await flushStateWrites()
         return run
       } finally {
         finish(operation)
@@ -486,6 +536,7 @@ export function createScriptV2RunController(
           completed.push(finished)
         }
         updateBatchRun(runId, (run) => ({ ...run, status: 'completed' }))
+        await flushStateWrites()
         return completed
       } catch (error) {
         if (!disposed) {
@@ -582,6 +633,7 @@ export function createScriptV2RunController(
             updatedAt: FIXTURE_TIMESTAMP,
           }))
         }
+        await flushStateWrites()
       } finally {
         resumeInFlight = false
         finish(operation)
@@ -620,6 +672,7 @@ export function createScriptV2RunController(
           commitState(replaceAsset(options.getState(), finished.result.asset))
           results.push(finished)
         }
+        await flushStateWrites()
         return results
       } finally {
         finish(operation)
@@ -660,7 +713,7 @@ export interface UseScriptV2RunsOptions {
   canvasId?: string
   nodeId: string
   state: ScriptV2State
-  onStateChange(state: ScriptV2State): void
+  onStateChange(state: ScriptV2State): void | Promise<void>
   flushPendingPromptEdits?(): void | Promise<void>
   resumePersistedPromptRuns?: boolean
 }
@@ -669,7 +722,9 @@ export function useScriptV2Runs(options: UseScriptV2RunsOptions) {
   const stateRef = useRef(options.state)
   const callbackRef = useRef(options.onStateChange)
   const flushRef = useRef(options.flushPendingPromptEdits)
-  stateRef.current = options.state
+  if (!promptBatchStateIsBehind(options.state, stateRef.current)) {
+    stateRef.current = options.state
+  }
   callbackRef.current = options.onStateChange
   flushRef.current = options.flushPendingPromptEdits
   const [activeRun, setActiveRun] = useState<ScriptV2Run | null>(null)
@@ -683,7 +738,7 @@ export function useScriptV2Runs(options: UseScriptV2RunsOptions) {
         getState: () => stateRef.current,
         onStateChange: (state) => {
           stateRef.current = state
-          callbackRef.current(state)
+          return callbackRef.current(state)
         },
         flushPendingPromptEdits: () => flushRef.current?.(),
         onRunChange: setActiveRun,

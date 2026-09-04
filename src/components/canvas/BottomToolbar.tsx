@@ -26,6 +26,40 @@ import {
 } from '../icons'
 import { NODE_ICON } from './node-visuals'
 
+export const CANVAS_TOOLBAR_RESPONSIVE_BREAKPOINT = 1100
+
+const CANVAS_TOOLBAR_RESPONSIVE_STYLES = `
+@media (max-width: ${CANVAS_TOOLBAR_RESPONSIVE_BREAKPOINT}px) {
+  [data-testid="canvas-status-rail"] {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 4.5rem;
+    max-width: calc(100% - 1rem);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  [data-testid="canvas-primary-rail"] {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    max-width: calc(100% - 1rem);
+    transform: none;
+    /* Tailwind v4 emits translate as an individual property. Reset it too,
+     * otherwise the desktop -translate-x-1/2 still moves this full-width rail
+     * completely off the left edge at compact widths. */
+    translate: none;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  [data-testid="canvas-status-rail"] > *,
+  [data-testid="canvas-primary-rail"] > * {
+    flex: 0 0 auto;
+  }
+}
+`
+
 interface BottomToolbarProps {
   onAddNode: (type: NodeType) => void
   onAutoArrange: () => void
@@ -111,6 +145,7 @@ export function BottomToolbar({
 
   return (
     <>
+      <style>{CANVAS_TOOLBAR_RESPONSIVE_STYLES}</style>
       {/* Left status cluster */}
       <div
         data-testid="canvas-status-rail"

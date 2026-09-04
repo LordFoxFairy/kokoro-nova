@@ -4,9 +4,13 @@ import {
   availableVideoModes,
   CompileError,
   compileNode,
+  compileVideoNode,
   runnableNodes,
   upstreamNodes,
+  videoInputContract,
+  videoModeContracts,
 } from '@/domain/compile'
+import type { VideoModeContract } from '@/domain/compile'
 import { defaultAudioAuthoringState } from '@/domain/audio-authoring'
 import { createEdge, createNode, emptyDocument } from '@/domain/factory'
 import { PRICE_VERSION } from '@/domain/models'
@@ -327,6 +331,127 @@ describe('availableVideoModes', () => {
       { op: 'addEdge', edge: createEdge(audio.id, human.id) },
     ])
     expect(availableVideoModes(humanReady, human.id)).toEqual(['digital-human'])
+  })
+})
+
+describe('video compile contract', () => {
+  it('merges graph edges and dropped references in one ordered input snapshot', () => {
+    const image = node('image', 'nd_contract_image', {
+      artifacts: [artifact('image', '/fixtures/image-edge.webp')],
+    })
+    const video = node('video', 'nd_contract_video', {
+      artifacts: [artifact('video', '/fixtures/video-edge.mp4')],
+    })
+    const target = node('video', 'nd_contract_target', {
+      prompt: '保持主体一致',
+      modelId: 'kling-o3',
+      references: [
+        { id: 'ref_image', kind: 'image', origin: 'asset', refId: 'asset-image', label: '图片资产' },
+        { id: 'ref_style', kind: 'style', origin: 'asset', refId: 'style-noir', label: '黑白风格' },
+        { id: 'ref_stale_node', kind: 'video', origin: 'node', refId: 'nd_not-linked', label: '旧节点引用' },
+      ],
+    })
+    const doc = build([image, video, target], [
+      { op: 'addEdge', edge: createEdge(video.id, target.id) },
+      { op: 'addEdge', edge: createEdge(image.id, target.id) },
+    ])
+
+    const contract = videoInputContract(doc, target.id)
+
+    expect(contract.inputs).toEqual([
+      { kind: 'video', value: '/fixtures/video-edge.mp4', fromNodeId: video.id },
+      { kind: 'image', value: '/fixtures/image-edge.webp', fromNodeId: image.id },
+      { kind: 'image', value: 'asset-image', fromNodeId: null },
+      { kind: 'style', value: 'style-noir', fromNodeId: null },
+    ])
+    expect(contract.counts).toEqual({ images: 2, videos: 1, audios: 0, anyMedia: 3 })
+    expect(contract.staleNodeReferences).toEqual(['nd_not-linked'])
+  })
+
+  it('resolves a polymorphic asset-library node through its declared media kind', () => {
+    const asset = node('assetLibrary', 'nd_asset_library', {
+      artifacts: [artifact('image', '/fixtures/library-image.webp')],
+      extra: { assetKind: 'image', assetId: 'asset-image' },
+    })
+    const target = node('video', 'nd_asset_target', {
+      prompt: '使用资产库图片',
+      modelId: 'seedance-2-5',
+    })
+    const doc = build([asset, target], [{ op: 'addEdge', edge: createEdge(asset.id, target.id) }])
+
+    expect(compileNode(doc, target.id).spec.inputs).toEqual([
+      { kind: 'image', value: '/fixtures/library-image.webp', fromNodeId: asset.id },
+    ])
+  })
+
+  it('makes incompatible reference kinds unavailable instead of allowing a mode to discard them', () => {
+    const image = node('image', 'nd_mode_image', { artifacts: [artifact('image', '/fixtures/mode-image.webp')] })
+    const video = node('video', 'nd_mode_video', { artifacts: [artifact('video', '/fixtures/mode-video.mp4')] })
+    const target = node('video', 'nd_mode_target', {
+      prompt: '编辑视频',
+      modelId: 'kling-o3',
+      output: { mode: 'image2video' },
+    })
+    const doc = build([image, video, target], [
+      { op: 'addEdge', edge: createEdge(image.id, target.id) },
+      { op: 'addEdge', edge: createEdge(video.id, target.id) },
+    ])
+
+    expect(videoModeContracts(doc, target.id).find((item: VideoModeContract) => item.mode === 'image2video')).toMatchObject({
+      available: false,
+      reason: '图生视频不接受视频参考',
+    })
+    expect(() => compileVideoNode(doc, target.id)).toThrow('图生视频不接受视频参考')
+  })
+
+  it('compiles digital-human references and emits only canonical video output fields', () => {
+    const target = node('video', 'nd_human_target', {
+      prompt: '数字人口播',
+      modelId: 'omnihuman-1-5',
+      output: {
+        mode: 'digital-human',
+        aspectRatio: '9:16',
+        resolution: '1080p',
+        durationSeconds: 10,
+        count: 1,
+        withAudio: false,
+        quality: 'high',
+        voiceId: 'stale-voice',
+      },
+      references: [
+        { id: 'ref_human_image', kind: 'image', origin: 'upload', refId: 'upload-face', label: '人像' },
+        { id: 'ref_human_audio', kind: 'audio', origin: 'asset', refId: 'asset-voice', label: '口播音频' },
+      ],
+    })
+
+    const { spec } = compileNode(build([target]), target.id)
+
+    expect(spec.inputs).toEqual([
+      { kind: 'image', value: 'upload-face', fromNodeId: null },
+      { kind: 'audio', value: 'asset-voice', fromNodeId: null },
+    ])
+    expect(spec.output).toEqual({
+      aspectRatio: '9:16',
+      resolution: '1080p',
+      durationSeconds: 10,
+      count: 1,
+      withAudio: true,
+      mode: 'digital-human',
+    })
+  })
+
+  it('reports an explicit failure when a video node is paired with a non-video model', () => {
+    const target = node('video', 'nd_wrong_model', { prompt: '测试', modelId: 'lib-image-2' })
+    expect(() => compileNode(build([target]), target.id)).toThrow('视频节点需要视频模型')
+  })
+
+  it('strict compilation does not silently repair an unavailable selected mode', () => {
+    const target = node('video', 'nd_strict_mode', {
+      prompt: '只允许文字生成',
+      modelId: 'seedance-2-5',
+      output: { mode: 'image2video' },
+    })
+    expect(() => compileVideoNode(build([target]), target.id)).toThrow('需要 1 张图片参考')
   })
 })
 

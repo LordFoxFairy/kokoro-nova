@@ -19,6 +19,7 @@ import {
   compositeDuration,
   createSubtitle,
   emptyCompositeDocument,
+  MIN_CLIP_SECONDS,
   moveClip,
   readCompositeDocument,
   removeClip,
@@ -69,9 +70,18 @@ import { Spinner } from '../ui/controls'
 
 type EditorTool = 'clip' | 'transition' | 'subtitle'
 type SubtitleTab = 'subtitle' | 'text'
+type TimelineFeedbackTone = 'info' | 'success' | 'error'
+
+interface TimelineFeedback {
+  tone: TimelineFeedbackTone
+  message: string
+}
 
 const PX_PER_SECOND = 40
 const TIMELINE_HEIGHT = 255
+const PLAYHEAD_STEP_SECONDS = 0.1
+const PLAYHEAD_PAGE_STEP_SECONDS = 1
+const DEFAULT_SOURCE_ASPECT_RATIO = '16 / 9'
 
 const TRANSITION_UI: Record<CompositeTransitionId, { label: string; accent: string }> = {
   fade: { label: '淡入淡出', accent: 'from-amber-300/80 via-slate-500/70 to-cyan-800/80' },
@@ -79,17 +89,63 @@ const TRANSITION_UI: Record<CompositeTransitionId, { label: string; accent: stri
   'to-white': { label: '白场过渡', accent: 'from-slate-500 via-white to-slate-300' },
 }
 
-function collectSources(document: WorkflowDocument): CompositeSource[] {
+type SourceDimensions = Pick<Artifact, 'width' | 'height'>
+
+function validDimension(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+/** Use provider metadata rather than the size of the editor card. */
+export function sourceAspectRatio(dimensions: SourceDimensions | null | undefined): string {
+  if (!validDimension(dimensions?.width) || !validDimension(dimensions?.height)) {
+    return DEFAULT_SOURCE_ASPECT_RATIO
+  }
+  return `${dimensions.width} / ${dimensions.height}`
+}
+
+function greatestCommonDivisor(left: number, right: number): number {
+  let a = Math.abs(left)
+  let b = Math.abs(right)
+  while (b !== 0) {
+    const remainder = a % b
+    a = b
+    b = remainder
+  }
+  return a || 1
+}
+
+export function sourceAspectRatioLabel(dimensions: SourceDimensions | null | undefined): string {
+  if (!validDimension(dimensions?.width) || !validDimension(dimensions?.height)) return '16:9'
+  if (!Number.isInteger(dimensions.width) || !Number.isInteger(dimensions.height)) {
+    return `${dimensions.width}:${dimensions.height}`
+  }
+  const divisor = greatestCommonDivisor(dimensions.width, dimensions.height)
+  return `${dimensions.width / divisor}:${dimensions.height / divisor}`
+}
+
+export function collectSources(document: WorkflowDocument): CompositeSource[] {
   const seen = new Set<string>()
   const result: CompositeSource[] = []
   for (const node of document.nodes) {
     for (const artifact of node.data.artifacts ?? []) {
       if ((artifact.kind !== 'video' && artifact.kind !== 'audio') || seen.has(artifact.id)) continue
       seen.add(artifact.id)
-      result.push({ artifact, nodeId: node.id, nodeName: node.name })
+      const nodeType = artifact.kind === 'video'
+        ? node.type === 'videoComposite' ? 'videoComposite' : 'video'
+        : undefined
+      result.push({
+        artifact,
+        nodeId: node.id,
+        nodeName: node.name,
+        ...(nodeType ? { nodeType } : {}),
+      })
     }
   }
   return result
+}
+
+export function isExcludedCompositeSource(source: CompositeSource): boolean {
+  return source.nodeType === 'videoComposite'
 }
 
 function compositeNodeOf(document: WorkflowDocument): WorkflowNode | null {
@@ -98,6 +154,37 @@ function compositeNodeOf(document: WorkflowDocument): WorkflowNode | null {
 
 function clipSeconds(clip: CompositeClip) {
   return (clip.outPoint - clip.inPoint) / clip.speed
+}
+
+export function playheadValueForKey(current: number, key: string, total: number): number | null {
+  const maximum = Number.isFinite(total) ? Math.max(0, total) : 0
+  const value = Number.isFinite(current) ? Math.max(0, Math.min(maximum, current)) : 0
+  let next: number
+  switch (key) {
+    case 'Home':
+      next = 0
+      break
+    case 'End':
+      next = maximum
+      break
+    case 'ArrowLeft':
+    case 'ArrowDown':
+      next = value - PLAYHEAD_STEP_SECONDS
+      break
+    case 'ArrowRight':
+    case 'ArrowUp':
+      next = value + PLAYHEAD_STEP_SECONDS
+      break
+    case 'PageDown':
+      next = value - PLAYHEAD_PAGE_STEP_SECONDS
+      break
+    case 'PageUp':
+      next = value + PLAYHEAD_PAGE_STEP_SECONDS
+      break
+    default:
+      return null
+  }
+  return Number(Math.max(0, Math.min(maximum, next)).toFixed(3))
 }
 
 function timeLabel(seconds: number) {
@@ -124,6 +211,37 @@ function activeClipAt(document: CompositeDocument, playhead: number) {
   return null
 }
 
+export function splitValidationMessage(
+  document: CompositeDocument,
+  clipId: string | null,
+  playheadSeconds: number,
+): string | null {
+  if (!clipId) return '请先选择一个片段后再分割。'
+  const index = document.clips.findIndex((clip) => clip.id === clipId)
+  if (index === -1) return '所选片段已不存在，请重新选择后再分割。'
+  if (!Number.isFinite(playheadSeconds)) return '播放头位置无效，请重新定位后再分割。'
+
+  const clip = document.clips[index]
+  const start = clipTimelineStart(document, index)
+  const end = start + clipSeconds(clip)
+  if (playheadSeconds === start) {
+    return '播放头位于所选片段起点，当前边界不支持分割；请将播放头移到片段内部。'
+  }
+  if (playheadSeconds < start) {
+    return '播放头不在所选片段内部（位于片段之前），请移到片段内部后再分割。'
+  }
+  if (playheadSeconds === end) {
+    return '播放头位于所选片段终点，当前边界不支持分割；请将播放头移到片段内部。'
+  }
+  if (playheadSeconds > end) {
+    return '播放头不在所选片段内部（位于片段之后），请移到片段内部后再分割。'
+  }
+  if (clip.outPoint - clip.inPoint <= MIN_CLIP_SECONDS * 2) {
+    return '所选片段太短，至少需要 0.1 秒源素材才能分割。'
+  }
+  return null
+}
+
 /**
  * The official compositor replaces the right two thirds of Storyboard rather
  * than opening a modal. Its timeline is a versioned canvas-node document, so
@@ -141,13 +259,25 @@ export function ClipEditor({
   const workflow = useEditor((state) => state.document)
   const commitWith = useEditor((state) => state.commitWith)
   const toast = useEditor((state) => state.toast)
-  const sources = useMemo(() => collectSources(workflow), [workflow])
+  const allSources = useMemo(() => collectSources(workflow), [workflow])
+  const sources = useMemo(
+    () => allSources.filter((source) => !isExcludedCompositeSource(source)),
+    [allSources],
+  )
+  const excludedCompositeSources = useMemo(
+    () => allSources.filter(isExcludedCompositeSource),
+    [allSources],
+  )
   const videos = useMemo(() => sources.filter((source) => source.artifact.kind === 'video'), [sources])
   const audios = useMemo(() => sources.filter((source) => source.artifact.kind === 'audio'), [sources])
+  const sourceByArtifactId = useMemo(
+    () => new Map(allSources.map((source) => [source.artifact.id, source])),
+    [allSources],
+  )
   const compositeNode = useMemo(() => compositeNodeOf(workflow), [workflow])
   const timeline = useMemo(
-    () => readCompositeDocument(compositeNode?.data.extra, sources),
-    [compositeNode?.data.extra, sources],
+    () => readCompositeDocument(compositeNode?.data.extra, allSources),
+    [allSources, compositeNode?.data.extra],
   )
 
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null)
@@ -163,6 +293,8 @@ export function ClipEditor({
   const [rendering, setRendering] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [timelineFeedback, setTimelineFeedback] = useState<TimelineFeedback | null>(null)
   const [notes, setNotes] = useState<string[]>([])
   const [trackViewportWidth, setTrackViewportWidth] = useState(0)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -182,6 +314,9 @@ export function ClipEditor({
   const active = useMemo(() => activeClipAt(timeline, playhead), [playhead, timeline])
   const activeClip = active?.clip ?? null
   const activeClipStart = active?.start ?? 0
+  const activeSource = activeClip ? sourceByArtifactId.get(activeClip.artifactId) : undefined
+  const activeAspectRatio = sourceAspectRatio(activeSource?.artifact)
+  const splitHint = splitValidationMessage(timeline, selectedClipId, playhead)
   const activeSubtitle = timeline.subtitles.find(
     (subtitle) => subtitle.visible && playhead >= subtitle.start && playhead <= subtitle.end,
   )
@@ -210,7 +345,8 @@ export function ClipEditor({
 
   const seek = useCallback(
     (seconds: number) => {
-      const value = Math.max(0, Math.min(total, seconds))
+      const value = Number.isFinite(seconds) ? Math.max(0, Math.min(total, seconds)) : 0
+      playheadRef.current = value
       setPlayhead(value)
       void persist((document) => ({ ...document, playheadSeconds: value }), '定位视频时间线')
     },
@@ -324,16 +460,77 @@ export function ClipEditor({
   }, [close, empty, exportOpen, open, tool])
 
   const addSource = (source: CompositeSource) => {
-    if (source.artifact.kind === 'video') {
+    setFailure(null)
+    setSuccess(null)
+    if (isExcludedCompositeSource(source)) {
+      setTimelineFeedback({
+        tone: 'error',
+        message: '当前合成已排除：当前 videoComposite 不是可添加的源素材，请改用其他视频。',
+      })
+      return
+    }
+
+    const isVideo = source.artifact.kind === 'video'
+    const sourceLabel = source.nodeName || '源素材'
+    setTimelineFeedback({
+      tone: 'info',
+      message: `正在将「${sourceLabel}」添加到${isVideo ? '时间线' : '音轨'}…`,
+    })
+
+    if (isVideo) {
       const preview = appendClip(timeline, source)
       setSelectedClipId(preview.clips.at(-1)?.id ?? null)
       setSelectedAudioId(null)
-      void persist((document) => appendClip(document, source), '添加视频片段')
+      void persist((document) => appendClip(document, source), '添加视频片段').then((saved) => {
+        if (!aliveRef.current) return
+        if (!saved) {
+          setSelectedClipId(null)
+          setTimelineFeedback({ tone: 'error', message: `添加「${sourceLabel}」失败，时间线未改变。` })
+          return
+        }
+        const latestDocument = useEditor.getState().document
+        const latestSources = collectSources(latestDocument)
+        const latestTimeline = readCompositeDocument(compositeNodeOf(latestDocument)?.data.extra, latestSources)
+        const latest = [...latestTimeline.clips].reverse().find((clip) => clip.artifactId === source.artifact.id)
+        if (!latest) {
+          setSelectedClipId(null)
+          setTimelineFeedback({ tone: 'error', message: `添加「${sourceLabel}」失败，时间线未改变。` })
+          return
+        }
+        setSelectedClipId(latest.id)
+        setTimelineFeedback({ tone: 'success', message: `已将「${sourceLabel}」添加到时间线。` })
+      }).catch(() => {
+        if (!aliveRef.current) return
+        setSelectedClipId(null)
+        setTimelineFeedback({ tone: 'error', message: `添加「${sourceLabel}」失败，时间线未改变。` })
+      })
     } else {
       const preview = appendAudioTrack(timeline, source)
       setSelectedAudioId(preview.audioTracks.at(-1)?.id ?? null)
       setSelectedClipId(null)
-      void persist((document) => appendAudioTrack(document, source), '添加独立音轨')
+      void persist((document) => appendAudioTrack(document, source), '添加独立音轨').then((saved) => {
+        if (!aliveRef.current) return
+        if (!saved) {
+          setSelectedAudioId(null)
+          setTimelineFeedback({ tone: 'error', message: `添加「${sourceLabel}」失败，时间线未改变。` })
+          return
+        }
+        const latestDocument = useEditor.getState().document
+        const latestSources = collectSources(latestDocument)
+        const latestTimeline = readCompositeDocument(compositeNodeOf(latestDocument)?.data.extra, latestSources)
+        const latest = [...latestTimeline.audioTracks].reverse().find((track) => track.artifactId === source.artifact.id)
+        if (!latest) {
+          setSelectedAudioId(null)
+          setTimelineFeedback({ tone: 'error', message: `添加「${sourceLabel}」失败，时间线未改变。` })
+          return
+        }
+        setSelectedAudioId(latest.id)
+        setTimelineFeedback({ tone: 'success', message: `已将「${sourceLabel}」添加到音轨。` })
+      }).catch(() => {
+        if (!aliveRef.current) return
+        setSelectedAudioId(null)
+        setTimelineFeedback({ tone: 'error', message: `添加「${sourceLabel}」失败，时间线未改变。` })
+      })
     }
     setTool('clip')
   }
@@ -365,17 +562,48 @@ export function ClipEditor({
     }, edge === 'in' ? '设置片段入点' : '设置片段出点')
   }
 
+  const splitSelected = () => {
+    if (splitHint) {
+      setFailure(null)
+      setSuccess(null)
+      setTimelineFeedback({ tone: 'error', message: splitHint })
+      return
+    }
+    if (!selectedClipId) return
+
+    setFailure(null)
+    setSuccess(null)
+    setTimelineFeedback({ tone: 'info', message: '正在分割所选片段…' })
+    const splitTime = playhead
+    void persist(
+      (document) => splitClip(document, selectedClipId, splitTime),
+      '分割视频片段',
+    ).then((saved) => {
+      if (!aliveRef.current) return
+      setTimelineFeedback(saved
+        ? { tone: 'success', message: `已在 ${timeLabel(splitTime)} 分割所选片段。` }
+        : { tone: 'error', message: '分割失败，时间线未改变。' })
+    }).catch(() => {
+      if (aliveRef.current) setTimelineFeedback({ tone: 'error', message: '分割失败，时间线未改变。' })
+    })
+  }
+
   const compose = async () => {
     if (empty || rendering) return null
     setRendering(true)
     setFailure(null)
+    setSuccess(null)
+    setTimelineFeedback(null)
     setNotes([])
     setElapsed(0)
     const started = Date.now()
     const timer = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 250)
     try {
       const response = ComposeResponseSchema.parse(await api.post<unknown>('/api/compose', toComposeRequest(timeline)))
-      if (aliveRef.current) setNotes(response.notes)
+      if (aliveRef.current) {
+        setNotes(response.notes)
+        setSuccess('合成完成，预览和导出结果已准备好')
+      }
       return response
     } catch (error) {
       const message = error instanceof Error ? error.message : '合成失败'
@@ -427,7 +655,12 @@ export function ClipEditor({
       className="relative grid h-full gap-3 overflow-hidden px-4 pb-4 pt-[72px]"
       style={{ gridTemplateColumns: '33.38% minmax(0, 1fr)' }}
     >
-      <SourceRail sources={videos} audios={audios} onAdd={addSource} />
+      <SourceRail
+        sources={videos}
+        audios={audios}
+        excludedSources={excludedCompositeSources}
+        onAdd={addSource}
+      />
       <section
         data-testid="clip-editor-workspace"
         className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100"
@@ -487,7 +720,13 @@ export function ClipEditor({
         </header>
 
         <div className="relative min-h-0 flex-1">
-          <Preview active={active} subtitle={activeSubtitle} videoRef={videoRef} playing={playing} />
+          <Preview
+            active={active}
+            aspectRatio={activeAspectRatio}
+            subtitle={activeSubtitle}
+            videoRef={videoRef}
+            playing={playing}
+          />
           {tool === 'clip' && (selectedClip || selectedAudio) && (
             <PropertiesPanel
               key={selectedClip?.id ?? selectedAudio?.id}
@@ -588,8 +827,22 @@ export function ClipEditor({
               }), '删除字幕')}
             />
           )}
-          {failure && <Notice testId="compose-error" danger>{failure}</Notice>}
-          {notes.length > 0 && !failure && <Notice testId="compose-notes">{notes.join('；')}</Notice>}
+          <TimelineFeedbackNotice feedback={timelineFeedback} />
+          {failure && (
+            <Notice testId="compose-error" danger className={timelineFeedback ? 'top-14' : undefined}>
+              {failure}
+            </Notice>
+          )}
+          {success && !failure && (
+            <Notice testId="compose-success" className={timelineFeedback ? 'top-14' : undefined}>
+              {success}
+            </Notice>
+          )}
+          {notes.length > 0 && !failure && (
+            <Notice testId="compose-notes" className={timelineFeedback ? 'top-14' : undefined}>
+              {notes.join('；')}
+            </Notice>
+          )}
 
           <TimelinePanel
             timeline={timeline}
@@ -603,6 +856,7 @@ export function ClipEditor({
             pixelsPerSecond={pixelsPerSecond}
             trackWidth={trackWidth}
             viewportRef={trackViewportRef}
+            splitHint={splitHint ?? '播放头位于所选片段内部，可以分割。'}
             onTool={setTool}
             onPlay={() => !empty && setPlaying((value) => !value)}
             onSeek={seek}
@@ -622,10 +876,7 @@ export function ClipEditor({
               setSelectedSubtitleId(subtitle.id)
               setTool('subtitle')
             }}
-            onSplit={() => selectedClip && void persist(
-              (document) => splitClip(document, selectedClip.id, playhead),
-              '分割视频片段',
-            )}
+            onSplit={splitSelected}
             onTrimIn={() => trimSelectedAtPlayhead('in')}
             onTrimOut={() => trimSelectedAtPlayhead('out')}
             onReorder={(clipId, targetIndex) => void persist((document) => {
@@ -668,10 +919,11 @@ export function ClipEditor({
             }}
             onDrop={(event) => {
               event.preventDefault()
-              const source = sources.find(
+              const source = allSources.find(
                 (item) => item.artifact.id === event.dataTransfer.getData('application/x-nova-source'),
               )
               if (source) addSource(source)
+              else setTimelineFeedback({ tone: 'error', message: '源素材已不存在，请刷新后重试。' })
             }}
           />
         </div>
@@ -683,10 +935,12 @@ export function ClipEditor({
 function SourceRail({
   sources,
   audios,
+  excludedSources,
   onAdd,
 }: {
   sources: CompositeSource[]
   audios: CompositeSource[]
+  excludedSources: CompositeSource[]
   onAdd: (source: CompositeSource) => void
 }) {
   const drag = (event: DragEvent, source: CompositeSource) => {
@@ -695,7 +949,7 @@ function SourceRail({
   }
   return (
     <aside data-testid="clip-editor-source-rail" className="flex min-w-0 flex-col gap-3 overflow-hidden">
-      <section className="h-[150px] shrink-0 rounded-2xl bg-surface ring-1 ring-ink-100">
+      <section aria-label="音频源素材" className="h-[150px] shrink-0 rounded-2xl bg-surface ring-1 ring-ink-100">
         <h3 className="px-4 py-3 text-[13px] font-semibold text-ink-900">音频</h3>
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-4">
           {audios.length === 0 ? (
@@ -724,7 +978,7 @@ function SourceRail({
           ))}
         </div>
       </section>
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100">
+      <section aria-label="视频源素材" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100">
         <header className="flex items-center px-4 py-3">
           <h3 className="text-[13px] font-semibold text-ink-900">视频</h3>
           <span className="ml-auto flex items-center gap-1 text-[11px] text-ink-400">
@@ -732,6 +986,15 @@ function SourceRail({
           </span>
         </header>
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          {excludedSources.length > 0 && (
+            <p
+              data-testid="clip-source-exclusion"
+              role="note"
+              className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-800 ring-1 ring-amber-200"
+            >
+              当前合成已排除：{excludedSources.map((source) => source.nodeName).join('、')}不是可添加的源素材，请改用其他视频。
+            </p>
+          )}
           {sources.length === 0 ? (
             <div className="flex h-40 items-center justify-center rounded-xl bg-ink-50 text-[11px] text-ink-400">
               暂无已生成视频
@@ -746,11 +1009,21 @@ function SourceRail({
                   onDragStart={(event) => drag(event, source)}
                   className="group"
                 >
-                  <div className="mb-1.5 truncate text-[11px] text-ink-400">{source.nodeName}</div>
-                  <div className="relative aspect-video overflow-hidden rounded-xl bg-ink-50">
+                  <div className="mb-1.5 flex items-center gap-2 text-[11px] text-ink-400">
+                    <span className="min-w-0 truncate">{source.nodeName}</span>
+                    <span className="shrink-0 rounded bg-ink-50 px-1.5 py-0.5 text-[9px] text-ink-500">源素材</span>
+                  </div>
+                  <div
+                    className="relative overflow-hidden rounded-xl bg-ink-50"
+                    style={{ aspectRatio: sourceAspectRatio(source.artifact) }}
+                  >
                     {source.artifact.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={source.artifact.thumbnailUrl} alt={source.nodeName} className="h-full w-full object-cover" />
+                      <img
+                        src={source.artifact.thumbnailUrl}
+                        alt={`${source.nodeName}，源素材，原比例 ${sourceAspectRatioLabel(source.artifact)}`}
+                        className="h-full w-full object-contain"
+                      />
                     ) : (
                       <div className="flex h-full items-center justify-center text-ink-300"><IconVideo size={24} /></div>
                     )}
@@ -768,12 +1041,15 @@ function SourceRail({
                       </span>
                     </button>
                   </div>
-                  <div className="mt-2 flex gap-1.5 text-[10px] text-ink-400">
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-ink-400">
                     <span className="rounded bg-ink-50 px-1.5 py-1">{source.artifact.modelId}</span>
                     <span>{source.artifact.durationSeconds ?? 0}秒</span>
-                    {source.artifact.width && source.artifact.height && (
-                      <span>{source.artifact.width} × {source.artifact.height}</span>
-                    )}
+                    <span data-testid={'clip-source-original-ratio-' + source.artifact.id}>
+                      原比例 {sourceAspectRatioLabel(source.artifact)}
+                    </span>
+                    {validDimension(source.artifact.width) && validDimension(source.artifact.height) ? (
+                      <span>源尺寸 {source.artifact.width} × {source.artifact.height}</span>
+                    ) : <span>源尺寸未知</span>}
                   </div>
                 </article>
               ))}
@@ -817,11 +1093,13 @@ function ExportOption({
 
 function Preview({
   active,
+  aspectRatio,
   subtitle,
   videoRef,
   playing,
 }: {
   active: ReturnType<typeof activeClipAt>
+  aspectRatio: string
   subtitle: CompositeSubtitle | undefined
   videoRef: RefObject<HTMLVideoElement | null>
   playing: boolean
@@ -829,12 +1107,17 @@ function Preview({
   return (
     <div className="absolute inset-x-0 top-0 flex items-center justify-center px-8" style={{ bottom: TIMELINE_HEIGHT + 16 }}>
       {active ? (
-        <div className="relative flex max-h-[360px] w-[min(68%,640px)] aspect-video items-center justify-center overflow-hidden rounded-xl bg-black">
+        <div
+          data-testid="clip-preview-frame"
+          className="relative flex max-h-[360px] w-[min(68%,640px)] items-center justify-center overflow-hidden rounded-xl bg-black"
+          style={{ aspectRatio }}
+        >
           <video
             ref={videoRef}
             key={active.clip.id}
             src={active.clip.url}
             poster={active.clip.poster ?? undefined}
+            aria-label="源素材预览"
             playsInline
             preload="metadata"
             className="h-full w-full object-contain"
@@ -859,17 +1142,109 @@ function Preview({
   )
 }
 
-function Notice({ testId, danger, children }: { testId: string; danger?: boolean; children: ReactNode }) {
+function TimelineFeedbackNotice({ feedback }: { feedback: TimelineFeedback | null }) {
+  const danger = feedback?.tone === 'error'
+  return (
+    <div
+      id="timeline-feedback"
+      data-testid="clip-timeline-feedback"
+      role={danger ? 'alert' : 'status'}
+      aria-live={danger ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      className={cn(
+        'absolute left-4 right-4 top-3 z-30 rounded-lg px-3 py-2 text-[11px] ring-1',
+        !feedback && 'sr-only',
+        danger && 'bg-danger/10 text-danger ring-danger/20',
+        feedback?.tone === 'success' && 'bg-success/10 text-success ring-success/20',
+        feedback?.tone === 'info' && 'bg-ink-50 text-ink-500 ring-ink-100',
+      )}
+    >
+      {feedback?.message ?? ''}
+    </div>
+  )
+}
+
+function Notice({
+  testId,
+  danger,
+  className,
+  children,
+}: {
+  testId: string
+  danger?: boolean
+  className?: string
+  children: ReactNode
+}) {
   return (
     <div
       data-testid={testId}
+      role={danger ? 'alert' : 'status'}
+      aria-live={danger ? 'assertive' : 'polite'}
+      aria-atomic="true"
       className={cn(
         'absolute left-4 right-4 top-3 z-30 rounded-lg px-3 py-2 text-[11px] ring-1',
         danger ? 'bg-danger/10 text-danger ring-danger/20' : 'bg-ink-50 text-ink-500 ring-ink-100',
+        className,
       )}
     >
       {children}
     </div>
+  )
+}
+
+/**
+ * Numeric timeline fields keep a local draft while typing, then commit one
+ * canonical document mutation on blur. Controlled values mean an undo/reload
+ * or another queued edit is reflected without leaving stale defaultValue text
+ * in the properties panel.
+ */
+function NumberDraft({
+  value,
+  onCommit,
+  min,
+  max,
+  step = 0.1,
+  ariaLabel,
+  className,
+}: {
+  value: number
+  onCommit: (value: number) => void
+  min?: number
+  max?: number
+  step?: number
+  ariaLabel: string
+  className?: string
+}) {
+  const [draft, setDraft] = useState(String(value))
+
+  useEffect(() => {
+    setDraft(String(value))
+  }, [value])
+
+  const commit = () => {
+    const parsed = Number(draft)
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value))
+      return
+    }
+    onCommit(parsed)
+  }
+
+  return (
+    <input
+      aria-label={ariaLabel}
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={draft}
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur()
+      }}
+      className={className}
+    />
   )
 }
 
@@ -909,21 +1284,19 @@ function PropertiesPanel({
             <div>
               <div className="mb-1 text-ink-400">裁切</div>
               <div className="flex items-center gap-1">
-                <input
-                  aria-label="片段入点"
-                  type="number"
+                <NumberDraft
+                  ariaLabel="片段入点"
+                  value={clip.inPoint}
                   step={0.1}
-                  defaultValue={clip.inPoint}
-                  onBlur={(event) => onTrim({ inPoint: Number(event.currentTarget.value) })}
+                  onCommit={(value) => onTrim({ inPoint: value })}
                   className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
                 />
                 <span>→</span>
-                <input
-                  aria-label="片段出点"
-                  type="number"
+                <NumberDraft
+                  ariaLabel="片段出点"
+                  value={clip.outPoint}
                   step={0.1}
-                  defaultValue={clip.outPoint}
-                  onBlur={(event) => onTrim({ outPoint: Number(event.currentTarget.value) })}
+                  onCommit={(value) => onTrim({ outPoint: value })}
                   className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
                 />
               </div>
@@ -974,36 +1347,33 @@ function PropertiesPanel({
             <div>
               <div className="mb-1 text-ink-400">裁切</div>
               <div className="flex items-center gap-1">
-                <input
-                  aria-label="音轨入点"
-                  type="number"
+                <NumberDraft
+                  ariaLabel="音轨入点"
+                  value={audio.inPoint}
                   min={0}
                   step={0.1}
-                  defaultValue={audio.inPoint}
-                  onBlur={(event) => onAudioTiming({ inPoint: Number(event.currentTarget.value) })}
+                  onCommit={(value) => onAudioTiming({ inPoint: value })}
                   className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
                 />
                 <span>→</span>
-                <input
-                  aria-label="音轨出点"
-                  type="number"
+                <NumberDraft
+                  ariaLabel="音轨出点"
+                  value={audio.outPoint}
                   min={0.05}
                   step={0.1}
-                  defaultValue={audio.outPoint}
-                  onBlur={(event) => onAudioTiming({ outPoint: Number(event.currentTarget.value) })}
+                  onCommit={(value) => onAudioTiming({ outPoint: value })}
                   className="min-w-0 flex-1 rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
                 />
               </div>
             </div>
             <label>
               <span className="mb-1 block text-ink-400">时间线起点</span>
-              <input
-                type="number"
-                aria-label="音轨时间线起点"
+              <NumberDraft
+                ariaLabel="音轨时间线起点"
+                value={audio.start}
                 min={0}
                 step={0.1}
-                defaultValue={audio.start}
-                onBlur={(event) => onAudioTiming({ start: Number(event.currentTarget.value) })}
+                onCommit={(value) => onAudioTiming({ start: value })}
                 className="w-full rounded bg-ink-50 px-2 py-1.5 outline-none ring-1 ring-ink-100"
               />
             </label>
@@ -1091,14 +1461,13 @@ function TransitionPanels({
           <div><div className="mb-1 text-ink-400">时长</div>
             {selected ? (
               <div className="flex items-center gap-2">
-                <input
-                  aria-label="转场时长"
-                  type="number"
+                <NumberDraft
+                  ariaLabel="转场时长"
+                  value={selected.durationSeconds}
                   min={0.08}
                   max={2}
                   step={0.1}
-                  defaultValue={selected.durationSeconds}
-                  onBlur={(event) => onDuration(Number(event.currentTarget.value))}
+                  onCommit={onDuration}
                   className="w-24 rounded bg-ink-50 px-2 py-1.5 ring-1 ring-ink-100"
                 /><span>秒</span>
               </div>
@@ -1254,6 +1623,7 @@ function TimelinePanel({
   pixelsPerSecond,
   trackWidth,
   viewportRef,
+  splitHint,
   onTool,
   onPlay,
   onSeek,
@@ -1280,6 +1650,7 @@ function TimelinePanel({
   pixelsPerSecond: number
   trackWidth: number
   viewportRef: RefObject<HTMLDivElement | null>
+  splitHint: string
   onTool: (tool: EditorTool) => void
   onPlay: () => void
   onSeek: (value: number) => void
@@ -1312,7 +1683,13 @@ function TimelinePanel({
         <div className="flex gap-1">
           <ToolButton testId="clip-set-in" label="设置入点" disabled={!selectedClipId} onClick={onTrimIn}>Ⅰ</ToolButton>
           <ToolButton testId="clip-set-out" label="设置出点" disabled={!selectedClipId} onClick={onTrimOut}>Ⅰ</ToolButton>
-          <ToolButton testId="clip-split" label="分割" disabled={!selectedClipId} onClick={onSplit}><IconCut size={14} /></ToolButton>
+          <ToolButton
+            testId="clip-split"
+            label="分割"
+            describedBy="clip-split-hint"
+            disabled={!selectedClipId}
+            onClick={onSplit}
+          ><IconCut size={14} /></ToolButton>
           <ToolButton
             testId="clip-tool-subtitle"
             label="字幕"
@@ -1326,8 +1703,29 @@ function TimelinePanel({
             onClick={() => onTool('transition')}
           ><span className="rounded border px-0.5 text-[8px]">▶</span></ToolButton>
         </div>
+        <span id="clip-split-hint" className="sr-only">{splitHint}</span>
         <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-3 text-[11px]">
           <span data-testid="clip-current-time" className="w-10 text-right tabular-nums">{timeLabel(playhead)}</span>
+          <input
+            data-testid="clip-playhead-slider"
+            type="range"
+            aria-label="播放头"
+            aria-describedby="clip-playhead-help"
+            aria-valuetext={`${timeLabel(playhead)} / ${timeLabel(total)}`}
+            min={0}
+            max={Math.max(0, total)}
+            step={PLAYHEAD_STEP_SECONDS}
+            value={Math.max(0, Math.min(total, playhead))}
+            disabled={timeline.clips.length === 0}
+            onChange={(event) => onSeek(Number(event.currentTarget.value))}
+            onKeyDown={(event) => {
+              const next = playheadValueForKey(playhead, event.key, total)
+              if (next === null) return
+              event.preventDefault()
+              onSeek(next)
+            }}
+            className="pointer-events-auto w-24 accent-danger"
+          />
           <button
             type="button"
             aria-label={playing ? '暂停' : '播放'}
@@ -1339,6 +1737,9 @@ function TimelinePanel({
           </button>
           <span data-testid="clip-total-time" className="w-10 tabular-nums">{timeLabel(total)}</span>
         </div>
+        <span id="clip-playhead-help" className="sr-only">
+          使用方向键以 0.1 秒移动播放头，PageUp 和 PageDown 以 1 秒移动，Home 和 End 跳到时间线边界。
+        </span>
         <div className="ml-auto flex gap-1">
           <ToolButton label="全屏预览" disabled={timeline.clips.length === 0} onClick={() => void globalThis.document.documentElement.requestFullscreen?.()}><IconExpand size={14} /></ToolButton>
           <ToolButton label="回到开始" disabled={timeline.clips.length === 0} onClick={() => onSeek(0)}><IconRefresh size={13} /></ToolButton>
@@ -1476,6 +1877,7 @@ function TimelinePanel({
             )}
             <div
               data-testid="clip-playhead"
+              aria-hidden="true"
               className="pointer-events-none absolute bottom-0 top-5 z-30 w-px bg-danger"
               style={{ left: playhead * pixelsPerSecond }}
             ><span className="absolute -left-1 -top-1 h-2 w-2 rotate-45 bg-danger" /></div>
@@ -1489,6 +1891,7 @@ function TimelinePanel({
 function ToolButton({
   label,
   testId,
+  describedBy,
   disabled,
   active,
   onClick = () => undefined,
@@ -1496,6 +1899,7 @@ function ToolButton({
 }: {
   label: string
   testId?: string
+  describedBy?: string
   disabled?: boolean
   active?: boolean
   onClick?: () => void
@@ -1505,6 +1909,7 @@ function ToolButton({
     <button
       type="button"
       aria-label={label}
+      aria-describedby={describedBy}
       title={label}
       data-testid={testId}
       disabled={disabled}

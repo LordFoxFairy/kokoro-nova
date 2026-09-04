@@ -897,9 +897,14 @@ export function scriptV2AssetReady(asset: ScriptV2Asset): boolean {
 export function scriptV2BatchBlockedReason(
   state: ScriptV2State,
   kind: 'image' | 'video',
+  rowIds?: readonly string[],
 ): string | null {
   if (state.rows.length === 0) return '请先添加至少一个镜头'
-  const missingPrompts = state.rows.filter((row) =>
+  const rows = rowIds === undefined
+    ? state.rows
+    : state.rows.filter((row) => rowIds.includes(row.id))
+  if (rows.length === 0) return '请至少选择一个镜头'
+  const missingPrompts = rows.filter((row) =>
     kind === 'image' ? !row.imageGenerationPrompt.trim() : !row.videoMotionPrompt.trim(),
   ).length
   if (missingPrompts > 0) {
@@ -916,6 +921,16 @@ export function scriptV2BatchBlockedReason(
     if (unfinishedAssets > 0) return `有 ${unfinishedAssets} 个资产尚未准备完成`
   }
   return null
+}
+
+/** Explain why one shot cannot be included in a materialization selection. */
+export function scriptV2BatchRowBlockedReason(
+  state: ScriptV2State,
+  kind: 'image' | 'video',
+  rowId: string,
+): string | null {
+  if (!state.rows.some((row) => row.id === rowId)) return '镜头不存在'
+  return scriptV2BatchBlockedReason(state, kind, [rowId])
 }
 
 const SCRIPT_V2_CSV_HEADERS = [

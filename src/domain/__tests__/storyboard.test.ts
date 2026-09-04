@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { createEdge, createNode, emptyDocument } from '@/domain/factory'
 import { applyMutations } from '@/domain/mutations'
-import { filterVideoCards, projectStoryboard, VIDEO_FILTER_LABELS } from '@/domain/storyboard'
+import {
+  filterVideoCards,
+  projectStoryboard,
+  reconcileStoryboardExpandedColumn,
+  VIDEO_FILTER_LABELS,
+} from '@/domain/storyboard'
 import type { StoryboardCard } from '@/domain/storyboard'
 import type { Artifact, CanvasMutation, NodeData, WorkflowDocument, WorkflowNode } from '@/domain/types'
 
@@ -91,6 +96,33 @@ describe('projectStoryboard / card contents', () => {
     expect(card.nodeName).toBe('image-nd_image')
   })
 
+  it('retains requested ratio and provider dimensions separately from display labels', () => {
+    const image = node('image', 'nd_image', '2026-01-01T00:00:00.000Z', {
+      output: { aspectRatio: '9:16' },
+      artifacts: [artifact('image', 'https://cdn.test/tall.png', { width: 1080, height: 1920 })],
+    })
+
+    const [card] = projectStoryboard(build([image]), labelOf).image
+
+    expect(card.aspectRatio).toBe('9:16')
+    expect(card.resourceAspectRatio).toBe('9:16')
+    expect(card.originalDimensions).toEqual({ width: 1080, height: 1920 })
+    expect(card.dimensions).toBe('1080 × 1920')
+  })
+
+  it('keeps resource ratio available when output configuration is absent', () => {
+    const image = node('image', 'nd_image', '2026-01-01T00:00:00.000Z', {
+      output: undefined,
+      artifacts: [artifact('image', 'https://cdn.test/wide.png', { width: 2048, height: 1024 })],
+    })
+
+    const [card] = projectStoryboard(build([image]), labelOf).image
+
+    expect(card.aspectRatio).toBeNull()
+    expect(card.resourceAspectRatio).toBe('2:1')
+    expect(card.originalDimensions).toEqual({ width: 2048, height: 1024 })
+  })
+
   it('exposes the newest artifact plus the dimension and duration labels', () => {
     const doc = build([
       node('video', 'nd_video', '2026-01-01T00:00:00.000Z', {
@@ -113,7 +145,20 @@ describe('projectStoryboard / card contents', () => {
   it('keeps a column-less node out of every column', () => {
     const doc = build([node('style', 'nd_style', '2026-01-01T00:00:00.000Z')])
 
-    expect(projectStoryboard(doc, labelOf)).toEqual({ audio: [], text: [], image: [], video: [] })
+    expect(projectStoryboard(doc, labelOf)).toEqual({ audio: [], text: [], image: [], video: [], isEmpty: true })
+  })
+
+  it('marks an empty storyboard explicitly, including a document with only non-projectable nodes', () => {
+    expect(projectStoryboard(emptyDocument(), labelOf).isEmpty).toBe(true)
+    expect(projectStoryboard(build([node('style', 'nd_style', '2026-01-01T00:00:00.000Z')]), labelOf).isEmpty).toBe(true)
+  })
+
+  it('ignores invalid persisted node types instead of throwing or making a card', () => {
+    const invalid = { ...node('image', 'nd_invalid', '2026-01-01T00:00:00.000Z'), type: 'removed' } as unknown as WorkflowNode
+
+    const projection = projectStoryboard(build([invalid]), labelOf)
+
+    expect(projection).toEqual({ audio: [], text: [], image: [], video: [], isEmpty: true })
   })
 
   it('passes the node model id to the label resolver', () => {
@@ -248,5 +293,23 @@ describe('filterVideoCards', () => {
 
   it('labels every filter', () => {
     expect(VIDEO_FILTER_LABELS).toEqual({ all: '全部', final: '成片', clip: '片段' })
+  })
+})
+
+describe('reconcileStoryboardExpandedColumn', () => {
+  it('clears expansion when its projected column disappears after deletion', () => {
+    const image = projectStoryboard(build([node('image', 'nd_image', '2026-01-01T00:00:00.000Z')]), labelOf)
+    const empty = projectStoryboard(emptyDocument(), labelOf)
+
+    expect(reconcileStoryboardExpandedColumn('image', image)).toBe('image')
+    expect(reconcileStoryboardExpandedColumn('image', empty)).toBeNull()
+    expect(reconcileStoryboardExpandedColumn('video', empty)).toBeNull()
+  })
+
+  it('clears unknown expansion values rather than preserving stale view state', () => {
+    const projection = projectStoryboard(build([node('image', 'nd_image', '2026-01-01T00:00:00.000Z')]), labelOf)
+
+    expect(reconcileStoryboardExpandedColumn('audio', projection)).toBeNull()
+    expect(reconcileStoryboardExpandedColumn(undefined, projection)).toBeNull()
   })
 })

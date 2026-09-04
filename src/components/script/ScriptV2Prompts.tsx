@@ -26,6 +26,7 @@ import {
   IconWarning,
 } from '../icons'
 import { Spinner } from '../ui/controls'
+import { useScriptV2DialogFocus } from './ScriptV2Dialogs'
 
 const SCRIPT_MODEL_IDS = ['gvlm-3.1', 'cvlm-5.5', 'gvlm-3.1-flash'] as const
 const SCRIPT_MODELS = SCRIPT_MODEL_IDS.flatMap((id) => {
@@ -317,7 +318,7 @@ export function ScriptV2PromptDetailDialog({
         {quoteError && <p role="alert" className="text-right text-[10px] text-red-300">{quoteError}</p>}
       </div>
 
-      <footer className="relative flex min-h-[58px] items-center gap-2 border-t border-white/8 bg-[#2a2a2a] px-4 py-2.5">
+      <footer className="relative flex min-h-[58px] flex-wrap items-center gap-2 border-t border-white/8 bg-[#2a2a2a] px-4 py-2.5">
         <div className="relative">
           <button
             type="button"
@@ -538,7 +539,7 @@ export function ScriptV2BatchPromptDialog({
         )}
       </header>
 
-      <div className="max-h-[500px] overflow-y-auto p-4">
+      <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-3 sm:max-h-[500px] sm:p-4">
         <div className="space-y-2">
           {rows.map((row) => {
             const isSelected = Boolean(selected[row.id])
@@ -596,7 +597,7 @@ export function ScriptV2BatchPromptDialog({
         </label>
         <span className="text-[10px] text-white/32">已选{selectedIds.length}/{rows.length}</span>
 
-        <div className="relative ml-auto flex items-center gap-2">
+        <div className="relative ml-auto flex flex-wrap items-center justify-end gap-2">
           {mode === 'smart' && (
             <button
               type="button"
@@ -659,7 +660,7 @@ export function ScriptV2PromptStage({ state, onOpenDetail, onOpenBatch }: Script
   const ready = state.rows.filter((row) => promptTrackReady(row, 'image') && promptTrackReady(row, 'video')).length
   return (
     <div className="thin-scrollbar min-h-0 flex-1 overflow-auto bg-[#171717]" data-testid="script-v2-prompt-stage">
-      <table className="w-full min-w-[1380px] table-fixed border-collapse text-left">
+      <table aria-label="提示词镜头表" className="w-full min-w-[1380px] table-fixed border-collapse text-left">
         <colgroup>
           <col className="w-[82px]" /><col className="w-[88px]" /><col className="w-[300px]" /><col className="w-[108px]" />
           <col className="w-[160px]" /><col className="w-[170px]" /><col className="w-[130px]" /><col className="w-[130px]" />
@@ -667,7 +668,7 @@ export function ScriptV2PromptStage({ state, onOpenDetail, onOpenBatch }: Script
         </colgroup>
         <thead className="sticky top-0 z-20 bg-[#222222]">
           <tr>{['镜号', '时长', '画面描述', '景别', '光影氛围', '对白·旁白', '音效', '运镜', '最终提示词', '操作'].map((header, index) => (
-            <th key={header} className={cn('h-12 border-b border-r border-white/8 px-3 text-[11px] font-normal text-white/42 last:border-r-0', index === 0 && 'sticky left-0 z-30 bg-[#222222]', index === 8 && 'bg-cyan-400/10 text-cyan-100/65', index === 9 && 'sticky right-0 z-30 bg-[#222222]')}>{header}</th>
+            <th key={header} scope="col" className={cn('h-12 border-b border-r border-white/8 px-3 text-[11px] font-normal text-white/42 last:border-r-0', index === 0 && 'sticky left-0 z-30 bg-[#222222]', index === 8 && 'bg-cyan-400/10 text-cyan-100/65', index === 9 && 'sticky right-0 z-30 bg-[#222222]')}>{header}</th>
           ))}</tr>
         </thead>
         <tbody>
@@ -774,9 +775,11 @@ function PromptLayer({
   width: string
   children: ReactNode
 }) {
+  const dialogRef = useScriptV2DialogFocus(true)
+
   return (
-    <div className="fixed inset-0 z-[240] flex items-center justify-center bg-black/60 p-6 backdrop-blur-[1px]" data-testid={`${testId}-backdrop`}>
-      <div role="dialog" aria-modal="true" aria-label={ariaLabel} data-testid={testId} className={cn('w-full overflow-hidden rounded-2xl border border-white/10 bg-[#242424] shadow-[0_24px_90px_rgba(0,0,0,.58)]', width)}>
+    <div className="fixed inset-0 z-[240] flex items-center justify-center bg-black/60 p-3 backdrop-blur-[1px] sm:p-6" data-testid={`${testId}-backdrop`}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={ariaLabel} data-testid={testId} className={cn('max-h-[calc(100vh-24px)] w-full overflow-y-auto rounded-2xl border border-white/10 bg-[#242424] shadow-[0_24px_90px_rgba(0,0,0,.58)] sm:max-h-[calc(100vh-48px)]', width)}>
         {children}
       </div>
     </div>

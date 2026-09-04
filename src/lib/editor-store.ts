@@ -176,6 +176,11 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
     } catch (error) {
       set({ loading: false })
       get().toast(error instanceof Error ? error.message : '加载失败', 'error')
+      // Keep the rejection visible to the route-level workspace. The canvas
+      // needs to distinguish an expired editing lease from a missing project
+      // so it can render the same recoverable blocking state as LibTV instead
+      // of collapsing every bootstrap failure into a generic empty canvas.
+      throw error
     }
   },
 

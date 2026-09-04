@@ -235,10 +235,11 @@ function AssetPreview({ asset, className }: { asset: ScriptAsset; className?: st
 }
 
 /* ------------------------------------------------------------------ *
- * ScriptWizard
+ * LegacyScriptWizard
  * ------------------------------------------------------------------ */
 
-export function ScriptWizard({ open, onClose, initialDraft, onApply }: ScriptWizardProps) {
+/** Compatibility wizard for the legacy `scriptLegacy` node only. */
+export function LegacyScriptWizard({ open, onClose, initialDraft, onApply }: ScriptWizardProps) {
   const [draft, setDraft] = useState<ScriptDraft>(() => initialDraft ?? emptyDraft())
   // Resolved during the first render, not in an effect, so resuming a draft
   // never flashes the entry screen before switching to the table.
@@ -440,6 +441,9 @@ export function ScriptWizard({ open, onClose, initialDraft, onApply }: ScriptWiz
     </Dialog>
   )
 }
+
+/** @deprecated Use LegacyScriptWizard for legacy script nodes. */
+export const ScriptWizard = LegacyScriptWizard
 
 /* ------------------------------------------------------------------ *
  * Step indicator

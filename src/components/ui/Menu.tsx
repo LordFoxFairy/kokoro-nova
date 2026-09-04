@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { IconCheck, IconChevronRight } from '../icons'
 
@@ -21,6 +21,41 @@ export interface MenuItem {
 export interface MenuSection {
   title?: string
   items: MenuItem[]
+}
+
+export function isMenuEscapeKey(key: string) {
+  return key === 'Escape'
+}
+
+export function nextMenuIndex(
+  items: readonly Pick<MenuItem, 'disabled'>[],
+  currentIndex: number,
+  step: 1 | -1,
+) {
+  if (items.length === 0) return currentIndex
+
+  let next = currentIndex
+  for (let i = 0; i < items.length; i += 1) {
+    next = (next + step + items.length) % items.length
+    if (!items[next].disabled) return next
+  }
+  return currentIndex
+}
+
+export function menuItemForEnter(items: readonly MenuItem[], activeIndex: number) {
+  const item = activeIndex >= 0 ? items[activeIndex] : undefined
+  return item && !item.disabled && !item.submenu ? item : null
+}
+
+export function isMenuClickAway(
+  menu: { contains: (node: Node | null) => boolean } | null,
+  target: EventTarget | null,
+) {
+  return !menu?.contains(target as Node | null)
+}
+
+export function submenuIdOnHover(item: Pick<MenuItem, 'id' | 'submenu'>) {
+  return item.submenu ? item.id : null
 }
 
 interface MenuProps {
@@ -65,10 +100,10 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) onClose()
+      if (isMenuClickAway(ref.current, event.target)) onClose()
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (isMenuEscapeKey(event.key)) {
         event.stopPropagation()
         onClose()
         return
@@ -76,18 +111,11 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
         const step = event.key === 'ArrowDown' ? 1 : -1
-        setActiveIndex((current) => {
-          let next = current
-          for (let i = 0; i < flat.length; i += 1) {
-            next = (next + step + flat.length) % flat.length
-            if (!flat[next].disabled) return next
-          }
-          return current
-        })
+        setActiveIndex((current) => nextMenuIndex(flat, current, step))
       }
       if (event.key === 'Enter' && activeIndex >= 0) {
-        const item = flat[activeIndex]
-        if (item && !item.disabled && !item.submenu) {
+        const item = menuItemForEnter(flat, activeIndex)
+        if (item) {
           event.preventDefault()
           item.onSelect?.()
           onClose()
@@ -110,7 +138,12 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
       ref={ref}
       role="menu"
       data-testid="menu"
-      className="panel fixed z-[70] overflow-visible py-1.5"
+      // Menus are sometimes mounted inside an overlay whose parent disables
+      // pointer events (the canvas toolbar uses that pattern so the empty
+      // canvas remains pannable). Re-enable hit testing at the menu boundary;
+      // otherwise the ReactFlow pane wins the hit test even though the menu
+      // is visually above it.
+      className="panel pointer-events-auto fixed z-[70] overflow-visible py-1.5"
       style={{
         left: position.left,
         top: position.top,
@@ -135,7 +168,7 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
                 submenuOpen={openSubmenu === item.id}
                 onHover={() => {
                   setActiveIndex(index)
-                  setOpenSubmenu(item.submenu ? item.id : null)
+                  setOpenSubmenu(submenuIdOnHover(item))
                 }}
                 onSelect={() => {
                   if (item.disabled || item.submenu) return

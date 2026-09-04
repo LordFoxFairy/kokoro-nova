@@ -5,7 +5,7 @@ import type { Asset, AssetNamespace } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { ProgressBar, Spinner } from '../ui/controls'
-import { IconCheck, IconClose, IconUpload, IconWarning } from '../icons'
+import { IconCheck, IconClose, IconRefresh, IconUpload, IconWarning } from '../icons'
 
 /*
  * Presentational mirror of the server gate in src/server/assets.ts. A client
@@ -21,7 +21,20 @@ const MAX_MEGABYTES = 50
  * at a time keeps the bar moving without queueing the whole batch on one socket. */
 const CONCURRENCY = 3
 
-type UploadPhase = 'queued' | 'uploading' | 'validating' | 'done' | 'error' | 'cancelled'
+export type UploadPhase = 'queued' | 'uploading' | 'validating' | 'done' | 'error' | 'cancelled'
+
+export function canRetryUpload(phase: UploadPhase): boolean {
+  return phase === 'error'
+}
+
+export function uploadPhaseLabel(phase: UploadPhase): string {
+  if (phase === 'queued') return '排队中'
+  if (phase === 'uploading') return '上传中'
+  if (phase === 'validating') return '校验中'
+  if (phase === 'done') return '已完成'
+  if (phase === 'error') return '失败'
+  return '已取消'
+}
 
 interface UploadItem {
   id: string
@@ -83,7 +96,9 @@ export function UploadDropzone({
 
   const fileInput = useRef<HTMLInputElement>(null)
   const requests = useRef(new Map<string, XMLHttpRequest>())
+  const files = useRef(new Map<string, File>())
   const cancelled = useRef(new Set<string>())
+  const retrying = useRef(new Set<string>())
   const seq = useRef(0)
   // The unload listener is registered once and cannot see a render's closure.
   const latest = useRef<UploadItem[]>([])
@@ -97,7 +112,12 @@ export function UploadDropzone({
     setItems((prev) =>
       prev.some((item) => item.phase === 'queued' || item.phase === 'uploading' || item.phase === 'validating')
         ? prev
-        : [],
+        : (() => {
+            files.current.clear()
+            cancelled.current.clear()
+            retrying.current.clear()
+            return []
+          })(),
     )
   }, [open])
 
@@ -155,20 +175,25 @@ export function UploadDropzone({
 
     // The batch cap is the server's, but reporting it here beats sending files
     // that are guaranteed to come back rejected.
-    const dropped: UploadItem[] = overflow.map((file) => {
+    const dropped: { item: UploadItem; file: File }[] = overflow.map((file) => {
       seq.current += 1
       return {
-        id: `up_${seq.current}`,
-        name: file.name,
-        byteSize: file.size,
-        phase: 'error',
-        progress: 0,
-        error: `一次最多上传 ${MAX_FILES} 个文件`,
-        token: mintToken(),
+        file,
+        item: {
+          id: `up_${seq.current}`,
+          name: file.name,
+          byteSize: file.size,
+          phase: 'error',
+          progress: 0,
+          error: `一次最多上传 ${MAX_FILES} 个文件`,
+          token: mintToken(),
+        },
       }
     })
 
-    setItems((prev) => [...prev, ...queued.map((entry) => entry.item), ...dropped])
+    for (const entry of queued) files.current.set(entry.item.id, entry.file)
+    for (const entry of dropped) files.current.set(entry.item.id, entry.file)
+    setItems((prev) => [...prev, ...queued.map((entry) => entry.item), ...dropped.map((entry) => entry.item)])
     void run(queued)
   }
 
@@ -236,6 +261,23 @@ export function UploadDropzone({
     }
   }
 
+  const retry = (item: UploadItem) => {
+    if (!canRetryUpload(item.phase) || retrying.current.has(item.id)) return
+    const file = files.current.get(item.id)
+    if (!file) return
+    retrying.current.add(item.id)
+    cancelled.current.delete(item.id)
+    const next: UploadItem = {
+      ...item,
+      phase: 'queued',
+      progress: 0,
+      error: null,
+      token: mintToken(),
+    }
+    setItems((prev) => prev.map((current) => (current.id === item.id ? next : current)))
+    void run([{ item: next, file }]).finally(() => retrying.current.delete(item.id))
+  }
+
   const done = items.filter((item) => item.phase === 'done').length
 
   return (
@@ -277,7 +319,7 @@ export function UploadDropzone({
       {items.length > 0 && (
         <div className="thin-scrollbar mt-3 max-h-[240px] space-y-1.5 overflow-y-auto" data-testid="upload-list">
           {items.map((item) => (
-            <UploadRow key={item.id} item={item} onCancel={() => cancel(item)} />
+            <UploadRow key={item.id} item={item} onCancel={() => cancel(item)} onRetry={() => retry(item)} />
           ))}
         </div>
       )}
@@ -327,7 +369,15 @@ export function UploadDropzone({
   )
 }
 
-function UploadRow({ item, onCancel }: { item: UploadItem; onCancel: () => void }) {
+function UploadRow({
+  item,
+  onCancel,
+  onRetry,
+}: {
+  item: UploadItem
+  onCancel: () => void
+  onRetry: () => void
+}) {
   const busy = item.phase === 'queued' || item.phase === 'uploading' || item.phase === 'validating'
 
   return (
@@ -349,6 +399,18 @@ function UploadRow({ item, onCancel }: { item: UploadItem; onCancel: () => void 
           <span className="shrink-0 text-danger">
             <IconWarning size={14} />
           </span>
+        )}
+        {item.phase === 'error' && (
+          <button
+            type="button"
+            aria-label={`重试上传 ${item.name}`}
+            data-testid="upload-retry"
+            onClick={onRetry}
+            className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/10"
+          >
+            <IconRefresh size={12} />
+            重试
+          </button>
         )}
         {busy && (
           <button
@@ -376,7 +438,7 @@ function UploadRow({ item, onCancel }: { item: UploadItem; onCancel: () => void 
 
       {item.phase === 'error' && item.error && (
         <div className="mt-1 text-[11px] text-danger" data-testid="upload-error">
-          {item.error}
+          <span>{uploadPhaseLabel(item.phase)}：{item.error}</span>
         </div>
       )}
       {item.phase === 'cancelled' && <div className="mt-1 text-[11px] text-ink-400">已取消</div>}
@@ -421,37 +483,41 @@ function send(
 ): Promise<Outcome> {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest()
-    register(xhr)
-    xhr.open('POST', '/api/assets/upload')
+    try {
+      register(xhr)
+      xhr.open('POST', '/api/assets/upload')
 
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total)
-    })
-    xhr.addEventListener('abort', () => resolve({ status: 'cancelled' }))
-    xhr.addEventListener('error', () => resolve({ status: 'rejected', reason: '网络中断，请重试' }))
-    xhr.addEventListener('timeout', () => resolve({ status: 'rejected', reason: '上传超时，请重试' }))
-    xhr.addEventListener('load', () => {
-      const body = parse(xhr.responseText)
-      if (xhr.status < 200 || xhr.status >= 300) {
-        resolve({ status: 'rejected', reason: body?.error ?? `上传失败 (${xhr.status})` })
-        return
-      }
-      const asset = body?.assets?.[0]
-      if (asset) {
-        resolve({ status: 'done', asset })
-        return
-      }
-      // A 200 with no asset means the file was staged and then thrown out by the
-      // content gate; the per-file reason travels in `rejected`.
-      resolve({ status: 'rejected', reason: body?.rejected?.[0]?.reason ?? '文件未通过校验' })
-    })
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total)
+      })
+      xhr.addEventListener('abort', () => resolve({ status: 'cancelled' }))
+      xhr.addEventListener('error', () => resolve({ status: 'rejected', reason: '网络中断，请重试' }))
+      xhr.addEventListener('timeout', () => resolve({ status: 'rejected', reason: '上传超时，请重试' }))
+      xhr.addEventListener('load', () => {
+        const body = parse(xhr.responseText)
+        if (xhr.status < 200 || xhr.status >= 300) {
+          resolve({ status: 'rejected', reason: body?.error ?? `上传失败 (${xhr.status})` })
+          return
+        }
+        const asset = body?.assets?.[0]
+        if (asset) {
+          resolve({ status: 'done', asset })
+          return
+        }
+        // A 200 with no asset means the file was staged and then thrown out by the
+        // content gate; the per-file reason travels in `rejected`.
+        resolve({ status: 'rejected', reason: body?.rejected?.[0]?.reason ?? '文件未通过校验' })
+      })
 
-    const form = new FormData()
-    form.append('files', file)
-    form.append('namespace', target.namespace)
-    form.append('uploadToken', token)
-    if (target.folderId) form.append('folderId', target.folderId)
-    xhr.send(form)
+      const form = new FormData()
+      form.append('files', file)
+      form.append('namespace', target.namespace)
+      form.append('uploadToken', token)
+      if (target.folderId) form.append('folderId', target.folderId)
+      xhr.send(form)
+    } catch (error) {
+      resolve({ status: 'rejected', reason: error instanceof Error ? error.message : '上传失败，请重试' })
+    }
   })
 }
 

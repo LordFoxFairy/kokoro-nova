@@ -18,7 +18,7 @@ import {
   type ScriptV2State,
 } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
-import { IconCheck, IconClose, IconPlus, IconScript, IconSparkle } from '../icons'
+import { IconCheck, IconClose, IconImage, IconPlus, IconScript, IconSparkle, IconVideo } from '../icons'
 import { ScriptV2Assets } from './ScriptV2Assets'
 import type { ScriptV2CanvasImageCandidate } from './ScriptV2Dialogs'
 import {
@@ -38,6 +38,7 @@ interface ScriptV2WorkspaceProps {
   nodeName: string
   onStateChange: (change: ScriptV2StateChange, label?: string) => void | Promise<void>
   onLocateNode?: (nodeId: string) => void
+  onMaterializeBatch?: (kind: 'image' | 'video') => void | Promise<void>
   onClose: () => void
 }
 
@@ -74,6 +75,7 @@ export function ScriptV2Workspace({
   nodeName,
   onStateChange,
   onLocateNode,
+  onMaterializeBatch,
   onClose,
 }: ScriptV2WorkspaceProps) {
   const [childSurfaceOpen, setChildSurfaceOpen] = useState(false)
@@ -87,7 +89,7 @@ export function ScriptV2Workspace({
     canvasId,
     nodeId,
     state: workspaceState,
-    onStateChange: (next) => void onStateChange(next, '合成提示词'),
+    onStateChange: (next) => onStateChange(next, '合成提示词'),
     flushPendingPromptEdits: () => promptFlushRef.current?.(),
     resumePersistedPromptRuns: true,
   })
@@ -365,7 +367,7 @@ export function ScriptV2Workspace({
         />
       )}
 
-      <footer className="flex h-16 shrink-0 items-center border-t border-white/8 bg-[#1d1d1d] px-5">
+      <footer className="flex min-h-16 shrink-0 flex-wrap items-center gap-y-2 border-t border-white/8 bg-[#1d1d1d] px-3 py-2 sm:px-5">
         {workspaceState.activeStage === 'shots' && (
           <>
             <FooterButton
@@ -409,15 +411,46 @@ export function ScriptV2Workspace({
             </button>
           </>
         )}
-        {workspaceState.activeStage === 'prompts' && autoPromptUndo && (
-          <button
-            type="button"
-            data-testid="script-v2-prompt-undo"
-            onClick={undoAutoCompose}
-            className="ml-auto flex h-9 items-center rounded-xl border border-white/12 px-3 text-[11px] text-white/62 hover:bg-white/7 hover:text-white"
-          >
-            撤销自动拼接
-          </button>
+        {workspaceState.activeStage === 'prompts' && (
+          <>
+            <span id="script-v2-batch-actions-hint" className="text-[10px] text-white/32">
+              {workspaceState.rows.length > 0 ? '从已合成的镜头创建画布节点' : '请先添加镜头后再批量生成'}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {autoPromptUndo && (
+                <button
+                  type="button"
+                  data-testid="script-v2-prompt-undo"
+                  onClick={undoAutoCompose}
+                  className="flex h-9 items-center rounded-xl border border-white/12 px-3 text-[11px] text-white/62 hover:bg-white/7 hover:text-white"
+                >
+                  撤销自动拼接
+                </button>
+              )}
+              <button
+                type="button"
+                data-testid="script-v2-batch-image"
+                aria-describedby="script-v2-batch-actions-hint"
+                disabled={!onMaterializeBatch || workspaceState.rows.length === 0}
+                onClick={() => void onMaterializeBatch?.('image')}
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-200/18 bg-cyan-200/8 px-3 text-[11px] font-medium text-cyan-100/80 hover:bg-cyan-200/14 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <IconImage size={13} />
+                批量生成分镜
+              </button>
+              <button
+                type="button"
+                data-testid="script-v2-batch-video"
+                aria-describedby="script-v2-batch-actions-hint"
+                disabled={!onMaterializeBatch || workspaceState.rows.length === 0}
+                onClick={() => void onMaterializeBatch?.('video')}
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-[11px] font-medium text-[#202020] hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <IconVideo size={13} />
+                批量生视频
+              </button>
+            </div>
+          </>
         )}
       </footer>
 

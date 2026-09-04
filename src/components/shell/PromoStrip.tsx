@@ -19,7 +19,7 @@ export function PromoStrip({ campaign }: PromoStripProps) {
       aria-label="限时活动"
       className="relative flex h-12 items-center justify-center overflow-hidden rounded-lg border border-white/[0.04] bg-[#1a306e] px-16 text-[14px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.04)]"
     >
-      <span className="mr-3 inline-flex h-8 items-center gap-2 rounded-full bg-[#ec4d9d] px-4 font-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,.24)]">
+      <span className="mr-3 inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#ec4d9d] px-4 font-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,.24)]">
         <span aria-hidden="true">⏱</span>
         活动剩余&nbsp; 5 天 23 时 18 分 33 秒
         <span aria-hidden="true">›</span>

@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { createEdge, createNode } from '@/domain/factory'
 import {
@@ -25,15 +32,17 @@ import type {
   NodeType,
   WorkflowGroup,
 } from '@/domain/types'
-import { client } from '@/lib/api'
+import { ApiError, client } from '@/lib/api'
 import { useEditor } from '@/lib/editor-store'
 import { AgentPanel } from '../agent/AgentPanel'
 import { AssetLibraryPanel } from '../assets/AssetLibraryPanel'
 import { DirectorStudio, type CapturedShot, type DirectorScene } from '../director/DirectorStudio'
-import { ScriptWizard } from '../script/ScriptWizard'
+import { LegacyScriptWizard } from '../script/ScriptWizard'
+import { ScriptV2BatchMaterializeDialog } from '../script/ScriptV2Dialogs'
 import { ScriptV2Workspace, type ScriptV2StateChange } from '../script/ScriptV2Workspace'
 import type { ScriptDraft } from '../script/script-model'
 import { readScriptV2State } from '@/domain/script-v2'
+import { createScriptV2BatchMutations, type ScriptV2BatchKind, type ScriptV2BatchMaterializeOptions } from '@/domain/script-v2-mock'
 import { StoryboardView } from '../storyboard/StoryboardView'
 import { Menu } from '../ui/Menu'
 import { Spinner } from '../ui/controls'
@@ -46,16 +55,96 @@ import { ShortcutsPanel, useCanvasShortcuts } from './shortcuts'
 import { TopBar } from './TopBar'
 import { ConfirmGate } from './ConfirmGate'
 import { Toasts } from './Toasts'
-import { WorkflowCanvas, useCanvasCommands, nextFreeSpot } from './WorkflowCanvas'
+import {
+  getCanvasZoomAnnouncement,
+  shouldYieldNativeCanvasKey,
+  WorkflowCanvas,
+  useCanvasCommands,
+  nextFreeSpot,
+} from './WorkflowCanvas'
 import { NODE_SIZE } from '@/domain/factory'
 
 /** Poll interval while at least one job is in flight. */
 const POLL_MS = 1200
 
+const CANVAS_RESPONSIVE_STYLES = `
+[data-app-shell="editor"] [data-testid="canvas-toolbar"] button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  [data-app-shell="editor"] [data-testid="editor-topbar"] {
+    left: 0.5rem;
+    right: 0.5rem;
+    top: 0.5rem;
+    height: auto;
+    min-height: 2rem;
+    align-items: flex-start;
+    gap: 0.5rem;
+    overflow-x: auto;
+  }
+  [data-app-shell="editor"] [data-testid="editor-topbar"] > div:first-child {
+    height: auto;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  [data-app-shell="editor"] [data-testid="project-canvas-control"] {
+    max-width: calc(100vw - 1rem);
+  }
+  [data-app-shell="editor"] [data-testid="editor-account-actions"] {
+    flex: 0 0 auto;
+    max-width: calc(100vw - 1rem);
+    overflow-x: auto;
+  }
+  [data-app-shell="editor"] [data-testid="canvas-status-rail"] {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 4.5rem;
+    max-width: calc(100vw - 1rem);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  [data-app-shell="editor"] [data-testid="canvas-primary-rail"] {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    max-width: calc(100vw - 1rem);
+    transform: none;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+  [data-app-shell="editor"] [data-testid="canvas-status-rail"] > *,
+  [data-app-shell="editor"] [data-testid="canvas-primary-rail"] > * {
+    flex: 0 0 auto;
+  }
+  [data-app-shell="editor"] [data-testid="rf__minimap"] {
+    max-width: calc(100vw - 1rem);
+    margin-right: 0.5rem !important;
+    margin-bottom: 8.5rem !important;
+  }
+  [data-app-shell="editor"] [data-testid="agent-panel"] {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(340px, 100vw);
+  }
+  [data-app-shell="editor"] [data-testid="asset-sidebar"] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(280px, 88vw) !important;
+  }
+}
+`
+
 function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?: string }) {
   const flow = useReactFlow()
   const load = useEditor((s) => s.load)
   const loading = useEditor((s) => s.loading)
+  const project = useEditor((s) => s.project)
   const viewMode = useEditor((s) => s.viewMode)
   const loadedCanvasId = useEditor((s) => s.canvasId)
   const document = useEditor((s) => s.document)
@@ -71,6 +160,13 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const applyServerDocument = useEditor((s) => s.applyServerDocument)
   const select = useEditor((s) => s.select)
   const toast = useEditor((s) => s.toast)
+  const toasts = useEditor((s) => s.toasts)
+  const zoom = useEditor((s) => s.zoom)
+  const showMinimap = useEditor((s) => s.showMinimap)
+  const assetSidebarOpen = useEditor((s) => s.assetSidebarOpen)
+  const showEdges = useEditor((s) => s.showEdges)
+  const snapToGrid = useEditor((s) => s.snapToGrid)
+  const toolMode = useEditor((s) => s.toolMode)
 
   const commands = useCanvasCommands()
   const [materialKind, setMaterialKind] = useState<'style' | 'effect'>('style')
@@ -79,6 +175,10 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null)
   /** Node whose full-screen editor is open; its type selects which one. */
   const [studioNodeId, setStudioNodeId] = useState<string | null>(null)
+  const [scriptBatchRequest, setScriptBatchRequest] = useState<{
+    nodeId: string
+    kind: ScriptV2BatchKind
+  } | null>(null)
   const [assetLibraryOpen, setAssetLibraryOpen] = useState(false)
   const [storyboardConfig, setStoryboardConfig] = useState<{ groupId: string; anchor: { x: number; y: number } } | null>(
     null,
@@ -87,10 +187,36 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     kind: 'reference' | 'element'
     targetNodeId: string
   } | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [canvasError, setCanvasError] = useState<string | null>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    let active = true
+    setLoadError(null)
+    setSessionExpired(false)
     void load(projectId, canvasId)
-  }, [projectId, canvasId, load])
+      .then(() => {
+        if (!active) return
+        const state = useEditor.getState()
+        if (!state.project || state.projectId !== projectId) {
+          setLoadError('画布加载失败，请重试。')
+        }
+      })
+      .catch((error) => {
+        if (!active) return
+        if (error instanceof ApiError && error.status === 401) {
+          setSessionExpired(true)
+          return
+        }
+        setLoadError(error instanceof Error ? error.message : '画布加载失败，请重试。')
+      })
+    return () => {
+      active = false
+    }
+  }, [projectId, canvasId, load, loadAttempt])
 
   /* ---------------- generation ---------------- */
 
@@ -213,6 +339,54 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     [commitWith],
   )
 
+  /** Open the shared batch settings sheet; no graph write happens here. */
+  const requestScriptBatch = useCallback((nodeId: string, kind: ScriptV2BatchKind) => {
+    setScriptBatchRequest({ nodeId, kind })
+  }, [])
+
+  /** Materialize the confirmed selection as one revision and one undo frame. */
+  const confirmScriptBatch = useCallback(
+    async (options: ScriptV2BatchMaterializeOptions) => {
+      const request = scriptBatchRequest
+      if (!request) return
+      let createdNodeIds: string[] = []
+      let blockedReason: string | null = null
+      const ok = await commitWith((current) => {
+        const source = current.nodes.find((candidate) => candidate.id === request.nodeId)
+        if (!source || source.type !== 'script') {
+          blockedReason = '脚本节点不存在'
+          return []
+        }
+        const state = readScriptV2State(source.data.extra, source.id)
+        const result = createScriptV2BatchMutations(current, request.nodeId, state, request.kind, options)
+        createdNodeIds = result.createdNodeIds
+        blockedReason = result.blockedReason
+        return result.mutations
+      }, request.kind === 'image' ? '批量生成分镜' : '批量生视频')
+      if (blockedReason) throw new Error(blockedReason)
+      if (!ok || createdNodeIds.length === 0) throw new Error('批量生成没有创建节点')
+
+      setScriptBatchRequest(null)
+      setStudioNodeId(null)
+      inspect(null)
+      select(createdNodeIds)
+      toast(`已创建 ${createdNodeIds.length} 个待确认${request.kind === 'image' ? '图片' : '视频'}节点`, 'success')
+      window.requestAnimationFrame(() => {
+        flow.fitView({ nodes: createdNodeIds.map((id) => ({ id })), duration: 400, padding: 0.24 })
+      })
+    },
+    [commitWith, flow, inspect, scriptBatchRequest, select, toast],
+  )
+
+  const focusCanvasNodeElement = useCallback((nodeId: string) => {
+    window.requestAnimationFrame(() => {
+      const nodeElement = [...window.document.querySelectorAll<HTMLElement>('.react-flow__node')].find(
+        (element) => element.dataset.id === nodeId,
+      )
+      nodeElement?.focus()
+    })
+  }, [])
+
   const locateNode = useCallback(
     (nodeId: string) => {
       const node = useEditor.getState().document.nodes.find((n) => n.id === nodeId)
@@ -222,8 +396,9 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         zoom: Math.max(0.7, flow.getZoom()),
         duration: 320,
       })
+      focusCanvasNodeElement(nodeId)
     },
-    [flow, select],
+    [flow, focusCanvasNodeElement, select],
   )
 
   const startCanvasSelection = useCallback(
@@ -252,9 +427,11 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   }, [inspect, locateNode, selectionMode])
 
   const exitSelection = useCallback(() => {
+    const targetNodeId = selectionMode?.targetNodeId
     setSelectionMode(null)
     inspect(null)
-  }, [inspect])
+    if (targetNodeId) focusCanvasNodeElement(targetNodeId)
+  }, [focusCanvasNodeElement, inspect, selectionMode])
 
   const toggleSelectedReference = useCallback(
     async (sourceNodeId: string) => {
@@ -687,6 +864,68 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     viewMode === 'workflow' && !pendingJob,
   )
 
+  const onEditorKeyDownCapture = useCallback((event: ReactKeyboardEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null
+    if (!target) return
+
+    const nativeControl = target.closest(
+      'a, button, input, select, textarea, [contenteditable="true"], [role="button"]',
+    )
+    const hasFocusableAncestor = Boolean(
+      target.closest('[tabindex]:not([tabindex="-1"]), a, button, input, select, textarea'),
+    )
+    const isNativeFocusable = shouldYieldNativeCanvasKey({
+      tagName: target.tagName,
+      isContentEditable: target.isContentEditable,
+      hasFocusableAncestor,
+    })
+
+    // The legacy canvas shortcut hook treats Tab as “new node”. Let the
+    // browser move focus whenever the user is already in an interactive
+    // control, while preserving the canvas shortcut from the pane itself.
+    if (event.key === 'Tab' && isNativeFocusable) {
+      event.stopPropagation()
+      return
+    }
+    if ((event.key === 'Delete' || event.key === 'Backspace') && nativeControl) {
+      event.stopPropagation()
+    }
+  }, [])
+
+  useEffect(() => {
+    const root = toolbarRef.current
+    if (!root) return
+
+    const setPressed = (selector: string, pressed: boolean) => {
+      root.querySelector<HTMLButtonElement>(selector)?.setAttribute('aria-pressed', String(pressed))
+    }
+
+    setPressed('[data-testid="asset-sidebar-toggle"]', assetSidebarOpen)
+    setPressed('[aria-label="小地图"]', showMinimap)
+    setPressed('[aria-label="隐藏连线"], [aria-label="显示连线"]', showEdges)
+    setPressed('[aria-label="网格吸附"]', snapToGrid)
+    setPressed('[aria-label="移动工具 (V)"]', toolMode === 'select')
+    setPressed('[aria-label="工具箱"]', leftPanel === 'toolbox')
+    setPressed('[aria-label="素材库"]', leftPanel === 'material')
+    setPressed('[aria-label="角色库"]', leftPanel === 'character')
+    setPressed('[aria-label="历史资产"]', leftPanel === 'history')
+    setPressed('[aria-label="快捷键"]', leftPanel === 'shortcuts')
+
+    const assetToggle = root.querySelector<HTMLButtonElement>('[data-testid="asset-sidebar-toggle"]')
+    assetToggle?.setAttribute('aria-expanded', String(assetSidebarOpen))
+
+    const addButton = root.querySelector<HTMLButtonElement>('[data-testid="add-node-button"]')
+    addButton?.setAttribute('aria-haspopup', 'menu')
+
+    const zoomButton = root.querySelector<HTMLButtonElement>('[data-testid="zoom-readout"]')
+    zoomButton?.setAttribute('aria-label', `${getCanvasZoomAnnouncement(zoom)} 点击此按钮重置缩放。`)
+    zoomButton?.setAttribute('aria-describedby', 'canvas-zoom-help')
+    zoomButton?.setAttribute(
+      'aria-keyshortcuts',
+      'Control+Plus Control+Minus Control+0 Meta+Plus Meta+Minus Meta+0',
+    )
+  }, [assetSidebarOpen, leftPanel, showEdges, showMinimap, snapToGrid, toolMode, zoom])
+
   const studioNode = document.nodes.find((n) => n.id === studioNodeId) ?? null
   const scriptV2CanvasImages = document.nodes.flatMap((node) => {
     const artifact = node.data.artifacts?.find((candidate) => candidate.kind === 'image')
@@ -707,16 +946,85 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     ? document.groups.find((g) => g.id === storyboardConfig.groupId) ?? null
     : null
 
+  const loadFailure = loadError ?? (!project ? '画布加载失败，请重试。' : null)
+  const latestErrorToast = [...toasts].reverse().find((item) => item.tone === 'error')
+  const latestStatusToast = [...toasts].reverse().find((item) => item.tone !== 'error')
+
+  const handleCanvasError = useCallback(
+    (message: string) => {
+      setCanvasError(message)
+      toast(message, 'error')
+    },
+    [toast],
+  )
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center gap-2 text-ink-400">
-        <Spinner /> 正在加载画布
+      <div
+        data-testid="canvas-loading"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className="flex h-screen items-center justify-center gap-2 text-ink-400"
+      >
+        <Spinner /> <span>正在加载画布</span>
       </div>
     )
   }
 
+  if (sessionExpired) {
+    return (
+      <section
+        data-testid="canvas-session-expired"
+        role="status"
+        aria-live="assertive"
+        className="flex h-screen flex-col items-center justify-center gap-3 bg-canvas px-6 text-center text-ink-700"
+      >
+        <h1 className="text-base font-semibold text-ink-900">编辑会话已过期</h1>
+        <p className="max-w-md text-sm text-ink-500">会话已过期，请刷新页面</p>
+        <button
+          type="button"
+          data-testid="canvas-session-refresh"
+          onClick={() => window.location.reload()}
+          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          刷新页面
+        </button>
+      </section>
+    )
+  }
+
+  if (loadFailure) {
+    return (
+      <section
+        data-testid="canvas-load-error"
+        role="alert"
+        aria-live="assertive"
+        className="flex h-screen flex-col items-center justify-center gap-3 bg-canvas px-6 text-center text-ink-700"
+      >
+        <h1 className="text-base font-semibold text-ink-900">画布加载失败</h1>
+        <p className="max-w-md text-sm text-ink-500">{loadFailure}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoadError(null)
+            setLoadAttempt((attempt) => attempt + 1)
+          }}
+          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-accent hover:bg-accent/90"
+        >
+          重试
+        </button>
+      </section>
+    )
+  }
+
   return (
-    <div data-app-shell="editor" className="relative flex h-screen w-screen overflow-hidden bg-canvas">
+    <div
+      data-app-shell="editor"
+      className="relative flex h-screen w-screen overflow-hidden bg-canvas"
+      aria-label="LibTV 工作流编辑器"
+    >
+      <style>{CANVAS_RESPONSIVE_STYLES}</style>
       {!selectionMode && <AssetSidebar
         onLocateNode={locateNode}
         onRenameNode={(nodeId, name) => void commit([{ op: 'updateNode', nodeId, patch: { name } }], '重命名节点')}
@@ -733,7 +1041,11 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         }}
       />}
 
-      <main className="relative min-w-0 flex-1">
+      <main
+        className="relative min-w-0 flex-1"
+        aria-label="工作区"
+        onKeyDownCapture={onEditorKeyDownCapture}
+      >
         {!selectionMode && <TopBar />}
         {selectionMode && (
           <CanvasSelectionBanner
@@ -761,19 +1073,43 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
               onOpenImageStyle={openImageStyle}
               onApplyImageTool={(sourceNodeId, request) => void applyImageTool(sourceNodeId, request)}
               onOpenScriptWorkspace={setStudioNodeId}
+              onMaterializeScriptBatch={requestScriptBatch}
+              onCanvasError={handleCanvasError}
             />
             {!selectionMode && <PresenceLayer canvasId={canvasId ?? null} />}
             {!selectionMode && (
-              <BottomToolbar
-                onAddNode={addNodeAtViewportCenter}
-                onAutoArrange={() => void commands.autoArrange()}
-                onOpenMaterial={(kind) => {
-                  setMaterialTargetNodeId(null)
-                  setMaterialKind(kind)
-                  setLeftPanel('material')
-                }}
-                onOpenAssetLibrary={() => setAssetLibraryOpen(true)}
-              />
+              <div
+                ref={toolbarRef}
+                data-testid="canvas-toolbar"
+                role="toolbar"
+                aria-label="画布工具栏"
+                aria-describedby="canvas-toolbar-help"
+                className="pointer-events-none absolute inset-0 z-20"
+              >
+                <BottomToolbar
+                  onAddNode={addNodeAtViewportCenter}
+                  onAutoArrange={() => void commands.autoArrange()}
+                  onOpenMaterial={(kind) => {
+                    setMaterialTargetNodeId(null)
+                    setMaterialKind(kind)
+                    setLeftPanel('material')
+                  }}
+                  onOpenAssetLibrary={() => setAssetLibraryOpen(true)}
+                />
+                <p id="canvas-toolbar-help" className="sr-only">
+                  使用 Tab 在工具栏控件之间移动焦点；缩放可使用 Command/Ctrl 加号、减号或 0。
+                </p>
+                <div
+                  data-testid="canvas-zoom-live"
+                  className="sr-only"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  id="canvas-zoom-help"
+                >
+                  {getCanvasZoomAnnouncement(zoom)}
+                </div>
+              </div>
             )}
           </>
         ) : (
@@ -799,6 +1135,25 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       </main>
 
       {!selectionMode && <AgentPanel />}
+
+      {canvasError && (
+        <div
+          data-testid="canvas-error-notice"
+          role="alert"
+          aria-live="assertive"
+          className="pointer-events-auto absolute left-1/2 top-16 z-[90] flex w-[min(560px,calc(100vw_-_24px))] -translate-x-1/2 items-center gap-3 rounded-xl border border-red-300/60 bg-red-50 px-3 py-2 text-sm text-red-900 shadow-lg"
+        >
+          <span className="min-w-0 flex-1">{canvasError}</span>
+          <button
+            type="button"
+            aria-label="关闭画布错误提示"
+            onClick={() => setCanvasError(null)}
+            className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-800 hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-red-700"
+          >
+            关闭
+          </button>
+        </div>
+      )}
 
       {/* Panels */}
       <ToolboxPanel open={leftPanel === 'toolbox'} onClose={() => setLeftPanel(null)} onUse={usePreset} />
@@ -829,7 +1184,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         }}
       />
 
-      <ScriptWizard
+      <LegacyScriptWizard
         open={studioNode?.type === 'scriptLegacy'}
         onClose={() => setStudioNodeId(null)}
         initialDraft={studioNode?.data.extra?.draft as ScriptDraft | undefined}
@@ -863,6 +1218,9 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           setStudioNodeId(null)
           window.requestAnimationFrame(() => locateNode(nodeId))
         }}
+        onMaterializeBatch={(kind) => {
+          if (studioNode?.type === 'script') requestScriptBatch(studioNode.id, kind)
+        }}
         onClose={() => setStudioNodeId(null)}
       />
 
@@ -876,6 +1234,20 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       />
 
       <ConfirmGate job={pendingJob} onConfirm={confirmJob} onCancel={cancelJob} onClose={() => setPendingJob(null)} />
+
+      {scriptBatchRequest && (() => {
+        const batchNode = document.nodes.find((node) => node.id === scriptBatchRequest.nodeId)
+        if (!batchNode || batchNode.type !== 'script') return null
+        return (
+          <ScriptV2BatchMaterializeDialog
+            open
+            state={readScriptV2State(batchNode.data.extra, batchNode.id)}
+            kind={scriptBatchRequest.kind}
+            onConfirm={confirmScriptBatch}
+            onClose={() => setScriptBatchRequest(null)}
+          />
+        )
+      })()}
 
       {storyboardConfig && storyboardGroup?.storyboard && (
         <Menu
@@ -967,6 +1339,25 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
 
       <Toasts />
 
+      <div
+        data-testid="canvas-status-live"
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {latestStatusToast?.message ?? ''}
+      </div>
+      <div
+        data-testid="canvas-error-live"
+        className="sr-only"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        {latestErrorToast?.message ?? ''}
+      </div>
+
       {/* Selection hint used by the empty-canvas starter shortcuts */}
       {document.nodes.length === 0 && viewMode === 'workflow' && <EmptyCanvasStarters onPick={usePreset} />}
     </div>
@@ -984,38 +1375,58 @@ function CanvasSelectionBanner({
 }) {
   const title = kind === 'reference' ? '从画布选择参考' : '元素选择模式'
   const instruction = kind === 'reference' ? '在当前画布中添加参考' : '点击图片选择局部元素'
+  const bannerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => bannerRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   return (
     <div
       data-testid="canvas-selection-banner"
-      className="pointer-events-none absolute inset-0 z-[80]"
+      ref={bannerRef}
+      role="region"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-labelledby="canvas-selection-title"
+      aria-describedby="canvas-selection-instructions"
+      tabIndex={-1}
+      className="pointer-events-none absolute inset-0 z-[80] outline-none"
     >
-      <div className="pointer-events-auto absolute top-4 left-1/2 flex h-11 min-w-[520px] -translate-x-1/2 items-center rounded-xl border border-[#6ea4ff]/45 bg-[#1268e8] px-3 text-white shadow-[0_14px_40px_rgba(0,50,145,0.38)]">
+      <div className="pointer-events-auto absolute left-1/2 top-4 flex min-h-11 w-[min(520px,calc(100vw_-_24px))] min-w-0 max-w-[calc(100vw_-_24px)] -translate-x-1/2 flex-wrap items-center gap-1 rounded-xl border border-[#6ea4ff]/45 bg-[#1268e8] px-3 py-1.5 text-white shadow-[0_14px_40px_rgba(0,50,145,0.38)]">
         <span className="mr-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/14 text-[15px]">
           {kind === 'reference' ? '↗' : '⌖'}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">{title}</div>
+          <div id="canvas-selection-title" className="text-[13px] font-semibold">{title}</div>
           <div className="text-[10px] text-white/65">{instruction}</div>
         </div>
         <button
           type="button"
           onClick={onBack}
-          className="h-7 rounded-lg bg-white px-3 text-[11px] font-medium text-[#1557bb] hover:bg-[#eef5ff]"
+          aria-label="返回节点并聚焦目标节点"
+          className="h-7 rounded-lg bg-white px-3 text-[11px] font-medium text-[#1557bb] hover:bg-[#eef5ff] focus-visible:outline-2 focus-visible:outline-white"
         >
           返回节点
         </button>
         <button
           type="button"
           onClick={onExit}
-          className="ml-1.5 h-7 rounded-lg px-3 text-[11px] text-white/80 hover:bg-white/12 hover:text-white"
+          aria-label="退出画布选择模式，按 Escape"
+          className="ml-1.5 h-7 rounded-lg px-3 text-[11px] text-white/80 hover:bg-white/12 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
         >
-          退出
+          退出 <kbd className="ml-1 rounded border border-white/25 px-1 text-[10px]">Esc</kbd>
         </button>
       </div>
 
-      <div className="absolute top-[76px] left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/68 px-4 py-2 text-[11px] text-white/78 shadow-lg backdrop-blur-md">
+      <div
+        id="canvas-selection-instructions"
+        role="status"
+        className="absolute left-1/2 top-[76px] max-w-[calc(100vw_-_24px)] -translate-x-1/2 rounded-full border border-white/10 bg-black/68 px-4 py-2 text-center text-[11px] text-white/78 shadow-lg backdrop-blur-md"
+      >
         {instruction}
+        <span className="ml-1 text-white/55">按 Esc 退出</span>
       </div>
     </div>
   )
@@ -1029,12 +1440,22 @@ function EmptyCanvasStarters({ onPick }: { onPick: (preset: ToolboxPreset) => vo
     { id: 'preset-audio-video', label: '音频生视频', accent: 'from-amber-950/70 via-zinc-900 to-black' },
   ]
   return (
-    <div
+    <section
       data-testid="empty-canvas-starters"
-      className="pointer-events-none absolute inset-x-0 bottom-24 top-14 z-10 flex flex-col items-center justify-center gap-6"
+      role="region"
+      aria-labelledby="empty-canvas-title"
+      aria-describedby="empty-canvas-description"
+      className="pointer-events-none absolute inset-x-0 bottom-24 top-14 z-10 flex flex-col items-center justify-center gap-6 overflow-y-auto px-3"
     >
-      <p className="text-[13px] text-ink-400">双击画布 自由生成节点</p>
-      <div className="pointer-events-auto flex max-w-[calc(100%_-_32px)] gap-2 overflow-hidden">
+      <h2 id="empty-canvas-title" className="sr-only">空白工作流画布</h2>
+      <p id="empty-canvas-description" className="text-center text-[13px] text-ink-400">
+        双击画布 自由生成节点
+      </p>
+      <div
+        role="group"
+        aria-label="起始工作流模板"
+        className="pointer-events-auto grid w-full max-w-[52rem] grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:w-auto lg:max-w-[calc(100%_-_32px)]"
+      >
         {starters.map((starter) => {
           const preset = PRESETS_BY_ID.get(starter.id)
           if (!preset) return null
@@ -1044,7 +1465,8 @@ function EmptyCanvasStarters({ onPick }: { onPick: (preset: ToolboxPreset) => vo
               type="button"
               data-testid={`starter-${starter.id}`}
               onClick={() => onPick(preset)}
-              className={`group relative flex h-14 w-52 shrink-0 items-center overflow-hidden rounded-lg border border-white/8 bg-gradient-to-r px-3.5 text-left text-[13px] font-medium text-white/88 shadow-[var(--shadow-float)] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-white/16 ${starter.accent}`}
+              aria-label={`${starter.label}，创建起始工作流`}
+              className={`group relative flex h-14 w-full min-w-0 shrink-0 items-center overflow-hidden rounded-lg border border-white/8 bg-gradient-to-r px-3.5 text-left text-[13px] font-medium text-white/88 shadow-[var(--shadow-float)] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-white/16 focus-visible:outline-2 focus-visible:outline-accent lg:w-52 ${starter.accent}`}
             >
               <span className="relative z-10">{starter.label}</span>
               <span className="absolute -right-5 h-20 w-20 rounded-full bg-white/8 blur-xl transition-transform group-hover:scale-125" />
@@ -1052,7 +1474,7 @@ function EmptyCanvasStarters({ onPick }: { onPick: (preset: ToolboxPreset) => vo
           )
         })}
       </div>
-    </div>
+    </section>
   )
 }
 

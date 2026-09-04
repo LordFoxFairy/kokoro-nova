@@ -17,7 +17,6 @@ import {
 } from '@/domain/script-v2-mock'
 import { HttpError } from './http'
 
-const FIXTURE_EPOCH = Date.parse('2026-09-04T00:00:00.000Z')
 const QUOTE_TTL_MS = 5 * 60 * 1_000
 const PRICE_VERSION = 'script-v2-local-1' as const
 const RECOMPUTE_BATCH_SIZE = 20
@@ -27,13 +26,22 @@ interface ScriptV2RunRepository {
   runIdsByIdempotencyKey: Map<string, string>
 }
 
-const scriptV2Global = globalThis as typeof globalThis & {
+type ScriptV2RepositoryHost = {
   __libtvScriptV2RunRepository?: ScriptV2RunRepository
 }
-const repository = scriptV2Global.__libtvScriptV2RunRepository ?? {
+
+const scriptV2Global = globalThis as typeof globalThis & ScriptV2RepositoryHost
+// Next's dev server evaluates each app-route graph in its own globalThis.
+// `process` is the shared runtime boundary, so keep the fixture repository
+// there first and mirror it to globalThis for ordinary module reloads.
+const scriptV2Process = process as typeof process & ScriptV2RepositoryHost
+const repository = scriptV2Process.__libtvScriptV2RunRepository
+  ?? scriptV2Global.__libtvScriptV2RunRepository
+  ?? {
   runs: new Map<string, ScriptV2Run>(),
   runIdsByIdempotencyKey: new Map<string, string>(),
 }
+scriptV2Process.__libtvScriptV2RunRepository = repository
 scriptV2Global.__libtvScriptV2RunRepository = repository
 
 // Route handlers are compiled as separate module graphs in development. The
@@ -68,8 +76,19 @@ function clone<T>(value: T): T {
   return structuredClone(value)
 }
 
+function mockNowMs(): number {
+  const configured = process.env.MOCK_NOW_MS
+  if (configured === undefined) return Date.now()
+
+  const parsed = Number(configured)
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error('MOCK_NOW_MS must be a non-negative safe integer')
+  }
+  return parsed
+}
+
 function timestamp(attempt: number, phase: number): string {
-  return new Date(FIXTURE_EPOCH + ((attempt - 1) * 10 + phase) * 1_000).toISOString()
+  return new Date(mockNowMs() + ((attempt - 1) * 10 + phase) * 1_000).toISOString()
 }
 
 export function quoteScriptV2(request: ScriptV2QuoteRequest): ScriptV2QuoteResponse {
@@ -102,7 +121,7 @@ export function quoteScriptV2(request: ScriptV2QuoteRequest): ScriptV2QuoteRespo
       operation: input.operation,
       credits,
       priceVersion: PRICE_VERSION,
-      expiresAt: new Date(FIXTURE_EPOCH + QUOTE_TTL_MS).toISOString(),
+      expiresAt: new Date(mockNowMs() + QUOTE_TTL_MS).toISOString(),
       breakdown: [{ label, credits }],
     },
   })

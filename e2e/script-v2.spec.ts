@@ -1072,3 +1072,192 @@ test('script v2 batch assets groups selections, quotes aggregate credits and con
   expect(state.assets.scenes[0]).toMatchObject({ status: 'failed', error: '本地场景生成失败夹具' })
   expect(state.assets.props[0]).toMatchObject({ description: '磨损的旧录音带，道具设定图', status: 'ready' })
 })
+
+test('script v2 batch materialization previews a selection and commits one atomic image group', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const selectedEntry = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '剧本生成分镜脚本', exact: true }).click()
+  await selectedEntry
+
+  const generator = page.getByTestId('script-v2-generator')
+  await generator.getByPlaceholder('描述剧情片段、故事，为你生成分镜脚本').fill('雨夜车站里，一名旅人收到一封迟到十年的信。')
+  await generator.getByRole('button', { name: '生成分镜脚本', exact: true }).click()
+  const resource = node.getByTestId('script-v2-resource-card')
+  await expect(resource).toBeVisible({ timeout: 20_000 })
+
+  const projectId = new URL(page.url()).searchParams.get('projectId')
+  if (!projectId) throw new Error('projectId missing from canvas URL')
+  const before = await page.request.get(`/api/projects/${projectId}`)
+  expect(before.ok()).toBe(true)
+  const beforePayload = await before.json() as { canvases: Array<{ document: { nodes: unknown[]; groups: unknown[] } }> }
+  const beforeDocument = beforePayload.canvases[0].document
+
+  await resource.getByRole('button', { name: '批量生成分镜', exact: true }).click()
+  const dialog = page.getByTestId('script-v2-batch-materialize-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByTestId('script-v2-batch-selection-count')).toHaveText('已选4/4')
+  await expect(dialog.getByRole('button', { name: '确认生成', exact: true })).toBeEnabled()
+
+  // Opening and configuring the dialog must not touch the graph.
+  const unchanged = await page.request.get(`/api/projects/${projectId}`)
+  const unchangedDocument = (await unchanged.json() as { canvases: Array<{ document: { nodes: unknown[]; groups: unknown[] } }> }).canvases[0].document
+  expect(unchangedDocument).toEqual(beforeDocument)
+
+  await dialog.getByRole('checkbox', { name: '全选镜头', exact: true }).uncheck()
+  await expect(dialog.getByTestId('script-v2-batch-selection-count')).toHaveText('已选0/4')
+  await expect(dialog.getByRole('button', { name: '确认生成', exact: true })).toBeDisabled()
+  await dialog.getByRole('checkbox', { name: '选择镜头 1', exact: true }).check()
+  await expect(dialog.getByTestId('script-v2-batch-selection-count')).toHaveText('已选1/4')
+
+  const persisted = waitForCanvasMutation(page)
+  await dialog.getByRole('button', { name: '确认生成', exact: true }).click()
+  await persisted
+  await expect(dialog).toHaveCount(0)
+
+  const afterResponse = await page.request.get(`/api/projects/${projectId}`)
+  expect(afterResponse.ok()).toBe(true)
+  const afterDocument = (await afterResponse.json() as {
+    canvases: Array<{ document: { nodes: Array<{ type: string; data: { extra?: Record<string, unknown>; prompt?: string } }>; edges: unknown[]; groups: Array<{ kind: string; nodeIds: string[] }> } }>
+  }).canvases[0].document
+  const imageNodes = afterDocument.nodes.filter((candidate) => candidate.type === 'image')
+  expect(imageNodes).toHaveLength(1)
+  expect(imageNodes[0].data.prompt).toBeTruthy()
+  expect(imageNodes[0].data.extra).toEqual(expect.objectContaining({ scriptV2Source: expect.objectContaining({ track: 'image' }) }))
+  expect(afterDocument.groups).toEqual([
+    expect.objectContaining({ kind: 'storyboard', nodeIds: [expect.any(String)] }),
+  ])
+  expect(afterDocument.edges).toHaveLength(1)
+})
+
+test('script v2 workspace exposes video batch settings and keeps shot timing through the confirm gate', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const selectedEntry = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '剧本生成分镜脚本', exact: true }).click()
+  await selectedEntry
+
+  const generator = page.getByTestId('script-v2-generator')
+  await generator.getByPlaceholder('描述剧情片段、故事，为你生成分镜脚本').fill('黄昏海岸边，旅人沿着潮线走向远处的灯塔。')
+  await generator.getByRole('button', { name: '生成分镜脚本', exact: true }).click()
+  const resource = node.getByTestId('script-v2-resource-card')
+  await expect(resource).toBeVisible({ timeout: 20_000 })
+  await resource.getByRole('button', { name: '打开脚本节点 →', exact: true }).click()
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  const stageSaved = waitForCanvasMutation(page)
+  await workspace.getByRole('button', { name: /合成提示词 4\/4 已合成/ }).click()
+  await stageSaved
+  const batchButton = workspace.getByTestId('script-v2-batch-video')
+  await expect(batchButton).toBeVisible()
+  await batchButton.click()
+
+  const dialog = page.getByTestId('script-v2-batch-materialize-dialog')
+  await expect(dialog).toHaveAccessibleName('批量生视频')
+  await expect(dialog.getByTestId('script-v2-batch-selection-count')).toHaveText('已选4/4')
+  await expect(dialog.getByRole('combobox', { name: '生成模式', exact: true })).toHaveValue('text2video')
+  await expect(dialog.getByRole('combobox', { name: '分辨率', exact: true })).toHaveValue('720p')
+  await expect(dialog.getByRole('checkbox', { name: '生成音频', exact: true })).toBeVisible()
+  await expect(dialog.getByText('按每个镜头的时长分别计价，创建后仍需逐个确认生成。', { exact: true })).toBeVisible()
+
+  const projectId = new URL(page.url()).searchParams.get('projectId')
+  if (!projectId) throw new Error('projectId missing from canvas URL')
+  const before = await page.request.get(`/api/projects/${projectId}`)
+  const beforeDocument = (await before.json() as { canvases: Array<{ document: { nodes: unknown[] } }> }).canvases[0].document
+  await dialog.getByRole('checkbox', { name: '选择镜头 2', exact: true }).uncheck()
+  await expect(dialog.getByTestId('script-v2-batch-selection-count')).toHaveText('已选3/4')
+
+  const persisted = waitForCanvasMutation(page)
+  await dialog.getByRole('button', { name: '确认生成', exact: true }).click()
+  await persisted
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByTestId('script-v2-workspace')).toHaveCount(0)
+
+  const after = await page.request.get(`/api/projects/${projectId}`)
+  const afterDocument = (await after.json() as {
+    canvases: Array<{
+      document: {
+        nodes: Array<{ id: string; type: string; data: { output?: Record<string, unknown>; prompt?: string; extra?: Record<string, unknown> } }>
+        edges: Array<{ source: string; target: string }>
+        groups: Array<{ kind: string; nodeIds: string[] }>
+      }
+    }>
+  }).canvases[0].document
+  expect(afterDocument.nodes.filter((candidate) => candidate.type === 'video')).toHaveLength(3)
+  const videos = afterDocument.nodes.filter((candidate) => candidate.type === 'video')
+  expect(videos.map((video) => video.data.output?.mode)).toEqual(['text2video', 'text2video', 'text2video'])
+  expect(videos.map((video) => video.data.extra?.scriptV2Source && (video.data.extra.scriptV2Source as { track: string }).track))
+    .toEqual(['video', 'video', 'video'])
+  expect(afterDocument.edges).toHaveLength(3)
+  expect(afterDocument.groups).toEqual([expect.objectContaining({ kind: 'normal', nodeIds: videos.map((video) => video.id) })])
+  expect(beforeDocument.nodes).toHaveLength(1)
+
+  const firstVideo = page.locator('[data-node-type="video"]').first()
+  await expect(firstVideo).toBeVisible()
+  await firstVideo.getByTestId(/node-run-/).click()
+  const gate = page.getByTestId('confirm-gate')
+  await expect(gate).toBeVisible()
+  await expect(gate).toContainText('Seedance 2.5')
+  await expect(gate).toContainText('时长')
+  await gate.getByRole('button', { name: '取消', exact: true }).click()
+})
+
+test('script v2 materialization is one undo frame and the surviving topology reloads cleanly', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const selectedEntry = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '剧本生成分镜脚本', exact: true }).click()
+  await selectedEntry
+  const generator = page.getByTestId('script-v2-generator')
+  await generator.getByPlaceholder('描述剧情片段、故事，为你生成分镜脚本').fill('清晨的山谷中，信使把一枚旧徽章交给守灯人。')
+  await generator.getByRole('button', { name: '生成分镜脚本', exact: true }).click()
+  const resource = node.getByTestId('script-v2-resource-card')
+  await expect(resource).toBeVisible({ timeout: 20_000 })
+
+  const projectId = new URL(page.url()).searchParams.get('projectId')
+  if (!projectId) throw new Error('projectId missing from canvas URL')
+  await resource.getByRole('button', { name: '批量生成分镜', exact: true }).click()
+  const dialog = page.getByTestId('script-v2-batch-materialize-dialog')
+  await expect(dialog).toBeVisible()
+  const committed = waitForCanvasMutation(page)
+  await dialog.getByRole('button', { name: '确认生成', exact: true }).click()
+  await committed
+  await expect(dialog).toHaveCount(0)
+
+  const afterCommit = await page.request.get(`/api/projects/${projectId}`)
+  const committedDocument = (await afterCommit.json() as {
+    canvases: Array<{ document: { nodes: Array<{ type: string }>; edges: unknown[]; groups: unknown[] } }>
+  }).canvases[0].document
+  expect(committedDocument.nodes.filter((candidate) => candidate.type === 'image')).toHaveLength(4)
+  expect(committedDocument.edges).toHaveLength(4)
+  expect(committedDocument.groups).toHaveLength(1)
+
+  const undone = waitForCanvasMutation(page)
+  await page.keyboard.press('ControlOrMeta+z')
+  await undone
+  await expect.poll(async () => {
+    const response = await page.request.get(`/api/projects/${projectId}`)
+    const document = (await response.json() as { canvases: Array<{ document: { nodes: Array<{ type: string }>; edges: unknown[]; groups: unknown[] } }> }).canvases[0].document
+    return {
+      images: document.nodes.filter((candidate) => candidate.type === 'image').length,
+      edges: document.edges.length,
+      groups: document.groups.length,
+    }
+  }).toEqual({ images: 0, edges: 0, groups: 0 })
+
+  await page.reload()
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await expect(page.locator('[data-node-type="image"]')).toHaveCount(0)
+  await expect(page.locator('[data-node-type="script"]')).toHaveCount(1)
+
+  const reloadedResource = page.locator('[data-node-type="script"]').first().getByTestId('script-v2-resource-card')
+  await reloadedResource.getByRole('button', { name: '批量生成分镜', exact: true }).click()
+  const reloadedDialog = page.getByTestId('script-v2-batch-materialize-dialog')
+  const recommitted = waitForCanvasMutation(page)
+  await reloadedDialog.getByRole('button', { name: '确认生成', exact: true }).click()
+  await recommitted
+  await page.reload()
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await expect(page.locator('[data-node-type="image"]')).toHaveCount(4)
+  await expect(page.locator('[data-node-type="script"]')).toHaveCount(1)
+})

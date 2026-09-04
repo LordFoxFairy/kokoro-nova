@@ -141,10 +141,10 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('GET', '/api/preview/stitch', 'Assets', 'previewStoryboardStitch', ['分镜组 2K 拼接预览']),
 
   route('POST', '/api/script-v2/quotes', 'Script V2', 'quoteScriptV2', [
-    '脚本生成、提示词重算或 AI 资产生成前展示报价',
+    '四种 Script V2 operation 执行前展示确定性本地报价',
   ]),
   route('POST', '/api/script-v2/runs', 'Script V2', 'createScriptV2Run', [
-    '脚本生成、资产识别、提示词智能合成或 AI 资产生成',
+    '提交四种 Script V2 operation 的幂等本地任务',
   ]),
   route('GET', '/api/script-v2/runs/{runId}', 'Script V2', 'getScriptV2Run', [
     'Script V2 任务进度轮询与刷新恢复',

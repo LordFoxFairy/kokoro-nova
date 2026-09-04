@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.7.0-text-authoring-state",
-    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Text 四模型能力、富文本文档状态、原子预设 Workflow 与内联文本产物。"
+    "version": "1.9.0-script-v2",
+    "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
     {
@@ -70,7 +70,7 @@
     },
     {
       "name": "Script V2",
-      "description": "三阶段脚本、资产与双轨提示词本地任务"
+      "description": "三阶段脚本、资产与双轨提示词的 frontend-only local mock；不调用真实 LibTV 后端。"
     }
   ],
   "paths": {
@@ -93,13 +93,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/AgentMessagesResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentMessagesResponseExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "消息不能为空",
             "content": {
               "application/json": {
                 "schema": {
@@ -109,17 +114,7 @@
             }
           },
           "404": {
-            "description": "时间线引用的本地源媒体已不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "会话不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -129,7 +124,7 @@
             }
           },
           "500": {
-            "description": "ffmpeg 渲染或产物探测失败",
+            "description": "请求 JSON 或本地 Agent 执行失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -145,9 +140,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "sessionId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "requestBody": {
@@ -180,13 +176,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/AgentMessagesResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentMessagesResponseExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "回答不能为空或会话没有绑定画布",
             "content": {
               "application/json": {
                 "schema": {
@@ -196,17 +197,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "会话或消息不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -216,7 +207,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求 JSON 或本地 Agent 执行失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -232,9 +223,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "sessionId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "requestBody": {
@@ -268,33 +260,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AgentSessionDetailResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentSessionDetailResponseExample"
+                  }
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "会话不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -304,7 +281,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -320,9 +297,21 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "afterSeq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
             },
-            "description": "sessionId 的稳定本地标识"
+            "description": "只返回 seq 大于该游标的消息。"
           }
         ]
       },
@@ -344,13 +333,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/AgentSession"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentSessionExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "空会话不能分享或请求业务字段不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -360,17 +354,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "会话不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -380,7 +364,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求 JSON 或本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -396,9 +380,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "sessionId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "requestBody": {
@@ -430,43 +415,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AgentDeleteResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentDeleteResponseExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -482,9 +442,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "sessionId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ]
       }
@@ -508,43 +469,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AgentSessionsResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentSessionsResponseExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -553,7 +489,23 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "description": "按本地 projectId 过滤。"
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -573,43 +525,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AgentSession"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AgentSessionExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -620,7 +547,7 @@
           }
         },
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
@@ -650,13 +577,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/Asset"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AssetExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "标签需要是数组或包含未知标签",
             "content": {
               "application/json": {
                 "schema": {
@@ -666,7 +598,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
+            "description": "资产或目标文件夹不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -675,8 +607,8 @@
               }
             }
           },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "410": {
+            "description": "资产已删除",
             "content": {
               "application/json": {
                 "schema": {
@@ -686,7 +618,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -702,9 +634,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "assetId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "requestBody": {
@@ -736,33 +669,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/Asset"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AssetExample"
+                  }
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "资产不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -772,7 +690,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -788,9 +706,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "assetId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ]
       }
@@ -814,43 +733,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AssetFolderListResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AssetFolderListResponseExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -879,58 +773,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AssetFolder"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AssetFolderExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LegacyErrorResponse"
                 }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RenameRequest"
               }
             }
           }
@@ -956,43 +815,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/AssetListResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AssetListResponseExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1001,7 +835,59 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "personal",
+                "agent"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio",
+                "text"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "其它",
+                "人物",
+                "场景",
+                "物品",
+                "风格",
+                "音效"
+              ]
+            }
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1021,33 +907,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/Asset"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/AssetExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "产物不存在或请求字段不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -1057,7 +928,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1098,13 +969,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/UploadAssetResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/UploadAssetResponseExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "文件、上传令牌或上传数量不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -1114,7 +990,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
+            "description": "目标资产文件夹不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1124,7 +1000,7 @@
             }
           },
           "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "上传令牌冲突",
             "content": {
               "application/json": {
                 "schema": {
@@ -1134,7 +1010,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "上传解析、验证或本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1145,11 +1021,11 @@
           }
         },
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/GenericJsonObject"
+                "$ref": "#/components/schemas/UploadAssetRequest"
               }
             }
           }
@@ -1173,33 +1049,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/CancelAssetUploadResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/CancelAssetUploadResponseExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "上传令牌不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -1209,7 +1070,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1218,7 +1079,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,64}$"
+            },
+            "description": "客户端生成的上传取消令牌。"
+          }
+        ]
       }
     },
     "/api/canvases/{canvasId}": {
@@ -1254,28 +1127,8 @@
               }
             }
           },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "画布不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1285,7 +1138,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1305,7 +1158,8 @@
             },
             "description": "canvasId 的稳定本地标识"
           }
-        ]
+        ],
+        "description": "读取画布、其生成 Jobs 和余额；Storyboard 从返回的 WorkflowDocument groups/nodes/artifacts 投影，不另设 Storyboard API。\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       },
       "post": {
         "tags": [
@@ -1334,7 +1188,7 @@
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "请求 JSON 或 mutation 不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -1344,7 +1198,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
+            "description": "画布不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1354,7 +1208,7 @@
             }
           },
           "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "expectedRevision 版本冲突",
             "content": {
               "application/json": {
                 "schema": {
@@ -1364,7 +1218,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1408,7 +1262,8 @@
               }
             }
           }
-        }
+        },
+        "description": "以 expectedRevision 原子写入 WorkflowDocument；Storyboard、Video、Script V2 的可见状态均从同一文档投影。\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       },
       "patch": {
         "tags": [
@@ -1428,33 +1283,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/Canvas"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "画布不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1464,7 +1299,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求 JSON 或本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1514,13 +1349,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/CanvasDeleteResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "项目至少需要保留一个画布",
             "content": {
               "application/json": {
                 "schema": {
@@ -1530,17 +1365,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "画布或项目不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1550,7 +1375,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1656,7 +1481,7 @@
           "Video"
         ],
         "summary": "将多轨视频时间线合成为本地 MP4",
-        "description": "同步执行本地 ffmpeg 合成。服务端负责裁切、倍速、源音频、独立音轨、片间转场、字幕和结果资产登记；下载或添加到画布由前端消费同一响应后决定。最长时间线 20 分钟（1200 秒），最多 40 个视频片段、16 条独立音轨和 100 条字幕。",
+        "description": "同步合成本地 Storyboard/Video 时间线并登记一个本地 video Artifact 与 Asset；不创建普通 Job。\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。",
         "operationId": "composeVideo",
         "x-ui-triggers": [
           "视频合成器导出到本地或画布"
@@ -1764,37 +1589,17 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "当前 fixture 已重建",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/ResetScenarioResponse"
                 }
               }
             }
           },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "403": {
+            "description": "仅开发环境可调用",
             "content": {
               "application/json": {
                 "schema": {
@@ -1804,22 +1609,12 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地 fixture 重建失败",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LegacyErrorResponse"
                 }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GenericJsonObject"
               }
             }
           }
@@ -1850,28 +1645,8 @@
               }
             }
           },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "403": {
+            "description": "仅开发环境可调用",
             "content": {
               "application/json": {
                 "schema": {
@@ -1881,7 +1656,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "当前 fixture 读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1925,18 +1700,8 @@
               }
             }
           },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "403": {
+            "description": "仅开发环境可调用",
             "content": {
               "application/json": {
                 "schema": {
@@ -2244,28 +2009,8 @@
               }
             }
           },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "任务不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -2275,7 +2020,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地轮询或状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2291,9 +2036,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "jobId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "x-libtv-upstream": {
@@ -2344,27 +2090,7 @@
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求 JSON、报价或任务状态不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -2374,7 +2100,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地 transition 或 provider 失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2390,9 +2116,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "jobId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "requestBody": {
@@ -2455,38 +2182,8 @@
               }
             }
           },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2500,7 +2197,19 @@
           "path": "/api/task/generation/progress/batch",
           "evidence": "shape-confirmed",
           "mapping": "官网端点触发批量进度同步；本地端点返回可直接渲染的持久任务历史。"
-        }
+        },
+        "parameters": [
+          {
+            "name": "canvasId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -2532,27 +2241,7 @@
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求 JSON、画布/节点或生成前置条件不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -2562,7 +2251,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地编译或状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2691,54 +2380,21 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "本地媒体字节流",
             "content": {
-              "application/json": {
+              "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
           },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
+          "403": {
+            "description": "路径越界或符号链接越界"
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
+            "description": "媒体文件不存在"
           }
         },
         "parameters": [
@@ -2747,9 +2403,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
-            "description": "path 的稳定本地标识"
+            "description": "相对本地 media 根目录的路径；禁止目录穿越。"
           }
         ]
       }
@@ -2934,56 +2591,37 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "本地 SVG 角色参考预览",
             "content": {
-              "application/json": {
+              "image/svg+xml": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "hue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 210
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "角色参考"
+            }
+          }
+        ]
       }
     },
     "/api/preview/stitch": {
@@ -2999,58 +2637,60 @@
         "x-mock-scenarios": [
           "authenticated-populated"
         ],
+        "description": "返回确定性的本地 SVG；rows/cols 缺省、非有限或越界值会在 mock 内归一化到 1..5，不返回参数校验 4xx。seq 只有值 1 会显示序号。",
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "本地 SVG Storyboard 拼接预览",
             "content": {
-              "application/json": {
+              "image/svg+xml": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "rows",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5,
+              "default": 2
+            },
+            "description": "拼接行数；mock 将缺省、非有限或越界输入归一化到 1..5。"
+          },
+          {
+            "name": "cols",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5,
+              "default": 2
+            },
+            "description": "拼接列数；mock 将缺省、非有限或越界输入归一化到 1..5。"
+          },
+          {
+            "name": "seq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "default": "0"
+            },
+            "description": "传入 1 显示确定性序号；其他值按无序号处理。"
+          }
+        ]
       }
     },
     "/api/projects/{projectId}": {
@@ -3076,27 +2716,17 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "项目及其画布和余额",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/ProjectDetailResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "登录态或编辑会话已过期",
+            "description": "session-expired fixture 下编辑会话已过期",
             "content": {
               "application/json": {
                 "schema": {
@@ -3115,18 +2745,8 @@
               }
             }
           },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3136,6 +2756,7 @@
             }
           }
         },
+        "description": "读取项目详情；在 session-expired fixture 中先返回 401，不读取项目资源。",
         "parameters": [
           {
             "name": "projectId",
@@ -4199,7 +3820,7 @@
         "summary": "计算 Script V2 本地报价",
         "operationId": "quoteScriptV2",
         "x-ui-triggers": [
-          "脚本生成、提示词重算或 AI 资产生成前展示报价"
+          "四种 Script V2 operation 执行前展示确定性本地报价"
         ],
         "x-mock-scenarios": [
           "authenticated-populated"
@@ -4270,7 +3891,8 @@
           "path": "/api/task/generation/power/calculator",
           "evidence": "network-confirmed",
           "mapping": "本地规范化为无账本副作用的确定性报价。"
-        }
+        },
+        "description": "计算 Script V2 本地报价\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       }
     },
     "/api/script-v2/runs": {
@@ -4281,7 +3903,7 @@
         "summary": "提交幂等 Script V2 本地任务",
         "operationId": "createScriptV2Run",
         "x-ui-triggers": [
-          "脚本生成、资产识别、提示词智能合成或 AI 资产生成"
+          "提交四种 Script V2 operation 的幂等本地任务"
         ],
         "x-mock-scenarios": [
           "authenticated-populated"
@@ -4327,6 +3949,16 @@
               }
             }
           },
+          "409": {
+            "description": "idempotencyKey 重放的输入不一致或任务标识冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "请求字段不符合 Script V2 契约",
             "content": {
@@ -4346,16 +3978,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "idempotencyKey 已绑定不同请求",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
           }
         },
         "x-libtv-upstream": {
@@ -4365,7 +3987,8 @@
           ],
           "evidence": "shape-confirmed",
           "mapping": "本地 run 只保存严格校验的 fixture input/result；画布持久化仍走 revision mutation。"
-        }
+        },
+        "description": "提交幂等 Script V2 本地任务\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       }
     },
     "/api/script-v2/runs/{runId}": {
@@ -4428,7 +4051,8 @@
               }
             }
           }
-        }
+        },
+        "description": "轮询 Script V2 本地任务\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       },
       "post": {
         "tags": [
@@ -4489,6 +4113,26 @@
               }
             }
           },
+          "404": {
+            "description": "任务不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务状态不允许当前 transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "请求字段不符合 Script V2 契约",
             "content": {
@@ -4508,28 +4152,9 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "任务不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "当前终态与请求动作不兼容",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
           }
-        }
+        },
+        "description": "取消或重试 Script V2 本地任务\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       }
     }
   },
@@ -4846,6 +4471,29 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FolderRow"
+            }
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectDetailResponse": {
+        "type": "object",
+        "required": [
+          "project",
+          "canvases",
+          "balance"
+        ],
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "canvases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Canvas"
             }
           },
           "balance": {
@@ -5337,7 +4985,47 @@
           },
           "storyboard": {
             "type": "object",
-            "additionalProperties": true
+            "required": [
+              "aspectRatio",
+              "grid",
+              "showSequenceNumbers"
+            ],
+            "properties": {
+              "aspectRatio": {
+                "type": "string",
+                "enum": [
+                  "21:9",
+                  "16:9",
+                  "4:3",
+                  "1:1",
+                  "3:4",
+                  "9:16"
+                ]
+              },
+              "grid": {
+                "type": "object",
+                "required": [
+                  "rows",
+                  "cols"
+                ],
+                "properties": {
+                  "rows": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "cols": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "showSequenceNumbers": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false,
+            "description": "仅用于 storyboard group；Storyboard 卡片仍从 WorkflowDocument 投影。"
           }
         },
         "additionalProperties": false
@@ -5827,13 +5515,17 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "minLength": 1,
+            "maxLength": 200
           },
           "canvasId": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "minLength": 1,
+            "maxLength": 200
           }
         },
         "additionalProperties": false
@@ -5841,17 +5533,18 @@
       "SendAgentMessageRequest": {
         "type": "object",
         "required": [
-          "content"
+          "text"
         ],
         "properties": {
-          "content": {
-            "type": "string"
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
           },
           "context": {
             "type": "array",
             "items": {
-              "type": "object",
-              "additionalProperties": true
+              "$ref": "#/components/schemas/AgentContextChip"
             }
           }
         },
@@ -5860,23 +5553,27 @@
       "ResolveAgentMessageRequest": {
         "type": "object",
         "required": [
-          "action",
-          "messageId"
+          "messageId",
+          "action"
         ],
         "properties": {
+          "messageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
           "action": {
             "type": "string",
             "enum": [
               "answer",
               "apply",
-              "reject"
+              "reject",
+              "ignore"
             ]
           },
-          "messageId": {
-            "type": "string"
-          },
           "answer": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 20000
           }
         },
         "additionalProperties": false
@@ -5885,7 +5582,8 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 500
           },
           "shared": {
             "type": "boolean"
@@ -5898,7 +5596,9 @@
             ]
           },
           "modelId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
           }
         },
         "additionalProperties": false
@@ -7921,10 +7621,10 @@
           },
           "entityRefs": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2EntityRef"
-            }
+            },
+            "maxItems": 500
           }
         },
         "additionalProperties": false
@@ -7943,10 +7643,14 @@
             "maxLength": 200
           },
           "url": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "thumbnailUrl": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "createdAt": {
             "type": "string",
@@ -8010,17 +7714,17 @@
           },
           "plotDescriptionEntityRefs": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2EntityRef"
-            }
+            },
+            "maxItems": 500
           },
           "characters": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2CharacterRef"
-            }
+            },
+            "maxItems": 500
           },
           "videoReference": {
             "type": "object",
@@ -8043,38 +7747,11 @@
                 "maxLength": 4000
               }
             },
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "endTime must be greater than or equal to startTime."
           },
           "cinematics": {
-            "type": "object",
-            "properties": {
-              "shotSize": {
-                "type": "string",
-                "enum": [
-                  "大远景",
-                  "远景",
-                  "全景",
-                  "中远景",
-                  "中景",
-                  "中近景",
-                  "近景",
-                  "特写",
-                  "大特写",
-                  "头肩景",
-                  "半身景",
-                  "全身景"
-                ]
-              },
-              "cameraMovement": {
-                "type": "string",
-                "maxLength": 2000
-              },
-              "lighting": {
-                "type": "string",
-                "maxLength": 2000
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ScriptV2Cinematics"
           },
           "shotSize": {
             "type": "string",
@@ -8099,12 +7776,12 @@
           },
           "sceneAssetIds": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "type": "string",
               "minLength": 1,
               "maxLength": 200
-            }
+            },
+            "maxItems": 500
           },
           "propTags": {
             "type": "string",
@@ -8112,12 +7789,12 @@
           },
           "propAssetIds": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "type": "string",
               "minLength": 1,
               "maxLength": 200
-            }
+            },
+            "maxItems": 500
           },
           "lightingAndAtmosphere": {
             "type": "string",
@@ -8133,10 +7810,10 @@
           },
           "dialogueLines": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2DialogueLine"
-            }
+            },
+            "maxItems": 500
           },
           "voiceover": {
             "type": "string",
@@ -8160,17 +7837,17 @@
           },
           "finalImagePromptEntityRefs": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2EntityRef"
-            }
+            },
+            "maxItems": 500
           },
           "finalVideoPromptEntityRefs": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2EntityRef"
-            }
+            },
+            "maxItems": 500
           },
           "imageToVideoMotionPrompt": {
             "type": "string",
@@ -8182,17 +7859,17 @@
           },
           "imageVersions": {
             "type": "array",
-            "maxItems": 100,
             "items": {
               "$ref": "#/components/schemas/ScriptV2MediaVersion"
-            }
+            },
+            "maxItems": 100
           },
           "videoVersions": {
             "type": "array",
-            "maxItems": 100,
             "items": {
               "$ref": "#/components/schemas/ScriptV2MediaVersion"
-            }
+            },
+            "maxItems": 100
           },
           "colorLabel": {
             "type": [
@@ -8241,7 +7918,8 @@
             "maxLength": 200
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Rows are dense and one-based by shotNumber; row and hiddenUuid values are unique within state."
       },
       "ScriptV2AssetGenerationSettings": {
         "type": "object",
@@ -8341,6 +8019,7 @@
           },
           "thumbnailUrl": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 4000
           },
           "linkedNodeId": {
@@ -8350,37 +8029,14 @@
           },
           "sourceImageRef": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 4000
           },
           "isPrimary": {
             "type": "boolean"
           },
           "compliance": {
-            "type": "object",
-            "required": [
-              "state"
-            ],
-            "properties": {
-              "state": {
-                "type": "string",
-                "enum": [
-                  "pass",
-                  "reject",
-                  "pending",
-                  "expired",
-                  "unknown"
-                ]
-              },
-              "reason": {
-                "type": "string",
-                "maxLength": 4000
-              },
-              "updatedAt": {
-                "type": "string",
-                "format": "date-time"
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ScriptV2AssetCompliance"
           },
           "generation": {
             "$ref": "#/components/schemas/ScriptV2AssetGenerationSettings"
@@ -8410,24 +8066,24 @@
         "properties": {
           "characters": {
             "type": "array",
-            "maxItems": 500,
             "items": {
-              "$ref": "#/components/schemas/ScriptV2Asset"
-            }
+              "$ref": "#/components/schemas/ScriptV2CharacterAsset"
+            },
+            "maxItems": 500
           },
           "scenes": {
             "type": "array",
-            "maxItems": 500,
             "items": {
-              "$ref": "#/components/schemas/ScriptV2Asset"
-            }
+              "$ref": "#/components/schemas/ScriptV2SceneAsset"
+            },
+            "maxItems": 500
           },
           "props": {
             "type": "array",
-            "maxItems": 500,
             "items": {
-              "$ref": "#/components/schemas/ScriptV2Asset"
-            }
+              "$ref": "#/components/schemas/ScriptV2PropAsset"
+            },
+            "maxItems": 500
           }
         },
         "additionalProperties": false
@@ -8504,104 +8160,30 @@
           },
           "rows": {
             "type": "array",
-            "maxItems": 500,
             "items": {
               "$ref": "#/components/schemas/ScriptV2Row"
-            }
+            },
+            "maxItems": 500
           },
           "assets": {
             "$ref": "#/components/schemas/ScriptV2Assets"
           },
           "generator": {
-            "type": "object",
-            "required": [
-              "modelId",
-              "prompt",
-              "translating",
-              "referenceIds",
-              "status",
-              "error"
-            ],
-            "properties": {
-              "modelId": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              },
-              "prompt": {
-                "type": "string",
-                "maxLength": 40000
-              },
-              "translating": {
-                "type": "boolean"
-              },
-              "referenceIds": {
-                "type": "array",
-                "maxItems": 500,
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200
-                }
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "idle",
-                  "generating",
-                  "failed"
-                ]
-              },
-              "error": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "maxLength": 4000
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ScriptV2GeneratorState"
           },
           "promptComposer": {
-            "type": "object",
-            "required": [
-              "singleMode",
-              "batchMode",
-              "modelId"
-            ],
-            "properties": {
-              "singleMode": {
-                "type": "string",
-                "enum": [
-                  "smart",
-                  "auto"
-                ]
-              },
-              "batchMode": {
-                "type": "string",
-                "enum": [
-                  "smart",
-                  "auto"
-                ]
-              },
-              "modelId": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ScriptV2PromptComposerState"
           },
           "promptBatchRuns": {
             "type": "array",
-            "maxItems": 100,
             "items": {
-              "type": "object",
-              "additionalProperties": false
-            }
+              "$ref": "#/components/schemas/ScriptV2PromptBatchRun"
+            },
+            "maxItems": 100
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Canonical persisted Script V2 state. Semantic checks enforce dense shot numbers, unique ids and next ordinal bounds."
       },
       "ScriptV2QuoteRequest": {
         "oneOf": [
@@ -8750,8 +8332,6 @@
           },
           "breakdown": {
             "type": "array",
-            "minItems": 1,
-            "maxItems": 20,
             "items": {
               "type": "object",
               "required": [
@@ -8760,7 +8340,9 @@
               ],
               "properties": {
                 "label": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
                 },
                 "credits": {
                   "type": "number",
@@ -8768,7 +8350,9 @@
                 }
               },
               "additionalProperties": false
-            }
+            },
+            "minItems": 1,
+            "maxItems": 20
           }
         },
         "additionalProperties": false
@@ -8786,137 +8370,560 @@
         "additionalProperties": false
       },
       "CreateScriptV2RunRequest": {
-        "type": "object",
-        "required": [
-          "idempotencyKey",
-          "canvasId",
-          "nodeId",
-          "operation",
-          "input"
-        ],
-        "properties": {
-          "idempotencyKey": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operation": {
+                "const": "generate-full"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2GenerateFullInput"
+              }
+            },
+            "additionalProperties": false
           },
-          "canvasId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
+          {
+            "type": "object",
+            "required": [
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operation": {
+                "const": "recognize-assets-only"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2RecognizeAssetsInput"
+              }
+            },
+            "additionalProperties": false
           },
-          "nodeId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
+          {
+            "type": "object",
+            "required": [
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operation": {
+                "const": "recompute-prompts"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2RecomputePromptsInput"
+              }
+            },
+            "additionalProperties": false
           },
-          "operation": {
-            "$ref": "#/components/schemas/ScriptV2Operation"
-          },
-          "input": {
-            "type": "object"
+          {
+            "type": "object",
+            "required": [
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operation": {
+                "const": "generate-asset"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2GenerateAssetInput"
+              }
+            },
+            "additionalProperties": false
           }
+        ],
+        "discriminator": {
+          "propertyName": "operation"
         },
-        "additionalProperties": false,
-        "description": "input 由 operation 判别；完整约束以 src/contracts/script-v2.ts 的 Zod 判别联合为准。"
+        "description": "Operation-discriminated request; each input branch mirrors the strict Zod schema in src/contracts/script-v2.ts."
       },
       "ScriptV2Run": {
-        "type": "object",
-        "required": [
-          "id",
-          "idempotencyKey",
-          "canvasId",
-          "nodeId",
-          "operation",
-          "input",
-          "status",
-          "attempt",
-          "progress",
-          "quote",
-          "inputFingerprint",
-          "result",
-          "error",
-          "createdAt",
-          "updatedAt"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "idempotencyKey": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "canvasId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "nodeId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "operation": {
-            "$ref": "#/components/schemas/ScriptV2Operation"
-          },
-          "input": {
-            "type": "object"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "queued",
-              "running",
-              "succeeded",
-              "failed",
-              "cancelled"
-            ]
-          },
-          "attempt": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "progress": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "quote": {
-            "$ref": "#/components/schemas/ScriptV2Quote"
-          },
-          "inputFingerprint": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "result": {
-            "type": [
-              "object",
-              "null"
-            ]
-          },
-          "error": {
-            "type": [
-              "string",
-              "null"
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input",
+              "status",
+              "attempt",
+              "progress",
+              "quote",
+              "inputFingerprint",
+              "result",
+              "error",
+              "createdAt",
+              "updatedAt"
             ],
-            "maxLength": 4000
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "cancelled"
+                ]
+              },
+              "attempt": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "progress": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "quote": {
+                "$ref": "#/components/schemas/ScriptV2Quote"
+              },
+              "inputFingerprint": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 4000
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "operation": {
+                "const": "generate-full"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2GenerateFullInput"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ScriptV2GenerateResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input",
+              "status",
+              "attempt",
+              "progress",
+              "quote",
+              "inputFingerprint",
+              "result",
+              "error",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "cancelled"
+                ]
+              },
+              "attempt": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "progress": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "quote": {
+                "$ref": "#/components/schemas/ScriptV2Quote"
+              },
+              "inputFingerprint": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 4000
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "operation": {
+                "const": "recognize-assets-only"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2RecognizeAssetsInput"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ScriptV2RecognizeAssetsResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
           },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input",
+              "status",
+              "attempt",
+              "progress",
+              "quote",
+              "inputFingerprint",
+              "result",
+              "error",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "cancelled"
+                ]
+              },
+              "attempt": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "progress": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "quote": {
+                "$ref": "#/components/schemas/ScriptV2Quote"
+              },
+              "inputFingerprint": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 4000
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "operation": {
+                "const": "recompute-prompts"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2RecomputePromptsInput"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ScriptV2RecomputeResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "idempotencyKey",
+              "canvasId",
+              "nodeId",
+              "operation",
+              "input",
+              "status",
+              "attempt",
+              "progress",
+              "quote",
+              "inputFingerprint",
+              "result",
+              "error",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "canvasId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "cancelled"
+                ]
+              },
+              "attempt": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "progress": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "quote": {
+                "$ref": "#/components/schemas/ScriptV2Quote"
+              },
+              "inputFingerprint": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 4000
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "operation": {
+                "const": "generate-asset"
+              },
+              "input": {
+                "$ref": "#/components/schemas/ScriptV2GenerateAssetInput"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ScriptV2GenerateAssetResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
           }
+        ],
+        "discriminator": {
+          "propertyName": "operation"
         },
-        "additionalProperties": false,
-        "description": "operation 同时判别 input 与 result；succeeded 必须有同 operation 结果，其余状态 result 为 null。"
+        "description": "Operation discriminates input and result. A succeeded run has progress 100 and a matching result; other states have result null."
       },
       "ScriptV2RunResponse": {
         "type": "object",
@@ -8942,6 +8949,1259 @@
               "cancel",
               "retry"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2Cinematics": {
+        "type": "object",
+        "properties": {
+          "shotSize": {
+            "type": "string",
+            "enum": [
+              "大远景",
+              "远景",
+              "全景",
+              "中远景",
+              "中景",
+              "中近景",
+              "近景",
+              "特写",
+              "大特写",
+              "头肩景",
+              "半身景",
+              "全身景"
+            ]
+          },
+          "cameraMovement": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "lighting": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2AssetCompliance": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "reject",
+              "pending",
+              "expired",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2CharacterAsset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ScriptV2Asset"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "const": "character"
+              }
+            },
+            "required": [
+              "role"
+            ]
+          }
+        ]
+      },
+      "ScriptV2SceneAsset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ScriptV2Asset"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "const": "scene"
+              }
+            },
+            "required": [
+              "role"
+            ]
+          }
+        ]
+      },
+      "ScriptV2PropAsset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ScriptV2Asset"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "const": "prop"
+              }
+            },
+            "required": [
+              "role"
+            ]
+          }
+        ]
+      },
+      "ScriptV2GeneratorState": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "prompt",
+          "translating",
+          "referenceIds",
+          "status",
+          "error"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 40000
+          },
+          "translating": {
+            "type": "boolean"
+          },
+          "referenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxItems": 500
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "generating",
+              "failed"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4000
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2PromptComposerState": {
+        "type": "object",
+        "required": [
+          "singleMode",
+          "batchMode",
+          "modelId"
+        ],
+        "properties": {
+          "singleMode": {
+            "type": "string",
+            "enum": [
+              "smart",
+              "auto"
+            ]
+          },
+          "batchMode": {
+            "type": "string",
+            "enum": [
+              "smart",
+              "auto"
+            ]
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2PromptRequestContext": {
+        "type": "object",
+        "required": [
+          "shotId",
+          "track",
+          "operationId",
+          "requestInputFingerprint"
+        ],
+        "properties": {
+          "shotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "track": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "operationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "requestInputFingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2PromptBatch": {
+        "type": "object",
+        "required": [
+          "batchId",
+          "shotIds",
+          "status"
+        ],
+        "properties": {
+          "batchId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "shotIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "submitting",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "requestContexts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2PromptRequestContext"
+            },
+            "maxItems": 40
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2PromptBatchRun": {
+        "type": "object",
+        "required": [
+          "runId",
+          "status",
+          "targetShotIds",
+          "batchSize",
+          "batches",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "targetShotIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 500
+          },
+          "batchSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "batches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2PromptBatch"
+            },
+            "minItems": 1,
+            "maxItems": 25
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2GenerateFullInput": {
+        "type": "object",
+        "required": [
+          "storyText",
+          "entry",
+          "modelId"
+        ],
+        "properties": {
+          "storyText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "entry": {
+            "type": "string",
+            "enum": [
+              "screenplay",
+              "character"
+            ]
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "character": {
+            "type": "object",
+            "required": [
+              "name",
+              "description",
+              "premise"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "premise": {
+                "type": "string",
+                "maxLength": 20000
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2RecognizeAssetsInput": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/ScriptV2State"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2RecomputePromptsInput": {
+        "type": "object",
+        "required": [
+          "state",
+          "rowIds"
+        ],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/ScriptV2State"
+          },
+          "rowIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2GenerateAssetInput": {
+        "type": "object",
+        "required": [
+          "asset",
+          "settings"
+        ],
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/ScriptV2Asset"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ScriptV2AssetGenerationSettings"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2GenerateResult": {
+        "type": "object",
+        "required": [
+          "operation",
+          "title",
+          "rows",
+          "assets"
+        ],
+        "properties": {
+          "operation": {
+            "const": "generate-full"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptV2Row"
+            },
+            "minItems": 1,
+            "maxItems": 500
+          },
+          "assets": {
+            "$ref": "#/components/schemas/ScriptV2Assets"
+          },
+          "styleDescription": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "shotColumns": {
+            "type": "array",
+            "items": {},
+            "maxItems": 100
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2RecognizeAssetsResult": {
+        "type": "object",
+        "required": [
+          "operation",
+          "assets"
+        ],
+        "properties": {
+          "operation": {
+            "const": "recognize-assets-only"
+          },
+          "assets": {
+            "$ref": "#/components/schemas/ScriptV2Assets"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2RecomputeResult": {
+        "type": "object",
+        "required": [
+          "operation",
+          "shots"
+        ],
+        "properties": {
+          "operation": {
+            "const": "recompute-prompts"
+          },
+          "shots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "shotId",
+                "imageGenerationPrompt",
+                "videoMotionPrompt"
+              ],
+              "properties": {
+                "shotId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "imageGenerationPrompt": {
+                  "type": "string",
+                  "maxLength": 40000
+                },
+                "videoMotionPrompt": {
+                  "type": "string",
+                  "maxLength": 40000
+                },
+                "finalImagePromptEntityRefs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScriptV2EntityRef"
+                  },
+                  "maxItems": 500
+                },
+                "finalVideoPromptEntityRefs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScriptV2EntityRef"
+                  },
+                  "maxItems": 500
+                }
+              },
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScriptV2GenerateAssetResult": {
+        "type": "object",
+        "required": [
+          "operation",
+          "asset"
+        ],
+        "properties": {
+          "operation": {
+            "const": "generate-asset"
+          },
+          "asset": {
+            "$ref": "#/components/schemas/ScriptV2Asset"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentSettings": {
+        "type": "object",
+        "required": [
+          "generationMode",
+          "modelId",
+          "freeTurns"
+        ],
+        "properties": {
+          "generationMode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto"
+            ]
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "freeTurns": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentSession": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "projectId",
+          "canvasId",
+          "title",
+          "seq",
+          "createdAt",
+          "updatedAt",
+          "shared",
+          "settings"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "projectId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "canvasId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AgentSettings"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentContextChip": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "refId",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "node",
+              "asset",
+              "model",
+              "skill",
+              "artifact"
+            ]
+          },
+          "refId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentPayload": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "question",
+              "placeholder",
+              "answered"
+            ],
+            "properties": {
+              "kind": {
+                "const": "ask_human"
+              },
+              "question": {
+                "type": "string"
+              },
+              "placeholder": {
+                "type": "string"
+              },
+              "answered": {
+                "type": "boolean"
+              },
+              "answer": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "tool",
+              "summary",
+              "status"
+            ],
+            "properties": {
+              "kind": {
+                "const": "tool_call"
+              },
+              "tool": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "ok",
+                  "error"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "summary",
+              "status",
+              "mutations"
+            ],
+            "properties": {
+              "kind": {
+                "const": "mutation_proposal"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "applied",
+                  "rejected"
+                ]
+              },
+              "mutations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CanvasMutation"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "reason"
+            ],
+            "properties": {
+              "kind": {
+                "const": "quota_gate"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AgentMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "sessionId",
+          "seq",
+          "role",
+          "content",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "tool",
+              "system"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "context": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentContextChip"
+            }
+          },
+          "payload": {
+            "$ref": "#/components/schemas/AgentPayload"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentSessionsResponse": {
+        "type": "object",
+        "required": [
+          "sessions"
+        ],
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentSession"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentSessionDetailResponse": {
+        "type": "object",
+        "required": [
+          "session",
+          "messages"
+        ],
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/AgentSession"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentMessage"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentMessagesResponse": {
+        "type": "object",
+        "required": [
+          "session",
+          "messages"
+        ],
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/AgentSession"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentMessage"
+            }
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "document": {
+            "$ref": "#/components/schemas/WorkflowDocument"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentDeleteResponse": {
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "Asset": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "namespace",
+          "kind",
+          "name",
+          "url",
+          "thumbnailUrl",
+          "width",
+          "height",
+          "durationSeconds",
+          "byteSize",
+          "tags",
+          "folderId",
+          "state",
+          "createdAt",
+          "sourceArtifactId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "agent"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^/(api/media|fixtures/libtv/media)/"
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^/(api/media|fixtures/libtv/media)/"
+          },
+          "width": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "height": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "其它",
+                "人物",
+                "场景",
+                "物品",
+                "风格",
+                "音效"
+              ]
+            }
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "staging",
+              "committed",
+              "revoked"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sourceArtifactId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetFolder": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "name",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetListResponse": {
+        "type": "object",
+        "required": [
+          "assets"
+        ],
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetFolderListResponse": {
+        "type": "object",
+        "required": [
+          "folders",
+          "counts"
+        ],
+        "properties": {
+          "folders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetFolder"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetResponse": {
+        "$ref": "#/components/schemas/Asset"
+      },
+      "UploadAssetResponse": {
+        "type": "object",
+        "required": [
+          "assets",
+          "rejected"
+        ],
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "reason"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CancelAssetUploadResponse": {
+        "type": "object",
+        "required": [
+          "revoked"
+        ],
+        "properties": {
+          "revoked": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "UploadAssetRequest": {
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "format": "binary"
+            }
+          },
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "agent"
+            ],
+            "default": "personal"
+          },
+          "folderId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "uploadToken": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{16,64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CanvasDeleteResponse": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "canvasIds"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canvasIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "additionalProperties": false
@@ -9361,9 +10621,243 @@
       "OfficialScriptV2RecomputeEvidenceExample": {
         "summary": "脱敏官网提示词重算协议证据",
         "externalValue": "./examples/script-v2-official-recompute.sanitized.json"
+      },
+      "AgentSessionExample": {
+        "summary": "本地 Agent 会话",
+        "value": {
+          "id": "session_fixture_01",
+          "spaceId": "space_fixture",
+          "projectId": "project_fixture",
+          "canvasId": "canvas_fixture",
+          "title": "雨夜短片",
+          "seq": 2,
+          "createdAt": "2026-09-03T12:00:00.000Z",
+          "updatedAt": "2026-09-03T12:00:02.000Z",
+          "shared": false,
+          "settings": {
+            "generationMode": "manual",
+            "modelId": "gvlm-3.1",
+            "freeTurns": 2
+          }
+        }
+      },
+      "AgentSessionsResponseExample": {
+        "summary": "Agent 会话列表",
+        "value": {
+          "sessions": [
+            {
+              "id": "session_fixture_01",
+              "spaceId": "space_fixture",
+              "projectId": "project_fixture",
+              "canvasId": "canvas_fixture",
+              "title": "雨夜短片",
+              "seq": 2,
+              "createdAt": "2026-09-03T12:00:00.000Z",
+              "updatedAt": "2026-09-03T12:00:02.000Z",
+              "shared": false,
+              "settings": {
+                "generationMode": "manual",
+                "modelId": "gvlm-3.1",
+                "freeTurns": 2
+              }
+            }
+          ]
+        }
+      },
+      "AgentSessionDetailResponseExample": {
+        "summary": "Agent 会话与消息",
+        "value": {
+          "session": {
+            "id": "session_fixture_01",
+            "spaceId": "space_fixture",
+            "projectId": "project_fixture",
+            "canvasId": "canvas_fixture",
+            "title": "雨夜短片",
+            "seq": 2,
+            "createdAt": "2026-09-03T12:00:00.000Z",
+            "updatedAt": "2026-09-03T12:00:02.000Z",
+            "shared": false,
+            "settings": {
+              "generationMode": "manual",
+              "modelId": "gvlm-3.1",
+              "freeTurns": 2
+            }
+          },
+          "messages": [
+            {
+              "id": "message_fixture_01",
+              "sessionId": "session_fixture_01",
+              "seq": 1,
+              "role": "user",
+              "content": "请规划一条雨夜短片。",
+              "createdAt": "2026-09-03T12:00:01.000Z"
+            }
+          ]
+        }
+      },
+      "AgentMessagesResponseExample": {
+        "summary": "Agent turn 响应",
+        "value": {
+          "session": {
+            "id": "session_fixture_01",
+            "spaceId": "space_fixture",
+            "projectId": "project_fixture",
+            "canvasId": "canvas_fixture",
+            "title": "雨夜短片",
+            "seq": 2,
+            "createdAt": "2026-09-03T12:00:00.000Z",
+            "updatedAt": "2026-09-03T12:00:02.000Z",
+            "shared": false,
+            "settings": {
+              "generationMode": "manual",
+              "modelId": "gvlm-3.1",
+              "freeTurns": 2
+            }
+          },
+          "messages": [
+            {
+              "id": "message_fixture_01",
+              "sessionId": "session_fixture_01",
+              "seq": 1,
+              "role": "user",
+              "content": "请规划一条雨夜短片。",
+              "createdAt": "2026-09-03T12:00:01.000Z"
+            },
+            {
+              "id": "message_fixture_02",
+              "sessionId": "session_fixture_01",
+              "seq": 2,
+              "role": "assistant",
+              "content": "我会先确认创作目标。",
+              "createdAt": "2026-09-03T12:00:02.000Z",
+              "payload": {
+                "kind": "ask_human",
+                "question": "主题是什么？",
+                "placeholder": "输入主题",
+                "answered": false
+              }
+            }
+          ]
+        }
+      },
+      "AgentDeleteResponseExample": {
+        "summary": "删除会话结果",
+        "value": {
+          "deleted": "session_fixture_01"
+        }
+      },
+      "AssetExample": {
+        "summary": "本地已提交图片资产",
+        "value": {
+          "id": "asset_fixture_01",
+          "spaceId": "space_fixture",
+          "namespace": "personal",
+          "kind": "image",
+          "name": "人物参考.png",
+          "url": "/api/media/uploads/upl_fixture_01/person.png",
+          "thumbnailUrl": "/api/media/uploads/upl_fixture_01/person.png",
+          "width": 768,
+          "height": 768,
+          "durationSeconds": null,
+          "byteSize": 1234,
+          "tags": [
+            "人物"
+          ],
+          "folderId": null,
+          "state": "committed",
+          "createdAt": "2026-09-03T12:00:00.000Z",
+          "sourceArtifactId": null
+        }
+      },
+      "AssetListResponseExample": {
+        "summary": "资产列表",
+        "value": {
+          "assets": [
+            {
+              "id": "asset_fixture_01",
+              "spaceId": "space_fixture",
+              "namespace": "personal",
+              "kind": "image",
+              "name": "人物参考.png",
+              "url": "/api/media/uploads/upl_fixture_01/person.png",
+              "thumbnailUrl": "/api/media/uploads/upl_fixture_01/person.png",
+              "width": 768,
+              "height": 768,
+              "durationSeconds": null,
+              "byteSize": 1234,
+              "tags": [
+                "人物"
+              ],
+              "folderId": null,
+              "state": "committed",
+              "createdAt": "2026-09-03T12:00:00.000Z",
+              "sourceArtifactId": null
+            }
+          ]
+        }
+      },
+      "AssetFolderListResponseExample": {
+        "summary": "资产文件夹列表",
+        "value": {
+          "folders": [],
+          "counts": {}
+        }
+      },
+      "AssetFolderExample": {
+        "summary": "新建资产文件夹",
+        "value": {
+          "id": "afld_fixture_01",
+          "spaceId": "space_fixture",
+          "name": "未命名文件夹",
+          "createdAt": "2026-09-03T12:00:00.000Z",
+          "updatedAt": "2026-09-03T12:00:00.000Z"
+        }
+      },
+      "UploadAssetResponseExample": {
+        "summary": "上传结果（含逐文件拒绝项）",
+        "value": {
+          "assets": [
+            {
+              "id": "asset_fixture_01",
+              "spaceId": "space_fixture",
+              "namespace": "personal",
+              "kind": "image",
+              "name": "人物参考.png",
+              "url": "/api/media/uploads/upl_fixture_01/person.png",
+              "thumbnailUrl": "/api/media/uploads/upl_fixture_01/person.png",
+              "width": 768,
+              "height": 768,
+              "durationSeconds": null,
+              "byteSize": 1234,
+              "tags": [
+                "人物"
+              ],
+              "folderId": null,
+              "state": "committed",
+              "createdAt": "2026-09-03T12:00:00.000Z",
+              "sourceArtifactId": null
+            }
+          ],
+          "rejected": [
+            {
+              "name": "bad.txt",
+              "reason": "不接受的文件类型：text/plain"
+            }
+          ]
+        }
+      },
+      "CancelAssetUploadResponseExample": {
+        "summary": "取消上传结果",
+        "value": {
+          "revoked": 1
+        }
       }
     }
   },
   "x-contract-source": "src/contracts/route-manifest.ts",
-  "x-research-source": "docs/research/libtv/api/ENDPOINTS.md"
+  "x-research-source": "docs/research/libtv/api/ENDPOINTS.md",
+  "x-local-only": true,
+  "x-real-libtv-credentials": false,
+  "x-real-libtv-backend-call": false,
+  "x-allowed-integration-boundary": "Replace only the transport/provider adapter; keep local paths, schemas, and fixture examples."
 }

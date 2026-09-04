@@ -11,6 +11,8 @@ export interface CompositeSource {
   artifact: Artifact
   nodeId: string
   nodeName: string
+  /** Optional node kind supplied by callers that enumerate graph sources. */
+  nodeType?: 'video' | 'videoComposite'
 }
 
 export interface ComposeRequestDocument {
@@ -44,6 +46,15 @@ export const DEFAULT_TRANSITION_SECONDS = 0.5
 export const MIN_TRANSITION_SECONDS = 0.08
 export const MAX_TRANSITION_SECONDS = 2
 export const DEFAULT_SUBTITLE_SECONDS = 2
+
+export type CompositeSubtitlePresetId = 'title' | 'body' | 'note' | 'outro'
+
+export const SUBTITLE_PRESETS: Record<CompositeSubtitlePresetId, { text: string; durationSeconds: number }> = {
+  title: { text: '标题', durationSeconds: 2 },
+  body: { text: '正文', durationSeconds: 4 },
+  note: { text: '注释', durationSeconds: 1 },
+  outro: { text: '片尾', durationSeconds: 3 },
+}
 
 const TRANSITION_IDS = new Set<CompositeTransitionId>(['fade', 'to-black', 'to-white'])
 
@@ -86,7 +97,11 @@ export function emptyCompositeDocument(): CompositeDocument {
 }
 
 function sourceMap(sources: CompositeSource[]): Map<string, CompositeSource> {
-  return new Map(sources.map((source) => [source.artifact.id, source]))
+  return new Map(
+    sources
+      .filter((source) => source.nodeType !== 'videoComposite')
+      .map((source) => [source.artifact.id, source]),
+  )
 }
 
 function normalizeClip(value: unknown, sources: Map<string, CompositeSource>, index: number): CompositeClip | null {
@@ -305,8 +320,8 @@ function nextId(prefix: string, artifactId: string, ids: string[]): string {
 }
 
 export function appendClip(document: CompositeDocument, source: CompositeSource): CompositeDocument {
-  if (source.artifact.kind !== 'video') return document
-  const durationSeconds = Math.max(MIN_CLIP_SECONDS, source.artifact.durationSeconds ?? 5)
+  if (source.artifact.kind !== 'video' || source.nodeType === 'videoComposite') return document
+  const durationSeconds = Math.max(MIN_CLIP_SECONDS, finite(source.artifact.durationSeconds, 5))
   const clip: CompositeClip = {
     id: nextId('clip', source.artifact.id, document.clips.map((item) => item.id)),
     artifactId: source.artifact.id,
@@ -326,7 +341,7 @@ export function appendClip(document: CompositeDocument, source: CompositeSource)
 
 export function appendAudioTrack(document: CompositeDocument, source: CompositeSource): CompositeDocument {
   if (source.artifact.kind !== 'audio') return document
-  const durationSeconds = Math.max(MIN_CLIP_SECONDS, source.artifact.durationSeconds ?? 5)
+  const durationSeconds = Math.max(MIN_CLIP_SECONDS, finite(source.artifact.durationSeconds, 5))
   const track: CompositeAudioTrack = {
     id: nextId('audio', source.artifact.id, document.audioTracks.map((item) => item.id)),
     artifactId: source.artifact.id,
@@ -480,13 +495,12 @@ export function clipTimelineStart(document: CompositeDocument, clipIndex: number
 
 export function splitClip(document: CompositeDocument, clipId: string, playheadSeconds: number): CompositeDocument {
   const index = document.clips.findIndex((clip) => clip.id === clipId)
-  if (index === -1) return document
+  if (index === -1 || !Number.isFinite(playheadSeconds)) return document
   const clip = document.clips[index]
   const start = clipTimelineStart(document, index)
   const visibleDuration = clipDuration(clip)
-  const localSeconds = playheadSeconds > start && playheadSeconds < start + visibleDuration
-    ? playheadSeconds - start
-    : visibleDuration / 2
+  if (!(playheadSeconds > start && playheadSeconds < start + visibleDuration)) return document
+  const localSeconds = playheadSeconds - start
   const sourceSplit = clamp(
     clip.inPoint + localSeconds * clip.speed,
     clip.inPoint + MIN_CLIP_SECONDS,
@@ -545,10 +559,19 @@ export function createSubtitle(
   playheadSeconds: number,
   text = '新字幕',
 ): CompositeDocument {
+  return createSubtitleWithDuration(document, playheadSeconds, text, DEFAULT_SUBTITLE_SECONDS)
+}
+
+function createSubtitleWithDuration(
+  document: CompositeDocument,
+  playheadSeconds: number,
+  text: string,
+  durationSeconds: number,
+): CompositeDocument {
   const duration = compositeDuration(document)
   if (duration <= 0) return document
   const start = clamp(finite(playheadSeconds, 0), 0, Math.max(0, duration - 0.5))
-  const end = Math.min(duration, start + DEFAULT_SUBTITLE_SECONDS)
+  const end = Math.min(duration, start + durationSeconds)
   const ids = document.subtitles.map((subtitle) => subtitle.id)
   let sequence = 1
   while (ids.includes(`subtitle-${sequence}`)) sequence += 1
@@ -559,6 +582,17 @@ export function createSubtitle(
       { id: `subtitle-${sequence}`, text, start, end, visible: true },
     ],
   }
+}
+
+export function createSubtitleFromPreset(
+  document: CompositeDocument,
+  playheadSeconds: number,
+  preset: CompositeSubtitlePresetId,
+): CompositeDocument {
+  const definition = SUBTITLE_PRESETS[preset]
+  return definition
+    ? createSubtitleWithDuration(document, playheadSeconds, definition.text, definition.durationSeconds)
+    : document
 }
 
 export function toComposeRequest(document: CompositeDocument): ComposeRequestDocument {

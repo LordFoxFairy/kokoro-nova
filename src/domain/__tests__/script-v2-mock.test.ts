@@ -170,6 +170,83 @@ describe('deterministic Script V2 fixture engine', () => {
 })
 
 describe('Script V2 batch graph materialization', () => {
+  it('materializes only the selected shots and applies image batch settings', () => {
+    const state = generatedState()
+    const document = withScriptNode(state)
+    const rowIds = [state.rows[0].id, state.rows[2].id]
+    const result = createScriptV2BatchMutations(document, 'node_script_fixture', state, 'image', {
+      rowIds,
+      modelId: 'lib-navo-pro',
+      aspectRatio: '9:16',
+      resolution: '4K',
+      quality: 'high',
+    })
+    const after = applyMutations(document, result.mutations)
+    const created = result.createdNodeIds.map((id) => after.nodes.find((node) => node.id === id)!)
+
+    expect(result.blockedReason).toBeNull()
+    expect(result.mutations).toHaveLength(rowIds.length * 2 + 1)
+    expect(created.map((node) => node.data.prompt)).toEqual([
+      state.rows[0].imageGenerationPrompt,
+      state.rows[2].imageGenerationPrompt,
+    ])
+    expect(created.map((node) => node.data.modelId)).toEqual(['lib-navo-pro', 'lib-navo-pro'])
+    expect(created.map((node) => node.data.output)).toEqual([
+      expect.objectContaining({ aspectRatio: '9:16', resolution: '4K', quality: 'high', count: 1 }),
+      expect.objectContaining({ aspectRatio: '9:16', resolution: '4K', quality: 'high', count: 1 }),
+    ])
+    expect(after.groups).toContainEqual(expect.objectContaining({ nodeIds: result.createdNodeIds }))
+  })
+
+  it('validates only selected rows and preserves selected video durations and audio settings', () => {
+    const generated = generatedState()
+    const state = {
+      ...generated,
+      rows: generated.rows.map((row, index) => index === 1 ? { ...row, videoMotionPrompt: '' } : row),
+      assets: {
+        characters: generated.assets.characters.map((asset) => ({
+          ...asset,
+          status: 'ready' as const,
+          thumbnailUrl: '/fixtures/libtv/media/character.webp',
+        })),
+        scenes: generated.assets.scenes,
+        props: generated.assets.props,
+      },
+    }
+    const document = withScriptNode(state)
+    const selectedRow = state.rows[0]
+    const result = createScriptV2BatchMutations(document, 'node_script_fixture', state, 'video', {
+      rowIds: [selectedRow.id],
+      modelId: 'seedance-2-5',
+      aspectRatio: '9:16',
+      resolution: '1080p',
+      withAudio: true,
+    })
+    const after = applyMutations(document, result.mutations)
+    const created = after.nodes.find((node) => node.id === result.createdNodeIds[0])!
+
+    expect(result.blockedReason).toBeNull()
+    expect(result.createdNodeIds).toHaveLength(1)
+    expect(created.data.prompt).toBe(selectedRow.videoMotionPrompt)
+    expect(created.data.output).toEqual(expect.objectContaining({
+      aspectRatio: '9:16',
+      resolution: '1080p',
+      durationSeconds: selectedRow.durationSeconds,
+      withAudio: true,
+      mode: 'text2video',
+    }))
+  })
+
+  it('returns a selection error without producing graph mutations', () => {
+    const state = generatedState()
+    const result = createScriptV2BatchMutations(withScriptNode(state), 'node_script_fixture', state, 'image', {
+      rowIds: [],
+    })
+
+    expect(result).toMatchObject({ mutations: [], createdNodeIds: [], groupId: null })
+    expect(result.blockedReason).toBe('请至少选择一个镜头')
+  })
+
   it('creates a storyboard group, one Image node and one Script edge per shot atomically', () => {
     const state = generatedState()
     const document = withScriptNode(state)

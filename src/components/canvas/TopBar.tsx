@@ -24,6 +24,48 @@ import {
   IconWorkflow,
 } from '../icons'
 
+export const TOPBAR_RESPONSIVE_BREAKPOINT = 1100
+
+const TOPBAR_RESPONSIVE_STYLES = `
+@media (max-width: ${TOPBAR_RESPONSIVE_BREAKPOINT}px) {
+  [data-testid="editor-topbar"] {
+    height: auto;
+    min-height: 2rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    overflow-x: auto;
+  }
+
+  [data-testid="editor-topbar"] > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  [data-testid="editor-topbar"] [data-testid="project-canvas-control"] {
+    min-width: 0;
+    max-width: calc(100vw - 1rem);
+  }
+
+  [data-testid="editor-account-actions"] {
+    min-width: 0;
+    max-width: 100%;
+    height: 2rem;
+    flex: 0 0 100%;
+    justify-content: flex-end;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  [data-testid="editor-account-actions"] > * {
+    flex: 0 0 auto;
+  }
+}
+`
+
 function ViewModeButton({
   label,
   active,
@@ -159,11 +201,12 @@ export function TopBar() {
 
   return (
     <>
+      <style>{TOPBAR_RESPONSIVE_STYLES}</style>
       <header
         data-testid="editor-topbar"
-        className="pointer-events-none absolute left-4 right-4 top-4 z-30 flex h-8 items-center justify-between"
+        className="pointer-events-none absolute left-4 right-4 top-4 z-30 flex h-8 min-w-0 items-center justify-between"
       >
-        <div className="pointer-events-auto flex h-8 items-center gap-2">
+        <div className="pointer-events-auto flex h-8 min-w-0 items-center gap-2">
           <div
             data-testid="project-canvas-control"
             className="flex h-8 items-center rounded-[10px] border border-white/8 bg-surface px-1 shadow-[var(--shadow-float)]"

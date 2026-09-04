@@ -87,6 +87,50 @@ import {
   type Viewport,
 } from './scene'
 
+export type DirectorSaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+export function directorSaveStateLabel(state: DirectorSaveState): string {
+  if (state === 'saving') return '保存中'
+  if (state === 'saved') return '已保存'
+  if (state === 'error') return '保存失败'
+  return '未保存'
+}
+
+export type DirectorKeyboardAction =
+  | 'move-up'
+  | 'move-down'
+  | 'move-left'
+  | 'move-right'
+  | 'turn-left'
+  | 'turn-right'
+  | 'delete'
+
+export function directorKeyboardAction(key: string): DirectorKeyboardAction | null {
+  switch (key.toLowerCase()) {
+    case 'w':
+    case 'arrowup':
+      return 'move-up'
+    case 's':
+    case 'arrowdown':
+      return 'move-down'
+    case 'a':
+    case 'arrowleft':
+      return 'move-left'
+    case 'd':
+    case 'arrowright':
+      return 'move-right'
+    case 'q':
+      return 'turn-left'
+    case 'e':
+      return 'turn-right'
+    case 'delete':
+    case 'backspace':
+      return 'delete'
+    default:
+      return null
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * Public interface
  * ------------------------------------------------------------------ */
@@ -107,7 +151,7 @@ export interface DirectorStudioProps {
    * Persist hook. The caller decides where the blocking lives — usually
    * `node.data.extra` on the 导演 node that opened this studio.
    */
-  onSave: (scene: DirectorScene, shots: CapturedShot[]) => void
+  onSave: (scene: DirectorScene, shots: CapturedShot[]) => void | Promise<void>
 }
 
 /**
@@ -136,6 +180,20 @@ const MOVE_STEP_FINE = 0.05
 const TURN_STEP = 10
 const TURN_STEP_FINE = 2
 
+function cloneCapturedShots(shots: readonly CapturedShot[]): CapturedShot[] {
+  return shots.map((shot) => ({
+    ...shot,
+    camera: {
+      ...shot.camera,
+      position: { ...shot.camera.position },
+    },
+  }))
+}
+
+function directorDraftFingerprint(scene: DirectorScene, shots: readonly CapturedShot[]): string {
+  return JSON.stringify({ scene, shots })
+}
+
 function StudioBody({
   initialScene,
   initialShots,
@@ -158,9 +216,21 @@ function StudioBody({
   const [showGuides, setShowGuides] = useState(true)
   const [snapToGrid, setSnapToGrid] = useState(true)
   const [renamingShot, setRenamingShot] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<DirectorSaveState>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedSnapshot, setSavedSnapshot] = useState(() => directorDraftFingerprint(bootstrap.scene, initialShots ?? []))
 
   const camera = activeCamera(scene)
   const resolved = useMemo(() => (camera ? resolveCamera(scene, camera) : null), [scene, camera])
+  const currentSnapshot = useMemo(() => directorDraftFingerprint(scene, shots), [scene, shots])
+  const dirty = currentSnapshot !== savedSnapshot
+
+  useEffect(() => {
+    if (saveState === 'saved' && dirty) {
+      setSaveState('idle')
+      setSaveError(null)
+    }
+  }, [dirty, saveState])
 
   /* --- scene mutation helpers --------------------------------------- */
 
@@ -338,28 +408,28 @@ function StudioBody({
       if (!selection) return
       const step = event.shiftKey ? MOVE_STEP_FINE : MOVE_STEP
       const turn = event.shiftKey ? TURN_STEP_FINE : TURN_STEP
-      let handled = true
-      switch (event.key.toLowerCase()) {
-        case 'w':
+      const action = directorKeyboardAction(event.key)
+      let handled = action !== null
+      switch (action) {
+        case 'move-up':
           nudgeSelected(0, step)
           break
-        case 's':
+        case 'move-down':
           nudgeSelected(0, -step)
           break
-        case 'a':
+        case 'move-left':
           nudgeSelected(-step, 0)
           break
-        case 'd':
+        case 'move-right':
           nudgeSelected(step, 0)
           break
-        case 'q':
+        case 'turn-left':
           turnSelected(-turn)
           break
-        case 'e':
+        case 'turn-right':
           turnSelected(turn)
           break
         case 'delete':
-        case 'backspace':
           removeSelected()
           break
         default:
@@ -373,6 +443,20 @@ function StudioBody({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [selection, nudgeSelected, turnSelected, removeSelected])
+
+  const save = async () => {
+    if (saveState === 'saving') return
+    setSaveState('saving')
+    setSaveError(null)
+    try {
+      await onSave(cloneScene(scene), cloneCapturedShots(shots))
+      setSavedSnapshot(currentSnapshot)
+      setSaveState('saved')
+    } catch (error) {
+      setSaveState('error')
+      setSaveError(error instanceof Error ? error.message : '保存失败，请重试')
+    }
+  }
 
   /* --- render ------------------------------------------------------- */
 
@@ -390,6 +474,26 @@ function StudioBody({
           <span className="hidden text-[11px] text-ink-400 lg:block">
             {scene.cameras.length} 机位 · {scene.actors.length} 角色 · {scene.props.length} 道具 · {shots.length} 镜头
           </span>
+          <span
+            data-testid="director-save-status"
+            data-state={saveState}
+            data-dirty={dirty}
+            aria-live="polite"
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px]',
+              saveState === 'saving'
+                ? 'bg-running/10 text-running'
+                : saveState === 'error'
+                  ? 'bg-danger/10 text-danger'
+                  : saveState === 'saved'
+                    ? 'bg-success/10 text-success'
+                    : dirty
+                      ? 'bg-running/10 text-running'
+                      : 'bg-ink-100 text-ink-500',
+            )}
+          >
+            {directorSaveStateLabel(saveState)}
+          </span>
           <button
             type="button"
             onClick={onClose}
@@ -400,16 +504,33 @@ function StudioBody({
           <button
             type="button"
             data-testid="director-save"
-            onClick={() => {
-              onSave(cloneScene(scene), shots)
-              onClose()
-            }}
-            className="rounded-lg bg-ink-900 px-3.5 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+            aria-busy={saveState === 'saving'}
+            disabled={saveState === 'saving'}
+            onClick={() => void save()}
+            className="rounded-lg bg-ink-900 px-3.5 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60"
           >
-            保存
+            {saveState === 'saving' ? '保存中…' : saveState === 'error' ? '重试保存' : '保存'}
           </button>
         </div>
       </header>
+
+      {saveState === 'error' && saveError && (
+        <div
+          className="flex items-center gap-2 border-b border-danger/20 bg-danger/6 px-5 py-2 text-[11px] text-danger"
+          role="alert"
+          data-testid="director-save-error"
+        >
+          <span className="min-w-0 flex-1">保存失败：{saveError}</span>
+          <button
+            type="button"
+            data-testid="director-save-retry"
+            onClick={() => void save()}
+            className="rounded-lg px-2 py-1 font-medium hover:bg-danger/10"
+          >
+            重试
+          </button>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         <SceneTree

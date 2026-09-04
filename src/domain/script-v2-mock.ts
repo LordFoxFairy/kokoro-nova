@@ -1,5 +1,15 @@
 import { createNode } from './factory'
-import { DEFAULT_MODEL } from './models'
+import {
+  DEFAULT_MODEL,
+  MODELS_BY_ID,
+  normalizeImageOutputForModel,
+  normalizeOutputForModel,
+  type ImageAspectRatio,
+  type ImageQuality,
+  type ImageResolution,
+  type ModelAspectRatio,
+  type ModelResolution,
+} from './models'
 import {
   SCRIPT_V2_RECOMPUTE_MAX_SHOTS,
   appendScriptV2Row,
@@ -18,6 +28,7 @@ import {
 } from './script-v2'
 import type {
   CanvasMutation,
+  OutputSpec,
   WorkflowDocument,
   WorkflowEdge,
   WorkflowGroup,
@@ -62,6 +73,17 @@ export interface ScriptV2GenerateAssetResult {
 }
 
 export type ScriptV2BatchKind = 'image' | 'video'
+
+export interface ScriptV2BatchMaterializeOptions {
+  /** Omit to materialize every shot; the UI always supplies an explicit selection. */
+  rowIds?: readonly string[]
+  modelId?: string
+  aspectRatio?: ModelAspectRatio
+  resolution?: ModelResolution
+  quality?: ImageQuality
+  withAudio?: boolean
+  mode?: NonNullable<OutputSpec['mode']>
+}
 
 export interface ScriptV2BatchBuildResult {
   mutations: CanvasMutation[]
@@ -421,6 +443,19 @@ function blocked(reason: string): ScriptV2BatchBuildResult {
   return { mutations: [], createdNodeIds: [], groupId: null, blockedReason: reason }
 }
 
+function resolveBatchModel(kind: ScriptV2BatchKind, requestedId: string | undefined): string {
+  const requested = requestedId ? MODELS_BY_ID.get(requestedId) : undefined
+  if (kind === 'image') {
+    return requested?.media === 'image' ? requested.id : DEFAULT_MODEL.image
+  }
+  // Script rows are materialized as text-to-video outputs. A model that only
+  // supports reference/edit modes would create a node that cannot be run from
+  // the script edge alone, so fall back to the deterministic default.
+  return requested?.media === 'video' && requested.capabilities?.modes.includes('text2video')
+    ? requested.id
+    : DEFAULT_MODEL.video
+}
+
 function outputNode(
   kind: ScriptV2BatchKind,
   row: ScriptV2Row,
@@ -428,6 +463,7 @@ function outputNode(
   source: WorkflowNode,
   existing: WorkflowNode[],
   id: string,
+  options: ScriptV2BatchMaterializeOptions,
 ): WorkflowNode {
   const columns = 2
   const position = {
@@ -441,13 +477,20 @@ function outputNode(
     updatedAt: SCRIPT_V2_FIXTURE_TIMESTAMP,
   })
   if (kind === 'image') {
+    const modelId = resolveBatchModel(kind, options.modelId)
+    const output = normalizeImageOutputForModel(modelId, {
+      aspectRatio: options.aspectRatio as ImageAspectRatio | undefined,
+      quality: options.quality,
+      resolution: options.resolution as ImageResolution | undefined,
+      count: 1,
+    })
     return {
       ...node,
       data: {
         ...node.data,
         prompt: row.imageGenerationPrompt,
-        modelId: DEFAULT_MODEL.image,
-        output: { aspectRatio: '16:9', quality: 'standard', resolution: '2K', count: 1 },
+        modelId,
+        output,
         extra: {
           ...(node.data.extra ?? {}),
           scriptV2Source: {
@@ -460,20 +503,25 @@ function outputNode(
       },
     }
   }
+  const modelId = resolveBatchModel(kind, options.modelId)
+  const output = normalizeOutputForModel(modelId, {
+    aspectRatio: options.aspectRatio,
+    resolution: options.resolution,
+    // The Script V2 row duration is authoritative even when the selected
+    // provider catalog uses a smaller preset list. The compiler can normalize
+    // it at execution time; the authored shot timing must remain visible here.
+    durationSeconds: row.durationSeconds,
+    count: 1,
+    withAudio: options.withAudio ?? false,
+    mode: 'text2video',
+  }, ['text2video'])
   return {
     ...node,
     data: {
       ...node.data,
       prompt: row.videoMotionPrompt,
-      modelId: DEFAULT_MODEL.video,
-      output: {
-        aspectRatio: '16:9',
-        resolution: '720p',
-        durationSeconds: row.durationSeconds,
-        count: 1,
-        withAudio: false,
-        mode: 'text2video',
-      },
+      modelId,
+      output: { ...output, durationSeconds: row.durationSeconds },
       extra: {
         ...(node.data.extra ?? {}),
         scriptV2Source: {
@@ -492,26 +540,31 @@ export function createScriptV2BatchMutations(
   sourceNodeId: string,
   state: ScriptV2State,
   kind: ScriptV2BatchKind,
+  options: ScriptV2BatchMaterializeOptions = {},
 ): ScriptV2BatchBuildResult {
   const source = document.nodes.find((node) => node.id === sourceNodeId)
   if (!source || source.type !== 'script') return blocked('脚本节点不存在')
-  const reason = scriptV2BatchBlockedReason(state, kind)
+  const selectedIds = options.rowIds === undefined
+    ? state.rows.map((row) => row.id)
+    : [...new Set(options.rowIds)]
+  const selectedRows = state.rows.filter((row) => selectedIds.includes(row.id))
+  const reason = scriptV2BatchBlockedReason(state, kind, selectedIds)
   if (reason) return blocked(reason)
 
   const usedNodeIds = new Set(document.nodes.map((node) => node.id))
   const usedEdgeIds = new Set(document.edges.map((edge) => edge.id))
   const usedGroupIds = new Set(document.groups.map((group) => group.id))
   const created: WorkflowNode[] = []
-  for (const [index, row] of state.rows.entries()) {
+  for (const [index, row] of selectedRows.entries()) {
     const id = uniqueId(
       stableId('nd', sourceNodeId, state.identitySeed, kind, row.id),
       usedNodeIds,
     )
-    created.push(outputNode(kind, row, index, source, [...document.nodes, ...created], id))
+    created.push(outputNode(kind, row, index, source, [...document.nodes, ...created], id, options))
   }
   const edges: WorkflowEdge[] = created.map((node, index) => ({
     id: uniqueId(
-      stableId('edg', sourceNodeId, state.identitySeed, kind, state.rows[index].id),
+      stableId('edg', sourceNodeId, state.identitySeed, kind, selectedRows[index].id),
       usedEdgeIds,
     ),
     source: sourceNodeId,
@@ -519,7 +572,7 @@ export function createScriptV2BatchMutations(
     createdAt: SCRIPT_V2_FIXTURE_TIMESTAMP,
   }))
   const groupId = uniqueId(
-    stableId('grp', sourceNodeId, state.identitySeed, kind, state.rows.map((row) => row.id).join(',')),
+    stableId('grp', sourceNodeId, state.identitySeed, kind, selectedRows.map((row) => row.id).join(',')),
     usedGroupIds,
   )
   const group: WorkflowGroup = {

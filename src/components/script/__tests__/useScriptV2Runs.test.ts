@@ -177,6 +177,42 @@ describe('createScriptV2RunController', () => {
     })
   })
 
+  it('waits for asynchronous canvas state writes before resolving a prompt batch', async () => {
+    let state = stateWithRows(1)
+    let release!: () => void
+    const pendingWrite = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let held = false
+    let settled = false
+    const controller = createScriptV2RunController({
+      canvasId: 'canvas_fixture',
+      nodeId: 'node_script_fixture',
+      getState: () => state,
+      onStateChange: async (next) => {
+        state = next
+        if (!held) {
+          held = true
+          await pendingWrite
+        }
+      },
+      api: fakeApi([]),
+    })
+
+    const promise = controller.recomputePrompts([state.rows[0].id]).then(() => {
+      settled = true
+    })
+    await vi.advanceTimersByTimeAsync(800)
+    await Promise.resolve()
+
+    expect(settled).toBe(false)
+    expect(state.promptBatchRuns.at(-1)?.status).toBe('completed')
+
+    release()
+    await promise
+    expect(settled).toBe(true)
+  })
+
   it('aborts pending polling and leaves no timer behind when disposed', async () => {
     let state = stateWithRows(1)
     const controller = createScriptV2RunController({

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { AssetFolder } from '@/app/api/assets/folders/route'
 import type { Asset, AssetKind, AssetNamespace, AssetTag } from '@/domain/types'
 import { api } from '@/lib/api'
@@ -22,11 +22,13 @@ import {
   IconMore,
   IconPlus,
   IconRename,
+  IconRefresh,
   IconSearch,
   IconText,
   IconTrash,
   IconUpload,
   IconVideo,
+  IconWarning,
 } from '../icons'
 
 export interface AssetLibraryPanelProps {
@@ -59,7 +61,8 @@ const KIND_LABEL: Record<AssetKind, string> = {
   text: '文本',
 }
 
-type Category = 'all' | 'image' | 'video' | 'audio'
+export type AssetLibraryCategory = 'all' | 'image' | 'video' | 'audio'
+type Category = AssetLibraryCategory
 
 const CATEGORIES: { value: Category; label: string; icon: ReactNode }[] = [
   { value: 'all', label: '全部', icon: <IconAssetLibrary size={15} /> },
@@ -67,6 +70,36 @@ const CATEGORIES: { value: Category; label: string; icon: ReactNode }[] = [
   { value: 'video', label: '视频', icon: <IconVideo size={15} /> },
   { value: 'audio', label: '音频', icon: <IconAudio size={15} /> },
 ]
+
+export type AssetLibraryRequestState = 'idle' | 'loading' | 'ready' | 'error'
+
+export function assetLibraryStateLabel(state: AssetLibraryRequestState): string {
+  if (state === 'loading') return '加载中'
+  if (state === 'error') return '加载失败'
+  if (state === 'ready') return '已加载'
+  return '未加载'
+}
+
+/** Apply the same local constraints used by the visible library grid. */
+export function filterLibraryAssets(
+  assets: readonly Asset[],
+  options: Partial<{
+    folderId: string | null
+    category: AssetLibraryCategory
+    query: string
+    tags: AssetTag[]
+  }> = {},
+): Asset[] {
+  const query = options.query?.trim().toLocaleLowerCase('zh-CN') ?? ''
+  const tags = options.tags ?? []
+  return assets.filter((asset) => {
+    if (options.folderId !== undefined && (asset.folderId ?? null) !== options.folderId) return false
+    if (options.category && options.category !== 'all' && asset.kind !== options.category) return false
+    if (tags.length > 0 && !tags.some((tag) => asset.tags.includes(tag))) return false
+    if (query && !`${asset.name}\n${asset.tags.join(' ')}`.toLocaleLowerCase('zh-CN').includes(query)) return false
+    return asset.state !== 'revoked'
+  })
+}
 
 /**
  * 资产库 — browse, organise and insert library assets.
@@ -89,6 +122,8 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   const [folders, setFolders] = useState<AssetFolder[]>([])
   const [folderCounts, setFolderCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
+  const [assetsError, setAssetsError] = useState<string | null>(null)
+  const [foldersError, setFoldersError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const [selectionMode, setSelectionMode] = useState(false)
@@ -107,6 +142,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   const createMenu = useMenuAnchor()
   /** Guards against a slow earlier request overwriting a newer result. */
   const requestSeq = useRef(0)
+  const requestKey = useRef<string | null>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => setCommittedQuery(query.trim()), 220)
@@ -114,6 +150,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   }, [query])
 
   const loadFolders = useCallback(async () => {
+    setFoldersError(null)
     try {
       const data = await api.get<{ folders: AssetFolder[]; counts: Record<string, number> }>(
         '/api/assets/folders',
@@ -121,14 +158,24 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
       setFolders(data.folders)
       setFolderCounts(data.counts)
     } catch (error) {
-      toast(error instanceof Error ? error.message : '文件夹加载失败', 'error')
+      const message = error instanceof Error ? error.message : '文件夹加载失败'
+      setFoldersError(message)
+      toast(message, 'error')
     }
   }, [toast])
 
   const loadAssets = useCallback(async () => {
     const seq = requestSeq.current + 1
     requestSeq.current = seq
+    const key = `${namespace}:${committedQuery}`
+    if (requestKey.current !== key) {
+      // A namespace/search change must not briefly display rows from the old
+      // request while the new local fixture is loading.
+      requestKey.current = key
+      setAssets([])
+    }
     setLoading(true)
+    setAssetsError(null)
     try {
       // Kind stays out of the request: the rail shows a count per category, and
       // a kind-filtered response could only ever count the selected one.
@@ -139,7 +186,9 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
       setAssets(data.assets)
     } catch (error) {
       if (requestSeq.current !== seq) return
-      toast(error instanceof Error ? error.message : '资产加载失败', 'error')
+      const message = error instanceof Error ? error.message : '资产加载失败'
+      setAssetsError(message)
+      toast(message, 'error')
     } finally {
       if (requestSeq.current === seq) setLoading(false)
     }
@@ -178,13 +227,12 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   /** Everything the current folder, search and tags allow, before the rail. */
   const scoped = useMemo(
     () =>
-      assets.filter((asset) => {
-        if ((asset.folderId ?? null) !== folderId) return false
-        // Several tags read as "any of these", matching how the chips are used.
-        if (activeTags.length > 0 && !activeTags.some((tag) => asset.tags.includes(tag))) return false
-        return true
+      filterLibraryAssets(assets, {
+        folderId,
+        query: committedQuery,
+        tags: activeTags,
       }),
-    [assets, folderId, activeTags],
+    [assets, folderId, committedQuery, activeTags],
   )
 
   const counts = useMemo(() => {
@@ -208,6 +256,16 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   // A filtered view is about finding assets, and folders match no filter, so
   // they only belong in the unfiltered root listing.
   const showFolders = folderId === null && !filtersActive && folders.length > 0
+  const requestState: AssetLibraryRequestState = loading
+    ? 'loading'
+    : assetsError
+      ? 'error'
+      : open && requestKey.current !== null
+        ? 'ready'
+        : 'idle'
+  const retryLoads = () => {
+    void Promise.all([loadAssets(), loadFolders()])
+  }
 
   /* ---------------------------------------------------------------- *
    * Selection
@@ -385,6 +443,22 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
               <Spinner size={14} />
             </span>
           )}
+          <span
+            data-testid="asset-library-status"
+            aria-live="polite"
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px]',
+              requestState === 'error'
+                ? 'bg-danger/10 text-danger'
+                : requestState === 'loading'
+                  ? 'bg-running/10 text-running'
+                  : requestState === 'ready'
+                    ? 'bg-success/10 text-success'
+                    : 'bg-ink-100 text-ink-500',
+            )}
+          >
+            {assetLibraryStateLabel(requestState)}
+          </span>
           <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
             <IconSearch size={14} className="text-ink-400" />
             <input
@@ -516,7 +590,61 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
         </div>
 
         <div className="thin-scrollbar max-h-[52vh] min-h-[320px] flex-1 overflow-y-auto p-5">
-          {loading && assets.length === 0 ? (
+          {assetsError && assets.length > 0 && (
+            <div
+              className="mb-4 flex items-start gap-2 rounded-xl border border-danger/20 bg-danger/6 px-3 py-2.5 text-[12px] text-danger"
+              role="alert"
+              data-testid="asset-library-error"
+            >
+              <IconWarning size={15} className="mt-px shrink-0" />
+              <span className="min-w-0 flex-1">资产列表加载失败：{assetsError}</span>
+              <button
+                type="button"
+                data-testid="asset-library-retry"
+                onClick={retryLoads}
+                className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-medium hover:bg-danger/10"
+              >
+                <IconRefresh size={13} />
+                重试
+              </button>
+            </div>
+          )}
+          {foldersError && (
+            <div
+              className="mb-4 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger/6 px-3 py-2 text-[11px] text-danger"
+              role="alert"
+              data-testid="asset-folders-error"
+            >
+              <IconWarning size={14} className="shrink-0" />
+              <span className="min-w-0 flex-1">文件夹加载失败：{foldersError}</span>
+              <button
+                type="button"
+                data-testid="asset-folders-retry"
+                onClick={() => void loadFolders()}
+                className="shrink-0 rounded px-1.5 py-0.5 font-medium hover:bg-danger/10"
+              >
+                重试
+              </button>
+            </div>
+          )}
+          {assetsError && assets.length === 0 ? (
+            <EmptyState
+              icon={<IconWarning size={30} />}
+              title="资产加载失败"
+              description={assetsError}
+              action={
+                <button
+                  type="button"
+                  data-testid="asset-library-retry"
+                  onClick={retryLoads}
+                  className="flex items-center gap-1 rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+                >
+                  <IconRefresh size={14} />
+                  重试加载
+                </button>
+              }
+            />
+          ) : loading && assets.length === 0 ? (
             <div className="flex h-[280px] items-center justify-center text-ink-300">
               <Spinner size={22} />
             </div>

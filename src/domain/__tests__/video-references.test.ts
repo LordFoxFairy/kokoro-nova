@@ -5,8 +5,10 @@ import { CAMERA_MOVES } from '@/domain/libraries'
 import { applyMutations, MutationError } from '@/domain/mutations'
 import type { CanvasMutation, WorkflowDocument, WorkflowNode } from '@/domain/types'
 import {
+  incomingVideoReferenceEdges,
   orderedVideoReferences,
   pruneVideoReferenceExtras,
+  referenceKindForNode,
   toggleVideoReference,
   videoReferenceCandidates,
   videoReferenceLabel,
@@ -24,6 +26,30 @@ function build(nodes: WorkflowNode[], mutations: CanvasMutation[] = []): Workflo
 }
 
 describe('videoReferenceCandidates', () => {
+  it('uses the persisted kind for polymorphic asset-library candidates and keeps dangling edges inspectable', () => {
+    const library = node('assetLibrary', 'nd_library')
+    library.data.extra = { assetKind: 'image' }
+    const target = node('video', 'nd_video')
+    const doc = build([library, target], [{ op: 'addEdge', edge: createEdge(library.id, target.id) }])
+    const malformed = {
+      ...doc,
+      edges: [...doc.edges, { ...createEdge('nd_missing', target.id), id: 'edg_dangling' }],
+    }
+
+    expect(referenceKindForNode(library)).toBe('image')
+    expect(videoReferenceCandidates(doc, target.id).find((item) => item.node.id === library.id)).toMatchObject({
+      selected: true,
+      selectable: true,
+    })
+    expect(incomingVideoReferenceEdges(malformed, target.id).map(({ edge, node: source }) => ({
+      id: edge.id,
+      source: source?.id ?? null,
+    }))).toEqual([
+      { id: doc.edges[0].id, source: library.id },
+      { id: 'edg_dangling', source: null },
+    ])
+  })
+
   it('preserves document order and distinguishes selected, valid and cyclic candidates', () => {
     const text = node('text', 'nd_text')
     const image = node('image', 'nd_image')

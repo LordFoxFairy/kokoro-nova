@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { modelsFor, type ModelDefinition } from '@/domain/models'
 import type { OutputSpec } from '@/domain/types'
 import { cn } from '@/lib/cn'
@@ -13,6 +13,15 @@ export interface VideoModelCatalogProps {
   className?: string
 }
 
+export function getVideoCatalogActiveIndex(models: readonly Pick<ModelDefinition, 'id'>[], currentId: string | null) {
+  const selectedIndex = currentId ? models.findIndex((model) => model.id === currentId) : -1
+  return selectedIndex >= 0 ? selectedIndex : 0
+}
+
+export function getVideoModelOptionId(modelId: string) {
+  return `video-model-option-${modelId}`
+}
+
 /**
  * One catalogue implementation is shared by the canvas composer and the
  * storyboard regeneration surface. Search and keyboard behaviour therefore
@@ -22,6 +31,8 @@ export function VideoModelCatalog({ currentId, onSelect, onClose, className }: V
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const returnFocusRef = useRef<HTMLElement | null>(null)
   const models = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('zh-CN')
     if (!needle) return modelsFor('video')
@@ -33,8 +44,24 @@ export function VideoModelCatalog({ currentId, onSelect, onClose, className }: V
     )
   }, [query])
 
-  useEffect(() => inputRef.current?.focus(), [])
-  useEffect(() => setActiveIndex(0), [query])
+  useEffect(() => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    inputRef.current?.focus()
+  }, [])
+  useEffect(() => setActiveIndex(getVideoCatalogActiveIndex(models, currentId)), [currentId, models])
+  useEffect(() => {
+    optionRefs.current[activeIndex]?.scrollIntoView?.({ block: 'nearest' })
+  }, [activeIndex])
+
+  const closeCatalog = () => {
+    onClose()
+    returnFocusRef.current?.focus()
+  }
+
+  const selectModel = (model: ModelDefinition) => {
+    onSelect(model)
+    closeCatalog()
+  }
 
   return (
     <div
@@ -46,7 +73,7 @@ export function VideoModelCatalog({ currentId, onSelect, onClose, className }: V
         if (event.key === 'Escape') {
           event.preventDefault()
           event.stopPropagation()
-          onClose()
+          closeCatalog()
           return
         }
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -54,9 +81,17 @@ export function VideoModelCatalog({ currentId, onSelect, onClose, className }: V
           const direction = event.key === 'ArrowDown' ? 1 : -1
           setActiveIndex((index) => (index + direction + Math.max(models.length, 1)) % Math.max(models.length, 1))
         }
+        if (event.key === 'Home' && models.length > 0) {
+          event.preventDefault()
+          setActiveIndex(0)
+        }
+        if (event.key === 'End' && models.length > 0) {
+          event.preventDefault()
+          setActiveIndex(models.length - 1)
+        }
         if (event.key === 'Enter' && models[activeIndex]) {
           event.preventDefault()
-          onSelect(models[activeIndex])
+          selectModel(models[activeIndex])
         }
       }}
       className={cn(
@@ -74,13 +109,16 @@ export function VideoModelCatalog({ currentId, onSelect, onClose, className }: V
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索视频模型"
             aria-label="搜索视频模型"
+            aria-controls="video-model-options"
+            aria-autocomplete="list"
+            aria-activedescendant={models[activeIndex] ? getVideoModelOptionId(models[activeIndex].id) : undefined}
             className="min-w-0 flex-1 bg-transparent text-[12px] text-ink-800 outline-none placeholder:text-ink-400"
           />
         </label>
         <button
           type="button"
           aria-label="关闭模型目录"
-          onClick={onClose}
+          onClick={closeCatalog}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 hover:bg-white/8 hover:text-ink-800"
         >
           <IconClose size={14} />
@@ -90,17 +128,29 @@ export function VideoModelCatalog({ currentId, onSelect, onClose, className }: V
         <span>视频模型</span>
         <span>{models.length} 个结果</span>
       </div>
-      <div className="thin-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+      <div
+        id="video-model-options"
+        role="listbox"
+        aria-label="视频模型"
+        aria-activedescendant={models[activeIndex] ? getVideoModelOptionId(models[activeIndex].id) : undefined}
+        className="thin-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto pr-1"
+      >
         {models.map((model, index) => {
           const selected = model.id === currentId
           return (
             <button
               key={model.id}
+              ref={(element) => {
+                optionRefs.current[index] = element
+              }}
               type="button"
+              id={getVideoModelOptionId(model.id)}
+              role="option"
+              tabIndex={-1}
               data-testid={`video-model-option-${model.id}`}
-              aria-current={selected ? 'true' : undefined}
+              aria-selected={selected}
               onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => onSelect(model)}
+              onClick={() => selectModel(model)}
               className={cn(
                 'flex min-h-[58px] w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors',
                 selected ? 'bg-white/10' : index === activeIndex ? 'bg-white/[0.065]' : 'hover:bg-white/[0.055]',

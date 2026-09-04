@@ -4,6 +4,9 @@ AI 视频创作工作台样本。核心是一块无限工作流画布：用户�
 
 当前仓库是 Kokoro Nova 的 **frontend-only + local mock** 子仓库：交互和能力布局按 LibTV 官网高保真复刻，API、任务、素材和数据全部在本地确定性运行；后端由后续独立仓库承接。边界与接入 seam 见 [`docs/FRONTEND_MOCK_BOUNDARY.md`](docs/FRONTEND_MOCK_BOUNDARY.md)。
 
+当前目标、已交付能力、并行 agent 工作线和验收门槛集中记录在
+[`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)。
+
 生成链路是完整的：编译 → 报价 → 确认门 → 积分预留 → provider 提交 → 轮询 → 产物写回节点 → 积分结算。目前只注册了一个内置的离线 provider（`mock-offline`），它在本地真实地渲染 SVG / WAV /（有 ffmpeg 时）MP4 文件，因此上述每一段代码路径都会被真实执行，但不调用任何外部模型、不产生任何费用。
 
 围绕画布还有几块独立 surface：**素材库**（真实 multipart 上传，`staging → committed` 两阶段校验）、**导演台**（俯视走位图 + 机位预览双视口，真透视投影）、**脚本 V2 向导**（剧本解析 → 镜头表 → 资产准备 → 提示词合成 → 批量生成）、**视频合成**（时间线用 ffmpeg 真实渲染成 MP4，含裁切、变速与转场）。
@@ -79,7 +82,7 @@ docker run --rm -p 3200:3200 -v kokoro-nova-data:/app/.data \
   ghcr.io/lordfoxfairy/kokoro-nova:latest
 ```
 
-两套测试的边界由 `vitest.config.ts` 的 `include: ['src/**/*.test.ts']` 划开：`pnpm test` 只跑 `src/domain/__tests__/` 下的纯领域单测（`mutations` / `compile` / `models` / `storyboard`），`e2e/` 归 Playwright。改配置时别把这条 include 放宽，否则 vitest 会把 Playwright 的 spec 收进来并在 `test()` 调用处崩掉。
+两套测试的边界由 `vitest.config.ts` 的 `include: ['src/**/*.test.ts']` 划开：`pnpm test` 会运行 `src/` 下的领域、组件、服务端和契约单测，`e2e/` 归 Playwright。改配置时别把这条 include 放宽，否则 vitest 会把 Playwright 的 spec 收进来并在 `test()` 调用处崩掉。
 
 ### 本地数据
 

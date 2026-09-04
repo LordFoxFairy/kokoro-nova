@@ -17,6 +17,7 @@ import {
   IconChevronLeft,
   IconCopy,
   IconImage,
+  IconRefresh,
   IconStoryboard,
   IconText,
   IconVideo,
@@ -24,6 +25,22 @@ import {
 } from '../icons'
 
 type PublicView = 'workflow' | 'storyboard'
+
+export type PublicSnapshotState = 'loading' | 'refreshing' | 'readonly' | 'stale-error' | 'unavailable'
+
+export function getPublicSnapshotState({
+  loading,
+  hasSnapshot,
+  error,
+}: {
+  loading: boolean
+  hasSnapshot: boolean
+  error: string | null
+}): PublicSnapshotState {
+  if (loading) return hasSnapshot ? 'refreshing' : 'loading'
+  if (error) return hasSnapshot ? 'stale-error' : 'unavailable'
+  return hasSnapshot ? 'readonly' : 'unavailable'
+}
 
 /**
  * Read-only viewing of a published snapshot.
@@ -43,6 +60,7 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<PublicView>('workflow')
   const [cloneGateOpen, setCloneGateOpen] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -65,14 +83,17 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
     return () => {
       cancelled = true
     }
-  }, [snapshotId])
+  }, [snapshotId, reloadToken])
+
+  const retry = () => setReloadToken((token) => token + 1)
+  const requestState = getPublicSnapshotState({ loading, hasSnapshot: Boolean(snapshot), error })
 
   return (
-    <div className="flex h-screen flex-col bg-canvas" data-testid="public-canvas-view">
+    <div className="flex h-screen flex-col bg-canvas" data-testid="public-canvas-view" aria-busy={loading}>
       <header className="flex shrink-0 items-center gap-3 bg-surface px-5 py-3 shadow-[var(--shadow-float)]">
         <Link
           href="/showcase"
-          className="flex shrink-0 items-center gap-1 text-[13px] text-ink-500 transition-colors hover:text-ink-900"
+          className="flex shrink-0 items-center gap-1 text-[13px] text-ink-600 transition-colors hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <IconChevronLeft size={15} /> 公开作品
         </Link>
@@ -81,10 +102,14 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
           <div className="truncate text-[14px] font-semibold text-ink-900">
             {snapshot?.title ?? (loading ? '加载中…' : '作品不可用')}
           </div>
-          <div className="truncate text-[11px] text-ink-400">
+          <div className="truncate text-[11px] text-ink-600" data-testid="public-snapshot-status" role="status" aria-live="polite">
             {snapshot
-              ? `发布于 ${new Date(snapshot.publishedAt).toLocaleDateString('zh-CN')} · 只读预览，内容已在发布时冻结`
-              : '只读预览'}
+              ? requestState === 'refreshing'
+                ? '正在刷新只读预览，当前仍显示已发布副本…'
+                : requestState === 'stale-error'
+                  ? '刷新失败，当前仍显示已发布副本'
+                  : `发布于 ${new Date(snapshot.publishedAt).toLocaleDateString('zh-CN')} · 只读预览，内容已在发布时冻结`
+              : loading ? '正在加载只读预览…' : error ? '作品暂时不可用' : '只读预览'}
           </div>
         </div>
 
@@ -121,17 +146,20 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
         <button
           type="button"
           data-testid="clone-project"
-          title="复制项目需要先登录"
+          title={snapshot ? '复制项目需要先登录' : '作品加载完成后才能复制项目'}
+          aria-label={snapshot ? '复制项目，需要先登录' : '作品加载完成后才能复制项目'}
           onClick={() => setCloneGateOpen(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+          disabled={!snapshot || loading}
+          aria-busy={loading}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <IconCopy size={14} /> 复制项目
         </button>
       </header>
 
-      <main className="min-h-0 flex-1 p-3.5">
-        {loading ? (
-          <div className="flex h-full items-center justify-center text-ink-400">
+      <main className="min-h-0 flex-1 p-3.5" aria-busy={loading}>
+        {loading && !snapshot ? (
+          <div className="flex h-full items-center justify-center text-ink-600" role="status" aria-label="正在加载只读预览">
             <Spinner size={22} />
           </div>
         ) : !snapshot ? (
@@ -141,19 +169,49 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
               title="作品不可用"
               description={error ?? '这个作品可能已被作者下架，或者链接不再有效。'}
               action={
-                <Link
-                  href="/showcase"
-                  className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
-                >
-                  浏览其它作品
-                </Link>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    data-testid="public-snapshot-retry"
+                    onClick={retry}
+                    disabled={loading}
+                    aria-busy={loading}
+                    className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:bg-ink-200 disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    {loading ? '重试中…' : '重试'}
+                  </button>
+                  <Link
+                    href="/showcase"
+                    className="rounded-lg border border-ink-200 px-3.5 py-2 text-[13px] font-medium text-ink-700 transition-colors hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    浏览其它作品
+                  </Link>
+                </div>
               }
             />
           </div>
-        ) : view === 'workflow' ? (
-          <StaticWorkflow document={snapshot.document} />
         ) : (
-          <StaticStoryboard document={snapshot.document} />
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            {error && (
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert">
+                <span>刷新失败，仍显示已发布的只读副本：{error}</span>
+                <button
+                  type="button"
+                  data-testid="public-snapshot-retry"
+                  onClick={retry}
+                  disabled={loading}
+                  aria-busy={loading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+                >
+                  <IconRefresh size={13} className={loading ? 'animate-spin' : undefined} />
+                  {loading ? '重试中…' : '重试'}
+                </button>
+              </div>
+            )}
+            <div className="min-h-0 flex-1">
+              {view === 'workflow' ? <StaticWorkflow document={snapshot.document} /> : <StaticStoryboard document={snapshot.document} />}
+            </div>
+          </div>
         )}
       </main>
 
@@ -174,7 +232,7 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
       >
         <div className="space-y-3 text-[13px] leading-relaxed text-ink-600">
           <p>复制会在你自己的空间里创建一份私有副本，因此需要一个账号来承载它——当前站点还没有接入登录，暂时无法复制。</p>
-          <p className="text-ink-500">浏览不受影响：这份作品的工作流与故事板都可以完整查看。</p>
+          <p className="text-ink-600">浏览不受影响：这份作品的工作流与故事板都可以完整查看。</p>
         </div>
       </Dialog>
     </div>
@@ -276,7 +334,7 @@ function StaticWorkflow({ document }: { document: WorkflowDocument }) {
                   height: box.height,
                 }}
               >
-                <span className="absolute -top-6 left-1 text-[12px] font-medium text-ink-500">{group.name}</span>
+                <span className="absolute -top-6 left-1 text-[12px] font-medium text-ink-600">{group.name}</span>
               </div>
             )
           })}
@@ -336,11 +394,11 @@ function StaticNodeCard({ node, left, top }: { node: WorkflowNode; left: number;
       style={{ left, top, width: node.size.width, height: node.size.height }}
     >
       <header className="flex shrink-0 items-center gap-2 px-3.5 py-2.5">
-        <span className="text-ink-400">
+        <span className="text-ink-600" aria-hidden="true">
           <Icon size={14} />
         </span>
         <span className="truncate text-[13px] font-medium text-ink-900">{node.name}</span>
-        <span className="ml-auto shrink-0 rounded-md bg-ink-100 px-1.5 py-0.5 text-[10px] text-ink-500">
+        <span className="ml-auto shrink-0 rounded-md bg-ink-100 px-1.5 py-0.5 text-[10px] text-ink-600">
           {meta.label}
         </span>
       </header>
@@ -355,7 +413,7 @@ function StaticNodeCard({ node, left, top }: { node: WorkflowNode; left: number;
           />
         ) : produces === 'text' || produces === null ? (
           <div className="thin-scrollbar h-full overflow-hidden rounded-xl bg-ink-50 p-2.5 text-[12px] leading-relaxed text-ink-600">
-            {node.data.prompt?.trim() || <span className="text-ink-300">暂无内容</span>}
+            {node.data.prompt?.trim() || <span className="text-ink-600">暂无内容</span>}
           </div>
         ) : (
           <MediaPlaceholder kind={produces} label="未生成内容" />
@@ -387,16 +445,16 @@ function StaticStoryboard({ document }: { document: WorkflowDocument }) {
               {projection.audio.map((card) => (
                 <div key={card.nodeId} className="rounded-xl p-1.5">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-ink-100 text-ink-400">
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-ink-100 text-ink-600" aria-hidden="true">
                       <IconAudio size={20} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px] text-ink-700">{card.nodeName}</span>
                       {card.durationLabel && (
-                        <span className="block text-[10px] text-ink-400">{card.durationLabel}</span>
+                        <span className="block text-[10px] text-ink-600">{card.durationLabel}</span>
                       )}
                       {card.modelLabel && (
-                        <span className="block truncate text-[10px] text-ink-400">{card.modelLabel}</span>
+                        <span className="block truncate text-[10px] text-ink-600">{card.modelLabel}</span>
                       )}
                     </span>
                   </div>
@@ -418,7 +476,7 @@ function StaticStoryboard({ document }: { document: WorkflowDocument }) {
             <div className="space-y-1">
               {projection.text.map((card) => (
                 <div key={card.nodeId} className="flex items-center gap-2 rounded-lg px-2 py-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-400">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-600" aria-hidden="true">
                     <IconText size={14} />
                   </span>
                   <span className="truncate text-[12px] text-ink-700">{card.nodeName}</span>
@@ -470,7 +528,7 @@ function Column({
       )}
     >
       <header className="flex items-center gap-1.5 px-4 py-3">
-        <span className="text-ink-400">{icon}</span>
+        <span className="text-ink-600" aria-hidden="true">{icon}</span>
         <h2 className="text-[13px] font-semibold text-ink-900">{title}</h2>
       </header>
       <div className="thin-scrollbar flex-1 overflow-y-auto px-4 pb-4">{children}</div>
@@ -483,7 +541,7 @@ function MediaColumn({ cards, kind }: { cards: StoryboardCard[]; kind: 'image' |
     <div className="space-y-4">
       {cards.map((card) => (
         <div key={card.nodeId} data-testid={`public-storyboard-card-${card.nodeId}`}>
-          <div className="mb-1.5 text-[11px] text-ink-400">{card.nodeName}</div>
+          <div className="mb-1.5 text-[11px] text-ink-600">{card.nodeName}</div>
           <div
             className="block w-full overflow-hidden rounded-xl bg-ink-100"
             style={{ aspectRatio: '16 / 9' }}
@@ -503,10 +561,10 @@ function MediaColumn({ cards, kind }: { cards: StoryboardCard[]; kind: 'image' |
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {card.modelLabel && (
-              <span className="rounded-md bg-ink-100 px-1.5 py-1 text-[10px] text-ink-500">{card.modelLabel}</span>
+              <span className="rounded-md bg-ink-100 px-1.5 py-1 text-[10px] text-ink-600">{card.modelLabel}</span>
             )}
-            {card.dimensions && <span className="text-[10px] text-ink-400">{card.dimensions}</span>}
-            {card.durationLabel && <span className="text-[10px] text-ink-400">{card.durationLabel}</span>}
+            {card.dimensions && <span className="text-[10px] text-ink-600">{card.dimensions}</span>}
+            {card.durationLabel && <span className="text-[10px] text-ink-600">{card.durationLabel}</span>}
           </div>
           {card.references.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5 border-t border-ink-100 pt-2">
@@ -520,7 +578,7 @@ function MediaColumn({ cards, kind }: { cards: StoryboardCard[]; kind: 'image' |
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={reference.thumbnailUrl} alt={reference.label} className="h-full w-full object-cover" />
                   ) : (
-                    <IconText size={13} className="text-ink-400" />
+                    <IconText size={13} className="text-ink-600" aria-hidden="true" />
                   )}
                 </span>
               ))}

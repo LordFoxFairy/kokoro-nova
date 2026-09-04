@@ -5,6 +5,7 @@ import {
   appendClip,
   compositeDuration,
   createSubtitle,
+  createSubtitleFromPreset,
   emptyCompositeDocument,
   moveClip,
   readCompositeDocument,
@@ -187,6 +188,44 @@ describe('composite timeline edits', () => {
     expect(document.clips[0]).toMatchObject({ inPoint: 0, outPoint: 4, transitionAfter: null })
     expect(document.clips[1]).toMatchObject({ inPoint: 4, outPoint: 10 })
     expect(compositeDuration(document)).toBeCloseTo(5)
+  })
+
+  it('does not split at the midpoint when the playhead is outside the selected clip', () => {
+    let document = appendClip(emptyCompositeDocument(), source('a', 'video', 5))
+    document = appendClip(document, source('b', 'video', 5))
+
+    expect(splitClip(document, document.clips[0].id, 7)).toBe(document)
+    expect(splitClip(document, document.clips[0].id, Number.NaN)).toBe(document)
+  })
+
+  it('rejects the current videoComposite as a source', () => {
+    const document = emptyCompositeDocument()
+    const currentComposite = { ...source('composite'), nodeType: 'videoComposite' as const }
+
+    expect(appendClip(document, currentComposite)).toBe(document)
+    expect(readCompositeDocument({ timeline: [{ artifactId: 'composite' }] }, [currentComposite])).toEqual(document)
+  })
+
+  it('keeps invalid trim values within a finite non-empty source range', () => {
+    let document = appendClip(emptyCompositeDocument(), source('a', 'video', 10))
+    const id = document.clips[0].id
+
+    document = setClipTrim(document, id, Number.NaN, Number.POSITIVE_INFINITY)
+    expect(document.clips[0]).toMatchObject({ inPoint: 0, outPoint: 10 })
+
+    document = setClipTrim(document, id, 8, 2)
+    expect(document.clips[0].outPoint - document.clips[0].inPoint).toBeGreaterThanOrEqual(0.05)
+    expect(Number.isFinite(compositeDuration(document))).toBe(true)
+  })
+
+  it('gives each subtitle preset distinct deterministic content and timing', () => {
+    const document = appendClip(emptyCompositeDocument(), source('a', 'video', 10))
+    const presets = (['title', 'body', 'note', 'outro'] as const).map((preset) =>
+      createSubtitleFromPreset(document, 1, preset).subtitles[0],
+    )
+
+    expect(presets.map((subtitle) => subtitle.text)).toEqual(['标题', '正文', '注释', '片尾'])
+    expect(presets.map((subtitle) => subtitle.end - subtitle.start)).toEqual([2, 4, 1, 3])
   })
 
   it('reorders and removes clips while pruning unreachable subtitles', () => {

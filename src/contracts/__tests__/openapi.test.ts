@@ -4,31 +4,51 @@ import { describe, expect, it } from 'vitest'
 
 import { LOCAL_API_ROUTES } from '@/contracts/route-manifest'
 import { IMAGE_ASPECT_RATIOS, IMAGE_QUALITIES } from '@/domain/models'
+import stateExample from '../../../docs/api/examples/script-v2-state.json'
+import quoteRequestExample from '../../../docs/api/examples/script-v2-quote.request.json'
+import quoteResponseExample from '../../../docs/api/examples/script-v2-quote.response.json'
+import runRequestExample from '../../../docs/api/examples/script-v2-run.request.json'
+import runResponseExample from '../../../docs/api/examples/script-v2-run.response.json'
+import officialRecomputeExample from '../../../docs/api/examples/script-v2-official-recompute.sanitized.json'
+import {
+  CreateScriptV2RunRequestSchema,
+  OfficialPromptRecomputeEnvelopeSchema,
+  ScriptV2QuoteRequestSchema,
+  ScriptV2QuoteResponseSchema,
+  ScriptV2RunResponseSchema,
+  ScriptV2StateSchema,
+} from '@/contracts/script-v2'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 type OpenApiOperation = {
   operationId?: string
+  tags?: string[]
   'x-ui-triggers'?: string[]
   'x-mock-scenarios'?: string[]
   requestBody?: {
-    content?: { 'application/json'?: { schema?: { $ref?: string } } }
+    required?: boolean
+    content?: Record<string, { schema?: { $ref?: string } }>
   }
-  responses?: Record<string, { content?: { 'application/json'?: { schema?: { $ref?: string } } } }>
+  parameters?: Array<{ name?: string; in?: string; required?: boolean }>
+  responses?: Record<string, { content?: Record<string, { schema?: { $ref?: string; type?: string; format?: string } }> }>
 }
 type OpenApiDocument = {
   openapi?: string
   info?: { version?: string }
-  paths?: Record<string, Partial<Record<Lowercase<HttpMethod>, OpenApiOperation>>>
+  servers?: Array<{ url?: string }>
   components?: {
+    examples?: Record<string, { externalValue?: string; value?: unknown }>
     schemas?: Record<
       string,
       {
         properties?: Record<string, { enum?: string[]; $ref?: string; items?: { $ref?: string } }>
+        oneOf?: unknown[]
       }
     >
   }
+  paths?: Record<string, Partial<Record<Lowercase<HttpMethod>, OpenApiOperation>>>
+  [key: `x-${string}`]: unknown
 }
-
 function filesBelow(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolute = path.join(directory, entry.name)
@@ -63,6 +83,16 @@ function openApiPairs(document: OpenApiDocument): string[] {
   return Object.entries(document.paths ?? {})
     .flatMap(([routePath, item]) => methods.filter((method) => item[method]).map((method) => `${method.toUpperCase()} ${routePath}`))
     .sort()
+}
+
+function operationAt(document: OpenApiDocument, method: HttpMethod, routePath: string): OpenApiOperation {
+  const operation = document.paths?.[routePath]?.[method.toLowerCase() as Lowercase<HttpMethod>]
+  expect(operation, `${method} ${routePath}`).toBeDefined()
+  return operation as OpenApiOperation
+}
+
+function responseSchemaRef(operation: OpenApiOperation, status: string): string | undefined {
+  return operation.responses?.[status]?.content?.['application/json']?.schema?.$ref
 }
 
 describe('local API manifest and OpenAPI', () => {
@@ -126,7 +156,7 @@ describe('local API manifest and OpenAPI', () => {
   it('versions and exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.7.0-text-authoring-state')
+    expect(document.info?.version).toBe('1.9.0-script-v2')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -182,5 +212,136 @@ describe('local API manifest and OpenAPI', () => {
       'telephone',
       'electronic',
     ])
+  })
+
+  it('documents all four Script V2 routes and keeps all six examples executable', () => {
+    const document = openApiDocument()
+    const scriptRoutes = LOCAL_API_ROUTES.filter((route) => route.tag === 'Script V2')
+
+    expect(document.info?.version).toBe('1.9.0-script-v2')
+    expect(scriptRoutes).toHaveLength(4)
+    expect(scriptRoutes.map((route) => route.operationId)).toEqual([
+      'quoteScriptV2',
+      'createScriptV2Run',
+      'getScriptV2Run',
+      'transitionScriptV2Run',
+    ])
+
+    for (const route of scriptRoutes) {
+      const operation = document.paths?.[route.path]?.[route.method.toLowerCase() as Lowercase<HttpMethod>]
+      expect(operation?.operationId).toBe(route.operationId)
+      expect(operation?.['x-ui-triggers']).toEqual(route.uiTriggers)
+      expect(operation?.['x-mock-scenarios']).toEqual(route.scenarios)
+      expect(operation?.responses?.['200']?.content?.['application/json']?.schema?.$ref).toBe(
+        '#/components/schemas/' +
+          (route.operationId === 'quoteScriptV2' ? 'ScriptV2QuoteResponse' : 'ScriptV2RunResponse'),
+      )
+    }
+
+    expect(document.components?.schemas?.ScriptV2State?.properties?.promptBatchRuns?.items?.$ref).toBe(
+      '#/components/schemas/ScriptV2PromptBatchRun',
+    )
+    expect(document.components?.schemas?.CreateScriptV2RunRequest?.oneOf?.length).toBe(4)
+    expect(document.components?.schemas?.ScriptV2Run?.oneOf?.length).toBe(4)
+
+    expect(ScriptV2StateSchema.parse(stateExample)).toEqual(stateExample)
+    expect(ScriptV2QuoteRequestSchema.parse(quoteRequestExample)).toEqual(quoteRequestExample)
+    expect(ScriptV2QuoteResponseSchema.parse(quoteResponseExample)).toEqual(quoteResponseExample)
+    expect(CreateScriptV2RunRequestSchema.parse(runRequestExample)).toEqual(runRequestExample)
+    expect(ScriptV2RunResponseSchema.parse(runResponseExample)).toEqual(runResponseExample)
+    expect(OfficialPromptRecomputeEnvelopeSchema.parse(officialRecomputeExample)).toEqual(
+      officialRecomputeExample,
+    )
+  })
+
+  it('pins key surface request/response schemas and handler-accurate HTTP statuses', () => {
+    const document = openApiDocument()
+    const contracts: Array<[
+      HttpMethod,
+      string,
+      string | null,
+      string,
+      string[],
+    ]> = [
+      ['POST', '/api/agent/sessions', null, 'AgentSession', ['500']],
+      ['GET', '/api/agent/sessions', null, 'AgentSessionsResponse', ['500']],
+      ['GET', '/api/agent/sessions/{sessionId}', null, 'AgentSessionDetailResponse', ['404', '500']],
+      ['PATCH', '/api/agent/sessions/{sessionId}', 'UpdateAgentSessionRequest', 'AgentSession', ['400', '404', '500']],
+      ['DELETE', '/api/agent/sessions/{sessionId}', null, 'AgentDeleteResponse', ['500']],
+      ['POST', '/api/agent/sessions/{sessionId}/messages', 'SendAgentMessageRequest', 'AgentMessagesResponse', ['400', '404', '500']],
+      ['PATCH', '/api/agent/sessions/{sessionId}/messages', 'ResolveAgentMessageRequest', 'AgentMessagesResponse', ['400', '404', '500']],
+      ['GET', '/api/assets', null, 'AssetListResponse', ['500']],
+      ['POST', '/api/assets', 'RegisterAssetRequest', 'Asset', ['400', '500']],
+      ['PATCH', '/api/assets/{assetId}', 'UpdateAssetRequest', 'Asset', ['400', '404', '410', '500']],
+      ['DELETE', '/api/assets/{assetId}', null, 'Asset', ['404', '500']],
+      ['GET', '/api/assets/folders', null, 'AssetFolderListResponse', ['500']],
+      ['POST', '/api/assets/folders', null, 'AssetFolder', ['500']],
+      ['POST', '/api/assets/upload', null, 'UploadAssetResponse', ['400', '404', '409', '500']],
+      ['DELETE', '/api/assets/upload', null, 'CancelAssetUploadResponse', ['400', '500']],
+      ['GET', '/api/jobs', null, 'ListJobsResponse', ['500']],
+      ['POST', '/api/jobs', 'CreateJobRequest', 'CreateJobResponse', ['400', '500']],
+      ['GET', '/api/jobs/{jobId}', null, 'GetJobResponse', ['404', '500']],
+      ['POST', '/api/jobs/{jobId}', 'TransitionJobRequest', 'TransitionJobResponse', ['400', '500']],
+      ['GET', '/api/canvases/{canvasId}', null, 'CanvasDetailResponse', ['404', '500']],
+      ['POST', '/api/canvases/{canvasId}', 'MutationRequest', 'MutationResult', ['400', '404', '409', '500']],
+      ['POST', '/api/compose', 'ComposeRequest', 'ComposeResponse', ['400', '404', '500', '503', '504']],
+    ]
+
+    for (const [method, routePath, requestSchema, successSchema, errorStatuses] of contracts) {
+      const operation = operationAt(document, method, routePath)
+      expect(operation.tags?.length, `${method} ${routePath} tags`).toBeGreaterThan(0)
+      expect(responseSchemaRef(operation, '200'), `${method} ${routePath} response`).toBe(
+        `#/components/schemas/${successSchema}`,
+      )
+      expect(Object.keys(operation.responses ?? {}).filter((status) => status !== '200').sort()).toEqual(
+        errorStatuses.slice().sort(),
+      )
+      if (requestSchema) {
+        expect(operation.requestBody?.required, `${method} ${routePath} request required`).toBe(true)
+        expect(operation.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+          `#/components/schemas/${requestSchema}`,
+        )
+      }
+    }
+
+    const upload = operationAt(document, 'POST', '/api/assets/upload')
+    expect(upload.requestBody?.content?.['multipart/form-data']?.schema?.$ref).toBe(
+      '#/components/schemas/UploadAssetRequest',
+    )
+    expect(operationAt(document, 'DELETE', '/api/assets/upload').parameters).toEqual([
+      expect.objectContaining({ name: 'token', in: 'query', required: true }),
+    ])
+
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/preview/character'), '200')).toBeUndefined()
+    expect(operationAt(document, 'GET', '/api/preview/character').responses?.['200']?.content?.['image/svg+xml']?.schema).toEqual({
+      type: 'string',
+      format: 'binary',
+    })
+    expect(operationAt(document, 'GET', '/api/media/{path}').responses?.['200']?.content?.['*/*']?.schema).toEqual({
+      type: 'string',
+      format: 'binary',
+    })
+  })
+
+  it('keeps every linked example local, readable and free of remote transport state', () => {
+    const document = openApiDocument()
+    expect(document.servers).toEqual([{ url: 'http://localhost:3200', description: 'Next.js 本地 mock server' }])
+    expect(document['x-local-only']).toBe(true)
+    expect(document['x-real-libtv-credentials']).toBe(false)
+    expect(document['x-real-libtv-backend-call']).toBe(false)
+
+    for (const [name, example] of Object.entries(document.components?.examples ?? {})) {
+      if (example.externalValue) {
+        const examplePath = path.resolve(process.cwd(), 'docs/api', example.externalValue)
+        expect(examplePath, `${name} externalValue`).toMatch(/docs\/api\/examples\//)
+        expect(readFileSync(examplePath, 'utf8').length, `${name} readable`).toBeGreaterThan(0)
+      } else {
+        expect(example.value, `${name} inline value`).toBeDefined()
+      }
+    }
+
+    const serialised = JSON.stringify(document)
+    expect(serialised).not.toMatch(/https:\/\/(?!localhost)/)
+    expect(serialised).not.toMatch(/(?:Cookie|Authorization|access[_ -]?key|trace_id)\s*[:=]/i)
   })
 })

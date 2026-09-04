@@ -148,7 +148,7 @@ describe('Text authoring API examples', () => {
 
   it('publishes Text state, model capabilities, inline artifact and executable examples', () => {
     const document = openApi()
-    expect(document.info.version).toBe('1.7.0-text-authoring-state')
+    expect(document.info.version).toBe('1.9.0-script-v2')
     expect(document.components.schemas.NodeExtra.properties.textAuthoring.$ref).toBe(
       '#/components/schemas/TextAuthoringState',
     )

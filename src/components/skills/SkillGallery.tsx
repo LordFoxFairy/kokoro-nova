@@ -11,11 +11,30 @@ import {
 import { ApiError, api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { Chip, EmptyState, SegmentedControl, Spinner } from '../ui/controls'
-import { IconSearch, IconSkill, IconSparkle } from '../icons'
+import { IconRefresh, IconSearch, IconSkill, IconSparkle } from '../icons'
 
 interface SkillListResponse {
   skills: SkillCard[]
   counts: { all: number; favourite: number; mine: number }
+}
+
+export type SkillGalleryRequestState = 'initial-loading' | 'refreshing' | 'ready' | 'empty' | 'error' | 'stale-error'
+
+export function getSkillGalleryRequestState({
+  loading,
+  initialised,
+  hasSkills,
+  error,
+}: {
+  loading: boolean
+  initialised: boolean
+  hasSkills: boolean
+  error: string | null
+}): SkillGalleryRequestState {
+  if (error) return initialised && hasSkills ? 'stale-error' : 'error'
+  if (!initialised) return 'initial-loading'
+  if (loading) return 'refreshing'
+  return hasSkills ? 'ready' : 'empty'
 }
 
 /**
@@ -44,6 +63,7 @@ export function SkillGallery() {
   // a catalogue that loaded perfectly well.
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [failedFavourite, setFailedFavourite] = useState<SkillCard | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
 
@@ -57,6 +77,7 @@ export function SkillGallery() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setLoadError(null)
     const search = new URLSearchParams({ collection, category })
     if (query.trim()) search.set('q', query.trim())
 
@@ -70,7 +91,6 @@ export function SkillGallery() {
       })
       .catch((cause: unknown) => {
         if (cancelled) return
-        setSkills([])
         setLoadError(cause instanceof ApiError ? cause.message : '技能库加载失败，请稍后重试')
       })
       .finally(() => {
@@ -102,8 +122,10 @@ export function SkillGallery() {
             : rows.map((row) => (row.id === updated.id ? { ...row, favourite: updated.favourite } : row)),
         )
         setCounts((prev) => ({ ...prev, favourite: prev.favourite + (next ? 1 : -1) }))
+        setFailedFavourite(null)
       } catch (cause) {
         setActionError(cause instanceof ApiError ? cause.message : '收藏失败，请稍后重试')
+        setFailedFavourite(skill)
       } finally {
         setPendingId(null)
       }
@@ -112,11 +134,18 @@ export function SkillGallery() {
   )
 
   const filtered = category !== '全部' || query.trim() !== ''
+  const requestState = getSkillGalleryRequestState({
+    loading,
+    initialised,
+    hasSkills: skills.length > 0,
+    error: loadError,
+  })
+  const retry = () => setReloadToken((n) => n + 1)
 
   return (
-    <div className="min-h-screen bg-surface" data-testid="skill-gallery">
-      <header className="flex items-center justify-between px-8 py-5">
-        <Link href="/" className="flex items-center gap-2">
+    <div className="min-h-screen bg-surface" data-testid="skill-gallery" aria-busy={loading}>
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8 sm:py-5">
+        <Link href="/" className="flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink-900 text-white">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 7.5 8 5l6 2.5L20 5v11.5L14 19l-6-2.5L4 19z" />
@@ -126,51 +155,60 @@ export function SkillGallery() {
         </Link>
         <Link
           href="/project"
-          className="rounded-full bg-ink-50 px-4 py-2 text-[13px] font-medium text-ink-700 transition-colors hover:bg-ink-100"
+          className="rounded-full bg-ink-50 px-4 py-2 text-[13px] font-medium text-ink-700 transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           我的项目
         </Link>
       </header>
 
-      <div className="px-8 pb-5">
-        <h1 className="text-[17px] font-semibold text-ink-900">技能库</h1>
-        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-ink-500">
+      <div className="px-4 pb-5 sm:px-8">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h1 className="text-[17px] font-semibold text-ink-900">技能库</h1>
+          <div className="text-[12px] text-ink-600" data-testid="skill-status" role="status" aria-live="polite">
+            {requestState === 'initial-loading' ? '正在加载技能库…' : requestState === 'refreshing' ? '正在刷新技能库…' : ''}
+          </div>
+        </div>
+        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-ink-600">
           Skill 是能被 Agent 加载的能力包：一份写定的执行契约，规定它按哪些步骤工作、交回什么格式。加载时锁定版本，同一个版本的产出结构始终一致。
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 px-8 pb-3">
-        <SegmentedControl
-          value={collection}
-          onChange={setCollection}
-          options={SKILL_COLLECTIONS.map((item) => ({
-            value: item,
-            testId: `skill-collection-${item}`,
-            label: (
-              <>
-                {item}
-                {initialised && (
-                  <span className="tabular-nums opacity-55">
-                    {item === '全部' ? counts.all : item === '收藏' ? counts.favourite : counts.mine}
-                  </span>
-                )}
-              </>
-            ),
-          }))}
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3 sm:px-8">
+        <div role="group" aria-label="技能集合">
+          <SegmentedControl
+            value={collection}
+            onChange={setCollection}
+            options={SKILL_COLLECTIONS.map((item) => ({
+              value: item,
+              testId: `skill-collection-${item}`,
+              label: (
+                <>
+                  {item}
+                  {initialised && (
+                    <span className="tabular-nums text-ink-600">
+                      {' '}{item === '全部' ? counts.all : item === '收藏' ? counts.favourite : counts.mine}
+                    </span>
+                  )}
+                </>
+              ),
+            }))}
+          />
+        </div>
         <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-2">
-          <IconSearch size={14} className="text-ink-400" />
+          <IconSearch size={14} className="text-ink-600" aria-hidden="true" />
           <input
             value={draft}
             data-testid="skill-search"
             onChange={(e) => setDraft(e.target.value)}
             placeholder="搜索技能、作者或标签"
-            className="w-52 bg-transparent text-[13px] outline-none placeholder:text-ink-400"
+            aria-label="搜索技能、作者或标签"
+            aria-controls="skill-grid"
+            className="w-52 bg-transparent text-[13px] text-ink-900 outline-none placeholder:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 px-8 pb-6">
+      <div className="flex flex-wrap gap-1.5 px-4 pb-6 sm:px-8">
         {SKILL_CATEGORIES.map((item) => (
           <button
             key={item}
@@ -179,7 +217,7 @@ export function SkillGallery() {
             aria-pressed={item === category}
             onClick={() => setCategory(item)}
             className={cn(
-              'rounded-full px-3 py-1 text-[12px] transition-colors',
+              'rounded-full px-3 py-1 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               item === category ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
             )}
           >
@@ -188,12 +226,12 @@ export function SkillGallery() {
         ))}
       </div>
 
-      <div className={cn('px-8 pb-16 transition-opacity', loading && initialised && 'opacity-55')}>
-        {!initialised ? (
-          <div className="flex justify-center py-20 text-ink-400">
+      <div className="px-4 pb-16 sm:px-8" aria-busy={loading}>
+        {!initialised || (loading && skills.length === 0) ? (
+          <div className="flex justify-center py-20 text-ink-600" role="status" aria-label="正在加载技能库">
             <Spinner size={22} />
           </div>
-        ) : loadError ? (
+        ) : loadError && !skills.length ? (
           <EmptyState
             icon={<IconSparkle size={30} />}
             title="技能库暂时打不开"
@@ -202,10 +240,13 @@ export function SkillGallery() {
               <button
                 type="button"
                 data-testid="skill-retry"
-                onClick={() => setReloadToken((n) => n + 1)}
-                className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+                onClick={retry}
+                disabled={loading}
+                aria-busy={loading}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:bg-ink-200 disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                重试
+                <IconRefresh size={14} className={loading ? 'animate-spin' : undefined} />
+                {loading ? '重试中…' : '重试'}
               </button>
             }
           />
@@ -220,14 +261,42 @@ export function SkillGallery() {
           />
         ) : (
           <>
+            {loadError && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert">
+                <span>刷新失败，仍显示上次成功读取的技能：{loadError}</span>
+                <button
+                  type="button"
+                  data-testid="skill-retry"
+                  onClick={retry}
+                  disabled={loading}
+                  aria-busy={loading}
+                  className="rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+                >
+                  {loading ? '重试中…' : '重试'}
+                </button>
+              </div>
+            )}
             {actionError && (
-              <div className="mb-4 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger">
-                {actionError}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert">
+                <span>{actionError}</span>
+                {failedFavourite && (
+                  <button
+                    type="button"
+                    data-testid="skill-favourite-retry"
+                    onClick={() => void toggleFavourite(failedFavourite)}
+                    disabled={Boolean(pendingId)}
+                    aria-busy={Boolean(pendingId)}
+                    className="rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+                  >
+                    重试收藏
+                  </button>
+                )}
               </div>
             )}
             <div
               className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-7"
               data-testid="skill-grid"
+              id="skill-grid"
             >
               {skills.map((skill) => (
                 <SkillGridCard
@@ -238,7 +307,7 @@ export function SkillGallery() {
                 />
               ))}
             </div>
-            <div className="pt-14 text-center text-[13px] text-ink-300">
+            <div className="pt-14 text-center text-[13px] text-ink-600" role="status" aria-live="polite">
               共 {skills.length} 个 Skill，没有更多了
             </div>
           </>
@@ -259,15 +328,15 @@ function SkillGridCard({
 }) {
   return (
     <div className="group relative flex flex-col" data-testid={`skill-card-${skill.id}`}>
-      <Link href={`/skills/${skill.id}`} className="flex flex-col">
+      <Link href={`/skills/${skill.id}`} className="flex flex-col rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
         <SkillCover hue={skill.hue} sections={skill.executableSpec.length} version={skill.version} />
         <span className="mt-2.5 block truncate text-[13px] text-ink-900">{skill.name}</span>
-        <span className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-ink-500">{skill.summary}</span>
+        <span className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-ink-600">{skill.summary}</span>
         <span className="mt-1.5 flex items-center gap-1.5">
           <Chip>{skill.category}</Chip>
-          <span className="truncate text-[12px] text-ink-400">{skill.author}</span>
+          <span className="truncate text-[12px] text-ink-600">{skill.author}</span>
         </span>
-        <span className="mt-1 block text-[12px] text-ink-400">{formatUsage(skill.usageCount)} 次调用</span>
+        <span className="mt-1 block text-[12px] text-ink-600">{formatUsage(skill.usageCount)} 次调用</span>
       </Link>
 
       {/* Outside the Link, not nested in it: a control inside an anchor is
@@ -275,6 +344,7 @@ function SkillGridCard({
       <button
         type="button"
         disabled={busy}
+        aria-busy={busy}
         data-testid={`skill-favourite-${skill.id}`}
         aria-pressed={skill.favourite}
         aria-label={skill.favourite ? `取消收藏 ${skill.name}` : `收藏 ${skill.name}`}
@@ -282,8 +352,9 @@ function SkillGridCard({
         onClick={onToggleFavourite}
         className={cn(
           'absolute right-2.5 top-2.5 rounded-full p-2 backdrop-blur-sm transition-colors',
-          skill.favourite ? 'bg-surface/90 text-accent' : 'bg-ink-900/25 text-white hover:bg-ink-900/40',
-          busy && 'opacity-60',
+          skill.favourite ? 'bg-surface/90 text-accent-ink' : 'bg-ink-900/25 text-white hover:bg-ink-900/40',
+          busy && 'cursor-wait opacity-70',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
       >
         <IconSkill size={15} fill={skill.favourite ? 'currentColor' : 'none'} />

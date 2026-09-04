@@ -22,6 +22,7 @@ import { cn } from '@/lib/cn'
 import { IconCheck, IconClose, IconMore, IconTrash } from '../icons'
 import { ConfirmDialog } from '../ui/Dialog'
 import { Menu } from '../ui/Menu'
+import { useScriptV2DialogFocus } from './ScriptV2Dialogs'
 
 export interface ScriptV2ShotTableProps {
   rows: ScriptV2Row[]
@@ -132,7 +133,7 @@ export function ScriptV2ShotTable({
 
   return (
     <div className="thin-scrollbar min-h-0 flex-1 overflow-auto bg-[#171717]">
-      <table className="w-full min-w-[1380px] table-fixed border-collapse text-left">
+      <table aria-label="镜头字段" className="w-full min-w-[1380px] table-fixed border-collapse text-left">
         <colgroup>
           <col className="w-[82px]" />
           <col className="w-[88px]" />
@@ -516,14 +517,21 @@ function FloatingSurface({
   surfaceRef: React.RefObject<HTMLDivElement | null>
   children: ReactNode
 }) {
+  // Cell editors are popovers rather than modal sheets: Tab must be able to
+  // leave the control so the editor's blur handler can commit the draft.
+  const dialogRef = useScriptV2DialogFocus(true, { trap: ariaLabel === '选择景别' })
   const left = Math.max(12, Math.min(anchor.left, window.innerWidth - width - 12))
   const estimatedHeight = ariaLabel === '选择景别' ? 430 : 230
   const top = Math.max(12, Math.min(anchor.top, window.innerHeight - estimatedHeight - 12))
   return (
     <div
-      ref={surfaceRef}
+      ref={(element) => {
+        surfaceRef.current = element
+        dialogRef.current = element
+      }}
       role="dialog"
       aria-label={ariaLabel}
+      tabIndex={-1}
       className="fixed z-[190] rounded-xl border border-white/12 bg-[#292929] p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,.46)]"
       style={{ left, top, width }}
     >

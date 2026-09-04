@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MODELS_BY_ID } from '@/domain/models'
 import {
   filterVideoCards,
   projectStoryboard,
+  reconcileStoryboardExpandedColumn,
   VIDEO_FILTER_LABELS,
   type StoryboardCard,
   type VideoFilter,
@@ -24,10 +25,33 @@ import {
   IconVideo,
 } from '../icons'
 import { ArtifactPreview, MediaPlaceholder } from '../canvas/node-visuals'
-import { MediaDetailDrawer } from './MediaDetailDrawer'
+import {
+  generationStatusLabel,
+  latestJobForNode,
+  mediaAspectRatio,
+  regenerationStatusForJob,
+  MediaDetailDrawer,
+} from './MediaDetailDrawer'
 import { ClipEditor } from './ClipEditor'
+import type { GenerationJob } from '@/domain/types'
 
 type ExpandedColumn = 'image' | 'video' | null
+
+const STORYBOARD_COLUMN_MIN_WIDTH = 280
+const STORYBOARD_COLUMN_TRACK = `minmax(${STORYBOARD_COLUMN_MIN_WIDTH}px, 1fr)`
+
+/** Keep media columns usable at compact widths; the grid can then scroll instead of crushing controls. */
+export function getStoryboardGridTemplate(hasLeftRail: boolean, mediaColumnCount: number): string {
+  const mediaColumns = Math.max(0, Math.min(2, mediaColumnCount))
+  if (hasLeftRail) {
+    return [
+      `minmax(${STORYBOARD_COLUMN_MIN_WIDTH}px, 33.38%)`,
+      ...Array.from({ length: mediaColumns }, () => STORYBOARD_COLUMN_TRACK),
+    ].join(' ')
+  }
+  if (mediaColumns === 2) return `repeat(2, ${STORYBOARD_COLUMN_TRACK})`
+  return STORYBOARD_COLUMN_TRACK
+}
 
 /**
  * Storyboard.
@@ -38,9 +62,10 @@ type ExpandedColumn = 'image' | 'video' | null
  */
 export function StoryboardView() {
   const document = useEditor((s) => s.document)
+  const jobs = useEditor((s) => s.jobs)
   const [videoFilter, setVideoFilter] = useState<VideoFilter>('all')
   const [expanded, setExpanded] = useState<ExpandedColumn>(null)
-  const [detail, setDetail] = useState<StoryboardCard | null>(null)
+  const [detailNodeId, setDetailNodeId] = useState<string | null>(null)
   const [clipEditorOpen, setClipEditorOpen] = useState(false)
 
   const filterMenu = useMenuAnchor()
@@ -51,23 +76,24 @@ export function StoryboardView() {
   )
 
   const videoCards = filterVideoCards(projection.video, videoFilter)
+  const effectiveExpanded = reconcileStoryboardExpandedColumn(expanded, projection)
+  const allCards = useMemo(
+    () => [...projection.audio, ...projection.text, ...projection.image, ...projection.video],
+    [projection],
+  )
+  // Keep only the node identity in UI state. The selected card is re-projected
+  // from the workflow document so terminal job updates and undo/reload are
+  // visible in an already-open drawer.
+  const detail = detailNodeId ? allCards.find((card) => card.nodeId === detailNodeId) ?? null : null
   const hasLeftRail = projection.audio.length > 0 || projection.text.length > 0
-  const showImage = projection.image.length > 0 && expanded !== 'video'
-  const showVideo = projection.video.length > 0 && expanded !== 'image'
+  const showImage = projection.image.length > 0 && effectiveExpanded !== 'video'
+  const showVideo = projection.video.length > 0 && effectiveExpanded !== 'image'
   const mediaColumnCount = Number(showImage) + Number(showVideo)
 
-  const gridTemplateColumns = hasLeftRail
-    ? mediaColumnCount === 2
-      ? '33.38% minmax(0, 1fr) minmax(0, 1fr)'
-      : mediaColumnCount === 1
-        ? '33.38% minmax(0, 1fr)'
-        : 'minmax(0, 1fr)'
-    : mediaColumnCount === 2
-      ? 'repeat(2, minmax(0, 1fr))'
-      : 'minmax(0, 1fr)'
+  const gridTemplateColumns = getStoryboardGridTemplate(hasLeftRail, mediaColumnCount)
 
   const openClipEditor = useCallback(() => {
-    setDetail(null)
+    setDetailNodeId(null)
     setClipEditorOpen(true)
   }, [])
 
@@ -78,19 +104,43 @@ export function StoryboardView() {
     })
   }, [])
 
+  useEffect(() => {
+    if (expanded !== effectiveExpanded) setExpanded(effectiveExpanded)
+  }, [effectiveExpanded, expanded])
+
   if (clipEditorOpen) {
     return <ClipEditor open onClose={closeClipEditor} />
   }
 
   return (
     <div
-      className="relative grid h-full gap-3 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-[72px]"
+      className="thin-scrollbar relative grid h-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-[72px] max-[1100px]:pt-28"
       data-testid="storyboard-view"
       style={{ gridTemplateColumns }}
     >
+      {hasLeftRail && mediaColumnCount === 2 && (
+        <div
+          data-testid="storyboard-scroll-hint"
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-20 left-1/2 z-10 hidden -translate-x-1/2 rounded-full bg-ink-900/80 px-2.5 py-1 text-[10px] text-white/80 shadow-[var(--shadow-float)] max-[900px]:flex"
+        >
+          左右滑动查看更多
+        </div>
+      )}
+
+      {projection.isEmpty && (
+        <div data-testid="storyboard-empty" className="col-span-full flex min-h-0 items-center justify-center">
+          <EmptyState
+            icon={<IconImage size={28} />}
+            title="故事板还是空的"
+            description="在工作流中创建图片、视频、音频或文本节点后，它们会出现在这里。"
+          />
+        </div>
+      )}
+
       {/* Audio and text share one responsive column and survive media expansion. */}
       {hasLeftRail && (
-        <div data-testid="storyboard-left-rail" className="flex min-w-0 flex-col gap-3">
+        <div data-testid="storyboard-left-rail" className="flex min-w-[280px] flex-col gap-3">
           {projection.audio.length > 0 && (
             <ColumnShell
               title="音频"
@@ -105,7 +155,7 @@ export function StoryboardView() {
                     key={card.nodeId}
                     type="button"
                     data-testid={`storyboard-card-${card.nodeId}`}
-                    onClick={() => setDetail(card)}
+                    onClick={() => setDetailNodeId(card.nodeId)}
                     className="flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-ink-50"
                   >
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-ink-100 text-ink-400">
@@ -131,7 +181,7 @@ export function StoryboardView() {
                     key={card.nodeId}
                     type="button"
                     data-testid={`storyboard-card-${card.nodeId}`}
-                    onClick={() => setDetail(card)}
+                    onClick={() => setDetailNodeId(card.nodeId)}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-ink-50"
                   >
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-400">
@@ -161,19 +211,20 @@ export function StoryboardView() {
             <button
               type="button"
               data-testid="expand-image"
-              onClick={() => setExpanded(expanded === 'image' ? null : 'image')}
+              onClick={() => setExpanded(effectiveExpanded === 'image' ? null : 'image')}
               className="rounded-lg p-1.5 text-ink-400 transition-colors hover:bg-ink-50 hover:text-ink-700"
-              aria-label={expanded === 'image' ? '收起图片列' : '展开图片列'}
+              aria-label={effectiveExpanded === 'image' ? '收起图片列' : '展开图片列'}
             >
-              {expanded === 'image' ? <IconCollapse size={15} /> : <IconExpand size={15} />}
+              {effectiveExpanded === 'image' ? <IconCollapse size={15} /> : <IconExpand size={15} />}
             </button>
           }
         >
           <MediaGrid
             cards={projection.image}
-            dense={expanded === 'image'}
+            dense={effectiveExpanded === 'image'}
             kind="image"
-            onOpen={setDetail}
+            jobs={jobs}
+            onOpen={(card) => setDetailNodeId(card.nodeId)}
           />
         </ColumnShell>
       )}
@@ -198,11 +249,11 @@ export function StoryboardView() {
               <button
                 type="button"
                 data-testid="expand-video"
-                onClick={() => setExpanded(expanded === 'video' ? null : 'video')}
+                onClick={() => setExpanded(effectiveExpanded === 'video' ? null : 'video')}
                 className="rounded-lg p-1.5 text-ink-400 transition-colors hover:bg-ink-50 hover:text-ink-700"
-                aria-label={expanded === 'video' ? '收起视频列' : '展开视频列'}
+                aria-label={effectiveExpanded === 'video' ? '收起视频列' : '展开视频列'}
               >
-                {expanded === 'video' ? <IconCollapse size={15} /> : <IconExpand size={15} />}
+                {effectiveExpanded === 'video' ? <IconCollapse size={15} /> : <IconExpand size={15} />}
               </button>
             </>
           }
@@ -213,7 +264,13 @@ export function StoryboardView() {
               title={videoFilter === 'all' ? '暂无视频节点' : `没有属于「${VIDEO_FILTER_LABELS[videoFilter]}」的内容`}
             />
           ) : (
-            <MediaGrid cards={videoCards} dense={expanded === 'video'} kind="video" onOpen={setDetail} />
+            <MediaGrid
+              cards={videoCards}
+              dense={effectiveExpanded === 'video'}
+              kind="video"
+              jobs={jobs}
+              onOpen={(card) => setDetailNodeId(card.nodeId)}
+            />
           )}
         </ColumnShell>
       )}
@@ -248,7 +305,7 @@ export function StoryboardView() {
         />
       )}
 
-      <MediaDetailDrawer card={detail} onClose={() => setDetail(null)} onOpenClipEditor={openClipEditor} />
+      <MediaDetailDrawer card={detail} onClose={() => setDetailNodeId(null)} onOpenClipEditor={openClipEditor} />
     </div>
   )
 }
@@ -274,7 +331,7 @@ function ColumnShell({
     <section
       data-testid={testId}
       className={cn(
-        'flex min-w-0 flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100',
+        'flex min-w-[280px] flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-ink-100',
         grow ? 'flex-1' : 'shrink-0',
         className,
       )}
@@ -293,11 +350,13 @@ function MediaGrid({
   cards,
   dense,
   kind,
+  jobs,
   onOpen,
 }: {
   cards: StoryboardCard[]
   dense: boolean
   kind: 'image' | 'video'
+  jobs: GenerationJob[]
   onOpen: (card: StoryboardCard) => void
 }) {
   if (dense) {
@@ -309,24 +368,27 @@ function MediaGrid({
             <button
               key={`${card.nodeId}-${index}`}
               type="button"
+              draggable
+              onDragStart={(event) => setReferenceDragData(event, card)}
               onClick={() => onOpen(card)}
               data-testid={`storyboard-card-${card.nodeId}`}
               className="overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
             >
-              <div className="aspect-video">
+              <div style={{ aspectRatio: mediaAspectRatio(card) }}>
                 {artifact ? (
                   <ArtifactPreview
                     url={artifact.url}
                     kind={artifact.kind}
                     poster={artifact.thumbnailUrl}
                     alt={card.nodeName}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 ) : (
                   <MediaPlaceholder kind={kind} />
                 )}
               </div>
               <div className="truncate px-2 py-1.5 text-[11px] text-ink-600">{card.nodeName}</div>
+              <StoryboardJobStatus card={card} jobs={jobs} compact />
             </button>
           )),
         )}
@@ -337,13 +399,18 @@ function MediaGrid({
   return (
     <div className="space-y-4">
       {cards.map((card) => (
-        <div key={card.nodeId} data-testid={`storyboard-card-${card.nodeId}`}>
+        <div
+          key={card.nodeId}
+          data-testid={`storyboard-card-${card.nodeId}`}
+          draggable
+          onDragStart={(event) => setReferenceDragData(event, card)}
+        >
           <div className="mb-1.5 text-[11px] text-ink-400">{card.nodeName}</div>
           <button
             type="button"
             onClick={() => onOpen(card)}
             className="block w-full overflow-hidden rounded-xl bg-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
-            style={{ aspectRatio: '16 / 9' }}
+            style={{ aspectRatio: mediaAspectRatio(card) }}
           >
             {card.artifact ? (
               <ArtifactPreview
@@ -351,7 +418,7 @@ function MediaGrid({
                 kind={card.artifact.kind}
                 poster={card.artifact.thumbnailUrl}
                 alt={card.nodeName}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
               <MediaPlaceholder kind={kind} />
@@ -366,6 +433,7 @@ function MediaGrid({
             {card.dimensions && <span className="text-[10px] text-ink-400">{card.dimensions}</span>}
             {card.durationLabel && <span className="text-[10px] text-ink-400">{card.durationLabel}</span>}
           </div>
+          <StoryboardJobStatus card={card} jobs={jobs} />
           {card.references.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5 border-t border-ink-100 pt-2">
               {card.references.map((ref) => (
@@ -386,6 +454,50 @@ function MediaGrid({
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function setReferenceDragData(event: React.DragEvent, card: StoryboardCard) {
+  const payload = JSON.stringify({
+    origin: 'node',
+    refId: card.nodeId,
+    kind: card.column === 'video' ? 'video' : card.column,
+    label: card.nodeName,
+    thumbnailUrl: card.artifact?.thumbnailUrl ?? null,
+  })
+  event.dataTransfer.effectAllowed = 'copy'
+  event.dataTransfer.setData('application/x-nova-reference', payload)
+  event.dataTransfer.setData('text/plain', card.nodeId)
+}
+
+function StoryboardJobStatus({
+  card,
+  jobs,
+  compact = false,
+}: {
+  card: StoryboardCard
+  jobs: GenerationJob[]
+  compact?: boolean
+}) {
+  const job = latestJobForNode(jobs, card.nodeId)
+  if (!job) return null
+  const state = regenerationStatusForJob(job)
+  if (state === 'ready' || state === 'succeeded') return null
+
+  const tone = state === 'in_flight' ? 'text-running' : state === 'failed' ? 'text-danger' : 'text-ink-500'
+  return (
+    <div
+      data-testid={`storyboard-status-${card.nodeId}`}
+      aria-live="polite"
+      className={cn('flex items-center gap-1.5 text-[10px]', tone, compact ? 'px-2 pb-2' : 'mt-1')}
+    >
+      {state === 'in_flight' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-running" />}
+      {state === 'failed' && <span className="h-1.5 w-1.5 rounded-full bg-danger" />}
+      {state !== 'in_flight' && state !== 'failed' && <span className="h-1.5 w-1.5 rounded-full bg-ink-300" />}
+      <span>{generationStatusLabel(job.status)}</span>
+      {state === 'in_flight' && <span className="tabular-nums">{job.progress}%</span>}
+      {(job.status === 'failed' || job.status === 'compliance_blocked') && <span className="ml-auto">点击查看并重试</span>}
     </div>
   )
 }

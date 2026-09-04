@@ -27,6 +27,8 @@ describe.sequential('GET /api/home', () => {
     expect(parsed.account.credits).toBe(408)
     expect(parsed.creatorTools).toHaveLength(6)
     expect(parsed.showcase.length).toBeGreaterThanOrEqual(6)
+    expect(parsed.showcase[0]).toMatchObject({ id: 'pub_city_night_01', snapshotId: 'pub_city_night_01' })
+    expect(new Set(parsed.showcase.map((entry) => entry.id)).size).toBe(parsed.showcase.length)
   })
 
   it('keeps public discovery available when the account has no projects', async () => {

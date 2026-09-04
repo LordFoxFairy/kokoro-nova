@@ -183,8 +183,10 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
               <button
                 type="button"
                 data-testid="showcase-process"
+                disabled={!detail.entry.processAvailable}
+                title={detail.entry.processAvailable ? undefined : '该作品暂未开放制作过程'}
                 onClick={() => setProcessOpen(true)}
-                className="inline-flex items-center gap-2 rounded-full bg-black/48 px-5 py-3 text-[13px] text-white/90 ring-1 ring-white/12 backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="inline-flex items-center gap-2 rounded-full bg-black/48 px-5 py-3 text-[13px] text-white/90 ring-1 ring-white/12 backdrop-blur-md transition-colors hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 <IconWorkflow size={15} /> 查看制作过程
               </button>
@@ -395,8 +397,9 @@ function ShowcasePlayer({
         <button
           type="button"
           data-testid="showcase-player-process"
+          disabled={!detail.entry.processAvailable}
           onClick={onProcess}
-          className="pointer-events-auto rounded-full bg-white/10 px-4 py-2.5 text-[13px] text-white/90 backdrop-blur-md transition-colors hover:bg-white/18 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="pointer-events-auto rounded-full bg-white/10 px-4 py-2.5 text-[13px] text-white/90 backdrop-blur-md transition-colors hover:bg-white/18 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           查看制作过程 →
         </button>

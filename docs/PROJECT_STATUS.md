@@ -40,31 +40,30 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
 - 真实后端接入只替换 transport/provider/store seam，不重写页面交互；
 - 每个里程碑先在主仓库重新跑 typecheck、lint、unit、build、E2E 和视觉基准，再发布到 `main`。
 
-## 3. 当前并行工作分工
+## 3. 已合入工作线与当前质量闭环
 
-本项目按**多批次、最多五条互不重叠的写入线**推进，不采用单 agent 串行模式。历史批次已经完成
-Video Contract、ConfirmGate/Jobs、Storyboard 状态、Script V2 状态与生成可靠性；主 agent 负责合并、
-回归和最终质量门。当前批次正在执行：
+仓库先按互不重叠的并行写入面推进；以下工作线均已合入 `main`。当前主线持续以官网
+观察、契约同步和主仓库回归收敛差异，而不是依赖正在运行的子任务。
 
-| 工作线（agent） | 交付面 | 写入范围/输出 |
+| 工作线 | 已交付面 | 主仓库证据 |
 |---|---|---|
-| Canvas parity（Banach） | 画布选中/引用焦点、工具栏、空态、响应式和可访问性 | `CanvasWorkspace.tsx`、`WorkflowCanvas.tsx`、canvas tests |
-| Compositor（Arendt） | playhead 键盘操作、split 边界、时间线反馈、原比例语义 | `ClipEditor.tsx`、compositor tests |
-| Home/Project/Shell（Sagan） | 首页发现、TV Show、项目操作、导航品牌和窄屏 | home/project/shell 组件与 tests |
-| Assets/Agent/Director（Hilbert） | 素材库、上传生命周期、Agent 会话、Director Studio 演示闭环 | assets/agent/director 组件与 tests |
-| Product QA/E2E（Leibniz） | 1440×900 主旅程、刷新/返回、空错态和稳定 Playwright 覆盖 | 新增 `e2e/kokoro-nova-parity.spec.ts`（只读现有产品代码） |
+| Canvas parity | 选中/引用焦点、工具栏、空态、响应式和可访问性 | canvas 单测、1440×900 与隔离窄屏回归 |
+| Compositor | playhead 键盘操作、split 边界、时间线反馈与原比例语义 | ClipEditor 单测与浏览器旅程 |
+| Home / Project / Shell | 首页发现、TV Show、项目操作、导航与窄屏布局 | 首页/项目 E2E 与官网 2026-09-04 表面复核 |
+| Assets / Agent / Director | 素材库、上传生命周期、Agent 会话、Director Studio 闭环 | contract、server 和 surface tests |
+| Video / Script V2 / Storyboard | 视频任务、报价确认、分镜状态、脚本批量生成与剪辑 | OpenAPI 对齐、状态机测试与隔离 Playwright |
 
-每条写入线都先读取 [`docs/CODEBASE_MAP.md`](CODEBASE_MAP.md)，严格限定文件所有权；不触碰真实登录、
-真实 LibTV 凭证、后端或用户已有 `.gitignore`。agent 完成后不会直接视为交付，必须由主仓库重新跑
-静态、单元、构建、E2E 和视觉验证。
+最近质量记录：
 
-主 agent 的职责不是重复写上述模块，而是：
+- `3c2218a`：补齐有效报价 fixture，覆盖确认期间 busy/disabled、积分预留和运行态收敛；
+- `703a7f3`：按官网项目空态确认回收站与新建文件夹在空账户仍为 enabled；
+- `07e9328`：修复 production smoke 对已演进 ImageNodeEditor 的过期 test id，`pnpm e2e:prod`
+  在隔离 `DATA_DIR` 下 2/2 通过；
+- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（71 files / 756 tests）、production build、
+  demo smoke 与 production E2E；用户已有 `.gitignore` 始终不修改、不暂存。
 
-- 检查每条工作线的 diff 是否越界、是否符合 frontend-only + mock 边界；
-- 在主仓库重新执行完整验证，处理跨模块接口冲突；
-- 把审计结果拆成下一轮新的 disjoint agent lane；
-- 更新本文件、`docs/task.md` 和计划勾选状态；
-- 仅在所有 gate 通过后提交、推送 `origin/main`。
+主控职责：检查跨 surface 契约、在主仓库复跑验证、把官网新观察转为本地 fixture/API docs
+约束，并只在有明确证据时更新 parity 结论。
 
 ## 4. 交付门槛
 

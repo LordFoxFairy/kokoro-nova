@@ -61,6 +61,13 @@ test('TV Show detail, player and read-only process preserve the public work cont
   await page.getByTestId('showcase-watch').click()
   await expect(page.getByTestId('showcase-player')).toBeVisible()
   await expect(page.getByTestId('showcase-player-video')).toBeVisible()
+  // Next dev tools own a top-level portal, so verify the documented keyboard
+  // transport rather than relying on a synthetic pointer click through it.
+  const playerToggle = page.getByTestId('showcase-player-toggle')
+  await expect(playerToggle).toHaveAttribute('aria-label', '暂停')
+  await playerToggle.focus()
+  await page.keyboard.press('Enter')
+  await expect(playerToggle).toHaveAttribute('aria-label', '播放')
   await expect(page.getByTestId('showcase-player-speed')).toContainText('1x')
   await page.getByTestId('showcase-player-speed').click()
   await expect(page.getByTestId('showcase-player-speed')).toContainText('1.5x')

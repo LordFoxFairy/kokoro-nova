@@ -25,6 +25,14 @@
 
 这些截图仅用于本地现状审计，不被加入视觉 baseline，也不作为官网证据。
 
+## 官网当前公共首页轻量复核
+
+2026-09-04 重新读取 `https://www.liblib.tv/` 的公开 HTML 文本。当前页面仍直接暴露活动条、
+“新建画布创作”、Seedance 2.5/Wan 3.0/Minimax H3 Max/导演台/逐帧拉片/片段重拍六个创作
+入口、`LibTV Agent`、`TV Show`、默认“全部”分类和搜索输入。这与本地首页发现面已经固定的
+内容顺序相符；公开文本没有提供 `/showcase` 的可用路由或详情状态，因此目录/详情交互仍以
+已归档的官网页面观察为事实来源，不能把当前本地 `/showcase` 的通用画廊误当成官网直接路由。
+
 ## 当前公开路径的运行时契约复核
 
 同一隔离 `public-showcase` fixture 下，`POST /api/dev/scenario`、`GET /api/publish`

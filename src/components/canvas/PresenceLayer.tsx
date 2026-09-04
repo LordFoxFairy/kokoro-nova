@@ -70,8 +70,9 @@ export function usePresenceConnection(canvasId: string | null, self?: PresenceSe
 
   // Camera changes are cheap to report — the client coalesces them.
   useEffect(() => {
+    if (!canvasId) return
     reportViewport({ x: transform[0], y: transform[1], zoom: transform[2] })
-  }, [transform])
+  }, [canvasId, transform])
 
   // One listener for every mousemove; the client turns the burst into at most
   // one request per throttle window, so this never becomes a request per frame.

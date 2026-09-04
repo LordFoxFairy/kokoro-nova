@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, type KeyboardEvent } from 'react'
+import { memo, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { NODE_META } from '@/domain/nodes'
 import { MODELS_BY_ID, quoteCredits } from '@/domain/models'
@@ -216,8 +216,14 @@ function NodeCardImpl({ data, selected }: NodeProps) {
       role="group"
       aria-label={`${node.name}，按 Enter 或空格打开编辑${open ? '，编辑面板已打开' : ''}`}
       onKeyDown={onCardKeyDown}
+      onContextMenu={(event: MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        menu.openFrom(event, 'point')
+      }}
       data-testid={`node-${node.id}`}
       data-node-type={node.type}
+      data-selected={selected ? 'true' : 'false'}
+      data-selection-state={selected ? 'selected' : 'not-selected'}
       className="group relative"
       style={{ width: node.size.width }}
     >
@@ -260,6 +266,8 @@ function NodeCardImpl({ data, selected }: NodeProps) {
         data-testid={`node-shell-${node.id}`}
         data-visual-kind={isGeneratedMedia ? 'media' : 'generator'}
         data-selected={selected ? 'true' : 'false'}
+        data-status={job?.status ?? (artifact ? 'succeeded' : 'idle')}
+        aria-busy={running}
         className={cn(
           'relative transition-[box-shadow]',
           isGeneratedMedia ? 'rounded-xl bg-transparent' : 'rounded-2xl bg-surface',

@@ -23,7 +23,7 @@ import { canConvertToStoryboardGroup } from '@/domain/mutations'
 import { videoReferenceCandidates } from '@/domain/video-references'
 import { createTextStarterMutations } from '@/domain/text-workflows'
 import type { TextStarterIntent } from '@/domain/text-authoring'
-import type { CanvasMutation, NodeType, WorkflowDocument, WorkflowNode } from '@/domain/types'
+import type { CanvasMutation, NodeType, Viewport, WorkflowDocument, WorkflowNode } from '@/domain/types'
 import type { ScriptV2State } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -41,6 +41,59 @@ const SNAP_GRID: [number, number] = [GRID_SIZE, GRID_SIZE]
 const PAN_BUTTONS = [1, 2]
 const PRO_OPTIONS = { hideAttribution: true }
 const MULTI_SELECT_KEYS = ['Meta', 'Shift']
+const MIN_CANVAS_ZOOM = 0.1
+const MAX_CANVAS_ZOOM = 2.5
+const DEFAULT_CANVAS_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 }
+
+/** Browser-local view state stays out of the shared workflow document. */
+export const CANVAS_VIEWPORT_STORAGE_PREFIX = 'kokoro-nova:canvas-viewport:'
+
+export function normalizeCanvasViewport(
+  input: Partial<Viewport> | null | undefined,
+  fallback: Viewport = DEFAULT_CANVAS_VIEWPORT,
+): Viewport {
+  const x = Number.isFinite(input?.x) ? Number(input?.x) : fallback.x
+  const y = Number.isFinite(input?.y) ? Number(input?.y) : fallback.y
+  const rawZoom = Number.isFinite(input?.zoom) ? Number(input?.zoom) : fallback.zoom
+  return {
+    x,
+    y,
+    zoom: Math.min(MAX_CANVAS_ZOOM, Math.max(MIN_CANVAS_ZOOM, rawZoom)),
+  }
+}
+
+export function getCanvasViewportStorageKey(canvasId: string): string {
+  return `${CANVAS_VIEWPORT_STORAGE_PREFIX}${canvasId}`
+}
+
+function readCanvasViewport(canvasId: string | null): Viewport | null {
+  if (!canvasId || typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(getCanvasViewportStorageKey(canvasId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<Viewport> | null
+    if (!parsed || typeof parsed !== 'object') return null
+    return normalizeCanvasViewport(parsed)
+  } catch {
+    // Private browsing and test harnesses may deny storage access. The canvas
+    // remains usable with the server-provided viewport in that case.
+    return null
+  }
+}
+
+function writeCanvasViewport(canvasId: string | null, viewport: Viewport): void {
+  if (!canvasId || typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(getCanvasViewportStorageKey(canvasId), JSON.stringify(viewport))
+  } catch {
+    // View state is an enhancement; a storage quota/security error must not
+    // interrupt panning or zooming.
+  }
+}
+
+function sameCanvasViewport(a: Viewport | null, b: Viewport): boolean {
+  return Boolean(a && a.x === b.x && a.y === b.y && a.zoom === b.zoom)
+}
 
 export type CanvasCandidateDirection = 'next' | 'previous' | 'first' | 'last'
 
@@ -227,9 +280,28 @@ function CanvasInner({
   const instanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [liveMessage, setLiveMessage] = useState('')
+  const [commandMessage, setCommandMessage] = useState('')
   const [flowErrorMessage, setFlowErrorMessage] = useState('')
+  const commandTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const currentCanvasId = useEditor((s) => s.canvasId)
+  const restoredViewport = useRef<Viewport | null>(null)
   /** Positions captured at drag start, so one drag becomes one undo frame. */
   const dragOrigin = useRef<Map<string, { x: number; y: number }> | null>(null)
+
+  const announceCommand = useCallback((message: string) => {
+    setCommandMessage(message)
+    if (commandTimer.current) clearTimeout(commandTimer.current)
+    commandTimer.current = setTimeout(() => {
+      commandTimer.current = null
+      setCommandMessage('')
+    }, 2400)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (commandTimer.current) clearTimeout(commandTimer.current)
+    }
+  }, [])
 
   const jobByNode = useMemo(() => {
     const map = new Map<string, (typeof jobs)[number]>()
@@ -664,9 +736,11 @@ function CanvasInner({
       void commitWith(
         (current) => createEdgeReconnectMutations(current, oldEdge.id, connection.source!, connection.target!),
         '重连',
-      )
+      ).then((ok) => {
+        if (ok) announceCommand('已更新节点连线')
+      })
     },
-    [commitWith],
+    [announceCommand, commitWith],
   )
 
   const onNodesChange = useCallback(
@@ -727,18 +801,32 @@ function CanvasInner({
           if (before.x === node.position.x && before.y === node.position.y) continue
           mutations.push({ op: 'updateNode', nodeId: node.id, patch: { position: node.position } })
         }
-        if (mutations.length > 0) void commit(mutations, '移动节点')
+        if (mutations.length > 0) {
+          void commit(mutations, '移动节点').then((ok) => {
+            if (ok) announceCommand(`已移动 ${mutations.length} 个节点`)
+          })
+        }
       }
     },
-    [document.nodes, patchLocal, commit, select],
+    [document.nodes, patchLocal, commit, select, announceCommand],
   )
 
   const onConnect: OnConnect = useCallback(
     (connection) => {
       if (!connection.source || !connection.target) return
-      void commit([{ op: 'addEdge', edge: createEdge(connection.source, connection.target) }], '连线')
+      void commitWith(
+        (document) => {
+          if (document.edges.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
+            return []
+          }
+          return [{ op: 'addEdge', edge: createEdge(connection.source!, connection.target!) }]
+        },
+        '连线',
+      ).then((ok) => {
+        if (ok) announceCommand('已建立节点连线')
+      })
     },
-    [commit],
+    [announceCommand, commitWith],
   )
 
   /**
@@ -791,9 +879,11 @@ function CanvasInner({
         const size = NODE_SIZE.text
         const at = freeSpotNear(doc.nodes, { x: point.x - size.width / 2, y: point.y - size.height / 2 }, size)
         return [{ op: 'addNode', node: createNode('text', at, doc.nodes) }]
-      }, '新建文本节点')
+      }, '新建文本节点').then((ok) => {
+        if (ok) announceCommand('已创建文本节点')
+      })
     },
-    [flow, commitWith, onOpenNode, select, selectionMode],
+    [announceCommand, flow, commitWith, onOpenNode, select, selectionMode],
   )
 
   /**
@@ -889,6 +979,7 @@ function CanvasInner({
   const handleFlowError = useCallback(
     (code: string, message: string) => {
       const formatted = formatCanvasError(code, message)
+      setCommandMessage('')
       setFlowErrorMessage(formatted)
       setLiveMessage(formatted)
       if (onCanvasError) {
@@ -900,14 +991,41 @@ function CanvasInner({
     [onCanvasError, toast],
   )
 
+  const restoreViewport = useCallback(
+    (instance: ReactFlowInstance<FlowNode, Edge>) => {
+      const serverViewport = normalizeCanvasViewport({
+        x: document.viewport.x,
+        y: document.viewport.y,
+        zoom: document.viewport.zoom,
+      })
+      const next = readCanvasViewport(currentCanvasId) ?? serverViewport
+      restoredViewport.current = next
+      setZoom(next.zoom)
+      void instance.setViewport(next)
+    },
+    [currentCanvasId, document.viewport.x, document.viewport.y, document.viewport.zoom, setZoom],
+  )
+
+  const persistViewport = useCallback(
+    (_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
+      const next = normalizeCanvasViewport(viewport)
+      setZoom(next.zoom)
+      if (sameCanvasViewport(restoredViewport.current, next)) return
+      restoredViewport.current = next
+      writeCanvasViewport(currentCanvasId, next)
+      announceCommand(`画布视图已保存（${Math.round(next.zoom * 100)}%）`)
+    },
+    [announceCommand, currentCanvasId, setZoom],
+  )
+
   useEffect(() => {
     const instance = instanceRef.current
     if (!instance) return
-    // Restore the saved viewport once the graph is mounted.
-    instance.setViewport(document.viewport)
-    // Intentionally only on first mount of a canvas.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // Restore the local camera when a canvas is first mounted or switched.
+    // The shared WorkflowDocument remains untouched: view state belongs to the
+    // current browser tab and is deliberately separate from graph mutations.
+    restoreViewport(instance)
+  }, [restoreViewport])
 
   return (
     <div
@@ -941,8 +1059,10 @@ function CanvasInner({
         }}
         onInit={(instance) => {
           instanceRef.current = instance
+          restoreViewport(instance)
         }}
-        onMove={(_, viewport) => setZoom(viewport.zoom)}
+        onMove={(_, viewport) => setZoom(normalizeCanvasViewport(viewport).zoom)}
+        onMoveEnd={persistViewport}
         onPaneClick={() => {
           if (selectionMode) return
           select([])
@@ -1019,7 +1139,7 @@ function CanvasInner({
         aria-live="polite"
         aria-atomic="true"
       >
-        {liveMessage}
+        {commandMessage || liveMessage}
       </div>
       <div
         data-testid="canvas-error-live-region"

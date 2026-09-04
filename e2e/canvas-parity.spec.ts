@@ -105,6 +105,85 @@ test('empty workflow uses the current dark 1440×900 editor shell', async ({ pag
   await expectVisualBaseline(page, 'canvas-empty-dark-1440x900.png')
 })
 
+test('project identity can be renamed inline without leaving the canvas', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-empty')
+  await createEmptyProject(page)
+
+  const projectName = page.getByTestId('project-name')
+  await expect(projectName).toHaveText('未命名项目 1')
+  await projectName.click()
+
+  const input = page.getByTestId('project-rename-input')
+  await expect(input).toBeFocused()
+  await input.fill('Canvas parity fixture')
+  const persisted = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return response.request().method() === 'PATCH' && url.pathname.startsWith('/api/projects/') && response.ok()
+  })
+  await input.press('Enter')
+  await persisted
+
+  await expect(page.getByTestId('project-name')).toHaveText('Canvas parity fixture')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+})
+
+test('canvas viewport survives a reload as local view state', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-empty')
+  await createEmptyProject(page)
+
+  const sharedDocumentWrites: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/canvases/')) {
+      sharedDocumentWrites.push(request.url())
+    }
+  })
+  await page.mouse.move(100, 120)
+  await page.mouse.wheel(0, -420)
+  const zoomReadout = page.getByTestId('zoom-readout')
+  await expect.poll(async () => zoomReadout.textContent()).not.toBe('100%')
+  const zoom = await zoomReadout.textContent()
+  await page.waitForTimeout(300)
+  expect(sharedDocumentWrites).toEqual([])
+
+  await page.reload()
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await expect(zoomReadout).toHaveText(zoom ?? '')
+})
+
+test('node context actions and empty-canvas creation provide keyboard-readable feedback', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-empty')
+  await createEmptyProject(page)
+
+  await page.mouse.dblclick(720, 200)
+  await expect(page.locator('[data-node-type="text"]')).toHaveCount(1)
+  await expect(page.getByTestId('canvas-live-region')).toHaveText(/已创建文本节点/)
+
+  const node = page.locator('[data-node-type="text"]').first()
+  await node.click({ button: 'right' })
+  const menu = page.getByRole('menu').last()
+  await expect(menu).toBeVisible()
+  await expect(menu.getByRole('menuitem', { name: '创建副本', exact: true })).toBeVisible()
+  await expectVisualBaseline(page, 'canvas-node-context-menu-dark-1440x900.png')
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu')).toHaveCount(0)
+})
+
+test('Shift-click keeps a readable multi-node selection in the controlled graph', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-populated')
+  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+
+  const first = page.getByTestId('node-node_text_01')
+  const second = page.getByTestId('node-node_image_01')
+  await first.click()
+  await second.click({ modifiers: ['Shift'] })
+
+  await expect(first).toHaveAttribute('data-selection-state', 'selected')
+  await expect(second).toHaveAttribute('data-selection-state', 'selected')
+  await expect(page.getByTestId('canvas-live-region')).toHaveText('已选择 2 个节点。')
+})
+
 test('add menu exposes the current product taxonomy and dismisses back to its trigger', async ({ page, request }) => {
   await selectScenario(request, 'authenticated-empty')
   await createEmptyProject(page)

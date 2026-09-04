@@ -159,6 +159,7 @@ export function BottomToolbar({
             'flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] transition-colors hover:bg-ink-100',
             assetSidebarOpen && 'bg-ink-100 text-ink-900',
           )}
+          aria-expanded={assetSidebarOpen}
         >
           <IconSidebar size={16} />
           资产管理
@@ -188,6 +189,7 @@ export function BottomToolbar({
           type="button"
           data-testid="zoom-readout"
           onClick={() => flow.zoomTo(1, { duration: 200 })}
+          aria-keyshortcuts="Control+0 Meta+0"
           className="h-7 rounded-lg px-2 text-[12px] tabular-nums transition-colors hover:bg-ink-100"
         >
           {Math.round(zoom * 100)}%
@@ -208,6 +210,7 @@ export function BottomToolbar({
             addMenu.anchor ? 'bg-ink-500' : 'bg-[#d5d7d9] text-[#242424] hover:bg-white',
           )}
           aria-label="添加节点"
+          aria-keyshortcuts="Tab"
         >
           {addMenu.anchor ? <IconClose size={18} /> : <IconPlus size={18} />}
         </button>
@@ -217,6 +220,7 @@ export function BottomToolbar({
           icon={<IconCursor size={18} />}
           active={toolMode === 'select'}
           onClick={() => setToolMode('select')}
+          keyShortcuts="V"
         />
         <RailButton
           label="工具箱"
@@ -257,7 +261,7 @@ export function BottomToolbar({
           testId="open-shortcuts"
         />
         <RailButton
-          label="帮助与支持"
+          label="教程"
           icon={<IconHelp size={18} />}
           onClick={(e) => helpMenu.openFrom(e, 'above')}
           testId="open-help"
@@ -362,12 +366,14 @@ function RailButton({
   onClick,
   active,
   testId,
+  keyShortcuts,
 }: {
   label: string
   icon: React.ReactNode
   onClick: (event: React.MouseEvent) => void
   active?: boolean
   testId?: string
+  keyShortcuts?: string
 }) {
   return (
     <Tooltip label={label}>
@@ -376,6 +382,7 @@ function RailButton({
         data-testid={testId}
         onClick={onClick}
         aria-label={label}
+        aria-keyshortcuts={keyShortcuts}
         className={cn(
           'flex h-8 w-8 items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-accent',
           active ? 'bg-ink-100 text-ink-900' : 'text-ink-600 hover:bg-ink-50',

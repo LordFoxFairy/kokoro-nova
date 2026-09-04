@@ -127,6 +127,7 @@ export function TopBar() {
   const toast = useEditor((s) => s.toast)
 
   const switcher = useMenuAnchor()
+  const [renamingProject, setRenamingProject] = useState(false)
   const [renamingCanvas, setRenamingCanvas] = useState(false)
   const [creatingCanvas, setCreatingCanvas] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Canvas | null>(null)
@@ -143,6 +144,19 @@ export function TopBar() {
       `/api/projects/${project.id}`,
     )
     useEditor.setState({ project: data.project, canvases: data.canvases })
+  }
+
+  const renameProject = async (name: string) => {
+    if (!project) return
+    setRenamingProject(false)
+    if (name === project.name) return
+    try {
+      const updated = await api.patch<typeof project>(`/api/projects/${project.id}`, { name })
+      useEditor.setState({ project: updated })
+      toast('项目名称已更新', 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : '项目重命名失败', 'error')
+    }
   }
 
   const createCanvas = async (name?: string, copyOf?: string) => {
@@ -219,9 +233,27 @@ export function TopBar() {
               <LibTvLogo compact className="h-[18px] w-[23px]" />
               <IconChevronDown size={9} className="ml-0.5 text-ink-400" />
             </Link>
-            <span className="max-w-[154px] truncate px-2 text-[13px] font-medium text-ink-900">
-              {project?.name ?? '加载中'}
-            </span>
+            {renamingProject && project ? (
+              <div className="w-36 px-1.5">
+                <InlineRename
+                  value={project.name}
+                  testId="project-rename-input"
+                  className="h-6 border-ink-300 bg-ink-50 py-0"
+                  onCancel={() => setRenamingProject(false)}
+                  onCommit={renameProject}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-testid="project-name"
+                aria-label={`重命名项目：${project?.name ?? '加载中'}`}
+                onClick={() => project && setRenamingProject(true)}
+                className="max-w-[154px] truncate rounded-lg px-2 text-left text-[13px] font-medium text-ink-900 transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                {project?.name ?? '加载中'}
+              </button>
+            )}
             <span className="h-5 w-px bg-ink-200" />
             {renamingCanvas && current ? (
               <div className="w-28 px-1.5">

@@ -4,8 +4,10 @@ import {
   createEdgeReconnectMutations,
   formatCanvasError,
   getCanvasSelectionAnnouncement,
+  getCanvasViewportStorageKey,
   getCanvasZoomAnnouncement,
   getNextCanvasCandidateIndex,
+  normalizeCanvasViewport,
   shouldYieldNativeCanvasKey,
 } from '../WorkflowCanvas'
 import type { EdgeChange } from '@xyflow/react'
@@ -13,6 +15,25 @@ import { createEdge, createNode } from '@/domain/factory'
 import type { WorkflowDocument } from '@/domain/types'
 
 describe('canvas accessibility behavior', () => {
+  it('normalizes persisted viewport state without leaking invalid zoom values', () => {
+    expect(normalizeCanvasViewport({ x: 120.5, y: -84, zoom: 0.42 })).toEqual({
+      x: 120.5,
+      y: -84,
+      zoom: 0.42,
+    })
+    expect(normalizeCanvasViewport({ x: Number.NaN, y: Number.POSITIVE_INFINITY, zoom: 9 })).toEqual({
+      x: 0,
+      y: 0,
+      zoom: 2.5,
+    })
+    expect(normalizeCanvasViewport({ x: 3, y: 4, zoom: Number.NaN })).toEqual({
+      x: 3,
+      y: 4,
+      zoom: 1,
+    })
+    expect(getCanvasViewportStorageKey('canvas_fixture')).toBe('kokoro-nova:canvas-viewport:canvas_fixture')
+  })
+
   it('wraps keyboard navigation across available reference candidates', () => {
     expect(getNextCanvasCandidateIndex(-1, 'next', 3)).toBe(0)
     expect(getNextCanvasCandidateIndex(2, 'next', 3)).toBe(0)

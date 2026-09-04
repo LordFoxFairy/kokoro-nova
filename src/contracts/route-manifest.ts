@@ -260,6 +260,10 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     '回收站输入项目名后永久删除',
   ]),
 
+  route('POST', '/api/publish/{snapshotId}/clone', 'Publish', 'clonePublishedSnapshot', ['TV Show 已登录复制项目'], [
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
   route('GET', '/api/publish/{snapshotId}', 'Publish', 'getPublishedSnapshot', ['TV Show 查看制作过程'], [
     'public-showcase',
   ]),

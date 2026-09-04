@@ -87,6 +87,10 @@
     {
       "name": "Creation Context",
       "description": "首页首次 Agent 请求的版本化、可恢复上下文"
+    },
+    {
+      "name": "Showcase",
+      "description": "TV Show 公开目录、详情与私有副本"
     }
   ],
   "paths": {
@@ -3190,7 +3194,7 @@
           "Showcase"
         ],
         "summary": "TV Show 目录发现 projection",
-        "description": "匿名可读的确定性公开目录。分类与关键词筛选属于前端展示状态；未命中关键词时客户端保留当前分类推荐，不向服务端写入搜索或收藏状态。",
+        "description": "匿名可读的确定性公开目录，支持分类、提交式搜索与 offset 分页。没有精确搜索命中时以 page.searchFallback=true 返回当前分类推荐；fixture=empty|error 仅供本地 UI 验证。",
         "operationId": "listShowcaseEntries",
         "x-ui-triggers": [
           "TV Show 目录发现 projection"
@@ -3210,6 +3214,16 @@
               }
             }
           },
+          "400": {
+            "description": "查询参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "本地公开发现 projection 读取失败",
             "content": {
@@ -3220,7 +3234,62 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "全部",
+                "AI 漫剧精卫计划",
+                "广告导演请就位",
+                "精选画布",
+                "专业影视",
+                "短剧漫剧",
+                "商业广告",
+                "动漫游戏",
+                "教育生活",
+                "TV 工具箱"
+              ],
+              "default": "全部"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "提交式搜索词"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 24,
+              "default": 4
+            }
+          }
+        ]
       }
     },
     "/api/publish/{snapshotId}": {
@@ -3624,8 +3693,8 @@
               }
             }
           },
-          "503": {
-            "description": "本地 Composer fixture 不可用",
+          "500": {
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3634,8 +3703,8 @@
               }
             }
           },
-          "500": {
-            "description": "请求失败",
+          "503": {
+            "description": "本地 Composer fixture 不可用",
             "content": {
               "application/json": {
                 "schema": {
@@ -4370,7 +4439,7 @@
               }
             }
           },
-          "503": {
+          "500": {
             "description": "请求失败",
             "content": {
               "application/json": {
@@ -4380,7 +4449,7 @@
               }
             }
           },
-          "500": {
+          "503": {
             "description": "请求失败",
             "content": {
               "application/json": {
@@ -5429,6 +5498,72 @@
           },
           "500": {
             "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/publish/{snapshotId}/clone": {
+      "post": {
+        "tags": [
+          "Publish"
+        ],
+        "summary": "已登录复制公开快照到私有项目",
+        "operationId": "clonePublishedSnapshot",
+        "description": "在同一 local mock transaction 创建独立 project/canvas，并深拷贝发布时冻结的 document。匿名请求返回 401；不会修改公开快照或作者项目。",
+        "x-ui-triggers": [
+          "TV Show 已登录复制项目"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "公开快照的稳定本地标识"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseCloneResponse"
+                },
+                "examples": {
+                  "clone": {
+                    "externalValue": "./examples/showcase-clone.response.json"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "复制项目需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "公开快照不存在或已下架",
             "content": {
               "application/json": {
                 "schema": {
@@ -7342,7 +7477,8 @@
       "ShowcaseListResponse": {
         "type": "object",
         "required": [
-          "entries"
+          "entries",
+          "page"
         ],
         "properties": {
           "entries": {
@@ -7350,6 +7486,9 @@
             "items": {
               "$ref": "#/components/schemas/ShowcaseEntryProjection"
             }
+          },
+          "page": {
+            "$ref": "#/components/schemas/ShowcasePage"
           }
         },
         "additionalProperties": false
@@ -14563,6 +14702,86 @@
           }
         },
         "additionalProperties": false
+      },
+      "ShowcasePage": {
+        "type": "object",
+        "required": [
+          "offset",
+          "limit",
+          "total",
+          "hasMore",
+          "nextOffset",
+          "category",
+          "query",
+          "searchFallback"
+        ],
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextOffset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "全部",
+              "AI 漫剧精卫计划",
+              "广告导演请就位",
+              "精选画布",
+              "专业影视",
+              "短剧漫剧",
+              "商业广告",
+              "动漫游戏",
+              "教育生活",
+              "TV 工具箱"
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "searchFallback": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShowcaseCloneResponse": {
+        "type": "object",
+        "required": [
+          "sourceSnapshotId",
+          "project",
+          "canvas"
+        ],
+        "properties": {
+          "sourceSnapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "canvas": {
+            "$ref": "#/components/schemas/Canvas"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {
@@ -15246,6 +15465,12 @@
       "AgentSkillExecutionResponseExample": {
         "summary": "固定版本 Skill 的媒体失败降级 tool trace",
         "externalValue": "./examples/agent-skill-execution.response.json"
+      },
+      "ShowcaseDirectoryPage": {
+        "externalValue": "./examples/showcase-page.response.json"
+      },
+      "ShowcaseClone": {
+        "externalValue": "./examples/showcase-clone.response.json"
       }
     }
   },

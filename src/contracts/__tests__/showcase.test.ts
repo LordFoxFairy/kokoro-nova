@@ -26,7 +26,7 @@ describe('showcase discovery contract', () => {
       account: { credits: 0, unreadCount: 0, membershipLabel: '登录' },
       recentProjects: [],
     })
-    const gallery = ShowcaseListResponseSchema.parse({ entries: SHOWCASE_DISCOVERY_CATALOG })
+    const gallery = ShowcaseListResponseSchema.parse({ entries: SHOWCASE_DISCOVERY_CATALOG, page: { offset: 0, limit: SHOWCASE_DISCOVERY_CATALOG.length, total: SHOWCASE_DISCOVERY_CATALOG.length, hasMore: false, nextOffset: null, category: '全部', query: '', searchFallback: false } })
 
     expect(home.showcase.map((entry) => entry.id)).toEqual(gallery.entries.map((entry) => entry.id))
     expect(home.showcase.map((entry) => entry.category)).toEqual(gallery.entries.map((entry) => entry.category))
@@ -34,7 +34,7 @@ describe('showcase discovery contract', () => {
   })
 
   it('keeps the public discovery media paths local', () => {
-    const response = ShowcaseListResponseSchema.parse({ entries: SHOWCASE_DISCOVERY_CATALOG })
+    const response = ShowcaseListResponseSchema.parse({ entries: SHOWCASE_DISCOVERY_CATALOG, page: { offset: 0, limit: SHOWCASE_DISCOVERY_CATALOG.length, total: SHOWCASE_DISCOVERY_CATALOG.length, hasMore: false, nextOffset: null, category: '全部', query: '', searchFallback: false } })
     const urls = response.entries.flatMap((entry) => [entry.coverUrl, entry.media.posterUrl, entry.media.url])
 
     expect(urls.every((url) => url === null || url.startsWith('/'))).toBe(true)

@@ -1,4 +1,6 @@
-import { newId } from '@/domain/ids'
+import { ids, newId } from '@/domain/ids'
+import { createCanvas } from '@/domain/factory'
+import type { Project } from '@/domain/types'
 import {
   freezeSnapshot,
   snapshotIsViewable,
@@ -8,7 +10,8 @@ import {
   type SnapshotSummary,
 } from '@/domain/publish'
 import { HttpError } from './http'
-import { findCanvas, findProject, readState, withState, type WorkspaceState } from './store'
+import { activeScenarioIdWhileLocked, DEFAULT_SPACE_ID, findCanvas, findProject, readState, withState, type WorkspaceState } from './store'
+import { SCENARIO_CATALOG } from '@/mocks/scenarios/catalog'
 
 /*
  * Persistence constraint: `WorkspaceState` is owned by src/server/store.ts and
@@ -106,5 +109,43 @@ export async function revokeSnapshot(snapshotId: string): Promise<PublishedSnaps
     const revoked = withSnapshotState(snapshots[index], 'revoked')
     snapshots[index] = revoked
     return revoked
+  })
+}
+
+
+/**
+ * Clone a public, immutable snapshot into the active local account in one
+ * workspace transaction. The returned canvas owns a deep copy of the document,
+ * so future edits cannot mutate the public publication or its author project.
+ */
+export async function clonePublicSnapshot(snapshot: PublishedSnapshot): Promise<{
+  sourceSnapshotId: string
+  project: Project
+  canvas: ReturnType<typeof createCanvas>
+}> {
+  return withState(async (state) => {
+    const scenarioId = await activeScenarioIdWhileLocked()
+    if (SCENARIO_CATALOG[scenarioId].viewer !== 'authenticated') {
+      throw new HttpError(401, '复制项目需要先登录')
+    }
+
+    const now = new Date().toISOString()
+    const project: Project = {
+      id: ids.project(),
+      spaceId: DEFAULT_SPACE_ID,
+      folderId: null,
+      name: `${snapshot.title} · 副本`,
+      coverUrl: snapshot.coverUrl,
+      createdAt: now,
+      updatedAt: now,
+      canvasIds: [],
+    }
+    const canvas = createCanvas(project.id, '画布 1')
+    canvas.document = structuredClone(snapshot.document)
+    canvas.updatedAt = now
+    project.canvasIds = [canvas.id]
+    state.projects.push(project)
+    state.canvases.push(canvas)
+    return { sourceSnapshotId: snapshot.id, project, canvas }
   })
 }

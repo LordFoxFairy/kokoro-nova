@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { CanvasSchema, ProjectSchema } from './local'
+
 export const ShowcaseCategorySchema = z.enum([
   '全部',
   'AI 漫剧精卫计划',
@@ -51,6 +53,26 @@ export const ShowcaseEntryProjectionSchema = ShowcaseEntryProjectionBaseSchema
     path: ['snapshotId'],
   })
 
+/** Public directory request. Search is submitted explicitly rather than on each keystroke. */
+export const ShowcaseListQuerySchema = z.object({
+  category: ShowcaseCategorySchema.default('全部'),
+  query: z.string().trim().max(160).default(''),
+  offset: z.number().int().nonnegative().max(10_000).default(0),
+  limit: z.number().int().min(1).max(24).default(4),
+})
+
+export const ShowcasePageSchema = z.object({
+  offset: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
+  nextOffset: z.number().int().nonnegative().nullable(),
+  category: ShowcaseCategorySchema,
+  query: z.string(),
+  /** The official catalogue recommends its category when a submitted query has no exact match. */
+  searchFallback: z.boolean(),
+})
+
 export const ShowcaseDetailResponseSchema = z.object({
   entry: ShowcaseEntryProjectionSchema,
   related: z.array(ShowcaseEntryProjectionSchema),
@@ -58,11 +80,22 @@ export const ShowcaseDetailResponseSchema = z.object({
 
 export const ShowcaseListResponseSchema = z.object({
   entries: z.array(ShowcaseEntryProjectionSchema),
+  page: ShowcasePageSchema,
 })
+
+/** A clone is a new private project; public snapshot resources remain read-only. */
+export const ShowcaseCloneResponseSchema = z.object({
+  sourceSnapshotId: z.string().trim().min(1),
+  project: ProjectSchema,
+  canvas: CanvasSchema,
+}).strict()
 
 export type ShowcaseCategory = z.infer<typeof ShowcaseCategorySchema>
 export type ShowcaseQuality = z.infer<typeof ShowcaseQualitySchema>
 export type ShowcaseMedia = z.infer<typeof ShowcaseMediaSchema>
 export type ShowcaseEntryProjection = z.infer<typeof ShowcaseEntryProjectionSchema>
+export type ShowcaseListQuery = z.infer<typeof ShowcaseListQuerySchema>
+export type ShowcasePage = z.infer<typeof ShowcasePageSchema>
 export type ShowcaseDetailResponse = z.infer<typeof ShowcaseDetailResponseSchema>
 export type ShowcaseListResponse = z.infer<typeof ShowcaseListResponseSchema>
+export type ShowcaseCloneResponse = z.infer<typeof ShowcaseCloneResponseSchema>

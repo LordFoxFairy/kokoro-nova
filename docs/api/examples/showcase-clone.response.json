@@ -1,0 +1,28 @@
+{
+  "sourceSnapshotId": "showcase-dust-skeleton",
+  "project": {
+    "id": "prj_showcase_clone_fixture",
+    "spaceId": "sp_default",
+    "folderId": null,
+    "name": "尘骸丨东方蒸汽朋克 EP.01 · 副本",
+    "coverUrl": "/fixtures/libtv/showcase/dust-skeleton.webp",
+    "createdAt": "2026-09-03T12:00:00.000Z",
+    "updatedAt": "2026-09-03T12:00:00.000Z",
+    "canvasIds": ["cvs_showcase_clone_fixture"]
+  },
+  "canvas": {
+    "id": "cvs_showcase_clone_fixture",
+    "projectId": "prj_showcase_clone_fixture",
+    "name": "画布 1",
+    "revision": 1,
+    "createdAt": "2026-09-03T12:00:00.000Z",
+    "updatedAt": "2026-09-03T12:00:00.000Z",
+    "document": {
+      "schemaVersion": 1,
+      "nodes": [],
+      "edges": [],
+      "groups": [],
+      "viewport": { "x": 0, "y": 0, "zoom": 1 }
+    }
+  }
+}

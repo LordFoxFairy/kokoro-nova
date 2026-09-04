@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；45 个 path、79 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；46 个 path、80 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`jobs-lifecycle.md`](jobs-lifecycle.md) | 可重放 Job fixture、停止/重试/刷新恢复和一次性账本结算 |
@@ -27,6 +27,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`account-identity.md`](account-identity.md) | 首页与画布共用的 `LocalIdentity`、会话回跳、主题/水印偏好与通知摘要 contract |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
+| [`showcase-directory.md`](showcase-directory.md) | TV Show 目录分页、搜索回退、显式 empty/error fixture 与登录后复制项目契约 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
 | [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) | 风格/特效独立目录、分页 facets、详情和幂等收藏动作 |
 | [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
@@ -164,7 +165,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 素材管理 | `listAssets`, `uploadAsset`, `registerArtifactAsAsset`, `updateAsset` |
 | Agent | `createAgentSession`, `sendAgentMessage`, `resolveAgentMessage` |
 | Skill | `listSkills`, `getSkill`, `toggleSkillFavorite`, `listAuthoredSkills`, `createAuthoredSkill`, `getAuthoredSkill`, `updateAuthoredSkill`, `transitionAuthoredSkill` |
-| TV Show | `listPublishedSnapshots`, `getPublishedSnapshot`, `publishCanvas` |
+| TV Show | `listShowcaseEntries`, `getShowcaseDetail`, `listPublishedSnapshots`, `getPublishedSnapshot`, `clonePublishedSnapshot`, `publishCanvas` |
 | 账户中心身份/偏好 | `getAccountProfile` |
 | 头像菜单身份/会话/偏好/通知 | `getLocalIdentity`, `updateLocalSession`, `getLocalPreferences`, `updateLocalPreferences`, `getNotificationSummary`, `markNotificationsRead` |
 | 账户积分 | `listLedgerEntries` |
@@ -188,13 +189,14 @@ GET  /api/publish
 GET  /api/publish/SNAPSHOT_ID
 POST /api/publish       { canvasId, title?, summary? }
 DELETE /api/publish/SNAPSHOT_ID
+POST   /api/publish/SNAPSHOT_ID/clone
 ```
 
 `GET /api/publish` 返回 `{ snapshots }`，每行是 `SnapshotSummary`，包含稳定的
 `nodeCount` / `mediaCount`，不携带工作流正文。`GET /api/publish/SNAPSHOT_ID` 返回
 `PublishedSnapshot`，其中 `document` 是发布时的深拷贝；后续画布编辑不会改变公开页面。
 发布会清理 job、session、asset 等私有句柄；下架是软状态变更，公开列表与详情对隐藏/撤销
-快照统一返回 `404`，避免暴露已下架作品是否存在。
+快照统一返回 `404`，避免暴露已下架作品是否存在。复制使用独立的 `POST /api/publish/SNAPSHOT_ID/clone`，只在登录 mock 场景创建新的私有项目和深拷贝画布。
 
 ### Skill 市场契约
 

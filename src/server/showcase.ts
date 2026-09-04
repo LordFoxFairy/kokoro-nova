@@ -1,4 +1,10 @@
-import type { ShowcaseDetailResponse, ShowcaseEntryProjection, ShowcaseMedia } from '@/contracts/showcase'
+import type {
+  ShowcaseDetailResponse,
+  ShowcaseEntryProjection,
+  ShowcaseListQuery,
+  ShowcaseListResponse,
+  ShowcaseMedia,
+} from '@/contracts/showcase'
 import type { Artifact } from '@/domain/types'
 import { HttpError } from './http'
 import { findViewableSnapshot as findSnapshotRecord, listPublishedSnapshots } from './publish'
@@ -72,6 +78,34 @@ export async function listShowcaseEntries(): Promise<ShowcaseEntryProjection[]> 
   const publishedEntries = await Promise.all(snapshots.map(async (summary) => entryFor(await findSnapshotRecord(summary.id))))
   const fixtureEntries = SHOWCASE_DISCOVERY_CATALOG.filter((entry) => !publishedIds.has(entry.snapshotId))
   return [...publishedEntries, ...fixtureEntries].sort((left, right) => right.publishedAt.localeCompare(left.publishedAt))
+}
+
+/** Deterministic, cursor-free offset pagination for the local TV Show directory. */
+export async function listShowcasePage(input: ShowcaseListQuery): Promise<ShowcaseListResponse> {
+  const all = await listShowcaseEntries()
+  const inCategory = input.category === '全部' ? all : all.filter((entry) => entry.category === input.category)
+  const query = input.query.trim()
+  const needle = query.toLocaleLowerCase('zh-CN')
+  const exactMatches = needle
+    ? inCategory.filter((entry) => `${entry.title} ${entry.summary} ${entry.author}`.toLocaleLowerCase('zh-CN').includes(needle))
+    : inCategory
+  const searchFallback = Boolean(needle && exactMatches.length === 0 && inCategory.length > 0)
+  const resolved = searchFallback ? inCategory : exactMatches
+  const entries = resolved.slice(input.offset, input.offset + input.limit)
+  const nextOffset = input.offset + entries.length
+  return {
+    entries,
+    page: {
+      offset: input.offset,
+      limit: input.limit,
+      total: resolved.length,
+      hasMore: nextOffset < resolved.length,
+      nextOffset: nextOffset < resolved.length ? nextOffset : null,
+      category: input.category,
+      query,
+      searchFallback,
+    },
+  }
 }
 
 /**

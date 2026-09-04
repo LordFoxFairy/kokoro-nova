@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.16.0-skill-author-form` · scope: 45 paths / 79 operations
+> Contract version: `1.17.0-skill-author-form` · scope: 46 paths / 80 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -18,7 +18,7 @@ transport 的一一对应。
 | Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
-| Public discovery / publish | 5 / 7 | 已精确 | 首页、showcase 与冻结 public snapshot | discovery/publish service |
+| Public discovery / publish | 6 / 8 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
 | Account / ledger | 5 / 8 | 已精确 | identity、会话、钱包、偏好、通知与积分投影 | shared account domain + billing/ledger service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |
@@ -50,6 +50,8 @@ transport 的一一对应。
 | `GET /api/assets` | `namespace`, `kind`, `q`, `tag` | `{ assets: [] }` | 已撤销 asset 不出现在列表 | storage/index 取代 fixture，不改筛选字段 |
 | `GET /api/models` | `media`, `q` | 空 catalogue 是合法 200 | 无随机失败 fixture | provider registry 替换 catalogue |
 | `GET /api/skills` | `category`, `collection`, `q`, `composer`, `fixture` | `fixture=empty` 返回空 `items/skills` | `fixture=error` 返回 `503` | catalogue 与 composer context 分离替换 |
+| `GET /api/showcase` | `category`, `q`, `offset`, `limit`, `fixture` | `fixture=empty` 返回 `{ entries: [], page.total: 0 }` | `fixture=error` 返回 `503`；无精确命中以 `page.searchFallback=true` 返回当前分类推荐 | discovery service 需保留分页/回退语义 |
+| `POST /api/publish/{snapshotId}/clone` | 无 body；登录态必需 | 不适用 | `401` 表示匿名登录门，`404` 表示快照不可见 | transaction 创建独立 project/canvas 与 deep-cloned document |
 | `GET /api/materials` | `kind`, `scope`, facets、`offset`, `limit`, `fixture` | `fixture=empty` 的 `page.total=0` | `fixture=error` 返回 `503`；`nextOffset=null` 终止分页 | catalogue 返回同一 page/facet 形状 |
 | `GET /api/jobs` | `canvasId?` | `{ jobs: [] }` | scenario 固定进度/终态 | queue 恢复同一 job id / status 语义 |
 | `GET /api/agent/sessions/{id}` | `afterSeq=0` | 没有新增消息时 `messages: []` | 无随机生成 | gateway 以 cursor 提供同一增量语义 |

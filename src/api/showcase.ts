@@ -1,4 +1,9 @@
 import type { AccountProfileResponse } from '@/contracts/account'
+import {
+  ShowcaseCloneResponseSchema,
+  ShowcaseListResponseSchema,
+  type ShowcaseListQuery,
+} from '@/contracts/showcase'
 import type { CanvasMutation } from '@/domain/types'
 import type { PublishedSnapshot } from '@/domain/publish'
 import { client } from '@/lib/api'
@@ -6,9 +11,8 @@ import { client } from '@/lib/api'
 export const SHOWCASE_FAVOURITES_STORAGE_KEY = 'kokoro-nova/showcase-favourites'
 
 /**
- * Replays the immutable public document using the same mutation endpoint the
- * editor uses. This keeps a copied project structurally independent while
- * preserving the work a viewer saw in the public process view.
+ * Retained as a pure workflow utility for future adapters. The live local clone
+ * now goes through one atomic publish command instead of two browser requests.
  */
 export function buildShowcaseCloneMutations(snapshot: PublishedSnapshot['document']): CanvasMutation[] {
   return [
@@ -27,14 +31,19 @@ export function toggleShowcaseFavourite(ids: readonly string[], snapshotId: stri
   return ids.includes(snapshotId) ? ids.filter((id) => id !== snapshotId) : [...ids, snapshotId]
 }
 
-export async function cloneShowcaseSnapshot(snapshot: PublishedSnapshot) {
-  const { project, canvas } = await client.projects.create({ name: `${snapshot.title} · 副本` })
-  const result = await client.canvas.mutate(canvas.id, {
-    canvasId: canvas.id,
-    expectedRevision: canvas.revision,
-    label: `复制公开作品：${snapshot.title}`,
-    mutations: buildShowcaseCloneMutations(snapshot.document),
-  })
+export async function listShowcasePage(input: Partial<ShowcaseListQuery> = {}) {
+  const params = new URLSearchParams()
+  if (input.category && input.category !== '全部') params.set('category', input.category)
+  if (input.query?.trim()) params.set('q', input.query.trim())
+  if (input.offset !== undefined) params.set('offset', String(input.offset))
+  if (input.limit !== undefined) params.set('limit', String(input.limit))
+  const suffix = params.toString()
+  return ShowcaseListResponseSchema.parse(await client.raw.get(`/api/showcase${suffix ? `?${suffix}` : ''}`))
+}
 
-  return { project, canvas: { ...canvas, revision: result.revision, document: result.document } }
+/** The only mutation boundary for cloning a public work into a private project. */
+export async function cloneShowcaseSnapshot(snapshotId: string) {
+  return ShowcaseCloneResponseSchema.parse(
+    await client.raw.post(`/api/publish/${encodeURIComponent(snapshotId)}/clone`),
+  )
 }

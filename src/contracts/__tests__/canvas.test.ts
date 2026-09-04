@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import responseExample from '../../../docs/api/examples/canvas-bootstrap.response.json'
 import { ContractDecodeError } from '@/contracts/http'
 import { decodeCanvasBootstrap } from '@/contracts/canvas'
+import { MutationRequestSchema, MutationResultSchema } from '@/contracts/local'
 
 describe('decodeCanvasBootstrap', () => {
   it('parses node data JSON and keeps permission booleans explicit', () => {
@@ -48,5 +49,28 @@ describe('decodeCanvasBootstrap', () => {
 
     const result = decodeCanvasBootstrap(future)
     expect(result.nodes[0]).toMatchObject({ kind: 'unknown', externalType: 99 })
+  })
+
+  it('keeps workflow mutation requests strict and result documents typed', () => {
+    const request = MutationRequestSchema.parse({
+      canvasId: 'can_fixture',
+      expectedRevision: 3,
+      mutations: [{ op: 'setViewport', viewport: { x: 10, y: 20, zoom: 0.75 } }],
+      label: '调整视口',
+    })
+    const result = MutationResultSchema.parse({
+      revision: 4,
+      document: {
+        schemaVersion: 1,
+        nodes: [],
+        edges: [],
+        groups: [],
+        viewport: { x: 10, y: 20, zoom: 0.75 },
+      },
+    })
+
+    expect(request.mutations).toHaveLength(1)
+    expect(result.document.viewport.zoom).toBe(0.75)
+    expect(() => MutationRequestSchema.parse({ ...request, unexpected: true })).toThrow()
   })
 })

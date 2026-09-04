@@ -1,3 +1,8 @@
+import {
+  GetSkillResponseSchema,
+  ToggleSkillFavouriteRequestSchema,
+  ToggleSkillFavouriteResponseSchema,
+} from '@/contracts/skills'
 import { HttpError, handle } from '@/server/http'
 import { getSkill, setSkillFavourite } from '@/server/skills'
 
@@ -8,7 +13,7 @@ type Params = { params: Promise<{ skillId: string }> }
 export async function GET(_request: Request, { params }: Params) {
   return handle(async () => {
     const { skillId } = await params
-    return { skill: await getSkill(skillId) }
+    return GetSkillResponseSchema.parse({ skill: await getSkill(skillId) })
   })
 }
 
@@ -21,10 +26,10 @@ export async function GET(_request: Request, { params }: Params) {
 export async function POST(request: Request, { params }: Params) {
   return handle(async () => {
     const { skillId } = await params
-    const body = (await request.json().catch(() => ({}))) as { action?: string }
-    if (body.action !== 'favourite' && body.action !== 'unfavourite') {
-      throw new HttpError(400, 'action 只接受 favourite 或 unfavourite')
-    }
-    return { skill: await setSkillFavourite(skillId, body.action === 'favourite') }
+    const body = ToggleSkillFavouriteRequestSchema.safeParse(await request.json().catch(() => ({})))
+    if (!body.success) throw new HttpError(400, 'action 只接受 favourite 或 unfavourite')
+    return ToggleSkillFavouriteResponseSchema.parse({
+      skill: await setSkillFavourite(skillId, body.data.action === 'favourite'),
+    })
   })
 }

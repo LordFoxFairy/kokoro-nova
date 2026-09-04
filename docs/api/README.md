@@ -23,6 +23,8 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md) | Text 四模型、富文本文档、三个启动 Workflow、编译与内联产物契约 |
 | [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md) | Script V2 状态、四个 operation、批量/幂等/stale writeback 与后端 handoff |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
+| [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
+| [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
@@ -161,6 +163,37 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 内容来自冻结的本地 catalogue；账户积分和最近三个项目来自当前 scenario workspace state。
 匿名态仍返回公开发现内容，但 `recentProjects` 为空、积分为 `0`。所有媒体 URL 都由
 运行时 Schema 限制在 `/fixtures/libtv/`，页面不会依赖官网 CDN 或登录凭证。
+
+### 公开发现与 TV Show 契约
+
+首页的 `GET /api/home` 是聚合读取；需要独立刷新公开内容时使用：
+
+```text
+GET  /api/publish
+GET  /api/publish/SNAPSHOT_ID
+POST /api/publish       { canvasId, title?, summary? }
+DELETE /api/publish/SNAPSHOT_ID
+```
+
+`GET /api/publish` 返回 `{ snapshots }`，每行是 `SnapshotSummary`，包含稳定的
+`nodeCount` / `mediaCount`，不携带工作流正文。`GET /api/publish/SNAPSHOT_ID` 返回
+`PublishedSnapshot`，其中 `document` 是发布时的深拷贝；后续画布编辑不会改变公开页面。
+发布会清理 job、session、asset 等私有句柄；下架是软状态变更，公开列表与详情对隐藏/撤销
+快照统一返回 `404`，避免暴露已下架作品是否存在。
+
+### Skill 市场契约
+
+```text
+GET  /api/skills?category=全部&collection=全部&q=关键词
+GET  /api/skills/SKILL_ID
+POST /api/skills/SKILL_ID  { action: "favourite" | "unfavourite" }
+```
+
+列表响应为 `{ skills, category, collection, counts }`。`category`、`collection` 的未知
+查询值按“全部”处理，搜索覆盖名称、摘要、作者和标签；每个 `SkillCard` 都带版本、执行
+说明和当前 workspace 的 `favourite` 投影。收藏请求表达目标状态而不是 flip，因此重试和
+重复点击是幂等的。Skill catalogue 是只读本地 fixture，收藏 id 按 space 持久化，不会污染
+共享种子数据。
 
 ### 模型目录契约
 

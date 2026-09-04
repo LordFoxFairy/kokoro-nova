@@ -1,3 +1,4 @@
+import { SkillListResponseSchema } from '@/contracts/skills'
 import { handle } from '@/server/http'
 import { listSkills } from '@/server/skills'
 
@@ -13,10 +14,10 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   return handle(async () => {
     const url = new URL(request.url)
-    return listSkills({
+    return SkillListResponseSchema.parse(await listSkills({
       category: url.searchParams.get('category'),
       query: url.searchParams.get('q'),
       collection: url.searchParams.get('collection'),
-    })
+    }))
   })
 }

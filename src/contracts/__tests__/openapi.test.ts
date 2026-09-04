@@ -254,6 +254,64 @@ describe('local API manifest and OpenAPI', () => {
     )
   })
 
+  it('documents public discovery, showcase, ledger and Skill marketplace boundaries', () => {
+    const document = openApiDocument()
+
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/home'), '200')).toBe(
+      '#/components/schemas/HomeDiscoveryResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/models'), '200')).toBe(
+      '#/components/schemas/ModelCatalogResponse',
+    )
+    expect(operationAt(document, 'POST', '/api/canvases/{canvasId}').requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/MutationRequest',
+    )
+    expect(responseSchemaRef(operationAt(document, 'POST', '/api/canvases/{canvasId}'), '200')).toBe(
+      '#/components/schemas/MutationResult',
+    )
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/ledger'), '200')).toBe(
+      '#/components/schemas/LedgerViewProjection',
+    )
+
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/publish'), '200')).toBe(
+      '#/components/schemas/ListPublishedSnapshotsResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'POST', '/api/publish'), '200')).toBe(
+      '#/components/schemas/PublishCanvasResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/publish/{snapshotId}'), '200')).toBe(
+      '#/components/schemas/GetPublishedSnapshotResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'DELETE', '/api/publish/{snapshotId}'), '200')).toBe(
+      '#/components/schemas/RevokePublishedSnapshotResponse',
+    )
+
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/skills'), '200')).toBe(
+      '#/components/schemas/SkillListResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/skills/{skillId}'), '200')).toBe(
+      '#/components/schemas/GetSkillResponse',
+    )
+    const favourite = operationAt(document, 'POST', '/api/skills/{skillId}')
+    expect(responseSchemaRef(favourite, '200')).toBe(
+      '#/components/schemas/ToggleSkillFavouriteResponse',
+    )
+    expect(favourite.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/ToggleSkillFavouriteRequest',
+    )
+    expect(document.components?.schemas?.ToggleSkillFavouriteRequest?.properties?.action?.enum).toEqual([
+      'favourite',
+      'unfavourite',
+    ])
+    expect(operationAt(document, 'GET', '/api/skills').parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'category', in: 'query' }),
+        expect.objectContaining({ name: 'collection', in: 'query' }),
+        expect.objectContaining({ name: 'q', in: 'query' }),
+      ]),
+    )
+  })
+
   it('pins key surface request/response schemas and handler-accurate HTTP statuses', () => {
     const document = openApiDocument()
     const contracts: Array<[

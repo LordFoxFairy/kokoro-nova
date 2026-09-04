@@ -3182,33 +3182,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/GetPublishedSnapshotResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3218,7 +3198,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3234,9 +3214,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "snapshotId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ]
       },
@@ -3258,33 +3239,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/RevokePublishedSnapshotResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3294,7 +3255,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3310,9 +3271,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "snapshotId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ]
       }
@@ -3337,43 +3299,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/ListPublishedSnapshotsResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3402,13 +3334,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/PublishCanvasResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3418,17 +3350,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3438,7 +3360,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3479,33 +3401,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/GetSkillResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3515,7 +3417,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3531,9 +3433,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "skillId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ]
       },
@@ -3555,13 +3458,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/ToggleSkillFavouriteResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3571,17 +3474,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3591,7 +3484,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3607,9 +3500,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "skillId 的稳定本地标识"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
           }
         ],
         "requestBody": {
@@ -3617,7 +3511,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GenericJsonObject"
+                "$ref": "#/components/schemas/ToggleSkillFavouriteRequest"
               }
             }
           }
@@ -3644,43 +3538,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/SkillListResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3689,7 +3553,50 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "按 Skill 分类筛选；未知值按“全部”处理。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "全部",
+                "叙事分镜",
+                "角色一致性",
+                "广告文案",
+                "提示词工程",
+                "声音与配乐",
+                "交付规范"
+              ]
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "required": false,
+            "description": "按全部、收藏或我的集合筛选；未知值按“全部”处理。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "全部",
+                "收藏",
+                "我的"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "在 Skill 名称、摘要、作者和标签中搜索。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/api/home": {
@@ -5903,7 +5810,9 @@
         ],
         "properties": {
           "canvasId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
           },
           "title": {
             "type": "string"
@@ -10535,6 +10444,391 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/LedgerJobLink"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SnapshotState": {
+        "type": "string",
+        "enum": [
+          "listed",
+          "hidden",
+          "revoked"
+        ]
+      },
+      "SnapshotSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "projectId",
+          "canvasId",
+          "title",
+          "summary",
+          "coverUrl",
+          "publishedAt",
+          "state",
+          "nodeCount",
+          "mediaCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "canvasId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SnapshotState"
+          },
+          "nodeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mediaCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublishedSnapshot": {
+        "type": "object",
+        "required": [
+          "id",
+          "projectId",
+          "canvasId",
+          "title",
+          "summary",
+          "coverUrl",
+          "publishedAt",
+          "state",
+          "document"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "canvasId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SnapshotState"
+          },
+          "document": {
+            "$ref": "#/components/schemas/WorkflowDocument"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ListPublishedSnapshotsResponse": {
+        "type": "object",
+        "required": [
+          "snapshots"
+        ],
+        "properties": {
+          "snapshots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SnapshotSummary"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetPublishedSnapshotResponse": {
+        "type": "object",
+        "required": [
+          "snapshot"
+        ],
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/PublishedSnapshot"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublishCanvasResponse": {
+        "type": "object",
+        "required": [
+          "snapshot"
+        ],
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/SnapshotSummary"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RevokePublishedSnapshotResponse": {
+        "type": "object",
+        "required": [
+          "snapshot"
+        ],
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/SnapshotSummary"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillSpecSection": {
+        "type": "object",
+        "required": [
+          "heading",
+          "body"
+        ],
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillCard": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "category",
+          "author",
+          "origin",
+          "version",
+          "updatedAt",
+          "hue",
+          "usageCount",
+          "tags",
+          "examples",
+          "executableSpec",
+          "favourite"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "叙事分镜",
+              "角色一致性",
+              "广告文案",
+              "提示词工程",
+              "声音与配乐",
+              "交付规范"
+            ]
+          },
+          "author": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "official",
+              "community",
+              "personal"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date"
+          },
+          "hue": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 359
+          },
+          "usageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "executableSpec": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillSpecSection"
+            }
+          },
+          "favourite": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillCounts": {
+        "type": "object",
+        "required": [
+          "all",
+          "favourite",
+          "mine"
+        ],
+        "properties": {
+          "all": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "favourite": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mine": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillListResponse": {
+        "type": "object",
+        "required": [
+          "skills",
+          "category",
+          "collection",
+          "counts"
+        ],
+        "properties": {
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillCard"
+            }
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "全部",
+              "叙事分镜",
+              "角色一致性",
+              "广告文案",
+              "提示词工程",
+              "声音与配乐",
+              "交付规范"
+            ]
+          },
+          "collection": {
+            "type": "string",
+            "enum": [
+              "全部",
+              "收藏",
+              "我的"
+            ]
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SkillCounts"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetSkillResponse": {
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/components/schemas/SkillCard"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ToggleSkillFavouriteRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "favourite",
+              "unfavourite"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ToggleSkillFavouriteResponse": {
+        "type": "object",
+        "required": [
+          "skill"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/components/schemas/SkillCard"
           }
         },
         "additionalProperties": false

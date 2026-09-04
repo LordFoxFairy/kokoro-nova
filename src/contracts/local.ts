@@ -237,6 +237,34 @@ export const CanvasDetailLocalResponseSchema = z.object({
   balance: z.number().finite(),
 })
 
+export const CanvasMutationSchema = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('addNode'), node: WorkflowNodeSchema }).strict(),
+  z.object({ op: z.literal('updateNode'), nodeId: z.string(), patch: z.record(z.unknown()) }).strict(),
+  z.object({ op: z.literal('removeNode'), nodeId: z.string() }).strict(),
+  z.object({ op: z.literal('addEdge'), edge: WorkflowEdgeSchema }).strict(),
+  z.object({ op: z.literal('removeEdge'), edgeId: z.string() }).strict(),
+  z.object({ op: z.literal('addGroup'), group: WorkflowGroupSchema }).strict(),
+  z.object({ op: z.literal('updateGroup'), groupId: z.string(), patch: z.record(z.unknown()) }).strict(),
+  z.object({ op: z.literal('removeGroup'), groupId: z.string(), deleteNodes: z.boolean() }).strict(),
+  z.object({ op: z.literal('setViewport'), viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number().positive() }) }).strict(),
+])
+
+export const MutationRequestSchema = z
+  .object({
+    canvasId: z.string().trim().min(1),
+    expectedRevision: z.number().int().positive(),
+    mutations: z.array(CanvasMutationSchema),
+    label: z.string(),
+  })
+  .strict()
+
+export const MutationResultSchema = z
+  .object({
+    revision: z.number().int().positive(),
+    document: WorkflowDocumentSchema,
+  })
+  .strict()
+
 export const CreateProjectInputSchema = z.object({
   name: z.string().optional(),
   folderId: z.string().nullable().optional(),
@@ -254,3 +282,5 @@ export type ProjectListLocalResponse = z.infer<typeof ProjectListLocalResponseSc
 export type CanvasDetailLocalResponse = z.infer<typeof CanvasDetailLocalResponseSchema>
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>
 export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>
+export type MutationRequest = z.infer<typeof MutationRequestSchema>
+export type MutationResult = z.infer<typeof MutationResultSchema>

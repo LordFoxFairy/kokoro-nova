@@ -163,6 +163,84 @@ describe('createApiClient', () => {
     expect(() => jobs.transition('job_fixture', 'poll' as 'confirm')).toThrow()
   })
 
+  it('exposes typed discovery, ledger, showcase and Skill marketplace methods', async () => {
+    const seen: Array<{ url: string; method?: string; body?: string }> = []
+    const transport: JsonTransport = async (input, init) => {
+      const url = String(input)
+      seen.push({ url, method: init?.method, body: typeof init?.body === 'string' ? init.body : undefined })
+      if (url.startsWith('/api/models')) return json({ version: 'fixture', media: 'video', query: 'motion', items: [] })
+      if (url.startsWith('/api/ledger')) {
+        return json({
+          balance: 0,
+          earned: [],
+          spent: [],
+          returned: [],
+          counts: { earned: 0, spent: 0, returned: 0 },
+          totals: { earned: 0, reserved: 0, returned: 0, spent: 0, held: 0 },
+          jobs: {},
+        })
+      }
+      if (url.startsWith('/api/publish')) return json({ snapshots: [] })
+      return json({ skills: [], category: '全部', collection: '全部', counts: { all: 0, favourite: 0, mine: 0 } })
+    }
+    const client = createApiClient(transport)
+
+    await expect(client.models.list({ media: 'video', query: ' motion ' })).resolves.toMatchObject({
+      media: 'video',
+      query: 'motion',
+    })
+    await expect(client.ledger.list(20)).resolves.toMatchObject({ balance: 0 })
+    await expect(client.publish.list()).resolves.toEqual({ snapshots: [] })
+    await expect(client.skills.list({ category: '全部', collection: '全部', query: '镜头' })).resolves.toEqual({
+      skills: [],
+      category: '全部',
+      collection: '全部',
+      counts: { all: 0, favourite: 0, mine: 0 },
+    })
+
+    expect(seen).toEqual([
+      { url: '/api/models?media=video&q=motion', method: undefined, body: undefined },
+      { url: '/api/ledger?limit=20', method: undefined, body: undefined },
+      { url: '/api/publish', method: undefined, body: undefined },
+      { url: '/api/skills?category=%E5%85%A8%E9%83%A8&collection=%E5%85%A8%E9%83%A8&q=%E9%95%9C%E5%A4%B4', method: undefined, body: undefined },
+    ])
+  })
+
+  it('validates workflow mutation requests and responses at the canvas boundary', async () => {
+    const transport: JsonTransport = async (input, init) => {
+      expect(String(input)).toBe('/api/canvases/can%2Ffixture')
+      expect(init?.method).toBe('POST')
+      return json({
+        revision: 2,
+        document: {
+          schemaVersion: 1,
+          nodes: [],
+          edges: [],
+          groups: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        },
+      })
+    }
+    const canvas = createApiClient(transport).canvas
+
+    await expect(
+      canvas.mutate('can/fixture', {
+        canvasId: 'can/fixture',
+        expectedRevision: 1,
+        mutations: [{ op: 'setViewport', viewport: { x: 0, y: 0, zoom: 1 } }],
+        label: '视口',
+      }),
+    ).resolves.toMatchObject({ revision: 2 })
+    expect(() =>
+      canvas.mutate('can/fixture', {
+        canvasId: 'can/fixture',
+        expectedRevision: 0,
+        mutations: [],
+        label: 'invalid',
+      }),
+    ).toThrow()
+  })
+
   it('exposes exact typed Script V2 quote/create/get/transition methods', async () => {
     const seen: Array<{ url: string; method?: string; body?: string }> = []
     const transport: JsonTransport = async (input, init) => {

@@ -1,4 +1,8 @@
 import { summarizeSnapshot } from '@/domain/publish'
+import {
+  GetPublishedSnapshotResponseSchema,
+  RevokePublishedSnapshotResponseSchema,
+} from '@/contracts/publish'
 import { handle } from '@/server/http'
 import { findViewableSnapshot, revokeSnapshot } from '@/server/publish'
 
@@ -10,7 +14,7 @@ type Params = { params: Promise<{ snapshotId: string }> }
 export async function GET(_request: Request, { params }: Params) {
   return handle(async () => {
     const { snapshotId } = await params
-    return { snapshot: await findViewableSnapshot(snapshotId) }
+    return GetPublishedSnapshotResponseSchema.parse({ snapshot: await findViewableSnapshot(snapshotId) })
   })
 }
 
@@ -19,6 +23,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   return handle(async () => {
     const { snapshotId } = await params
     const snapshot = await revokeSnapshot(snapshotId)
-    return { snapshot: summarizeSnapshot(snapshot) }
+    return RevokePublishedSnapshotResponseSchema.parse({ snapshot: summarizeSnapshot(snapshot) })
   })
 }

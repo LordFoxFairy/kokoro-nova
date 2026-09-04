@@ -1,6 +1,15 @@
 import type { z, ZodType } from 'zod'
 
 import { HomeDiscoveryResponseSchema } from '@/contracts/home'
+import { LedgerViewProjectionSchema } from '@/contracts/ledger'
+import { ModelCatalogResponseSchema } from '@/contracts/models'
+import {
+  GetPublishedSnapshotResponseSchema,
+  ListPublishedSnapshotsResponseSchema,
+  PublishCanvasResponseSchema,
+  PublishRequestSchema,
+  RevokePublishedSnapshotResponseSchema,
+} from '@/contracts/publish'
 import {
   CreateJobRequestSchema,
   CreateJobResponseSchema,
@@ -14,6 +23,8 @@ import {
   CanvasDetailLocalResponseSchema,
   CreateProjectInputSchema,
   CreateProjectResponseSchema,
+  MutationRequestSchema,
+  MutationResultSchema,
   ProjectListLocalResponseSchema,
   ScenarioResponseSchema,
 } from '@/contracts/local'
@@ -25,6 +36,12 @@ import {
   ScriptV2RunResponseSchema,
   TransitionScriptV2RunRequestSchema,
 } from '@/contracts/script-v2'
+import {
+  GetSkillResponseSchema,
+  SkillListResponseSchema,
+  ToggleSkillFavouriteRequestSchema,
+  ToggleSkillFavouriteResponseSchema,
+} from '@/contracts/skills'
 
 export type JsonTransport = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -147,6 +164,30 @@ export function createApiClient(transport: JsonTransport = fetch) {
     canvas: {
       bootstrap: (canvasId: string) =>
         requestTyped(CanvasDetailLocalResponseSchema, `/api/canvases/${encodeURIComponent(canvasId)}`),
+      mutate: (canvasId: string, input: z.input<typeof MutationRequestSchema>) => {
+        const body = MutationRequestSchema.parse(input)
+        return requestTyped(
+          MutationResultSchema,
+          `/api/canvases/${encodeURIComponent(canvasId)}`,
+          jsonInit('POST', body),
+        )
+      },
+    },
+    models: {
+      list: (input: { media?: 'image' | 'video' | 'audio' | 'text'; query?: string } = {}) => {
+        const params = new URLSearchParams()
+        if (input.media) params.set('media', input.media)
+        if (input.query?.trim()) params.set('q', input.query.trim())
+        const suffix = params.toString()
+        return requestTyped(ModelCatalogResponseSchema, `/api/models${suffix ? `?${suffix}` : ''}`)
+      },
+    },
+    ledger: {
+      list: (limit?: number) =>
+        requestTyped(
+          LedgerViewProjectionSchema,
+          limit === undefined ? '/api/ledger' : `/api/ledger?limit=${encodeURIComponent(String(limit))}`,
+        ),
     },
     jobs: {
       list: (canvasId?: string) =>
@@ -208,6 +249,50 @@ export function createApiClient(transport: JsonTransport = fetch) {
           ScriptV2RunResponseSchema,
           `/api/script-v2/runs/${encodeURIComponent(runId)}`,
           { ...jsonInit('POST', body), signal: options.signal },
+        )
+      },
+    },
+    publish: {
+      list: () => requestTyped(ListPublishedSnapshotsResponseSchema, '/api/publish'),
+      get: (snapshotId: string) =>
+        requestTyped(
+          GetPublishedSnapshotResponseSchema,
+          `/api/publish/${encodeURIComponent(snapshotId)}`,
+        ),
+      create: (input: z.input<typeof PublishRequestSchema>) => {
+        const body = PublishRequestSchema.parse(input)
+        return requestTyped(
+          PublishCanvasResponseSchema,
+          '/api/publish',
+          jsonInit('POST', body),
+        )
+      },
+      revoke: (snapshotId: string) =>
+        requestTyped(
+          RevokePublishedSnapshotResponseSchema,
+          `/api/publish/${encodeURIComponent(snapshotId)}`,
+          { method: 'DELETE' },
+        ),
+    },
+    skills: {
+      list: (input: { category?: string; collection?: string; query?: string } = {}) => {
+        const params = new URLSearchParams()
+        if (input.category) params.set('category', input.category)
+        if (input.collection) params.set('collection', input.collection)
+        if (input.query?.trim()) params.set('q', input.query.trim())
+        const suffix = params.toString()
+        return requestTyped(SkillListResponseSchema, `/api/skills${suffix ? `?${suffix}` : ''}`)
+      },
+      get: (skillId: string) =>
+        requestTyped(GetSkillResponseSchema, `/api/skills/${encodeURIComponent(skillId)}`),
+      setFavourite: (skillId: string, favourite: boolean) => {
+        const body = ToggleSkillFavouriteRequestSchema.parse({
+          action: favourite ? 'favourite' : 'unfavourite',
+        })
+        return requestTyped(
+          ToggleSkillFavouriteResponseSchema,
+          `/api/skills/${encodeURIComponent(skillId)}`,
+          jsonInit('POST', body),
         )
       },
     },

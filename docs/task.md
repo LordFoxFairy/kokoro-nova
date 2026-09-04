@@ -1,6 +1,8 @@
-# NovaVideo 任务状态
+# Kokoro Nova 任务状态
 
-目标：复刻 LibTV 的网页能力，重点是**工作流无限画布 + 故事板**，后续交由其他团队对接真实模型。
+目标：在当前前端子仓库中高保真复刻 LibTV 的网页能力，重点是**工作流无限画布 + 故事板 + Video 全链路**；所有 API、任务、素材和数据先由本地 mock 承接，后续由其他团队对接真实后端。
+
+范围边界与后端接入 seam 见 [`FRONTEND_MOCK_BOUNDARY.md`](FRONTEND_MOCK_BOUNDARY.md)。
 
 技术栈：Next.js 15 (App Router) + TypeScript + Tailwind v4 + @xyflow/react + zustand。
 开发端口 `3200`。验证命令：`pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build` / `pnpm e2e`。

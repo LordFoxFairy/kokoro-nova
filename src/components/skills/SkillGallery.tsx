@@ -122,7 +122,7 @@ export function SkillGallery() {
               <path d="M4 7.5 8 5l6 2.5L20 5v11.5L14 19l-6-2.5L4 19z" />
             </svg>
           </span>
-          <span className="text-[15px] font-semibold tracking-tight text-ink-900">NovaVideo</span>
+          <span className="text-[15px] font-semibold tracking-tight text-ink-900">Kokoro Nova</span>
         </Link>
         <Link
           href="/project"

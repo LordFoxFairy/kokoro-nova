@@ -80,6 +80,25 @@ describe('createApiClient', () => {
     })
   })
 
+  it('keeps the browser transport inside the local mock boundary', async () => {
+    let calls = 0
+    const transport: JsonTransport = async () => {
+      calls += 1
+      return json({ ok: true })
+    }
+    const raw = createApiClient(transport).raw
+
+    await expect(raw.get('https://HOST/api/private')).rejects.toMatchObject({
+      status: 400,
+      code: 'INVALID_INPUT',
+    })
+    await expect(raw.get('//HOST/api/private')).rejects.toMatchObject({
+      status: 400,
+      code: 'INVALID_INPUT',
+    })
+    expect(calls).toBe(0)
+  })
+
   it('sends JSON content type and preserves caller headers', async () => {
     let captured: RequestInit | undefined
     const transport: JsonTransport = async (_input, init) => {

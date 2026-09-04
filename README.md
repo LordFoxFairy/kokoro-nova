@@ -1,6 +1,8 @@
-# NovaVideo
+# Kokoro Nova
 
-AI 视频创作工作台。核心是一块无限工作流画布：用户在画布上摆放 **文本 / 图片 / 视频 / 视频合成 / 导演台 / 音频 / 脚本（V2 与旧版）/ 风格 / 特效 / 资产库** 十一类节点，用连线表达依赖关系，然后逐节点提交生成任务。同一份画布文档可以切换到**故事板视图**（按 音频 / 文本 / 图片 / 视频 四列投影），也可以交给**Agent 面板**用自然语言驱动。
+AI 视频创作工作台样本。核心是一块无限工作流画布：用户在画布上摆放 **文本 / 图片 / 视频 / 视频合成 / 导演台 / 音频 / 脚本（V2 与旧版）/ 风格 / 特效 / 资产库** 十一类节点，用连线表达依赖关系，然后逐节点提交生成任务。同一份画布文档可以切换到**故事板视图**（按 音频 / 文本 / 图片 / 视频 四列投影），也可以交给**Agent 面板**用自然语言驱动。
+
+当前仓库是 Kokoro Nova 的 **frontend-only + local mock** 子仓库：交互和能力布局按 LibTV 官网高保真复刻，API、任务、素材和数据全部在本地确定性运行；后端由后续独立仓库承接。边界与接入 seam 见 [`docs/FRONTEND_MOCK_BOUNDARY.md`](docs/FRONTEND_MOCK_BOUNDARY.md)。
 
 生成链路是完整的：编译 → 报价 → 确认门 → 积分预留 → provider 提交 → 轮询 → 产物写回节点 → 积分结算。目前只注册了一个内置的离线 provider（`mock-offline`），它在本地真实地渲染 SVG / WAV /（有 ffmpeg 时）MP4 文件，因此上述每一段代码路径都会被真实执行，但不调用任何外部模型、不产生任何费用。
 
@@ -21,7 +23,7 @@ AI 视频创作工作台。核心是一块无限工作流画布：用户在画�
 | UI | React 19 + Tailwind CSS v4（`@tailwindcss/postcss`） |
 | 画布 | `@xyflow/react` 12 |
 | 客户端状态 | `zustand` 5（单 store，见 `src/lib/editor-store.ts`） |
-| 服务端持久化 | 文件存储 `.data/workspace.json` + `.data/media/`（`src/server/store.ts`） |
+| 本地 mock 持久化 | 文件存储 `.data/workspace.json` + `.data/media/`（`src/server/store.ts`） |
 | 端到端测试 | Playwright 1.56（`e2e/`） |
 | 包管理 | pnpm 11 |
 
@@ -34,6 +36,10 @@ pnpm install
 
 # 开发服务器，固定 3200 端口
 pnpm dev            # http://localhost:3200
+
+# 产品演示：frontend-only + deterministic mock，默认使用 3300/.demo-data/.next-demo
+pnpm demo           # http://localhost:3300
+pnpm demo:smoke     # 启动、检查首页和 mock scenario、自动退出
 
 # 类型检查（tsconfig 的 include 覆盖 src/ 与根配置，exclude 掉 e2e/）
 pnpm typecheck
@@ -53,6 +59,12 @@ pnpm e2e:ui
 # 生产构建
 pnpm build && pnpm start   # start 同样是 3200
 ```
+
+产品演示的一键启动、隔离目录和环境变量覆盖见
+[`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md)。`pnpm demo` 支持
+`DEMO_PORT` / `DEMO_DATA_DIR` / `DEMO_NEXT_DIST_DIR`；也可使用通用的
+`PORT` / `DATA_DIR` / `NEXT_DIST_DIR`。`pnpm dev` 始终保留在 `3200`，默认 `.data`
+和 `.next` 不会被 demo 使用。
 
 ### Docker / GHCR
 

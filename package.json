@@ -1,11 +1,13 @@
 {
-  "name": "novavideo",
+  "name": "kokoro-nova",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "LibTV-equivalent AI video production workspace: infinite workflow canvas, storyboard projection, agent and generation pipeline.",
+  "description": "Frontend-only LibTV-equivalent AI video production workspace with deterministic local mocks.",
   "scripts": {
     "dev": "next dev --turbopack -p 3200",
+    "demo": "node scripts/demo.mjs",
+    "demo:smoke": "node scripts/demo.mjs --smoke",
     "build": "NEXT_DIST_DIR=.next-prod next build",
     "start": "NEXT_DIST_DIR=.next-prod next start -p 3200",
     "lint": "eslint . --max-warnings 0",

@@ -93,9 +93,21 @@ function jsonInit(method: string, body: unknown, headers?: HeadersInit): Request
   }
 }
 
+/**
+ * The browser client is deliberately local-path only. A future backend can be
+ * mounted by supplying a transport that prefixes these paths, but a component
+ * must never smuggle an absolute LibTV/third-party URL into the mock boundary.
+ */
+function localApiPath(url: string): string {
+  if (!url.startsWith('/') || url.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(url)) {
+    throw new ApiError(400, 'API client 只接受本地相对路径', 'INVALID_INPUT', { url })
+  }
+  return url
+}
+
 export function createApiClient(transport: JsonTransport = fetch) {
   async function requestUnknown<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await transport(url, init)
+    const response = await transport(localApiPath(url), init)
     const body = await parseBody(response)
     if (!response.ok) throw errorFromBody(body, response.status)
     return body as T

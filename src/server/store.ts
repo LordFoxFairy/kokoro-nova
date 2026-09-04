@@ -41,7 +41,12 @@ export interface WorkspaceState {
   balances: Record<string, number>
 }
 
-const DATA_DIR = path.join(process.cwd(), '.data')
+/**
+ * Keep the normal workspace under `.data`, while allowing local demo/test
+ * processes to point at an isolated directory without changing callers.
+ * Relative values are resolved from the repository root (the Next cwd).
+ */
+export const DATA_DIR = path.resolve(process.cwd(), process.env.DATA_DIR?.trim() || '.data')
 const STATE_FILE = path.join(DATA_DIR, 'workspace.json')
 const SCENARIO_FILE = path.join(DATA_DIR, 'scenario.json')
 export const MEDIA_DIR = path.join(DATA_DIR, 'media')

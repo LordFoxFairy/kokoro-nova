@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-import os from "node:os";
 import { defineConfig, devices } from "@playwright/test";
 import {
   isolatedServerEnvironment,
@@ -18,27 +16,8 @@ const inheritedServerEnv: Record<string, string> = {
 };
 const isolatedServerEnv =
   runner.mode === "isolated"
-    ? isolatedServerEnvironment(runner, os.tmpdir())
+    ? isolatedServerEnvironment(runner)
     : undefined;
-
-// Playwright checks the configured URL before it launches `webServer`. Reclaim
-// our recorded orphan synchronously first, so that check never mistakes :3210
-// for a reusable service. This helper refuses all unmarked listeners.
-if (runner.mode === "isolated" && process.env.E2E_ISOLATED_RECLAIMED !== "1") {
-  execFileSync(process.execPath, ["e2e/helpers/isolated-server.ts", "--reclaim"], {
-    cwd: runner.workspaceDir,
-    env: {
-      ...inheritedServerEnv,
-      ...isolatedServerEnv,
-      NODE_ENV: serverNodeEnv,
-    },
-    stdio: "inherit",
-  });
-  // Playwright evaluates the config again in worker processes. Carry this
-  // parent-only preflight result forward so workers never tear down the server
-  // that the parent just launched.
-  process.env.E2E_ISOLATED_RECLAIMED = "1";
-}
 
 /**
  * E2E has a dedicated default server at :3210 with independent Next output and
@@ -56,10 +35,13 @@ const webServer =
       }
     : runner.mode === "isolated"
       ? {
-          command: "node e2e/helpers/isolated-server.ts",
+          // Keep Next as Playwright's direct child. A detached wrapper exits
+          // before Playwright's worker config has finished loading on some
+          // hosts, leaving an orphan process and a runner that never exits.
+          command: `pnpm exec next dev --turbopack -p ${runner.port}`,
           url: runner.baseURL,
-          // The launcher reclaims only a recorded runner-owned orphan. An
-          // unmarked listener fails instead of being reused or terminated.
+          // Never attach to an existing process: in particular, :3200 is the
+          // interactive demo and is excluded by runner-config.
           reuseExistingServer: false,
           timeout: 120_000,
           env: {

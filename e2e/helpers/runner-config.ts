@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import path from "node:path";
 
 export const DEFAULT_E2E_PORT = 3210;
@@ -11,7 +10,7 @@ export type E2ERunnerMode = "isolated" | "external" | "production";
 
 export type E2ERunnerPlan = {
   mode: E2ERunnerMode;
-  /** Absolute workspace path used to namespace runner-owned process metadata. */
+  /** Absolute workspace path used to resolve local fixture directories. */
   workspaceDir: string;
   baseURL: string;
   /** Absolute when this runner owns the server; supplied verbatim for external services. */
@@ -168,42 +167,12 @@ export function resolveE2ERunnerPlan(
   };
 }
 
-/**
- * Persist server ownership metadata under the OS temp directory, never in
- * fixture storage or the repository. The path survives a killed Playwright
- * parent long enough for the next run to reclaim only its own process.
- */
-export function resolveIsolatedServerControlFile(
-  plan: E2ERunnerPlan,
-  tempDir: string,
-) {
-  if (plan.mode !== "isolated" || !plan.port) {
-    throw new Error("Only an isolated runner owns a server control file.");
-  }
-
-  const workspaceHash = createHash("sha256")
-    .update(plan.workspaceDir)
-    .digest("hex");
-  return path.join(
-    tempDir,
-    "libtv-playwright-runner",
-    workspaceHash,
-    `${plan.port}.json`,
-  );
-}
-
-/** Environment passed verbatim to the local server launcher. */
-export function isolatedServerEnvironment(
-  plan: E2ERunnerPlan,
-  tempDir: string,
-): Record<string, string> {
+/** Environment passed to the Playwright-owned isolated Next process. */
+export function isolatedServerEnvironment(plan: E2ERunnerPlan): Record<string, string> {
   if (plan.mode !== "isolated" || !plan.port || !plan.nextDistDirEnv) {
-    throw new Error("Only an isolated runner can start the local server launcher.");
+    throw new Error("Only an isolated runner can start the local server.");
   }
   return {
-    E2E_ISOLATED_PORT: String(plan.port),
-    E2E_ISOLATED_CONTROL_FILE: resolveIsolatedServerControlFile(plan, tempDir),
-    E2E_ISOLATED_WORKSPACE_DIR: plan.workspaceDir,
     DATA_DIR: plan.serverDataDir,
     NEXT_DIST_DIR: plan.nextDistDirEnv,
   };

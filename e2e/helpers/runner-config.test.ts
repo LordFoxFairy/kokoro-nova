@@ -6,7 +6,6 @@ import {
   DEFAULT_E2E_PORT,
   isolatedServerEnvironment,
   resolveE2ERunnerPlan,
-  resolveIsolatedServerControlFile,
   resolvePreflightTimeout,
 } from "./runner-config";
 
@@ -24,24 +23,12 @@ describe("resolveE2ERunnerPlan", () => {
     });
   });
 
-  it("gives the owned isolated server a stable control file outside fixture data", () => {
+  it("passes only isolated fixture coordinates to the Playwright-owned server", () => {
     const plan = resolveE2ERunnerPlan({}, "/repo");
-    expect(resolveIsolatedServerControlFile(plan, "/tmp/e2e-control")).toMatch(
-      /^\/tmp\/e2e-control\/libtv-playwright-runner\/[a-f0-9]{64}\/3210\.json$/,
-    );
-  });
-
-  it("passes only the isolated server coordinates to the launcher", () => {
-    const plan = resolveE2ERunnerPlan({}, "/repo");
-    expect(isolatedServerEnvironment(plan, "/tmp/e2e-control")).toMatchObject({
-      E2E_ISOLATED_PORT: "3210",
-      E2E_ISOLATED_WORKSPACE_DIR: "/repo",
+    expect(isolatedServerEnvironment(plan)).toEqual({
       DATA_DIR: "/repo/.data-e2e",
       NEXT_DIST_DIR: ".next-e2e",
     });
-    expect(
-      isolatedServerEnvironment(plan, "/tmp/e2e-control").E2E_ISOLATED_CONTROL_FILE,
-    ).toMatch(/^\/tmp\/e2e-control\/libtv-playwright-runner\/[a-f0-9]{64}\/3210\.json$/);
   });
 
   it("accepts an external isolated service without starting or probing :3200", () => {

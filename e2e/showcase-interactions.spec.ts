@@ -59,7 +59,7 @@ test.describe('Showcase 1440×900 状态和可访问性交互基准', () => {
 
   test('公开发现面呈现 loading、error retry 与 empty 状态，而不丢失导航地标', async ({ page }) => {
     let showcaseRequests = 0
-    await page.route('**/api/showcase', async (route) => {
+    await page.route('**/api/showcase**', async (route) => {
       showcaseRequests += 1
       if (showcaseRequests === 1) {
         await new Promise((resolve) => setTimeout(resolve, 350))
@@ -71,7 +71,22 @@ test.describe('Showcase 1440×900 状态和可访问性交互基准', () => {
         return
       }
       if (showcaseRequests === 2) {
-        await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ entries: [] }) })
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            entries: [],
+            page: {
+              offset: 0,
+              limit: 4,
+              total: 0,
+              hasMore: false,
+              nextOffset: null,
+              category: '全部',
+              query: '',
+              searchFallback: false,
+            },
+          }),
+        })
         return
       }
       await route.continue()

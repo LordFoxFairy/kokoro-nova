@@ -14,6 +14,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | 文件 | 作用 |
 |---|---|
 | [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；46 个 path、80 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/authenticated/owner/workspace 语义与后端授权交接边界 |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`jobs-lifecycle.md`](jobs-lifecycle.md) | 可重放 Job fixture、停止/重试/刷新恢复和一次性账本结算 |
@@ -33,7 +34,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
 | [`skills-authoring.md`](skills-authoring.md) | Skill 草稿、文件树、审核、发布与下架的作者工作流 |
 | [`agent-skill-execution.md`](agent-skill-execution.md) | Agent 固定版本 Skill、确定性计划、确认门、工具轨迹与失败降级 |
-| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 45 个 path / 79 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
+| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 46 个 path / 80 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) | 项目软删除、30 天保留、恢复、永久删除与画布保留边界 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
@@ -50,7 +51,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.17.0-skill-author-form
+Contract version: 1.18.0-backend-auth-handoff
 OpenAPI: 3.1.0
 ```
 
@@ -104,7 +105,15 @@ OpenAPI: 3.1.0
 ```
 
 现有 Route Handler 仍有 `{ "error": "message" }` 兼容形状。`src/api/client.ts` 同时识别
-两种格式；迁移完成后删除旧形状，详见 [`ERRORS.md`](ERRORS.md)。
+两种格式；OpenAPI 的后端交接 response 已统一为 `ErrorResponse`，迁移完成后删除旧形状，详见
+[`ERRORS.md`](ERRORS.md)。
+
+### 后端交接授权
+
+OpenAPI 为所有 80 个 operation 显式声明 operation-level `security` 与
+`x-authorization`：公开读取使用 `security: []`，其余 operation 使用 `bearerAuth`。Bearer
+由 transport adapter 注入，页面和 fixture 不读取或持久化凭证。public、authenticated、owner 和
+workspace 的资源边界，以及 `401`/`403`/`404` 的交接规则见 [`AUTHORIZATION.md`](AUTHORIZATION.md)。
 
 ## 确定性场景
 
@@ -383,7 +392,8 @@ mock scenario 非空。新增 route 时三个来源必须在同一提交更新�
 
 1. 保留 `src/api/client.ts` 的方法签名；
 2. 将 transport base URL 指向真实服务；
-3. 在 adapter 层添加认证头，不让业务组件读取 token；
-4. 先让真实响应通过同一 Zod Schema，再关闭对应 mock route；
+3. 在 adapter 层添加认证头，不让业务组件读取 token；按 [`AUTHORIZATION.md`](AUTHORIZATION.md)
+   执行 `x-authorization` 的 public/authenticated/owner/workspace 边界；
+4. 先将上游错误归一化为 `ErrorResponse`，再让真实成功响应通过同一 Zod Schema；
 5. 使用 examples 与 scenario E2E 做消费者契约测试；
 6. 真实长任务可把轮询替换为 SSE/WebSocket，但状态机和资源结构保持不变。

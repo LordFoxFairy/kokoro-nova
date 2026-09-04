@@ -36,6 +36,8 @@ const CONTRACT_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(
 type OpenApiOperation = {
   operationId?: string
   tags?: string[]
+  security?: Array<Record<string, string[]>>
+  'x-authorization'?: 'public' | 'authenticated' | 'owner' | 'workspace'
   'x-ui-triggers'?: string[]
   'x-mock-scenarios'?: string[]
   requestBody?: {
@@ -51,6 +53,7 @@ type OpenApiDocument = {
   servers?: Array<{ url?: string }>
   components?: {
     examples?: Record<string, { externalValue?: string; value?: unknown }>
+    securitySchemes?: Record<string, { type?: string; scheme?: string; bearerFormat?: string }>
     schemas?: Record<
       string,
       {
@@ -118,6 +121,29 @@ function responseSchemaRef(operation: OpenApiOperation, status: string): string 
 function successContentTypes(operation: OpenApiOperation): string[] {
   return Object.keys(operation.responses?.['200']?.content ?? {}).sort()
 }
+
+function documentedOperations(document: OpenApiDocument): Array<[HttpMethod, string]> {
+  return openApiPairs(document).map((pair) => {
+    const [method, routePath] = pair.split(' ', 2)
+    return [method as HttpMethod, routePath]
+  })
+}
+
+const PUBLIC_OPERATIONS = new Set([
+  'GET /api/home',
+  'GET /api/materials',
+  'GET /api/materials/{materialId}',
+  'GET /api/media/{path}',
+  'GET /api/models',
+  'GET /api/preview/character',
+  'GET /api/preview/stitch',
+  'GET /api/publish',
+  'GET /api/publish/{snapshotId}',
+  'GET /api/showcase',
+  'GET /api/showcase/{snapshotId}',
+  'GET /api/skills',
+  'GET /api/skills/{skillId}',
+])
 
 describe('local API manifest and OpenAPI', () => {
   it('lists exactly every exported local route method', () => {
@@ -209,6 +235,49 @@ describe('local API manifest and OpenAPI', () => {
     expect(version).not.toBe('')
     expect(version).toMatch(CONTRACT_VERSION_PATTERN)
     expect(version).toBe(documentedContractVersion())
+  })
+
+  it('defines the backend-handoff bearer contract and operation authorization boundaries', () => {
+    const document = openApiDocument()
+
+    expect(document.components?.securitySchemes?.bearerAuth).toEqual({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+    })
+
+    for (const [method, routePath] of documentedOperations(document)) {
+      const operation = operationAt(document, method, routePath)
+      const pair = `${method} ${routePath}`
+
+      if (PUBLIC_OPERATIONS.has(pair)) {
+        expect(operation['x-authorization'], pair).toBe('public')
+        expect(operation.security, pair).toEqual([])
+      } else {
+        expect(operation['x-authorization'], pair).toMatch(/^(authenticated|owner|workspace)$/)
+        expect(operation.security, pair).toEqual([{ bearerAuth: [] }])
+      }
+    }
+  })
+
+  it('uses normalized ErrorResponse schemas for the backend handoff while retaining legacy runtime compatibility in docs', () => {
+    const document = openApiDocument()
+    const errors = readFileSync(path.join(process.cwd(), 'docs/api/ERRORS.md'), 'utf8')
+
+    expect(document.components?.schemas?.ErrorResponse).toBeDefined()
+    expect(document.components?.schemas?.LegacyErrorResponse).toBeDefined()
+    expect(errors).toContain('迁移边界')
+    expect(errors).toContain('LegacyErrorResponse')
+
+    for (const [method, routePath] of documentedOperations(document)) {
+      const operation = operationAt(document, method, routePath)
+      for (const [status, response] of Object.entries(operation.responses ?? {})) {
+        if (Number(status) < 400) continue
+        expect(response.content?.['application/json']?.schema?.$ref, `${method} ${routePath} ${status}`).toBe(
+          '#/components/schemas/ErrorResponse',
+        )
+      }
+    }
   })
 
   it('keeps the standalone documentation audit executable', () => {

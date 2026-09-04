@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.17.0-skill-author-form` · scope: 46 paths / 80 operations
+> Contract version: `1.18.0-backend-auth-handoff` · scope: 46 paths / 80 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -63,6 +63,18 @@ transport 的一一对应。
 UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所有列表的空集合必须是 `[]`，无下一页
 使用 `nextOffset: null`，不得用 `null` 替代数组。
 
+## 后端授权与错误交接
+
+46 个 path、80 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
+13 个 public 读取明确为 `security: []`，其余 67 个 operation 使用 `bearerAuth`。后端以
+[`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
+和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。
+
+所有 OpenAPI 4xx/5xx JSON response 均已收敛到 `ErrorResponse`。当前 Route Handler 旧
+`{ error: string }` 输出仅由 client compatibility layer 接受，不能带入后端 response contract；完整
+迁移顺序和 `401`/`403`/`404` 行为见 [`ERRORS.md`](ERRORS.md) 与
+[`AUTHORIZATION.md`](AUTHORIZATION.md)。
+
 ## Presence wire contract
 
 Presence 是唯一非 JSON 业务 transport：
@@ -95,10 +107,12 @@ SSE 首帧为 `snapshot`，后续为 `join`、`move` 或 `leave`；每 20 秒有
 
 ## 后端接手验收
 
-1. 根据 OpenAPI 的 `operationId` 实现相同 method/path/成功 schema/错误 status；不得让组件改到
-   provider URL 或读取环境变量。
-2. 先在 transport adapter 归一化真实 provider envelope；页面只消费本仓的资源 schema。
-3. 保留空数组、分页终止、fixture 仅开发可用、revision 与 idempotency 的明确语义。
-4. 让 SSE/实时层有独立部署和观测；不能把 cursor heartbeat 误当成画布 mutation。
-5. 替换完成后保留并通过 `node scripts/verify-api-contract.mjs`、`pnpm vitest run src/contracts/__tests__/openapi.test.ts`、`pnpm typecheck` 和
+1. 根据 OpenAPI 的 `operationId` 实现相同 method/path/成功 schema/错误 status 与 operation-level
+   `security`；不得让组件改到 provider URL 或读取环境变量。
+2. 在 transport adapter 归一化真实 provider envelope 和错误为 `ErrorResponse`；页面只消费本仓的资源 schema。
+3. 按 [`AUTHORIZATION.md`](AUTHORIZATION.md) 解析 public/authenticated/owner/workspace，不把有效
+   bearer 误当作 workspace editor 或 resource owner。
+4. 保留空数组、分页终止、fixture 仅开发可用、revision 与 idempotency 的明确语义。
+5. 让 SSE/实时层有独立部署和观测；不能把 cursor heartbeat 误当成画布 mutation。
+6. 替换完成后保留并通过 `node scripts/verify-api-contract.mjs`、`pnpm vitest run src/contracts/__tests__/openapi.test.ts`、`pnpm typecheck` 和
    `pnpm lint`；新增 route 必须同时新增 manifest、OpenAPI、样本及 UI trigger。

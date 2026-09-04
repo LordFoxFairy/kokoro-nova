@@ -1,8 +1,8 @@
 # API 错误契约
 
-## 目标 envelope
+## 规范化 ErrorResponse 与迁移边界
 
-所有非 2xx 响应最终统一为：
+未来后端交接的所有非 2xx 响应统一使用 OpenAPI `ErrorResponse`：
 
 ```ts
 type ErrorResponse = {
@@ -19,8 +19,20 @@ type ErrorResponse = {
 必需的结构化信息；`requestId` 用于问题定位。不得在错误中返回 Cookie、Token、Access Key、
 文件系统绝对路径或上游私密响应。
 
-兼容期内，Route Handler 仍可能返回 `{error: string}`。API Client 按 HTTP status 映射稳定
-code，并保持 `ApiError.status/message` 兼容现有调用方。
+`openapi.yaml` 的每个 4xx/5xx JSON response 已引用该 schema；它是后端实现、消费者契约测试和
+新 transport adapter 的唯一规范化目标。`401 UNAUTHENTICATED`、`403 FORBIDDEN` 与资源级
+`404 NOT_FOUND` 的授权语义见 [`AUTHORIZATION.md`](AUTHORIZATION.md)。
+
+### 迁移边界
+
+本轮只更新文档契约，不修改 Route Handler。当前本地 fixture 仍可能产生旧形状
+`{ "error": "message" }`，其 OpenAPI 组件名为 `LegacyErrorResponse`，并已标记 deprecated。
+`src/api/client.ts` 在兼容期同时接受旧/新 envelope、按 HTTP status 映射稳定 code，并保持
+`ApiError.status/message` 兼容现有调用方。
+
+后端切换时先在 adapter 或服务端把上游错误归一化为 `ErrorResponse`，再逐 route 删除旧形状；
+不得让页面组件处理 legacy 分支。旧形状只描述当前 fixture 的兼容输入，不能作为新后端 response
+schema，也不得新增到 operation response 中。
 
 ## 稳定错误码
 

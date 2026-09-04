@@ -84,28 +84,61 @@ async function addNode(page: Page, label: string | RegExp) {
   await persisted
 }
 
-test('project list: create, rename, folder lifecycle', async ({ page }) => {
+test('project list: folder and project mutations persist through reload', async ({ page }) => {
   await page.goto('/project')
   await expect(page.getByRole('heading', { name: '全部项目' })).toBeVisible()
 
-  // 新建文件夹 creates 未命名文件夹 immediately, with no naming form first.
+  // Folder creation, rename and a child project must survive a new document;
+  // this catches optimistic-only list updates in the mock API adapter.
   await page.getByTestId('new-folder').click()
-  await expect(page.getByText('未命名文件夹')).toBeVisible()
+  const folderMore = page.locator('[data-testid^="folder-more-"]').first()
+  await folderMore.click({ force: true })
+  await page.getByRole('menuitem', { name: '重命名' }).click()
+  await page.getByTestId('folder-rename-input').fill('夏夜拍摄计划')
+  await page.getByTestId('folder-rename-input').press('Enter')
+  await expect(page.getByTestId('project-operation-feedback')).toContainText('名称已更新')
+  await expect(page.getByText('夏夜拍摄计划')).toBeVisible()
 
   await page.screenshot({ path: `${SHOTS}/project-list.png` })
 
-  // Deleting a folder requires typing its exact name.
-  const folderCard = page.locator('[data-testid^="folder-more-"]').first()
-  await folderCard.click({ force: true })
+  await page.locator('[data-testid^="folder-card-"] > button').first().click()
+  await expect(page.getByRole('heading', { name: '夏夜拍摄计划' })).toBeVisible()
+  await page.getByTestId('start-create').click()
+  await page.waitForURL(/\/canvas\?projectId=/)
+
+  // Return through a new load, reopen the folder and rename the persisted child.
+  await page.goto('/project')
+  await page.locator('[data-testid^="folder-card-"] > button').first().click()
+  const projectMore = page.locator('[data-testid^="project-more-"]').first()
+  await expect(projectMore).toBeVisible()
+  await projectMore.click({ force: true })
+  await page.getByRole('menuitem', { name: '重命名' }).click()
+  await page.getByTestId('project-rename-input').fill('夏夜微电影')
+  await page.getByTestId('project-rename-input').press('Enter')
+  await expect(page.getByTestId('project-operation-feedback')).toContainText('名称已更新')
+
+  await page.reload()
+  await expect(page.getByText('夏夜拍摄计划')).toBeVisible()
+  await page.locator('[data-testid^="folder-card-"] > button').first().click()
+  await expect(page.getByRole('heading', { name: '夏夜拍摄计划' })).toBeVisible()
+  await expect(page.getByText('夏夜微电影')).toBeVisible()
+
+  // Deleting a folder requires the exact persisted name and removes its child.
+  await page.locator('[data-toolbar-item="back"]').click()
+  await folderMore.click({ force: true })
   await page.getByRole('menuitem', { name: '删除文件夹' }).click()
 
   const confirm = page.getByTestId('confirm-dialog')
   await expect(confirm).toBeVisible()
   await expect(page.getByTestId('confirm-submit')).toBeDisabled()
-  await page.getByTestId('confirm-input').fill('未命名文件夹')
+  await page.getByTestId('confirm-input').fill('夏夜拍摄计划')
   await expect(page.getByTestId('confirm-submit')).toBeEnabled()
   await page.getByTestId('confirm-submit').click()
-  await expect(page.getByText('未命名文件夹')).toHaveCount(0)
+  await expect(page.getByText('夏夜拍摄计划')).toHaveCount(0)
+
+  await page.reload()
+  await expect(page.getByText('夏夜拍摄计划')).toHaveCount(0)
+  await expect(page.getByText('夏夜微电影')).toHaveCount(0)
 })
 
 test('canvas: build a graph, connect nodes, generate, and project to storyboard', async ({ page }) => {

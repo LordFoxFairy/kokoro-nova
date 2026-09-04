@@ -5,7 +5,7 @@ test.describe('Skill authoring lifecycle', () => {
 
   test('aligns 我的 entry copy and publishes a reviewed local Skill into 我的 before unpublishing it', async ({ page }) => {
     await page.goto('/skills')
-    await expect(page.getByRole('heading', { name: '用 Skill，开启今天的故事' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '新的一天，新的 Skill' })).toBeVisible()
     await page.getByTestId('skill-collection-我的').click()
     await expect(page.getByTestId('skill-author-entry')).toContainText('我的 Skill')
     await expect(page.getByTestId('skill-author-open')).toHaveText('创建Skill')

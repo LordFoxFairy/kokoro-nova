@@ -168,7 +168,7 @@ export function SkillGallery() {
 
       <main className="mx-auto max-w-[1320px] px-4 pb-16 sm:px-8" aria-labelledby="skill-gallery-title">
         <section className="relative pt-10 sm:pt-12">
-          <h1 id="skill-gallery-title" className="text-center font-serif text-[23px] font-medium tracking-wide text-white/90 sm:text-[25px]">用 Skill，开启今天的故事</h1>
+          <h1 id="skill-gallery-title" className="text-center font-serif text-[23px] font-medium tracking-wide text-white/90 sm:text-[25px]">新的一天，新的 Skill</h1>
           <div data-testid="skill-status" role="status" aria-live="polite" className="sr-only">
             {requestState === 'initial-loading' ? '正在加载技能库…' : requestState === 'refreshing' ? '正在刷新技能库…' : ''}
           </div>

@@ -547,7 +547,9 @@ export function CharacterPanel({
   onClose: () => void
   onApply: (character: CharacterPreset) => void
 }) {
-  const [selected, setSelected] = useState<CharacterPreset>(CHARACTER_PRESETS[0])
+  // The official drawer opens in browse mode: a character must be chosen
+  // before its four references can be applied to the canvas.
+  const [selected, setSelected] = useState<CharacterPreset | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [query, setQuery] = useState('')
@@ -577,8 +579,8 @@ export function CharacterPanel({
   )
 
   useEffect(() => {
-    if (visible.length > 0 && !visible.some((character) => character.id === selected.id)) setSelected(visible[0])
-  }, [selected.id, visible])
+    if (selected && !visible.some((character) => character.id === selected.id)) setSelected(null)
+  }, [selected, visible])
 
   return (
     <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="character-panel">
@@ -655,23 +657,25 @@ export function CharacterPanel({
       <div className="px-6 py-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <div className="text-[14px] font-semibold text-ink-900">{selected.name}</div>
-            <div className="mt-0.5 flex gap-1.5">
+            <div className="text-[14px] font-semibold text-ink-900">{selected?.name ?? '请选择角色'}</div>
+            {selected ? <div className="mt-0.5 flex gap-1.5">
               {selected.tags.map((tag) => (
                 <span key={tag} className="rounded bg-ink-100 px-1.5 py-px text-[10px] text-ink-500">
                   {tag}
                 </span>
               ))}
-            </div>
+            </div> : <div className="mt-0.5 text-[11px] text-ink-400">从下方角色库选择后查看参考并应用至画布。</div>}
           </div>
           <button
             type="button"
             data-testid="character-apply"
+            disabled={!selected}
             onClick={() => {
+              if (!selected) return
               onApply(selected)
               onClose()
             }}
-            className="rounded-lg bg-ink-900 px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+            className="rounded-lg bg-ink-900 px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
           >
             应用至画布
           </button>
@@ -680,7 +684,7 @@ export function CharacterPanel({
           <EmptyState compact title="没有匹配的角色" description="调整搜索词或筛选条件后重试。" />
         ) : (
           <div className="grid grid-cols-4 gap-3">
-            {selected.references.map((ref) => (
+            {selected ? selected.references.map((ref) => (
               <div key={ref.key} className="overflow-hidden rounded-xl ring-1 ring-ink-100">
                 <div
                   className="h-32"
@@ -690,7 +694,7 @@ export function CharacterPanel({
                 />
                 <div className="p-2 text-[11px] text-ink-600">{ref.label}</div>
               </div>
-            ))}
+            )) : <div className="col-span-4 rounded-xl border border-dashed border-ink-200 px-4 py-8 text-center text-[12px] text-ink-400">选择角色后显示角色立绘、脸部近景、表情参考和三视图。</div>}
           </div>
         )}
       </div>
@@ -703,7 +707,7 @@ export function CharacterPanel({
             onClick={() => setSelected(character)}
             className={cn(
               'shrink-0 overflow-hidden rounded-xl text-left ring-1 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
-              character.id === selected.id ? 'ring-2 ring-accent' : 'ring-ink-100 hover:shadow-[var(--shadow-float)]',
+              character.id === selected?.id ? 'ring-2 ring-accent' : 'ring-ink-100 hover:shadow-[var(--shadow-float)]',
             )}
             style={{ width: 108 }}
           >

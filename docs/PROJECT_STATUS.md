@@ -59,6 +59,8 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
 - `703a7f3`：按官网项目空态确认回收站与新建文件夹在空账户仍为 enabled；
 - `07e9328`：修复 production smoke 对已演进 ImageNodeEditor 的过期 test id，`pnpm e2e:prod`
   在隔离 `DATA_DIR` 下 2/2 通过；
+- `c24bd12` / `bfb69c0`：按 2026-09-04 官网首页证据补齐 TV Show 左右分类轨与不可用作品的
+  disabled 创作过程动作，并在 768px 隔离浏览器中验证；
 - 当前主仓库已重新验证 typecheck、lint、完整 Vitest（71 files / 756 tests）、production build、
   demo smoke 与 production E2E；用户已有 `.gitignore` 始终不修改、不暂存。
 

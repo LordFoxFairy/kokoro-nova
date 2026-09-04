@@ -19,7 +19,7 @@
 
 | Surface | 官网验收范围 | 当前 main 证据 | 当前判定 | 主要缺口 / 下一道门 |
 | --- | --- | --- | --- | --- |
-| 首页 Home | 活动条、侧栏、新建画布、六个快捷工具、最近项目、Agent 起始器、TV Show 首层 | `HomePage`、`AuthenticatedShell`、`TvShowFeed`；`e2e/home-project.spec.ts`；`docs/screenshots/libtv-home-local-1440x900.png` | `PARTIAL`（布局核心 `VERIFIED_LOCAL`） | Agent 的附件/模型/模式入口没有在首页形成完整上下文菜单；登录只是假门；首页摘要与 TV Show 目录不是同一 projection |
+| 首页 Home | 活动条、侧栏、新建画布、六个快捷工具、最近项目、Agent 起始器、TV Show 首层 | `HomePage`、`AuthenticatedShell`、`TvShowFeed`；`e2e/home-project.spec.ts`；`docs/screenshots/libtv-home-local-1440x900.png` | `PARTIAL`（布局核心 `VERIFIED_LOCAL`） | Agent 的附件/模型/模式入口没有在首页形成完整上下文菜单；登录只是假门 |
 | Project | 全部项目、搜索、文件夹、回收站、项目卡菜单与空态 | `ProjectListPage`、项目/文件夹 API；`e2e/home-project.spec.ts`；两张项目基线 | `PARTIAL`（管理核心 `VERIFIED_LOCAL`） | `/account` 被当作登录落点但实际是积分账本；文件夹封面/移动/副本完整 E2E 和公开权限边界仍缺 |
 | Canvas / Workflow | 独立全屏 chrome、画布切换、节点/连线、工具箱、资产、生成状态、协作 | `CanvasWorkspace`、`WorkflowCanvas`、`BottomToolbar`；`e2e/canvas-parity.spec.ts`、`e2e/kokoro-nova-parity.spec.ts` | `VERIFIED_LOCAL`（编辑核心） | 官网真实长任务、取消/失败/重试、协同冲突和动态模型权限仍未观察；本地生成仍是 deterministic mock |
 | Storyboard | 同一文档的文本/音频/图片/视频投影、筛选/展开、详情、定位/副本、剪辑入口 | `projectStoryboard()`、`StoryboardView`、`MediaDetailDrawer`、`ClipEditor`；`e2e/canvas-parity.spec.ts` | `VERIFIED_LOCAL`（投影核心） | 官网有效输入、导出/失败/取消和媒体持久化边界未确认；需继续证明切换不产生第二份文档 |
@@ -36,7 +36,7 @@
 | H-01 | `1440×900` 活动条、侧栏、账户轨和内容重排 | [首页登录态基线](pages/home/screenshots/home-authenticated-desktop-1440x900-2026-09-03.png)、[公开首页观察](pages/home/2026-09-04-public-surface.md) | `AuthenticatedShell`、`AppSidebar`、`AccountRail`；`e2e/home-project.spec.ts` | `VERIFIED_LOCAL` |
 | H-02 | 新建画布和六个快捷创作入口能携带稳定 intent | [官方首页](https://www.liblib.tv/) | `HomePage`、`CreatorToolGrid`；`home creator tool carries deterministic intent` | `VERIFIED_LOCAL` |
 | H-03 | Agent 空态禁用发送，合法草稿可创建并保留 Skill 上下文 | [首页创作控件基线](pages/home/screenshots/home-composer-focused-empty-desktop-1440x900-hires.png)、[有效草稿](pages/home/screenshots/home-composer-valid-draft-send-enabled-desktop-1440x900-hires.png) | `HomeAgentComposer`；`home Agent composer selects context...` | `PARTIAL`：合法文本/Skill 已覆盖，附件、模型、生成模式按钮未完成 |
-| H-04 | TV Show 分类轨、左右滚动、提交式搜索、推荐回退 | [公开首页观察](pages/home/2026-09-04-public-surface.md) | `TvShowFeed.filterTvShowItems`、`resolveTvShowSearch`；`home-project.spec.ts` | `VERIFIED_LOCAL`（冻结目录） |
+| H-04 | TV Show 分类轨、左右滚动、提交式搜索、推荐回退 | [公开首页观察](pages/home/2026-09-04-public-surface.md) | `TvShowFeed.filterTvShowItems`、`resolveTvShowSearch`；`home-project.spec.ts`；与 `/api/showcase` 共用基础发现 projection | `VERIFIED_LOCAL`（冻结目录） |
 | H-05 | 公开浏览与私有创作并置，登录门不清空当前上下文 | 官网登录入口与本地公开 fixture | `publicMode`、`home-login-dialog`；`e2e/home-project.spec.ts` | `PARTIAL`：本地登录落点仍是 mock `/account`，没有会话恢复/回跳契约 |
 
 ### P — Project
@@ -89,7 +89,7 @@
 | V-02 | 独立目录的分类/搜索/作者/统计/节点数和推荐/空态 | [目录证据](pages/showcase/README.md) | `ShowcaseGallery`、`ShowcaseEntryProjection`；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（local mock） |
 | V-03 | 详情沉浸背景、观看、倍速、清晰度、音量、全屏、相邻作品带 | [播放器截图](pages/showcase/screenshots/player-controls-speed-quality-volume-fullscreen.png) | `ShowcaseDetailView`；`public-discovery.spec.ts` | `PARTIAL`：local 控件有，真实媒体变体/缓冲/失败态没有官网网络证据 |
 | V-04 | 查看制作过程保持作品上下文，Workflow/Storyboard 只读，复制触发认证门 | [公开工作流](pages/showcase/screenshots/public-production-process-readonly-workflow.png)、[公开故事板](pages/showcase/screenshots/public-production-process-readonly-storyboard.png) | `PublicCanvasView`；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（未登录门） |
-| V-05 | 公开快照与作者/分类/统计/播放器 projection 分层 | [public product 研究](references/public-product/README.md) | `PublishedSnapshot` + `ShowcaseEntryProjection` + `/api/showcase` | `PARTIAL`：首页 `HomeShowcaseItem` 仍有第二套摘要模型 |
+| V-05 | 公开快照与作者/分类/统计/播放器 projection 分层 | [public product 研究](references/public-product/README.md) | `PublishedSnapshot` + `ShowcaseEntryProjection` + `/api/showcase`；`HomeShowcaseItem` 从同一基础 projection 挑选首页字段，并强制 `id === snapshotId` | `VERIFIED_LOCAL`（公开 discovery projection） |
 | V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | 有 retry 和 login gate，但没有分页与已登录 clone 成功态 | `PENDING` / `COST_GATED` |
 
 ### A — Account

@@ -72,6 +72,10 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
   并新增 1440×900 基准与隔离 Playwright 4/4；
 - `c9e61bb`：账户页接入身份、会员、钱包、偏好和通知的确定性 mock，同时添加 `GET /api/account`、Zod、
   OpenAPI 与后端交接文档；隔离 Playwright 2/2 通过；
+- `62f1f9f` / `3650038`：首页、TV Show 目录、详情和 `/api/publish/:snapshotId` 收敛到同一公开发现
+  projection；公开 fixture 仅在对应快照从未写入 workspace 时兜底，已下架/撤销的本地快照保持 `404`，
+  不会被目录 fixture 重新暴露。13 个 route/contract/component 测试与 4 条隔离 Playwright 公开发现
+  旅程通过；GitHub Actions run `33903356191` 已通过 typecheck、lint、全量测试和 production build；
 - 当前主仓库已重新验证 typecheck、lint、完整 Vitest（75 files / 780 tests）、production build，
   并对项目管理与账户在隔离 1440×900 服务中复跑浏览器旅程；用户已有 `.gitignore` 始终不修改、不暂存。
 

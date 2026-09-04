@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- |
 | P0-01 | 统一身份与登录回跳 | `src/contracts` 新增 local identity/session projection；首页、Project、Skills、Showcase login gate、`AccountRail` 共享 | `anonymous → login gate → returnTo` 可在首页、项目、Skill 使用、TV Show 复制四处复现；刷新不丢草稿；不读取真实凭据 | 无；先于其它账户入口 |
 | P0-02 | 统一 CreationContext | `HomeAgentComposer`、`SkillGallery` composer、Agent panel、canvas starter 共用附件/模型/Skill/参考/生成模式字段 | 四类上下文都能打开、选择、移除；序列化请求包含稳定 id/version；Skill 详情添加后返回 composer 且保留版本 | P0-01 的 session fixture |
-| P0-03 | 首页与 TV Show 共用发现 projection | `HomeShowcaseItem`、`ShowcaseEntryProjection`、fixtures、home/showcase routes | 同一个 entry 在首页、目录、详情的标题/作者/分类/统计/process 能力一致；公开媒体不写入 workflow snapshot | 无；可与 P0-02 并行 |
+| P0-03 | 首页与 TV Show 共用发现 projection | `HomeShowcaseItem`、`ShowcaseEntryProjection`、fixtures、home/showcase routes | **已在 `62f1f9f` 达成**：同一个 entry 在首页、目录、详情共享标题/作者/分类/统计/process 能力和稳定 `snapshotId`；公开媒体不写入 workflow snapshot | 无；可与 P0-02 并行 |
 | P0-04 | Account menu 与 ledger 分层 | `AccountRail`、`AccountPage`、`LedgerView`；新增 identity/preferences/notification mock seam | 顶栏账户入口展开官网同层级菜单；余额池能跳账本；主题/水印/通知入口有明确 `PENDING` 或 local 状态，不再用静态链接冒充已实现 | P0-01 |
 | P0-05 | 七个 surface 的最小视觉守门 | `e2e/*parity.spec.ts`、`docs/screenshots/` | Home、Project、Canvas、Storyboard、Skills、TV Show、Account 各有一张 `1440×900` CSS baseline；每个关键菜单/弹层至少一张状态图；截图固定字体、动画、媒体加载和 DPR | 页面当前实现；Account 需要先有菜单 |
 

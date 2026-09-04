@@ -33,9 +33,12 @@ export function Dialog({
   testId,
 }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!open) return
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
 
     // Each open dialog listens on `window`, so nested dialogs all see the same
     // Escape — and `stopPropagation` cannot stop a sibling listener on the same
@@ -62,6 +65,15 @@ export function Dialog({
       if (index >= 0) dialogStack.splice(index, 1)
     }
   }, [open, onClose])
+
+  useEffect(() => {
+    if (open) return
+    const previouslyFocused = previouslyFocusedRef.current
+    previouslyFocusedRef.current = null
+    if (previouslyFocused?.isConnected) {
+      requestAnimationFrame(() => previouslyFocused.focus())
+    }
+  }, [open])
 
   if (!open) return null
 

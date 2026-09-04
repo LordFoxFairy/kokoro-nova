@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
 import { IconCheck, IconChevronRight } from '../icons'
 
@@ -61,6 +61,8 @@ export function submenuIdOnHover(item: Pick<MenuItem, 'id' | 'submenu'>) {
 interface MenuProps {
   sections: MenuSection[]
   onClose: () => void
+  /** The trigger to restore after keyboard dismissal or item selection. */
+  restoreFocusRef?: RefObject<HTMLElement | null>
   /** Viewport anchor; the menu flips if it would overflow. */
   anchor: { x: number; y: number }
   placement?: 'below' | 'above'
@@ -72,13 +74,17 @@ interface MenuProps {
  * Floating menu with click-away, Escape, keyboard navigation and viewport
  * flipping. Submenus open on hover to the side that has room.
  */
-export function Menu({ sections, onClose, anchor, placement = 'below', align = 'start', width = 208 }: MenuProps) {
+export function Menu({ sections, onClose, restoreFocusRef, anchor, placement = 'below', align = 'start', width = 208 }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ left: anchor.x, top: anchor.y, ready: false })
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(-1)
 
   const flat = sections.flatMap((s) => s.items)
+  const closeMenu = useCallback((restoreFocus = false) => {
+    if (restoreFocus) restoreFocusRef?.current?.focus()
+    onClose()
+  }, [onClose, restoreFocusRef])
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -100,12 +106,12 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
-      if (isMenuClickAway(ref.current, event.target)) onClose()
+      if (isMenuClickAway(ref.current, event.target)) closeMenu()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (isMenuEscapeKey(event.key)) {
         event.stopPropagation()
-        onClose()
+        closeMenu(true)
         return
       }
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -113,12 +119,19 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
         const step = event.key === 'ArrowDown' ? 1 : -1
         setActiveIndex((current) => nextMenuIndex(flat, current, step))
       }
+      if (event.key === 'ArrowRight' && activeIndex >= 0) {
+        const item = flat[activeIndex]
+        if (item?.submenu) {
+          event.preventDefault()
+          setOpenSubmenu(item.id)
+        }
+      }
       if (event.key === 'Enter' && activeIndex >= 0) {
         const item = menuItemForEnter(flat, activeIndex)
         if (item) {
           event.preventDefault()
           item.onSelect?.()
-          onClose()
+          closeMenu(true)
         }
       }
     }
@@ -129,7 +142,7 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
       window.removeEventListener('pointerdown', onPointerDown, true)
       window.removeEventListener('keydown', onKeyDown, true)
     }
-  }, [onClose, flat, activeIndex])
+  }, [closeMenu, flat, activeIndex])
 
   let runningIndex = -1
 
@@ -173,9 +186,9 @@ export function Menu({ sections, onClose, anchor, placement = 'below', align = '
                 onSelect={() => {
                   if (item.disabled || item.submenu) return
                   item.onSelect?.()
-                  onClose()
+                  closeMenu(true)
                 }}
-                onSubmenuSelect={() => onClose()}
+                onSubmenuSelect={() => closeMenu(true)}
                 onSubmenuEnter={() => setOpenSubmenu(item.id)}
               />
             )
@@ -222,6 +235,8 @@ function MenuRow({
         type="button"
         role="menuitem"
         disabled={item.disabled}
+        aria-haspopup={item.submenu ? 'menu' : undefined}
+        aria-expanded={item.submenu ? submenuOpen : undefined}
         title={item.disabled ? item.disabledReason : undefined}
         onMouseEnter={onHover}
         onClick={onSelect}

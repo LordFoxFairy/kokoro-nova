@@ -109,6 +109,7 @@ function ProjectListSurface() {
   const menu = useMenuAnchor()
   const loadedRef = useRef(false)
   const pendingRef = useRef<PendingAction | null>(null)
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const refresh = useCallback(async (): Promise<boolean> => {
     const initialLoad = !loadedRef.current
@@ -474,6 +475,7 @@ function ProjectListSurface() {
                       onRenameCommit={(name) => void commitRename('folder', folder, name)}
                       onMenu={(event) => {
                         if (pendingAction) return
+                        menuTriggerRef.current = event.currentTarget
                         setMenuTarget({ kind: 'folder', id: folder.id })
                         menu.openFrom(event, 'point')
                       }}
@@ -490,6 +492,7 @@ function ProjectListSurface() {
                       onRenameCommit={(name) => void commitRename('project', project, name)}
                       onMenu={(event) => {
                         if (pendingAction) return
+                        menuTriggerRef.current = event.currentTarget
                         setMenuTarget({ kind: 'project', id: project.id })
                         menu.openFrom(event, 'point')
                       }}
@@ -587,6 +590,7 @@ function ProjectListSurface() {
         {menu.anchor && menuTarget && (selectedProject || selectedFolder) && (
           <Menu
             anchor={menu.anchor}
+            restoreFocusRef={menuTriggerRef}
             onClose={() => {
               menu.close()
               setMenuTarget(null)

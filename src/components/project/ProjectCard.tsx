@@ -56,9 +56,10 @@ export function ProjectCard({ project, renaming, onRenameCancel, onRenameCommit,
         <button
           type="button"
           aria-label="项目操作"
+          aria-haspopup="menu"
           data-testid={`project-more-${project.id}`}
           onClick={onMenu}
-          className="mt-0.5 rounded p-0.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white/80"
+          className="mt-0.5 rounded p-0.5 text-white/40 opacity-0 transition-[opacity,color,background-color] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-white/[0.06] hover:text-white/80 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
         >
           <IconMore size={15} />
         </button>
@@ -84,7 +85,14 @@ export function FolderCard({ folder, renaming, onOpen, onRenameCancel, onRenameC
         onClick={onOpen}
         className="flex h-[120px] w-full items-center justify-center rounded-xl border border-white/[0.08] bg-[#242424] text-white/24 transition-colors hover:border-white/[0.17] hover:bg-[#292929]"
       >
-        <IconFolder size={40} />
+        {folder.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={folder.coverUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]" />
+        ) : (
+          <span data-testid="folder-cover-placeholder" aria-hidden="true">
+            <IconFolder size={40} />
+          </span>
+        )}
       </button>
       <div className="mt-2 flex min-w-0 items-start gap-1">
         <div className="min-w-0 flex-1">
@@ -103,9 +111,10 @@ export function FolderCard({ folder, renaming, onOpen, onRenameCancel, onRenameC
         <button
           type="button"
           aria-label="文件夹操作"
+          aria-haspopup="menu"
           data-testid={`folder-more-${folder.id}`}
           onClick={onMenu}
-          className="mt-0.5 rounded p-0.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white/80"
+          className="mt-0.5 rounded p-0.5 text-white/40 opacity-0 transition-[opacity,color,background-color] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-white/[0.06] hover:text-white/80 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
         >
           <IconMore size={15} />
         </button>

@@ -1,7 +1,11 @@
 import { AccountProfileResponseSchema } from "@/contracts/account";
 import { ACCOUNT_PROFILE_FIXTURE } from "@/mocks/account";
 import { handle } from "@/server/http";
-import { readLocalIdentity } from "@/server/identity";
+import {
+  readLocalIdentity,
+  readLocalPreferences,
+  readNotificationSummary,
+} from "@/server/identity";
 import { DEFAULT_SPACE_ID, readState } from "@/server/store";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +17,11 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   return handle(async () => {
-    const [state, localIdentity] = await Promise.all([
+    const [state, localIdentity, preferences, notifications] = await Promise.all([
       readState(),
       readLocalIdentity(),
+      readLocalPreferences(),
+      readNotificationSummary(),
     ]);
     const authenticated = localIdentity.session.status === "authenticated";
     const availableCredits = authenticated
@@ -37,8 +43,12 @@ export async function GET() {
             displayName: "公开浏览者",
             maskedAccount: "未登录",
           },
-      unreadCount: authenticated ? ACCOUNT_PROFILE_FIXTURE.unreadCount : 0,
-      notifications: authenticated ? ACCOUNT_PROFILE_FIXTURE.notifications : [],
+      preferences: {
+        ...ACCOUNT_PROFILE_FIXTURE.preferences,
+        ...preferences,
+      },
+      unreadCount: authenticated ? notifications.unreadCount : 0,
+      notifications: authenticated ? notifications.items : [],
       wallet: {
         availableCredits,
         commonCredits,

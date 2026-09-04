@@ -13,12 +13,14 @@
 | `updateLocalPreferences` | `PATCH /api/preferences` | 局部更新 `theme`、`aiWatermark`。 |
 | `getNotificationSummary` | `GET /api/notifications` | 返回账户菜单 badge 与最多三条通知预览。 |
 | `markNotificationsRead` | `POST /api/notifications` | `{ "action": "markAllRead" }`，将本地未读数归零。 |
+| `getAccountProfile` | `GET /api/account` | 账户页投影与上述 preferences/notifications 读取同一份本地状态。 |
 
 ## Deterministic fixture
 
 - 身份为 `微信用户cd385d`；UUID、账号、Access Key 都是脱敏固定字面量。
 - Access Key 只呈现 `•••• •••• •••• ••••` 和创建/管理入口，API 不接受也不返回任何真实 Key。
 - 账户菜单固定展示免费会员、活动权益、20 点积分及四种来源、`0.25 GB / 3 GB` 存储、个人中心、订阅与开发票、CLI & Skill、通知、前往 Liblib 与退出登录。
+- `/api/account` 不再复制通知或偏好 fixture：它读取 `/api/preferences` 与 `/api/notifications` 背后的相同本地状态。因此账户页的一键已读、浅/深色与 AI 水印操作会在重新打开身份菜单后保持一致。
 - `returnTo` 必须以单个 `/` 开头，禁止 `//HOST` 与 scheme；登录成功只导航回当前 Kokoro Nova 路径。
 - 切换开发 scenario 会重置会话/通知至该 scenario 的确定性状态；显示和水印偏好作为本地用户偏好保留。
 
@@ -28,3 +30,4 @@
 2. 打开后第一个可操作项获取焦点；`Escape` 关闭并把焦点还给 trigger；点击菜单外关闭。
 3. 亮/暗模式和 AI 水印更新后立刻重渲染菜单，并通过 API 保留至刷新。
 4. 退出后菜单原位展示“登录并返回”；登录后返回原路径，而不是跳到外站登录页。
+5. 账户页的充值、订阅、购买记录/发票、团队、Access Key 与规则入口都给出可见的本地结果；它们不创建支付订单、不写入真实凭据，也不访问远端服务。

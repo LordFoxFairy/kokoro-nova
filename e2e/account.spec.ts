@@ -85,3 +85,53 @@ test("account navigation supports keyboard paths and preserves stale data on ref
     page.getByRole("alert").filter({ hasText: "仍显示上次成功读取的账户" }),
   ).toHaveCount(0);
 });
+
+test("account notification and preference actions use the shared local APIs", async ({
+  page,
+}) => {
+  await page.goto("/account?tab=notifications");
+  await page.getByRole("button", { name: "一键已读" }).click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText(
+    "已将 2 条通知标为已读",
+  );
+  await expect(
+    page.getByRole("tab", { name: "官方通知", exact: false }),
+  ).not.toContainText("2");
+
+  await page.getByRole("tab", { name: "偏好设置", exact: true }).click();
+  await page.getByRole("button", { name: "浅色" }).click();
+  await expect(page.getByTestId("account-page")).toHaveAttribute(
+    "data-account-theme",
+    "light",
+  );
+
+  await page.goto("/");
+  await page.getByTestId("local-identity-trigger-rail").click();
+  await expect(page.getByRole("button", { name: "浅色模式" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("account purchase and subscription actions report their deterministic local result", async ({
+  page,
+}) => {
+  await page.goto("/account");
+  await page
+    .getByTestId("account-membership-card")
+    .getByRole("button", { name: "开通会员" })
+    .click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText(
+    "本地订阅方案已准备就绪",
+  );
+
+  await page.goto("/account?tab=wallet");
+  await page.getByRole("button", { name: "充值" }).click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText("本地充值入口已准备就绪");
+
+  await page.getByRole("tab", { name: "会员与发票", exact: true }).click();
+  await page.getByRole("button", { name: "开通会员" }).click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText("本地订阅方案已准备就绪");
+  await page.getByRole("button", { name: "查看购买记录" }).click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText("暂无本地购买记录或可开具发票");
+});

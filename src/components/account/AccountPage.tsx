@@ -12,6 +12,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import type { AccountProfileResponse } from "@/contracts/account";
+import type { NotificationsResponse } from "@/contracts/notifications";
+import type { PreferencesResponse } from "@/contracts/preferences";
 import { modelsFor, type ModelMedia } from "@/domain/models";
 import { client } from "@/api/client";
 import { api } from "@/lib/api";
@@ -122,9 +124,8 @@ export function AccountPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [watermark, setWatermark] = useState(true);
-  const [recommendations, setRecommendations] = useState(true);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const navRefs = useRef<
     Partial<Record<(typeof ACCOUNT_SECTIONS)[number]["id"], HTMLButtonElement>>
   >({});
@@ -132,25 +133,6 @@ export function AccountPage() {
   useEffect(() => {
     setSection(sectionFromQuery(searchParams.get("tab")));
   }, [searchParams]);
-
-  useEffect(() => {
-    try {
-      const storedTheme = window.localStorage.getItem("libtv.account.theme");
-      if (storedTheme === "light" || storedTheme === "dark")
-        setTheme(storedTheme);
-      const storedWatermark = window.localStorage.getItem(
-        "libtv.account.watermark",
-      );
-      if (storedWatermark !== null) setWatermark(storedWatermark === "true");
-      const storedRecommendations = window.localStorage.getItem(
-        "libtv.account.recommendations",
-      );
-      if (storedRecommendations !== null)
-        setRecommendations(storedRecommendations === "true");
-    } catch {
-      // Local storage is an optional convenience for this deterministic shell.
-    }
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +175,7 @@ export function AccountPage() {
     error: loadError,
   });
   const retry = () => setReloadToken((token) => token + 1);
+  const theme = profile?.preferences.theme ?? "dark";
   const accountVars = theme === "dark" ? DARK_ACCOUNT_VARS : LIGHT_ACCOUNT_VARS;
   const selected =
     ACCOUNT_SECTIONS.find((item) => item.id === section) ?? ACCOUNT_SECTIONS[0];
@@ -204,6 +187,74 @@ export function AccountPage() {
     setSection(next);
     if (focus)
       window.requestAnimationFrame(() => navRefs.current[next]?.focus());
+  };
+
+  const savePreferences = async (
+    patch: Partial<
+      Pick<AccountProfileResponse["preferences"], "theme" | "aiWatermark">
+    >,
+  ) => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    try {
+      const response = await api.patch<PreferencesResponse>(
+        "/api/preferences",
+        patch,
+      );
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              preferences: { ...current.preferences, ...response.preferences },
+            }
+          : current,
+      );
+      setActionFeedback(
+        patch.theme
+          ? `已切换为${patch.theme === "light" ? "浅色" : "深色"}模式，并同步到本地账户菜单。`
+          : `AI 水印已${patch.aiWatermark ? "开启" : "关闭"}，并同步到本地账户菜单。`,
+      );
+    } catch (cause) {
+      setActionFeedback(
+        cause instanceof Error ? `偏好保存失败：${cause.message}` : "偏好保存失败，请重试。",
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!profile || actionBusy) return;
+    const previousUnreadCount = profile.unreadCount;
+    if (previousUnreadCount === 0) {
+      setActionFeedback("所有本地通知都已读。 ");
+      return;
+    }
+    setActionBusy(true);
+    try {
+      const response = await api.post<NotificationsResponse>(
+        "/api/notifications",
+        { action: "markAllRead" },
+      );
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              unreadCount: response.notifications.unreadCount,
+              notifications: response.notifications.items,
+            }
+          : current,
+      );
+      setActionFeedback(`已将 ${previousUnreadCount} 条通知标为已读。`);
+    } catch (cause) {
+      setActionFeedback(
+        cause instanceof Error
+          ? `通知状态更新失败：${cause.message}`
+          : "通知状态更新失败，请重试。",
+      );
+    } finally {
+      setActionBusy(false);
+    }
   };
 
   return (
@@ -382,6 +433,16 @@ export function AccountPage() {
                   </button>
                 </div>
               )}
+              {actionFeedback && (
+                <div
+                  className="mb-5 rounded-xl border border-accent/30 bg-accent-soft px-3.5 py-2.5 text-[12px] text-accent-ink"
+                  data-testid="account-action-feedback"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {actionFeedback}
+                </div>
+              )}
               <div
                 id={`account-panel-${section}`}
                 role="tabpanel"
@@ -394,6 +455,8 @@ export function AccountPage() {
                     profile={profile}
                     ledger={ledger}
                     onOpenWallet={() => selectSection("wallet")}
+                    onOpenSection={selectSection}
+                    onAction={setActionFeedback}
                   />
                 )}
                 {section === "wallet" && (
@@ -405,56 +468,40 @@ export function AccountPage() {
                     onLoadMore={() =>
                       setLimit((current) => current + PAGE_SIZE)
                     }
+                    onAction={setActionFeedback}
                   />
                 )}
                 {section === "membership" && (
-                  <MembershipSection profile={profile} />
+                  <MembershipSection
+                    profile={profile}
+                    onAction={setActionFeedback}
+                  />
                 )}
                 {section === "notifications" && (
-                  <NotificationsSection profile={profile} />
+                  <NotificationsSection
+                    profile={profile}
+                    busy={actionBusy}
+                    onMarkAllRead={() => void markAllNotificationsRead()}
+                    onAction={setActionFeedback}
+                  />
                 )}
                 {section === "preferences" && (
                   <PreferencesSection
                     theme={theme}
-                    watermark={watermark}
-                    recommendations={recommendations}
-                    onThemeChange={(next) => {
-                      setTheme(next);
-                      try {
-                        window.localStorage.setItem(
-                          "libtv.account.theme",
-                          next,
-                        );
-                      } catch {
-                        /* session-only fallback */
-                      }
-                    }}
-                    onWatermarkChange={(next) => {
-                      setWatermark(next);
-                      try {
-                        window.localStorage.setItem(
-                          "libtv.account.watermark",
-                          String(next),
-                        );
-                      } catch {
-                        /* session-only fallback */
-                      }
-                    }}
-                    onRecommendationsChange={(next) => {
-                      setRecommendations(next);
-                      try {
-                        window.localStorage.setItem(
-                          "libtv.account.recommendations",
-                          String(next),
-                        );
-                      } catch {
-                        /* session-only fallback */
-                      }
-                    }}
+                    watermark={profile.preferences.aiWatermark}
+                    busy={actionBusy}
+                    onThemeChange={(next) => void savePreferences({ theme: next })}
+                    onWatermarkChange={(next) =>
+                      void savePreferences({ aiWatermark: next })
+                    }
+                    onAction={setActionFeedback}
                   />
                 )}
                 {section === "credentials" && (
-                  <CredentialsSection profile={profile} />
+                  <CredentialsSection
+                    profile={profile}
+                    onAction={setActionFeedback}
+                  />
                 )}
               </div>
             </>
@@ -631,10 +678,14 @@ function Overview({
   profile,
   ledger,
   onOpenWallet,
+  onOpenSection,
+  onAction,
 }: {
   profile: AccountProfileResponse;
   ledger: LedgerViewProjection;
   onOpenWallet: () => void;
+  onOpenSection: (section: (typeof ACCOUNT_SECTIONS)[number]["id"]) => void;
+  onAction: (message: string) => void;
 }) {
   const settled = ledger.totals.spent - ledger.totals.held;
   return (
@@ -659,6 +710,7 @@ function Overview({
           </div>
           <button
             type="button"
+            onClick={() => onAction("本地团队创建入口已准备就绪，暂不写入成员数据。")}
             className="inline-flex h-8 items-center gap-1 text-[12px] text-ink-600 transition-colors hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <IconPlusGlyph />
@@ -720,7 +772,9 @@ function Overview({
             </div>
             <button
               type="button"
-              onClick={onOpenWallet}
+              onClick={() =>
+                onAction("本地订阅方案已准备就绪；该确定性样本不会创建订阅订单。")
+              }
               className="rounded-full bg-[#201e17] px-3 py-1.5 text-[11px] font-medium text-[#f0c777] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               开通会员
@@ -766,16 +820,19 @@ function Overview({
             icon={<IconCharacter size={16} />}
             title="个人中心"
             description="发布、点赞与资料"
+            onClick={() => onAction("个人资料入口使用当前本地身份，无额外资料可编辑。")}
           />
           <QuickLink
             icon={<IconHistory size={16} />}
             title="通知中心"
             description={`${profile.unreadCount} 条未读通知`}
+            onClick={() => onOpenSection("notifications")}
           />
           <QuickLink
             icon={<IconKey size={16} />}
             title="CLI & Skill"
             description="本地创作工具与凭据"
+            onClick={() => onOpenSection("credentials")}
           />
         </div>
       </section>
@@ -787,13 +844,19 @@ function QuickLink({
   icon,
   title,
   description,
+  onClick,
 }: {
   icon: ReactNode;
   title: string;
   description: string;
+  onClick: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl bg-ink-50 px-3 py-3 text-ink-600">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 rounded-xl bg-ink-50 px-3 py-3 text-left text-ink-600 transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    >
       <span className="text-accent-ink">{icon}</span>
       <span>
         <span className="block text-[12px] font-medium text-ink-900">
@@ -804,7 +867,7 @@ function QuickLink({
         </span>
       </span>
       <IconChevronRight size={14} className="ml-auto text-ink-400" />
-    </div>
+    </button>
   );
 }
 
@@ -825,12 +888,14 @@ function WalletSection({
   loadedLimit,
   fetching,
   onLoadMore,
+  onAction,
 }: {
   profile: AccountProfileResponse;
   ledger: LedgerViewProjection;
   loadedLimit: number;
   fetching: boolean;
   onLoadMore: () => void;
+  onAction: (message: string) => void;
 }) {
   return (
     <div className="space-y-8">
@@ -859,12 +924,18 @@ function WalletSection({
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() =>
+                onAction("本地充值入口已准备就绪；该确定性样本不会创建支付订单。")
+              }
               className="rounded-lg bg-accent px-3 py-2 text-[12px] font-medium text-[#10222b] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               充值
             </button>
             <button
               type="button"
+              onClick={() =>
+                onAction("积分消耗顺序由本地账本固定演示，不需要额外设置。")
+              }
               className="rounded-lg border border-ink-200 px-3 py-2 text-[12px] text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               设置消耗顺序
@@ -896,7 +967,13 @@ function WalletSection({
   );
 }
 
-function MembershipSection({ profile }: { profile: AccountProfileResponse }) {
+function MembershipSection({
+  profile,
+  onAction,
+}: {
+  profile: AccountProfileResponse;
+  onAction: (message: string) => void;
+}) {
   return (
     <div className="max-w-3xl space-y-5">
       <section
@@ -917,6 +994,9 @@ function MembershipSection({ profile }: { profile: AccountProfileResponse }) {
           </div>
           <button
             type="button"
+            onClick={() =>
+              onAction("本地订阅方案已准备就绪；该确定性样本不会创建订阅订单。")
+            }
             className="rounded-lg bg-[#e7b758] px-3.5 py-2 text-[12px] font-medium text-[#261d0d] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             开通会员
@@ -941,6 +1021,9 @@ function MembershipSection({ profile }: { profile: AccountProfileResponse }) {
         </p>
         <button
           type="button"
+          onClick={() =>
+            onAction("暂无本地购买记录或可开具发票；此样本不会请求支付服务。")
+          }
           className="mt-4 rounded-lg border border-ink-200 px-3 py-2 text-[12px] text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           查看购买记录
@@ -961,8 +1044,14 @@ function Benefit({ label, value }: { label: string; value: string }) {
 
 function NotificationsSection({
   profile,
+  busy,
+  onMarkAllRead,
+  onAction,
 }: {
   profile: AccountProfileResponse;
+  busy: boolean;
+  onMarkAllRead: () => void;
+  onAction: (message: string) => void;
 }) {
   const [tab, setTab] = useState<"official" | "likes">("official");
   return (
@@ -997,6 +1086,8 @@ function NotificationsSection({
         </div>
         <button
           type="button"
+          onClick={onMarkAllRead}
+          disabled={busy || profile.unreadCount === 0}
           className="text-[12px] text-accent-ink hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           一键已读
@@ -1027,6 +1118,9 @@ function NotificationsSection({
                 </p>
                 <button
                   type="button"
+                  onClick={() =>
+                    onAction(`已显示“${notice.title}”的本地通知详情。`)
+                  }
                   className="mt-3 text-[11px] text-accent-ink hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   展开详情 <IconChevronRight size={12} className="inline" />
@@ -1049,17 +1143,17 @@ function NotificationsSection({
 function PreferencesSection({
   theme,
   watermark,
-  recommendations,
+  busy,
   onThemeChange,
   onWatermarkChange,
-  onRecommendationsChange,
+  onAction,
 }: {
   theme: "light" | "dark";
   watermark: boolean;
-  recommendations: boolean;
+  busy: boolean;
   onThemeChange: (theme: "light" | "dark") => void;
   onWatermarkChange: (next: boolean) => void;
-  onRecommendationsChange: (next: boolean) => void;
+  onAction: (message: string) => void;
 }) {
   return (
     <div className="max-w-3xl space-y-5">
@@ -1070,18 +1164,20 @@ function PreferencesSection({
         <div className="border-b border-ink-100 pb-4">
           <h2 className="text-[14px] font-medium text-ink-900">显示偏好</h2>
           <p className="mt-1 text-[12px] text-ink-500">
-            主题选择即时生效，并保存在当前浏览器。
+            主题与 AI 水印会通过本地账户 API 立即同步到身份菜单。
           </p>
           <div className="mt-4 flex gap-2">
             <ThemeButton
               active={theme === "light"}
               onClick={() => onThemeChange("light")}
+              disabled={busy}
               label="浅色"
               icon="☼"
             />
             <ThemeButton
               active={theme === "dark"}
               onClick={() => onThemeChange("dark")}
+              disabled={busy}
               label="深色"
               icon="◐"
             />
@@ -1093,12 +1189,6 @@ function PreferencesSection({
             onChange={onWatermarkChange}
             label="AI 水印"
             description="为生成内容添加 AI 生成明水印"
-          />
-          <Toggle
-            checked={recommendations}
-            onChange={onRecommendationsChange}
-            label="个性化推荐"
-            description="根据创作偏好调整首页与模型推荐"
           />
         </div>
       </section>
@@ -1113,6 +1203,9 @@ function PreferencesSection({
         </p>
         <button
           type="button"
+          onClick={() =>
+            onAction("AI 内容标识规则已在本地样本中展示，无需打开外部页面。")
+          }
           className="mt-3 text-[11px] text-accent-ink hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           查看完整规则 <IconChevronRight size={12} className="inline" />
@@ -1127,17 +1220,20 @@ function ThemeButton({
   onClick,
   label,
   icon,
+  disabled,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   icon: string;
+  disabled: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
+      disabled={disabled}
       className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${active ? "border-accent bg-accent-soft text-accent-ink" : "border-ink-200 text-ink-600 hover:bg-ink-50"}`}
     >
       <span aria-hidden="true">{icon}</span>
@@ -1146,7 +1242,13 @@ function ThemeButton({
   );
 }
 
-function CredentialsSection({ profile }: { profile: AccountProfileResponse }) {
+function CredentialsSection({
+  profile,
+  onAction,
+}: {
+  profile: AccountProfileResponse;
+  onAction: (message: string) => void;
+}) {
   return (
     <div className="max-w-3xl space-y-5">
       <section
@@ -1174,6 +1276,9 @@ function CredentialsSection({ profile }: { profile: AccountProfileResponse }) {
             </span>
             <button
               type="button"
+              onClick={() =>
+                onAction("Access Key 仅提供脱敏本地入口，不会生成或保存真实凭据。")
+              }
               className="rounded-lg border border-ink-200 px-3 py-1.5 text-[11px] text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               创建 Access Key

@@ -137,6 +137,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   const [moveEditor, setMoveEditor] = useState<{ ids: string[]; target: string | null } | null>(null)
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null)
   const [cardMenu, setCardMenu] = useState<{ asset: Asset; anchor: { x: number; y: number } } | null>(null)
+  const [detailAsset, setDetailAsset] = useState<Asset | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
 
   const createMenu = useMenuAnchor()
@@ -213,6 +214,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
     setRenamingId(null)
     setTagPopoverOpen(false)
     setCardMenu(null)
+    setDetailAsset(null)
     setFolderId(null)
     setUploadOpen(false)
   }, [open])
@@ -413,7 +415,14 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   }
 
   return (
-    <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="asset-library-panel">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      variant="panel"
+      width={900}
+      hideHeader
+      testId="asset-library-panel"
+    >
       <div className="flex items-center justify-between gap-4 border-b border-ink-100 px-6 py-4">
         <h2 className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold text-ink-900">
           {currentFolder ? (
@@ -811,6 +820,10 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
           width={168}
           onClose={() => setCardMenu(null)}
           sections={cardMenuSections(cardMenu.asset, {
+            onDetails: () => {
+              setCardMenu(null)
+              setDetailAsset(cardMenu.asset)
+            },
             onRename: () => setRenamingId(cardMenu.asset.id),
             onTags: () => setTagEditor({ ids: [cardMenu.asset.id], draft: cardMenu.asset.tags }),
             onMove: () => setMoveEditor({ ids: [cardMenu.asset.id], target: cardMenu.asset.folderId }),
@@ -818,6 +831,15 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
           })}
         />
       )}
+
+      <AssetDetailDialog
+        asset={detailAsset}
+        onClose={() => setDetailAsset(null)}
+        onInsert={(asset) => {
+          onInsert(asset)
+          onClose()
+        }}
+      />
 
       <Dialog
         open={Boolean(tagEditor)}
@@ -1001,7 +1023,7 @@ function AssetCard({
         }
       }}
       className={cn(
-        'group relative overflow-hidden rounded-xl bg-surface text-left ring-1 transition-shadow outline-none',
+        'group relative overflow-hidden rounded-xl bg-surface text-left ring-1 transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         selected ? 'ring-2 ring-accent' : 'ring-ink-100 hover:shadow-[var(--shadow-float)]',
         blockedByCap && 'opacity-50',
       )}
@@ -1045,7 +1067,7 @@ function AssetCard({
                 const rect = e.currentTarget.getBoundingClientRect()
                 onOpenMenu({ x: rect.right, y: rect.bottom + 6 })
               }}
-              className="absolute right-1.5 top-1.5 rounded-lg bg-white/92 p-1 text-ink-600 opacity-0 shadow-sm transition-opacity hover:text-ink-900 group-hover:opacity-100"
+              className="absolute right-1.5 top-1.5 rounded-lg bg-white/92 p-1 text-ink-600 opacity-0 shadow-sm transition-opacity hover:text-ink-900 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100"
             >
               <IconMore size={14} />
             </button>
@@ -1091,6 +1113,94 @@ function AssetCard({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function AssetDetailDialog({
+  asset,
+  onClose,
+  onInsert,
+}: {
+  asset: Asset | null
+  onClose: () => void
+  onInsert: (asset: Asset) => void
+}) {
+  if (!asset) return null
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="资产详情"
+      width={520}
+      testId="asset-detail-dialog"
+    >
+      <div className="space-y-4">
+        <div className="overflow-hidden rounded-xl ring-1 ring-ink-100">
+          <div className="h-52 bg-ink-100">
+            <AssetThumbnail asset={asset} />
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t border-ink-100 px-3 py-2 text-[11px] text-ink-400">
+            <span className="truncate">{asset.name}</span>
+            <span className="shrink-0">{KIND_LABEL[asset.kind]}</span>
+          </div>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-xl bg-ink-50 p-3 text-[12px]">
+          <DetailRow
+            label="尺寸"
+            value={asset.width && asset.height ? `${asset.width} × ${asset.height}` : '—'}
+          />
+          <DetailRow
+            label="时长"
+            value={asset.durationSeconds ? formatDuration(asset.durationSeconds) : '—'}
+          />
+          <DetailRow label="文件大小" value={formatAssetBytes(asset.byteSize)} />
+          <DetailRow label="来源" value={asset.sourceArtifactId ? '生成产物' : '本地上传'} />
+          <DetailRow label="加入时间" value={formatAssetDate(asset.createdAt)} />
+          <DetailRow label="资产 ID" value={asset.id} />
+          <div className="col-span-2">
+            <dt className="mb-1 text-ink-400">标签</dt>
+            <dd className="flex min-h-5 flex-wrap gap-1.5">
+              {asset.tags.length > 0 ? (
+                asset.tags.map((tag) => <Chip key={tag}>{tag}</Chip>)
+              ) : (
+                <span className="text-ink-500">未添加标签</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-3.5 py-2 text-[13px] font-medium text-ink-600 transition-colors hover:bg-ink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            关闭
+          </button>
+          <button
+            type="button"
+            data-testid="asset-detail-insert"
+            onClick={() => onInsert(asset)}
+            className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            插入画布
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-ink-400">{label}</dt>
+      <dd className="mt-0.5 truncate font-medium text-ink-700" title={value}>
+        {value}
+      </dd>
     </div>
   )
 }
@@ -1296,11 +1406,12 @@ function FolderOption({
 
 function cardMenuSections(
   asset: Asset,
-  actions: { onRename: () => void; onTags: () => void; onMove: () => void; onDelete: () => void },
+  actions: { onDetails: () => void; onRename: () => void; onTags: () => void; onMove: () => void; onDelete: () => void },
 ): MenuSection[] {
   return [
     {
       items: [
+        { id: 'details', label: '查看详情', icon: <IconAssetLibrary size={14} />, onSelect: actions.onDetails },
         { id: 'rename', label: '重命名', icon: <IconRename size={14} />, onSelect: actions.onRename },
         { id: 'tags', label: '修改标签', icon: <IconFilter size={14} />, onSelect: actions.onTags },
         { id: 'move', label: '移动', icon: <IconFolder size={14} />, onSelect: actions.onMove },
@@ -1338,6 +1449,27 @@ function formatDuration(seconds: number): string {
   // "1:60" because the carry never reaches the minutes.
   const total = Math.round(seconds)
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+export function formatAssetBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  const kilobytes = bytes / 1024
+  if (kilobytes < 1024) return `${kilobytes.toFixed(kilobytes >= 100 ? 0 : 1)} KB`
+  const megabytes = kilobytes / 1024
+  return `${megabytes.toFixed(megabytes >= 100 ? 0 : 1)} MB`
+}
+
+export function formatAssetDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 /** Deterministic hue so a thumbnail-less asset keeps the same colour forever. */

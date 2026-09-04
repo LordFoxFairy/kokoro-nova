@@ -395,29 +395,78 @@ export function CharacterPanel({
   const [selected, setSelected] = useState<CharacterPreset>(CHARACTER_PRESETS[0])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN')
 
-  const visible = CHARACTER_PRESETS.filter((c) =>
-    Object.entries(filters).every(([key, value]) => {
-      if (!value || value === '全部') return true
-      const field = { 性别: c.gender, 年龄: c.age, 种族: c.ethnicity, 时代: c.era, 文化区域: c.culture, 体型: c.build, 发色: c.hair }[key]
-      return field === value
-    }),
+  const visible = useMemo(
+    () =>
+      CHARACTER_PRESETS.filter((c) =>
+        Object.entries(filters).every(([key, value]) => {
+          if (!value || value === '全部') return true
+          const field = {
+            性别: c.gender,
+            年龄: c.age,
+            种族: c.ethnicity,
+            时代: c.era,
+            文化区域: c.culture,
+            体型: c.build,
+            发色: c.hair,
+          }[key]
+          return field === value
+        }) && `${c.name} ${c.tags.join(' ')}`.toLocaleLowerCase('zh-CN').includes(normalizedQuery),
+      ),
+    [filters, normalizedQuery],
   )
+  const filtersActive = Boolean(
+    normalizedQuery.length > 0 || Object.values(filters).some((value) => value && value !== '全部'),
+  )
+
+  useEffect(() => {
+    if (visible.length > 0 && !visible.some((character) => character.id === selected.id)) setSelected(visible[0])
+  }, [selected.id, visible])
 
   return (
     <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="character-panel">
       <div className="flex items-center justify-between border-b border-ink-100 px-6 py-4">
         <h2 className="text-[15px] font-semibold text-ink-900">角色库</h2>
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn(
-            'rounded-lg px-3 py-1.5 text-[12px] transition-colors',
-            filtersOpen ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
+            <IconSearch size={13} className="text-ink-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索角色或标签"
+              aria-label="搜索角色或标签"
+              className="w-36 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
+            />
+          </div>
+          {filtersActive && (
+            <button
+              type="button"
+              data-testid="character-filter-clear"
+              onClick={() => {
+                setQuery('')
+                setFilters({})
+              }}
+              className="rounded-lg px-2.5 py-1.5 text-[12px] text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              清除
+            </button>
           )}
-        >
-          筛选
-        </button>
+          <button
+            type="button"
+            data-testid="character-filter-toggle"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className={cn(
+              'rounded-lg px-3 py-1.5 text-[12px] transition-colors',
+              filtersOpen || filtersActive ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600',
+            )}
+          >
+            筛选
+            {filtersActive && <span className="ml-1 rounded-full bg-white/20 px-1.5 text-[10px]">{visible.length}</span>}
+          </button>
+        </div>
       </div>
 
       {filtersOpen && (
@@ -472,19 +521,23 @@ export function CharacterPanel({
             应用至画布
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-3">
-          {selected.references.map((ref) => (
-            <div key={ref.key} className="overflow-hidden rounded-xl ring-1 ring-ink-100">
-              <div
-                className="h-32"
-                style={{
-                  background: `linear-gradient(150deg, hsl(${ref.hue} 55% 66%), hsl(${(ref.hue + 40) % 360} 50% 44%))`,
-                }}
-              />
-              <div className="p-2 text-[11px] text-ink-600">{ref.label}</div>
-            </div>
-          ))}
-        </div>
+        {visible.length === 0 ? (
+          <EmptyState compact title="没有匹配的角色" description="调整搜索词或筛选条件后重试。" />
+        ) : (
+          <div className="grid grid-cols-4 gap-3">
+            {selected.references.map((ref) => (
+              <div key={ref.key} className="overflow-hidden rounded-xl ring-1 ring-ink-100">
+                <div
+                  className="h-32"
+                  style={{
+                    background: `linear-gradient(150deg, hsl(${ref.hue} 55% 66%), hsl(${(ref.hue + 40) % 360} 50% 44%))`,
+                  }}
+                />
+                <div className="p-2 text-[11px] text-ink-600">{ref.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="thin-scrollbar flex gap-3 overflow-x-auto border-t border-ink-100 px-6 py-4">
@@ -494,7 +547,7 @@ export function CharacterPanel({
             type="button"
             onClick={() => setSelected(character)}
             className={cn(
-              'shrink-0 overflow-hidden rounded-xl text-left ring-1 transition-shadow',
+              'shrink-0 overflow-hidden rounded-xl text-left ring-1 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
               character.id === selected.id ? 'ring-2 ring-accent' : 'ring-ink-100 hover:shadow-[var(--shadow-float)]',
             )}
             style={{ width: 108 }}
@@ -508,6 +561,7 @@ export function CharacterPanel({
             <div className="truncate p-1.5 text-[11px] text-ink-700">{character.name}</div>
           </button>
         ))}
+        {visible.length === 0 && <span className="self-center text-[11px] text-ink-400">清除筛选后查看角色目录</span>}
       </div>
     </Dialog>
   )

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterLibraryAssets, assetLibraryStateLabel } from '../AssetLibraryPanel'
+import { filterLibraryAssets, assetLibraryStateLabel, formatAssetBytes, formatAssetDate } from '../AssetLibraryPanel'
 import type { Asset } from '@/domain/types'
 
 const asset = (overrides: Partial<Asset> = {}): Asset => ({
@@ -46,5 +46,14 @@ describe('asset library helpers', () => {
     expect(assetLibraryStateLabel('loading')).toBe('加载中')
     expect(assetLibraryStateLabel('ready')).toBe('已加载')
     expect(assetLibraryStateLabel('error')).toBe('加载失败')
+  })
+
+  it('formats detail metadata into compact, human-readable values', () => {
+    expect(formatAssetBytes(900)).toBe('900 B')
+    expect(formatAssetBytes(2048)).toBe('2.0 KB')
+    expect(formatAssetBytes(5 * 1024 * 1024)).toBe('5.0 MB')
+    expect(formatAssetBytes(0)).toBe('—')
+    expect(formatAssetDate('not-a-date')).toBe('—')
+    expect(formatAssetDate('2026-09-04T10:05:00.000Z')).toContain('2026')
   })
 })

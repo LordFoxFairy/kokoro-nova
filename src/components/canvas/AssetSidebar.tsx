@@ -57,6 +57,19 @@ export function filterSidebarAssets(
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
 }
 
+/** Filter canvas nodes without treating the search affordance's blank value as a query. */
+export function filterSidebarNodes<T extends { name: string; type: NodeType }>(
+  nodes: readonly T[],
+  options: { query?: string; type?: NodeType | 'all' } = {},
+): T[] {
+  const type = options.type ?? 'all'
+  const query = options.query?.trim().toLocaleLowerCase('zh-CN') ?? ''
+  return nodes.filter((node) => {
+    if (type !== 'all' && node.type !== type) return false
+    return !query || node.name.toLocaleLowerCase('zh-CN').includes(query)
+  })
+}
+
 /**
  * Two-level asset management.
  *
@@ -98,6 +111,7 @@ export function AssetSidebar({
   const [uploadOpen, setUploadOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState<NodeType | 'all'>('all')
   const [query, setQuery] = useState('')
+  const [nodeSearchOpen, setNodeSearchOpen] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [width, setWidth] = useState(240)
   const dragging = useRef(false)
@@ -108,10 +122,8 @@ export function AssetSidebar({
   const assetRequestSeq = useRef(0)
 
   const nodes = useMemo(() => {
-    let list = [...document.nodes].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    if (typeFilter !== 'all') list = list.filter((n) => n.type === typeFilter)
-    if (query) list = list.filter((n) => n.name.toLowerCase().includes(query.toLowerCase()))
-    return list
+    const list = [...document.nodes].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return filterSidebarNodes(list, { type: typeFilter, query })
   }, [document.nodes, typeFilter, query])
 
   const loadAssets = useCallback(async () => {
@@ -219,15 +231,19 @@ export function AssetSidebar({
             </button>
             <button
               type="button"
-              onClick={() => setQuery(query ? '' : ' ')}
-              className="rounded-md p-1 text-ink-500 hover:bg-ink-50"
+              onClick={() => {
+                setNodeSearchOpen((value) => !value)
+                if (nodeSearchOpen) setQuery('')
+              }}
+              aria-pressed={nodeSearchOpen}
+              className="rounded-md p-1 text-ink-500 hover:bg-ink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               aria-label="搜索节点"
             >
               <IconSearch size={14} />
             </button>
           </div>
 
-          {query !== '' && (
+          {nodeSearchOpen && (
             <div className="px-3 pb-2">
               <input
                 autoFocus
@@ -251,8 +267,17 @@ export function AssetSidebar({
                     key={node.id}
                     data-testid={`sidebar-node-${node.id}`}
                     onClick={() => onLocateNode(node.id)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      onLocateNode(node.id)
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`定位节点 ${node.name}`}
                     className={cn(
-                      'group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors',
+                      'group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
                       active ? 'bg-accent-soft' : 'hover:bg-ink-50',
                     )}
                   >
@@ -279,7 +304,7 @@ export function AssetSidebar({
                         setMenuNodeId(node.id)
                         rowMenu.openFrom(e, 'point')
                       }}
-                      className="shrink-0 rounded p-0.5 text-ink-400 opacity-0 transition-opacity hover:bg-ink-100 group-hover:opacity-100"
+                      className="shrink-0 rounded p-0.5 text-ink-400 opacity-0 transition-opacity hover:bg-ink-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100"
                     >
                       <IconMore size={13} />
                     </button>

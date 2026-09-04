@@ -163,7 +163,14 @@ export interface DirectorStudioProps {
  */
 export function DirectorStudio({ open, onClose, initialScene, initialShots, onSave }: DirectorStudioProps) {
   return (
-    <Dialog open={open} onClose={onClose} variant="panel" width={1360} hideHeader testId="director-studio">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      variant="panel"
+      width={1360}
+      hideHeader
+      testId="director-studio"
+    >
       <StudioBody initialScene={initialScene} initialShots={initialShots} onClose={onClose} onSave={onSave} />
     </Dialog>
   )
@@ -497,7 +504,7 @@ function StudioBody({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-ink-600 transition-colors hover:bg-ink-50"
+            className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-ink-600 transition-colors hover:bg-ink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           >
             取消
           </button>
@@ -830,8 +837,17 @@ function TreeRow({
     <div
       data-testid={testId}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onSelect()
+      }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
       className={cn(
-        'group flex cursor-default items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] transition-colors',
+        'group flex cursor-default items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
         selected ? 'bg-accent-soft text-accent-ink' : 'text-ink-700 hover:bg-ink-50',
       )}
     >
@@ -847,7 +863,7 @@ function TreeRow({
             onActivate()
           }}
           className={cn(
-            'shrink-0 rounded p-0.5 transition-colors',
+            'shrink-0 rounded p-0.5 transition-colors focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
             active ? 'text-accent' : 'text-ink-300 opacity-0 hover:text-ink-600 group-hover:opacity-100',
           )}
         >
@@ -862,7 +878,7 @@ function TreeRow({
             event.stopPropagation()
             onDelete()
           }}
-          className="shrink-0 rounded p-0.5 text-ink-300 opacity-0 transition-colors hover:text-danger group-hover:opacity-100"
+          className="shrink-0 rounded p-0.5 text-ink-300 opacity-0 transition-colors hover:text-danger focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100"
         >
           <IconTrash size={12} />
         </button>

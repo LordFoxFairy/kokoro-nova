@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterSidebarAssets, sidebarAssetKindLabel } from '../AssetSidebar'
+import { filterSidebarAssets, filterSidebarNodes, sidebarAssetKindLabel } from '../AssetSidebar'
 import type { Asset } from '@/domain/types'
 
 const asset = (overrides: Partial<Asset> = {}): Asset => ({
@@ -40,5 +40,15 @@ describe('asset sidebar helpers', () => {
     expect(sidebarAssetKindLabel('video')).toBe('视频')
     expect(sidebarAssetKindLabel('audio')).toBe('音频')
     expect(sidebarAssetKindLabel('text')).toBe('文本')
+  })
+
+  it('treats the closed-search blank as no node filter', () => {
+    const nodes = [
+      { name: 'Story brief', type: 'text' as const },
+      { name: 'Hero still', type: 'image' as const },
+    ]
+
+    expect(filterSidebarNodes(nodes, { query: ' ' })).toEqual(nodes)
+    expect(filterSidebarNodes(nodes, { query: 'hero', type: 'image' })).toEqual([nodes[1]])
   })
 })

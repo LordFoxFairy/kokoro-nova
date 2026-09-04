@@ -392,6 +392,52 @@ test('asset library opens from the add-resource menu', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS}/asset-library.png` })
 })
 
+test('asset library exposes detail metadata and an insert action', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', {
+    data: { scenarioId: 'authenticated-populated' },
+  })
+  expect(selected.ok()).toBe(true)
+
+  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await page.getByTestId('add-node-button').click()
+  await page.getByRole('menuitem', { name: '上传', exact: true }).click()
+
+  const library = page.getByTestId('asset-library-panel')
+  await expect(library).toBeVisible()
+  const card = library.getByTestId('asset-card-asset_image_seed')
+  await expect(card).toBeVisible()
+
+  // This is the 1440×900 baseline for the canvas side tools. CSS scale keeps
+  // the artifact at the viewport contract even though the browser runs at 2×.
+  const png = await page.screenshot({
+    path: `${SHOTS}/canvas-asset-tools-1440x900.png`,
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+  })
+  expect(png.readUInt32BE(16)).toBe(1440)
+  expect(png.readUInt32BE(20)).toBe(900)
+
+  await card.getByTestId('asset-menu-asset_image_seed').click()
+  const cardMenu = page.getByTestId('menu').last()
+  await expect(cardMenu).toBeVisible()
+  await expect(cardMenu).toContainText('查看详情')
+  await cardMenu.getByRole('menuitem', { name: '查看详情', exact: true }).click()
+  const detail = page.getByTestId('asset-detail-dialog')
+  await expect(detail).toBeVisible()
+  await expect(detail).toContainText('178 KB')
+  await expect(detail).toContainText('生成产物')
+  await expect(detail).toContainText('场景')
+
+  const inserted = waitForCanvasMutation(page)
+  await detail.getByTestId('asset-detail-insert').click()
+  await inserted
+  await expect(detail).toHaveCount(0)
+  await expect(library).toHaveCount(0)
+  await expect(page.locator('[data-node-type="image"]')).toHaveCount(2)
+})
+
 test('Escape closes only the topmost dialog layer', async ({ page }) => {
   await createProject(page)
   await page.getByTestId('open-toolbox').click()

@@ -210,15 +210,15 @@ git commit -m "feat: add script v2 migration and adapters"
 - Produces: `CreateScriptV2RunRequestSchema`, `ScriptV2RunSchema`, `ScriptV2RunResponseSchema`, `TransitionScriptV2RunRequestSchema`.
 - Consumes: canonical domain constants and discriminants from Tasks 1–2.
 
-- [ ] **Step 1: Write failing schema tests for the persisted example**
+- [x] **Step 1: Write failing schema tests for the persisted example**
 
 Parse `script-v2-state.json`, assert two independent prompt tracks, all three asset buckets, stable ids, and rejection of duration 4, duration 16 and unknown shot sizes.
 
-- [ ] **Step 2: Implement strict nested schemas with bounded arrays and strings**
+- [x] **Step 2: Implement strict nested schemas with bounded arrays and strings**
 
 Use `.strict()` for API envelopes and `.passthrough()` only for the sanitized official evidence schema. Export inferred request/response types from Zod.
 
-- [ ] **Step 3: Add quote/run examples and failing discriminated-union tests**
+- [x] **Step 3: Add quote/run examples and failing discriminated-union tests**
 
 Operations are exactly:
 
@@ -232,17 +232,17 @@ type ScriptV2Operation =
 
 Each run result must be operation-specific; a prompt recompute result cannot carry an asset result.
 
-- [ ] **Step 4: Embed `ScriptV2StateSchema` in `NodeExtraSchema`**
+- [x] **Step 4: Embed `ScriptV2StateSchema` in `NodeExtraSchema`**
 
 Add `scriptV2: ScriptV2StateSchema.optional()` while retaining catchall compatibility for legacy extras.
 
-- [ ] **Step 5: Run examples and local contract suites**
+- [x] **Step 5: Run examples and local contract suites**
 
 Run: `pnpm vitest run src/contracts/__tests__/script-v2-examples.test.ts src/contracts/__tests__/canvas.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```bash
 git add src/contracts/script-v2.ts src/contracts/local.ts src/contracts/__tests__/script-v2-examples.test.ts docs/api/examples/script-v2-*.json

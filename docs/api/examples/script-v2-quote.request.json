@@ -1,0 +1,8 @@
+{
+  "operation": "generate-asset",
+  "modelId": "lib-image-2",
+  "assetCount": 1,
+  "quality": "standard",
+  "resolution": "2K",
+  "aspectRatio": "2:1"
+}

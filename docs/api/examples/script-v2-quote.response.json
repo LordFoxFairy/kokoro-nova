@@ -1,0 +1,15 @@
+{
+  "quote": {
+    "id": "quote_script_fixture_01",
+    "operation": "generate-asset",
+    "credits": 18,
+    "priceVersion": "script-v2-local-1",
+    "expiresAt": "2026-09-03T00:05:00.000Z",
+    "breakdown": [
+      {
+        "label": "Lib Image 标准 2K × 1",
+        "credits": 18
+      }
+    ]
+  }
+}

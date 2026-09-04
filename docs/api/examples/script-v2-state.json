@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "identitySeed": "script_fixture",
+  "nextRowOrdinal": 2,
+  "nextAssetOrdinal": 2,
+  "entry": "screenplay",
+  "activeStage": "prompts",
+  "title": "雨夜来信",
+  "originalStoryText": "林夏在雨夜车站收到一封迟到十年的信。",
+  "styleDescription": "克制的电影感，冷蓝雨夜与暖色站台灯形成对比",
+  "rows": [
+    {
+      "id": "shot_fixture_01",
+      "hiddenUuid": "hidden_fixture_01",
+      "shotNumber": 1,
+      "durationSeconds": 8,
+      "plotDescription": "林夏独自站在雨夜车站，低头看向手中的旧信封。",
+      "plotDescriptionEntityRefs": [
+        {
+          "text": "林夏",
+          "assetId": "asset_character_linxia"
+        }
+      ],
+      "characters": [
+        {
+          "characterName": "林夏",
+          "characterAssetId": "asset_character_linxia",
+          "characterDescription": "二十多岁，黑色风衣，短发，神情克制",
+          "characterImageUrl": "/fixtures/libtv/script/character-linxia.svg"
+        }
+      ],
+      "cinematics": {
+        "shotSize": "中景",
+        "cameraMovement": "缓慢推近",
+        "lighting": "冷蓝环境光与暖色顶灯"
+      },
+      "shotSize": "中景",
+      "emotion": "迟疑",
+      "sceneAssetIds": [],
+      "propTags": "旧信封",
+      "propAssetIds": [],
+      "lightingAndAtmosphere": "细雨、潮湿反光、安静的暖色站台灯",
+      "audioEffects": "雨声与远处列车制动声",
+      "dialogue": "旁白：有些答案，总会迟到。",
+      "dialogueLines": [
+        {
+          "text": "有些答案，总会迟到。",
+          "kind": "voiceover"
+        }
+      ],
+      "voiceover": "有些答案，总会迟到。",
+      "bgm": "低音钢琴长音",
+      "sfx": "雨滴敲击金属顶棚",
+      "imageGenerationPrompt": "电影感雨夜车站，中景构图，年轻女性林夏身穿黑色风衣独自站在站台，短发被雨水打湿，双手握着泛黄旧信封，冷蓝环境光包围人物，暖色顶灯勾勒轮廓，湿润地面形成细腻反射，背景列车虚化，浅景深，克制情绪，真实材质，高动态范围，细节清晰。",
+      "videoMotionPrompt": "镜头从雨幕后的固定中景开始，细雨持续从画面上方向下落，站台灯在湿润地面形成轻微流动的暖色反光。林夏先保持静止，随后用拇指缓慢摩挲旧信封边缘，呼吸带动肩部轻微起伏；接着镜头沿视线方向平稳推近，她低头读到署名时短暂停顿，再微微抬眼望向远处列车。与此同时背景列车由右向左缓慢滑过并逐渐虚化，风吹动风衣下摆和短发。最后镜头停在近景，雨声压低，暖色轮廓光保持稳定，动作自然连续且人物外观一致。",
+      "imageToVideoMotionPrompt": "镜头从雨幕后的固定中景开始，随后平稳推近人物；林夏摩挲信封、低头停顿并抬眼，背景列车缓慢滑过。",
+      "userEditedImageToVideoMotionPrompt": "保留缓慢推近，并让列车在背景中从右向左经过。",
+      "imageVersions": [],
+      "videoVersions": [],
+      "colorLabel": null,
+      "imagePromptState": "synced",
+      "videoPromptState": "user_edited",
+      "textHash": "script-v2-text-v1:fixture01",
+      "payloadHash": "script-v2-payload-v1:fixture01"
+    }
+  ],
+  "assets": {
+    "characters": [
+      {
+        "id": "asset_character_linxia",
+        "role": "character",
+        "name": "林夏",
+        "description": "二十多岁，黑色风衣，短发，神情克制",
+        "source": "ai",
+        "status": "ready",
+        "thumbnailUrl": "/fixtures/libtv/script/character-linxia.svg",
+        "isPrimary": true,
+        "compliance": {
+          "state": "pass",
+          "updatedAt": "2026-09-03T00:00:00.000Z"
+        },
+        "generation": {
+          "modelId": "lib-image-2",
+          "prompt": "黑色风衣、短发、克制神情的年轻女性角色设定图",
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "2:1"
+        },
+        "createdAt": "2026-09-03T00:00:00.000Z",
+        "updatedAt": "2026-09-03T00:00:00.000Z"
+      }
+    ],
+    "scenes": [],
+    "props": []
+  },
+  "generator": {
+    "modelId": "gvlm-3.1",
+    "prompt": "林夏在雨夜车站收到一封迟到十年的信。",
+    "translating": true,
+    "referenceIds": [],
+    "status": "idle",
+    "error": null
+  },
+  "promptComposer": {
+    "singleMode": "smart",
+    "batchMode": "smart",
+    "modelId": "gvlm-3.1"
+  },
+  "promptBatchRuns": []
+}

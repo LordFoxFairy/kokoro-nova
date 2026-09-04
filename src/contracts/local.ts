@@ -7,9 +7,11 @@ import {
   AudioVoiceSchema,
 } from './audio'
 import { ScenarioResponseSchema } from './scenario'
+import { ScriptV2StateSchema } from './script-v2'
 import { TextAuthoringStateSchema } from './text'
 
 export { TextAuthoringStateSchema } from './text'
+export { ScriptV2StateSchema } from './script-v2'
 
 const IsoTimestampSchema = z.string().datetime()
 
@@ -103,6 +105,7 @@ export const NodeReferenceSchema = z.object({
 export const NodeExtraSchema = z
   .object({
     audioAuthoring: AudioAuthoringStateSchema.optional(),
+    scriptV2: ScriptV2StateSchema.optional(),
     textAuthoring: TextAuthoringStateSchema.optional(),
   })
   .catchall(z.unknown())

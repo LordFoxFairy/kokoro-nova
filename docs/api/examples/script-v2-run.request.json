@@ -1,0 +1,32 @@
+{
+  "idempotencyKey": "script_asset_fixture_01",
+  "canvasId": "canvas_fixture",
+  "nodeId": "node_script_fixture",
+  "operation": "generate-asset",
+  "input": {
+    "asset": {
+      "id": "asset_character_linxia",
+      "role": "character",
+      "name": "林夏",
+      "description": "二十多岁，黑色风衣，短发，神情克制",
+      "source": "ai",
+      "status": "pending",
+      "generation": {
+        "modelId": "lib-image-2",
+        "prompt": "黑色风衣、短发、克制神情的年轻女性角色设定图",
+        "quality": "standard",
+        "resolution": "2K",
+        "aspectRatio": "2:1"
+      },
+      "createdAt": "2026-09-03T00:00:00.000Z",
+      "updatedAt": "2026-09-03T00:00:00.000Z"
+    },
+    "settings": {
+      "modelId": "lib-image-2",
+      "prompt": "黑色风衣、短发、克制神情的年轻女性角色设定图",
+      "quality": "standard",
+      "resolution": "2K",
+      "aspectRatio": "2:1"
+    }
+  }
+}

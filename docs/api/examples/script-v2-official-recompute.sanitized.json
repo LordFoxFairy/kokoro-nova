@@ -1,0 +1,70 @@
+{
+  "params": {
+    "prompt": "",
+    "model": "aurora-3-prime",
+    "count": 1,
+    "scene": "script-recompute-prompts-v2",
+    "scenePayload": {
+      "shots": [
+        {
+          "shot_id": "SHOT_ID",
+          "shot_number": 1,
+          "duration_seconds": 8,
+          "plot_description": "林夏在雨夜车站查看旧信封。",
+          "shot_size": "中景",
+          "plot_description_entity_refs": [
+            {
+              "text": "林夏",
+              "asset_id": "ASSET_ID"
+            }
+          ],
+          "dialogue_lines": [
+            {
+              "kind": "voiceover",
+              "text": "有些答案，总会迟到。"
+            }
+          ],
+          "cinematics": {
+            "shot_size": "中景",
+            "camera_movement": "缓慢推近",
+            "lighting": "冷蓝环境光与暖色顶灯"
+          },
+          "lighting_and_atmosphere": "细雨与潮湿反光",
+          "audio_effects": "雨声与远处列车声",
+          "legacy_emotion_hint": "迟疑"
+        }
+      ],
+      "assets": {
+        "characters": [
+          {
+            "id": "ASSET_ID",
+            "role": "character",
+            "name": "林夏",
+            "description": "二十多岁，黑色风衣，短发",
+            "thumbnailUrl": "/fixtures/libtv/script/character-linxia.svg"
+          }
+        ],
+        "scenes": [],
+        "props": []
+      },
+      "story_context": {
+        "original_story_text": "林夏在雨夜车站收到一封迟到十年的信。"
+      },
+      "meta": {
+        "visual_style": "克制的电影感"
+      }
+    },
+    "textList": [],
+    "imageList": [],
+    "imageLabelList": [],
+    "videoList": [],
+    "audioList": []
+  },
+  "provider": "aurora",
+  "model": "aurora-3-prime",
+  "taskType": "text",
+  "metadata": {
+    "node_id": "NODE_ID",
+    "project_id": "PROJECT_ID"
+  }
+}

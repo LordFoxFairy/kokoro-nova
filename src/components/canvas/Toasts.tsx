@@ -32,6 +32,18 @@ export function Toasts() {
             <IconCheck size={15} />
           ) : null}
           <span className="max-w-sm">{toast.message}</span>
+          {toast.action ? (
+            <button
+              type="button"
+              onClick={() => {
+                toast.action?.onClick()
+                dismiss(toast.id)
+              }}
+              className="rounded-md border border-current/40 px-2 py-1 text-xs font-medium transition-colors hover:bg-white/15"
+            >
+              {toast.action.label}
+            </button>
+          ) : null}
           <button
             type="button"
             aria-label="关闭提示"

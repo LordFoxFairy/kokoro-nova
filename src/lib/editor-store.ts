@@ -28,6 +28,14 @@ export interface Toast {
   id: number
   tone: 'info' | 'error' | 'success'
   message: string
+  action?: { label: string; onClick: () => void }
+}
+
+/** A locally retained edit that could not be replayed after two remote writes. */
+export interface ConflictRecovery {
+  label: string
+  document: WorkflowDocument
+  produce: (doc: WorkflowDocument) => CanvasMutation[]
 }
 
 interface UndoFrame {
@@ -65,6 +73,8 @@ interface EditorState {
 
   undoStack: UndoFrame[]
   redoStack: UndoFrame[]
+  /** Kept in memory until the user retries a mutation that lost two races. */
+  conflictRecovery: ConflictRecovery | null
   toasts: Toast[]
 
   /** Chips queued for the agent composer from canvas selection. */
@@ -84,6 +94,7 @@ interface EditorActions {
   patchLocal: (mutate: (doc: WorkflowDocument) => WorkflowDocument) => void
   undo: () => Promise<void>
   redo: () => Promise<void>
+  retryConflictRecovery: () => Promise<boolean>
 
   setViewMode: (mode: ViewMode) => void
   select: (ids: string[]) => void
@@ -107,7 +118,7 @@ interface EditorActions {
   pushAgentRef: (ref: { id: string; label: string; kind: 'node' | 'artifact' }) => void
   clearAgentRefs: () => void
 
-  toast: (message: string, tone?: Toast['tone']) => void
+  toast: (message: string, tone?: Toast['tone'], action?: Toast['action']) => void
   dismissToast: (id: number) => void
 }
 
@@ -142,6 +153,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
 
   undoStack: [],
   redoStack: [],
+  conflictRecovery: null,
   toasts: [],
   pendingAgentRefs: [],
 
@@ -173,6 +185,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
         loading: false,
         undoStack: [],
         redoStack: [],
+        conflictRecovery: null,
         selection: [],
         edgeSelection: [],
         inspectedNodeId: null,
@@ -204,6 +217,7 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
       inspectedNodeId: null,
       undoStack: [],
       redoStack: [],
+      conflictRecovery: null,
     })
   },
 
@@ -254,14 +268,38 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
             revision: result.revision,
             undoStack: [...state.undoStack, { label, before: document, after: result.document }].slice(-50),
             redoStack: [],
+            conflictRecovery: null,
           }))
           return true
         } catch (error) {
           set({ document })
-          if (error instanceof ApiError && error.status === 409 && !isRetry) {
-            // Rebase onto the authoritative document, then replay once.
-            await get().reloadCanvas(canvasId)
-            return attempt(true)
+          if (error instanceof ApiError && error.status === 409) {
+            if (!isRetry) {
+              // Rebase onto the authoritative document, then replay once.
+              await get().reloadCanvas(canvasId)
+              return attempt(true)
+            }
+
+            // A second conflict means another editor wrote again during the
+            // rebase. Keep this client’s complete replayed document in memory,
+            // then reload the latest authoritative graph so neither side is
+            // silently discarded. The retry action regenerates mutations from
+            // the newest document rather than posting stale coordinates/data.
+            const recovery: ConflictRecovery = { label, document: optimistic, produce }
+            try {
+              await get().reloadCanvas(canvasId)
+            } catch {
+              // The replayed document remains available in recovery even if a
+              // transient reload failure prevents the visible graph refresh.
+            }
+            set({ conflictRecovery: recovery })
+            get().toast('画布再次更新，已保留本次操作；请检查后重试保存', 'error', {
+              label: '重试保存',
+              onClick: () => {
+                void get().retryConflictRecovery()
+              },
+            })
+            return false
           }
           get().toast(error instanceof Error ? error.message : '保存失败', 'error')
           return false
@@ -359,6 +397,13 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
     return next
   },
 
+  retryConflictRecovery() {
+    const recovery = get().conflictRecovery
+    if (!recovery) return Promise.resolve(false)
+    set({ conflictRecovery: null })
+    return get().commitWith(recovery.produce, recovery.label)
+  },
+
   setViewMode: (viewMode) => set({ viewMode, leftPanel: null }),
   select: (selection) => set({ selection, edgeSelection: [] }),
   selectEdges: (edgeSelection) => set({ edgeSelection, selection: [] }),
@@ -399,10 +444,10 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
     ),
   clearAgentRefs: () => set({ pendingAgentRefs: [] }),
 
-  toast: (message, tone = 'info') => {
+  toast: (message, tone = 'info', action) => {
     toastSeq += 1
     const id = toastSeq
-    set((state) => ({ toasts: [...state.toasts, { id, tone, message }] }))
+    set((state) => ({ toasts: [...state.toasts, { id, tone, message, action }] }))
     setTimeout(() => get().dismissToast(id), 4200)
   },
   dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),

@@ -139,6 +139,73 @@ test('canvas viewport survives a reload as local view state', async ({ page, req
   await expect(zoomReadout).toHaveText(zoom ?? '')
 })
 
+test('canvas switcher persists create, rename, copy and deletion lifecycle', async ({ page, request }) => {
+  await selectCanvasScenario(request, 'authenticated-empty')
+  const initial = await createProjectAndOpenCanvas(page, request)
+
+  const switcher = page.getByTestId('canvas-switcher')
+  await switcher.click()
+  const initialMenu = page.getByTestId('menu')
+  await expect(initialMenu.getByRole('menuitem', { name: '删除画布' })).toBeDisabled()
+  await initialMenu.getByRole('menuitem', { name: '新建画布' }).click()
+
+  const createInput = page.getByTestId('canvas-new-input')
+  await expect(createInput).toBeFocused()
+  await createInput.fill('分镜制作')
+  const createdResponse = page.waitForResponse((response) => {
+    return response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/canvases' && response.ok()
+  })
+  await createInput.press('Enter')
+  const created = (await createdResponse).json() as Promise<{ id: string; projectId: string; name: string }>
+  const createdCanvas = await created
+  expect(createdCanvas).toMatchObject({ projectId: initial.project.id, name: '分镜制作' })
+  await expect
+    .poll(() => {
+      const url = new URL(page.url())
+      return { pathname: url.pathname, projectId: url.searchParams.get('projectId'), canvasId: url.searchParams.get('canvasId') }
+    })
+    .toEqual({ pathname: '/canvas', projectId: initial.project.id, canvasId: createdCanvas.id })
+  await expect(switcher).toContainText('分镜制作')
+
+  await page.reload()
+  await expect(switcher).toContainText('分镜制作')
+  await switcher.click()
+  await page.getByTestId('menu').getByRole('menuitem', { name: '重命名' }).click()
+  const renameInput = page.getByTestId('canvas-rename-input')
+  await renameInput.fill('分镜定稿')
+  const renamedResponse = page.waitForResponse((response) => {
+    return response.request().method() === 'PATCH' && new URL(response.url()).pathname === `/api/canvases/${createdCanvas.id}` && response.ok()
+  })
+  await renameInput.press('Enter')
+  await renamedResponse
+  await page.reload()
+  await expect(switcher).toContainText('分镜定稿')
+
+  await switcher.click()
+  const copiedResponse = page.waitForResponse((response) => {
+    return response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/canvases' && response.ok()
+  })
+  await page.getByTestId('menu').getByRole('menuitem', { name: '复制画布' }).click()
+  const copiedCanvas = (await copiedResponse).json() as Promise<{ id: string; name: string }>
+  const copied = await copiedCanvas
+  expect(copied.name).toBe('分镜定稿副本1')
+  await expect.poll(() => new URL(page.url()).searchParams.get('canvasId')).toBe(copied.id)
+  await expect(switcher).toContainText('分镜定稿副本1')
+
+  await switcher.click()
+  const deletedResponse = page.waitForResponse((response) => {
+    return response.request().method() === 'DELETE' && new URL(response.url()).pathname === `/api/canvases/${copied.id}` && response.ok()
+  })
+  await page.getByTestId('menu').getByRole('menuitem', { name: '删除画布' }).click()
+  await expect(page.getByTestId('confirm-dialog')).toContainText('分镜定稿副本1')
+  await page.getByTestId('confirm-dialog').getByTestId('confirm-submit').click()
+  await deletedResponse
+  // Deleting the current canvas returns to the project's first remaining canvas.
+  await expect.poll(() => new URL(page.url()).searchParams.get('canvasId')).toBe(initial.canvas.id)
+  await expect(switcher).toContainText('画布 1')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+})
+
 test('node context actions and empty-canvas creation provide keyboard-readable feedback', async ({ page, request }) => {
   await selectCanvasScenario(request, 'authenticated-empty')
   await createProjectAndOpenCanvas(page, request)

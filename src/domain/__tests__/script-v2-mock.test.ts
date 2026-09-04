@@ -197,9 +197,21 @@ describe('Script V2 batch graph materialization', () => {
     const state = {
       ...generated,
       assets: {
-        characters: generated.assets.characters.map((asset) => ({ ...asset, status: 'ready' as const })),
-        scenes: generated.assets.scenes.map((asset) => ({ ...asset, status: 'ready' as const })),
-        props: generated.assets.props.map((asset) => ({ ...asset, status: 'ready' as const })),
+        characters: generated.assets.characters.map((asset) => ({
+          ...asset,
+          status: 'ready' as const,
+          thumbnailUrl: '/fixtures/libtv/media/character.webp',
+        })),
+        scenes: generated.assets.scenes.map((asset) => ({
+          ...asset,
+          status: 'ready' as const,
+          thumbnailUrl: '/fixtures/libtv/media/scene.webp',
+        })),
+        props: generated.assets.props.map((asset) => ({
+          ...asset,
+          status: 'ready' as const,
+          thumbnailUrl: '/fixtures/libtv/media/prop.webp',
+        })),
       },
     }
     const document = withScriptNode(state)

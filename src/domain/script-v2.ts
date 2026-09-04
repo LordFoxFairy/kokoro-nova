@@ -452,6 +452,157 @@ export function updateScriptV2Row(
   return changed ? { ...state, rows } : state
 }
 
+/* -------------------------------------------------------------------------- */
+/* Deterministic local prompt composition                                     */
+/* -------------------------------------------------------------------------- */
+
+const SCRIPT_V2_AUTO_ASSET_ROLE_LABEL: Record<ScriptV2AssetRole, string> = {
+  character: '角色',
+  scene: '场景',
+  prop: '道具',
+}
+
+function promptAssetSummary(row: ScriptV2Row, assets: ScriptV2Assets): string[] {
+  const referencedIds = new Set([
+    ...row.characters.map((character) => character.characterAssetId),
+    ...row.sceneAssetIds,
+    ...row.propAssetIds,
+  ])
+  const all = [...assets.characters, ...assets.scenes, ...assets.props]
+  const linked = all.filter((asset) => referencedIds.has(asset.id))
+  const characterFallbacks = row.characters
+    .filter((character) => !referencedIds.has(character.characterAssetId) && character.characterName.trim())
+    .map((character) => `角色「${character.characterName.trim()}」${character.characterDescription.trim()}`)
+  return [
+    ...linked.map((asset) =>
+      `${SCRIPT_V2_AUTO_ASSET_ROLE_LABEL[asset.role]}「${asset.name.trim()}」${asset.description.trim()}`,
+    ),
+    ...characterFallbacks,
+  ].filter(Boolean)
+}
+
+function autoPromptSource(row: ScriptV2Row, assets: ScriptV2Assets, styleDescription: string | null): string[] {
+  const assetsSummary = promptAssetSummary(row, assets)
+  const camera = row.cinematics?.cameraMovement?.trim() ?? ''
+  const lighting = row.lightingAndAtmosphere.trim() || row.cinematics?.lighting?.trim() || ''
+  const dialogue = row.dialogue.trim() || row.voiceover?.trim() || ''
+  const audio = row.audioEffects.trim() || row.sfx?.trim() || ''
+  const style = styleDescription?.trim() ?? ''
+  return [
+    row.plotDescription.trim() ? `画面：${row.plotDescription.trim()}` : '',
+    `景别：${row.shotSize}`,
+    camera ? `运镜：${camera}` : '',
+    lighting ? `光影：${lighting}` : '',
+    dialogue ? `对白/旁白：${dialogue}` : '',
+    audio ? `音效：${audio}` : '',
+    assetsSummary.length ? `资产：${assetsSummary.join('；')}` : '',
+    style ? `风格：${style}` : '',
+  ].filter(Boolean)
+}
+
+/** Build the free, deterministic `自动拼接` prompt for one track. */
+export function composeScriptV2AutoPrompt(
+  row: ScriptV2Row,
+  track: ScriptV2PromptTrack,
+  assets: ScriptV2Assets,
+  styleDescription: string | null,
+): string | null {
+  const source = autoPromptSource(row, assets, styleDescription)
+  // A default shot size alone is not useful input. Keep an authored prompt
+  // intact when the user has not supplied any story/production information.
+  if (source.length === 1 && source[0] === `景别：${row.shotSize}`) return null
+  if (track === 'image') {
+    return `${source.join('；')}。构图清晰，主体关系稳定，保持视觉连续性。`
+  }
+  const motion = row.cinematics?.cameraMovement?.trim() || '平稳跟随主体'
+  return `${source.join('；')}。镜头${motion}，主体动作连续自然，前景、中景与背景保持节奏层次，随后在情节点短暂停留并平滑收束。`
+}
+
+export interface ScriptV2AutoPromptComposeResult extends ScriptV2State {
+  changedRowIds: string[]
+}
+
+/** Compose selected rows locally, skipping rows with no meaningful source input. */
+export function composeScriptV2AutoPrompts(
+  state: ScriptV2State,
+  rowIds: string[] = state.rows.map((row) => row.id),
+): ScriptV2AutoPromptComposeResult {
+  const selected = new Set(rowIds)
+  const changedRowIds: string[] = []
+  const rows = state.rows.map((row) => {
+    if (!selected.has(row.id)) return row
+    const image = composeScriptV2AutoPrompt(row, 'image', state.assets, state.styleDescription)
+    const video = composeScriptV2AutoPrompt(row, 'video', state.assets, state.styleDescription)
+    if (!image && !video) return row
+    changedRowIds.push(row.id)
+    return {
+      ...row,
+      ...(image ? { imageGenerationPrompt: image, imagePromptState: 'synced' as const } : {}),
+      ...(video ? { videoMotionPrompt: video, videoPromptState: 'synced' as const } : {}),
+    }
+  })
+  return { ...state, rows, changedRowIds }
+}
+
+export interface ScriptV2PromptSnapshot {
+  rowId: string
+  imageGenerationPrompt: string
+  videoMotionPrompt: string
+  imagePromptState: ScriptV2PromptState
+  videoPromptState: ScriptV2PromptState
+}
+
+/** Fingerprint only prompt content, so an undo cannot overwrite another edit. */
+export function scriptV2PromptContentFingerprint(state: ScriptV2State, rowIds: string[]): string {
+  return fingerprint(
+    'script-v2-prompt-content-v1',
+    state.rows
+      .filter((row) => rowIds.includes(row.id))
+      .map((row) => ({
+        id: row.id,
+        imageGenerationPrompt: row.imageGenerationPrompt,
+        videoMotionPrompt: row.videoMotionPrompt,
+        imagePromptState: row.imagePromptState,
+        videoPromptState: row.videoPromptState,
+      })),
+  )
+}
+
+export function scriptV2PromptSnapshot(state: ScriptV2State, rowIds: string[]): ScriptV2PromptSnapshot[] {
+  const selected = new Set(rowIds)
+  return state.rows
+    .filter((row) => selected.has(row.id))
+    .map((row) => ({
+      rowId: row.id,
+      imageGenerationPrompt: row.imageGenerationPrompt,
+      videoMotionPrompt: row.videoMotionPrompt,
+      imagePromptState: row.imagePromptState,
+      videoPromptState: row.videoPromptState,
+    }))
+}
+
+export function restoreScriptV2PromptSnapshot(
+  state: ScriptV2State,
+  snapshot: ScriptV2PromptSnapshot[],
+): ScriptV2State {
+  const byId = new Map(snapshot.map((item) => [item.rowId, item]))
+  return {
+    ...state,
+    rows: state.rows.map((row) => {
+      const previous = byId.get(row.id)
+      return previous
+        ? {
+            ...row,
+            imageGenerationPrompt: previous.imageGenerationPrompt,
+            videoMotionPrompt: previous.videoMotionPrompt,
+            imagePromptState: previous.imagePromptState,
+            videoPromptState: previous.videoPromptState,
+          }
+        : row
+    }),
+  }
+}
+
 export type ScriptV2AssetRemovalMode = 'keep-text' | 'remove-references'
 
 function refsForAsset(refs: ScriptV2EntityRef[] | undefined, assetId: string): ScriptV2EntityRef[] {
@@ -843,9 +994,9 @@ function positiveInteger(value: unknown, fallback: number): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
-function stringList(value: unknown): string[] {
+function stringList(value: unknown, limit = MAX_SCRIPT_ROWS): string[] {
   if (!Array.isArray(value)) return []
-  return value.slice(0, MAX_SCRIPT_ROWS).filter((entry): entry is string => typeof entry === 'string')
+  return value.slice(0, limit).filter((entry): entry is string => typeof entry === 'string')
 }
 
 function isShotSize(value: unknown): value is ScriptV2ShotSize {
@@ -1120,6 +1271,121 @@ function normalizeStage(value: unknown): ScriptV2Stage {
   return value === 'assets' || value === 'prompts' ? value : 'shots'
 }
 
+function normalizedStringList(value: unknown, limit = MAX_SCRIPT_ROWS): string[] {
+  return stringList(value, limit)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
+function normalizedTimestamp(value: unknown): string {
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value)
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString()
+  }
+  return SCRIPT_V2_FIXTURE_TIMESTAMP
+}
+
+function normalizePromptRequestContexts(
+  value: unknown,
+  validShotIds: Set<string>,
+): ScriptV2PromptRequestContext[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const contexts = value.slice(0, SCRIPT_V2_RECOMPUTE_MAX_SHOTS * 2).flatMap((entry) => {
+    if (!isPlainRecord(entry)) return []
+    const shotId = text(entry.shotId ?? entry.shot_id).trim()
+    const operationId = text(entry.operationId ?? entry.operation_id).trim()
+    const requestInputFingerprint = text(
+      entry.requestInputFingerprint ?? entry.request_input_fingerprint,
+    ).trim()
+    const trackValue = entry.track
+    if (
+      !shotId ||
+      !validShotIds.has(shotId) ||
+      !operationId ||
+      !requestInputFingerprint ||
+      (trackValue !== 'image' && trackValue !== 'video')
+    ) {
+      return []
+    }
+    const track = trackValue as ScriptV2PromptTrack
+    return [{ shotId, track, operationId, requestInputFingerprint }]
+  })
+  return contexts.length ? contexts : undefined
+}
+
+function normalizePromptBatchRuns(
+  value: unknown,
+  rows: ScriptV2Row[],
+): ScriptV2PromptBatchRun[] {
+  if (!Array.isArray(value)) return []
+  const validRowIds = new Set(rows.map((row) => row.id))
+  const usedRunIds = new Set<string>()
+  return value.slice(0, 100).flatMap((entry) => {
+    if (!isPlainRecord(entry)) return []
+    const runId = text(entry.runId ?? entry.run_id).trim()
+    if (!runId || usedRunIds.has(runId)) return []
+    const rawTargetIds = normalizedStringList(entry.targetShotIds ?? entry.target_shot_ids)
+    const targetShotIds = [...new Set(rawTargetIds)].filter((id) => validRowIds.has(id))
+    const rawBatches = Array.isArray(entry.batches) ? entry.batches : []
+    const usedBatchIds = new Set<string>()
+    const batches = rawBatches.slice(0, 25).flatMap((batchEntry, index) => {
+      if (!isPlainRecord(batchEntry)) return []
+      const candidateId = text(batchEntry.batchId ?? batchEntry.batch_id).trim()
+      const batchId = candidateId && !usedBatchIds.has(candidateId)
+        ? candidateId
+        : `${runId}_${index + 1}`
+      if (usedBatchIds.has(batchId)) return []
+      usedBatchIds.add(batchId)
+      const shotIds = [...new Set(
+        normalizedStringList(batchEntry.shotIds ?? batchEntry.shot_ids, SCRIPT_V2_RECOMPUTE_MAX_SHOTS),
+      )].filter((id) => targetShotIds.includes(id)).slice(0, SCRIPT_V2_RECOMPUTE_MAX_SHOTS)
+      if (!shotIds.length) return []
+      const statusValue = batchEntry.status
+      if (
+        statusValue !== 'pending' &&
+        statusValue !== 'submitting' &&
+        statusValue !== 'running' &&
+        statusValue !== 'succeeded' &&
+        statusValue !== 'failed' &&
+        statusValue !== 'cancelled'
+      ) return []
+      const status = statusValue as ScriptV2PromptBatch['status']
+      const taskId = text(batchEntry.taskId ?? batchEntry.task_id).trim()
+      const error = optionalText(batchEntry.error)
+      const requestContexts = normalizePromptRequestContexts(
+        batchEntry.requestContexts ?? batchEntry.request_contexts,
+        new Set(shotIds),
+      )
+      return [{
+        batchId,
+        shotIds,
+        status,
+        ...(taskId ? { taskId } : {}),
+        ...(error ? { error } : {}),
+        ...(requestContexts ? { requestContexts } : {}),
+      }]
+    })
+    if (!targetShotIds.length || !batches.length) return []
+    const status = entry.status
+    if (status !== 'running' && status !== 'completed' && status !== 'failed' && status !== 'cancelled') {
+      return []
+    }
+    usedRunIds.add(runId)
+    return [{
+      runId,
+      status,
+      targetShotIds,
+      batchSize: Math.min(
+        SCRIPT_V2_RECOMPUTE_MAX_SHOTS,
+        Math.max(1, positiveInteger(entry.batchSize ?? entry.batch_size, SCRIPT_V2_RECOMPUTE_MAX_SHOTS)),
+      ),
+      batches,
+      createdAt: normalizedTimestamp(entry.createdAt ?? entry.created_at),
+      updatedAt: normalizedTimestamp(entry.updatedAt ?? entry.updated_at),
+    }]
+  })
+}
+
 function normalizeCanonicalState(raw: Record<string, unknown>, fallbackSeed: string): ScriptV2State {
   const seed = text(raw.identitySeed).trim() || fallbackSeed
   const usedIds = new Set<string>()
@@ -1157,7 +1423,7 @@ function normalizeCanonicalState(raw: Record<string, unknown>, fallbackSeed: str
       batchMode: promptComposerRaw.batchMode === 'auto' ? 'auto' : 'smart',
       modelId: text(promptComposerRaw.modelId, 'gvlm-3.1') || 'gvlm-3.1',
     },
-    promptBatchRuns: [],
+    promptBatchRuns: normalizePromptBatchRuns(raw.promptBatchRuns ?? raw.prompt_batch_runs, rows),
   }
 }
 

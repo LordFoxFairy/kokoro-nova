@@ -326,6 +326,145 @@ test('script v2 stage 1 exposes the observed stage metrics, semantic headers and
   await expect(workspace.getByRole('button', { name: '一键合成全部提示词', exact: true })).toBeDisabled()
 })
 
+test('script v2 prompt stage exposes the dual-track single-shot compose surface', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  const persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  const stageSaved = waitForCanvasMutation(page)
+  await workspace.getByRole('button', { name: /合成提示词 0\/1 已合成/ }).click()
+  await stageSaved
+
+  const promptStage = workspace.getByTestId('script-v2-prompt-stage')
+  await expect(promptStage).toBeVisible()
+  await promptStage.getByRole('button', { name: '查看镜头 1 最终提示词', exact: true }).click()
+
+  const dialog = page.getByTestId('script-v2-prompt-detail-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: '第 1 镜：最终提示词', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('textbox', { name: '第 1 镜分镜图提示词', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('textbox', { name: '第 1 镜视频运动提示词', exact: true })).toBeVisible()
+  await expect(dialog.getByTestId('script-v2-image-prompt-status')).toHaveText('未生成')
+  await expect(dialog.getByTestId('script-v2-video-prompt-status')).toHaveText('未生成')
+  await expect(dialog.getByRole('radio', { name: '智能合成', exact: true })).toBeChecked()
+  await expect(dialog.getByRole('radio', { name: '自动拼接', exact: true })).not.toBeChecked()
+  await expect(dialog.getByRole('button', { name: '提示词模型 GVLM 3.1', exact: true })).toBeVisible()
+  await expect(dialog.getByTestId('script-v2-prompt-quote')).toHaveText('6')
+
+  await page.getByTestId('script-v2-prompt-detail-dialog-backdrop').click({ position: { x: 8, y: 8 } })
+  await expect(dialog).toBeVisible()
+})
+
+test('script v2 automatic prompt composition is local, reversible and conflict-aware', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  let persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  await workspace.getByRole('button', { name: '编辑镜头 1 画面描述', exact: true }).click()
+  const sourceEditor = workspace.getByRole('dialog', { name: '编辑画面描述', exact: true })
+  const sourceInput = sourceEditor.getByRole('textbox', { name: '画面描述', exact: true })
+  await sourceInput.fill('雨夜车站里，林夏拾起一盘旧录音带。')
+  persisted = waitForCanvasMutation(page)
+  await sourceInput.press('Tab')
+  await persisted
+
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByRole('button', { name: /合成提示词 0\/1 已合成/ }).click()
+  await persisted
+  const stage = workspace.getByTestId('script-v2-prompt-stage')
+  await stage.getByRole('button', { name: '查看镜头 1 最终提示词', exact: true }).click()
+
+  const dialog = page.getByTestId('script-v2-prompt-detail-dialog')
+  const auto = dialog.getByRole('radio', { name: '自动拼接', exact: true })
+  await auto.check()
+  await expect(auto).toBeChecked()
+  persisted = waitForCanvasMutation(page)
+  await dialog.getByRole('button', { name: '重新合成提示词', exact: true }).click()
+  await persisted
+
+  await expect(dialog.getByRole('textbox', { name: '第 1 镜分镜图提示词', exact: true })).toHaveValue(/画面：雨夜车站里，林夏拾起一盘旧录音带。/)
+  await expect(dialog.getByRole('textbox', { name: '第 1 镜视频运动提示词', exact: true })).toHaveValue(/镜头/)
+  await expect(dialog.getByTestId('script-v2-image-prompt-status')).toHaveText('已生成')
+  await expect(dialog.getByTestId('script-v2-video-prompt-status')).toHaveText('已生成')
+  await expect(workspace.getByTestId('script-v2-prompt-undo')).toBeVisible()
+
+  await dialog.getByRole('button', { name: '关闭提示词', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByTestId('script-v2-prompt-undo').click()
+  await persisted
+  await expect(workspace.getByTestId('script-v2-prompt-undo')).toHaveCount(0)
+  await stage.getByRole('button', { name: '查看镜头 1 最终提示词', exact: true }).click()
+  const reopened = page.getByTestId('script-v2-prompt-detail-dialog')
+  await expect(reopened.getByRole('textbox', { name: '第 1 镜分镜图提示词', exact: true })).toHaveValue('')
+  await expect(reopened.getByRole('textbox', { name: '第 1 镜视频运动提示词', exact: true })).toHaveValue('')
+})
+
+test('script v2 batch prompt dialog selects partial/all shots and runs serial 20 plus 1 batches', async ({ page }) => {
+  await createProject(page)
+  const node = await addScriptV2Node(page)
+  let persisted = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await persisted
+
+  const workspace = page.getByTestId('script-v2-workspace')
+  for (let index = 0; index < 20; index += 1) {
+    persisted = waitForCanvasMutation(page)
+    await workspace.getByRole('button', { name: '添加镜头', exact: true }).click()
+    await persisted
+  }
+
+  persisted = waitForCanvasMutation(page)
+  await workspace.getByRole('button', { name: /合成提示词 0\/21 已合成/ }).click()
+  await persisted
+  const stage = workspace.getByTestId('script-v2-prompt-stage')
+  await stage.getByRole('button', { name: '一键合成全部提示词', exact: true }).click()
+
+  const dialog = page.getByTestId('script-v2-batch-prompt-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('已选0/21', { exact: true })).toBeVisible()
+  const firstCheckbox = dialog.getByRole('checkbox', { name: '选择镜头 1', exact: true })
+  await firstCheckbox.check()
+  await expect(dialog.getByText('已选1/21', { exact: true })).toBeVisible()
+  const firstDetails = dialog.getByRole('button', { name: '镜头 1 详情', exact: true })
+  await firstDetails.click()
+  await expect(dialog.getByText('分镜图提示词', { exact: true })).toBeVisible()
+
+  const selectAll = dialog.getByRole('checkbox', { name: '全选镜头', exact: true })
+  await selectAll.check()
+  await expect(selectAll).toBeChecked()
+  await expect(dialog.getByText('已选21/21', { exact: true })).toBeVisible()
+  await expect(dialog.getByTestId('script-v2-prompt-quote')).toHaveText('12')
+
+  persisted = waitForCanvasMutation(page)
+  await dialog.getByRole('radio', { name: '自动拼接', exact: true }).check()
+  await persisted
+  await expect(dialog.getByRole('button', { name: /GVLM 3\.1/ })).toHaveCount(0)
+  persisted = waitForCanvasMutation(page)
+  await dialog.getByRole('radio', { name: '智能合成', exact: true }).check()
+  await persisted
+  await expect(dialog.getByRole('button', { name: /GVLM 3\.1/ })).toBeVisible()
+
+  persisted = waitForCanvasMutation(page)
+  await dialog.getByRole('button', { name: '确认合成', exact: true }).click()
+  await persisted
+  await expect.poll(async () => {
+    const state = await readScriptV2State(page) as {
+      promptBatchRuns: Array<{ status: string; batches: Array<{ shotIds: string[]; status: string }> }>
+    }
+    const run = state.promptBatchRuns.at(-1)
+    return run ? { status: run.status, sizes: run.batches.map((batch) => [batch.shotIds.length, batch.status]) } : null
+  }, { timeout: 20_000 }).toEqual({ status: 'completed', sizes: [[20, 'succeeded'], [1, 'succeeded']] })
+  await expect(dialog.getByTestId('script-v2-prompt-batch-progress')).toContainText('1批 20镜 · 完成')
+  await expect(dialog.getByTestId('script-v2-prompt-batch-progress')).toContainText('2批 1镜 · 完成')
+})
+
 test('script v2 shot table clamps duration and exposes every observed shot size', async ({ page }) => {
   await createProject(page)
   const node = await addScriptV2Node(page)
@@ -534,7 +673,7 @@ test('script v2 asset stage groups roles and keeps a pending card when its sourc
   persisted = waitForCanvasMutation(page)
   await workspace.getByRole('button', { name: /合成提示词 0\/1 已合成/ }).click()
   await persisted
-  await expect(workspace.getByTestId('script-v2-prompts-placeholder')).toBeVisible()
+  await expect(workspace.getByTestId('script-v2-prompt-stage')).toBeVisible()
   expect((await readScriptV2State(page)).activeStage).toBe('prompts')
 })
 

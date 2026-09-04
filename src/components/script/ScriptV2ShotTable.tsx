@@ -28,6 +28,7 @@ export interface ScriptV2ShotTableProps {
   onPatch: (rowId: string, patch: ScriptV2RowPatch, label: string) => void
   onMove: (from: number, to: number) => void
   onDelete: (rowId: string, shotNumber: number) => void
+  onOpenPrompt?: (rowId: string) => void
   onChildSurfaceChange?: (open: boolean) => void
 }
 
@@ -91,6 +92,7 @@ export function ScriptV2ShotTable({
   onPatch,
   onMove,
   onDelete,
+  onOpenPrompt,
   onChildSurfaceChange,
 }: ScriptV2ShotTableProps) {
   const [editor, setEditor] = useState<ActiveEditor | null>(null)
@@ -219,7 +221,10 @@ export function ScriptV2ShotTable({
                       <span key={index} className="h-[2px] w-[2px] rounded-full bg-current" />
                     ))}
                   </button>
-                  <span className="font-medium text-white/72">{row.shotNumber}</span>
+                  <span className="font-medium text-white/72">
+                    <span className="sr-only">镜头 </span>
+                    {row.shotNumber}
+                  </span>
                 </div>
               </Cell>
               <Cell>
@@ -227,7 +232,8 @@ export function ScriptV2ShotTable({
                   ariaLabel={`镜头 ${row.shotNumber} 时长 ${row.durationSeconds} 秒`}
                   onClick={(element) => setEditor({ kind: 'duration', row, anchor: anchorFrom(element) })}
                 >
-                  {row.durationSeconds}s
+                  <span aria-hidden="true">{row.durationSeconds}s</span>
+                  <span className="sr-only">{row.durationSeconds} 秒</span>
                 </CellButton>
               </Cell>
               <Cell>
@@ -287,6 +293,7 @@ export function ScriptV2ShotTable({
                 <button
                   type="button"
                   aria-label={`查看镜头 ${row.shotNumber} 最终提示词`}
+                  onClick={() => onOpenPrompt?.(row.id)}
                   className="rounded-md px-1 py-1 text-left text-[11px] text-white/45 hover:bg-white/7 hover:text-white/75"
                 >
                   {row.imageGenerationPrompt || row.videoMotionPrompt ? '点击查看提示词' : '待生成提示词'}

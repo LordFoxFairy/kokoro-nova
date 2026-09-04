@@ -555,35 +555,35 @@ git commit -m "feat: reproduce script v2 assets stage"
 - Produces: per-shot `ScriptV2PromptDetailDialog` and `ScriptV2BatchPromptDialog`.
 - Consumes: prompt reducer/fingerprints, typed run hook and 500ms debounced commit.
 
-- [ ] **Step 1: Add failing single-shot prompt dialog test**
+- [x] **Step 1: Add failing single-shot prompt dialog test**
 
 Assert title `第 1 镜：最终提示词`, two labeled tracks, independent status chips, smart/auto radio, smart-only model selector, quote, recompute and no outside-click close.
 
-- [ ] **Step 2: Implement 500ms edit buffering and flush boundaries**
+- [x] **Step 2: Implement 500ms edit buffering and flush boundaries**
 
 Use one timer per track. Closing, switching row, changing compose mode and recompute call `flushAll()` before any state transition.
 
-- [ ] **Step 3: Add failing local compose/undo test**
+- [x] **Step 3: Add failing local compose/undo test**
 
 Auto compose replaces eligible tracks, leaves empty inputs untouched, prompts before overwrite, and offers one 20-second undo that disappears after a conflicting edit.
 
-- [ ] **Step 4: Implement deterministic auto compose and undo snapshot**
+- [x] **Step 4: Implement deterministic auto compose and undo snapshot**
 
 Keep undo state ephemeral but compare post-compose fingerprints before applying rollback.
 
-- [ ] **Step 5: Add failing smart recompute/stale test**
+- [x] **Step 5: Add failing smart recompute/stale test**
 
 Begin run, edit source row before completion, poll completion and assert returned prompts are marked stale without replacing the newer manual text. Assert generating and failed states have correct labels/actions.
 
-- [ ] **Step 6: Implement conflict-safe smart recompute**
+- [x] **Step 6: Implement conflict-safe smart recompute**
 
 Persist operation contexts and batch run state so a reload can resume local polling or mark orphaned runs failed without leaving `generating` forever.
 
-- [ ] **Step 7: Add failing batch dialog test**
+- [x] **Step 7: Add failing batch dialog test**
 
 Assert selection/all/partial state, details expansion, selected count, aggregate cost, mode/model controls, 21 rows split into 20 + 1, and serial progress summary.
 
-- [ ] **Step 8: Implement batch modal and stage completion**
+- [x] **Step 8: Implement batch modal and stage completion**
 
 The top `合成提示词` subtitle counts a shot complete only when both image and video tracks are `synced` or `user_edited` with non-empty text.
 

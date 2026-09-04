@@ -68,6 +68,7 @@ export interface ScriptV2RunController {
   generateScript(input: GenerateScriptV2Input): Promise<ScriptV2Run>
   recognizeAssets(): Promise<ScriptV2Run>
   recomputePrompts(rowIds: string[]): Promise<ScriptV2Run[]>
+  resumePromptBatches(): Promise<void>
   generateAssets(assetIds: string[]): Promise<ScriptV2Run[]>
   cancelRun(): Promise<ScriptV2Run | null>
   getActiveRun(): ScriptV2Run | null
@@ -126,6 +127,7 @@ export function createScriptV2RunController(
   let activeRun: ScriptV2Run | null = null
   let operationOrdinal = 0
   let disposed = false
+  let resumeInFlight = false
   let progressByRowId: Record<string, number> = {}
 
   const emitRun = (run: ScriptV2Run | null) => {
@@ -216,6 +218,81 @@ export function createScriptV2RunController(
         run.runId === batchRunId ? update(run) : run,
       ),
     })
+  }
+
+  const markPromptRowsRetryable = (state: ScriptV2State, rowIds: string[]): ScriptV2State => {
+    const targetIds = new Set(rowIds)
+    let changed = false
+    const rows = state.rows.map((row) => {
+      if (!targetIds.has(row.id)) return row
+      const next = { ...row }
+      if (next.imagePromptState === 'generating') {
+        next.imagePromptState = next.imageGenerationPrompt.trim() ? 'stale' : 'none'
+      }
+      if (next.videoPromptState === 'generating') {
+        next.videoPromptState = next.videoMotionPrompt.trim() ? 'stale' : 'none'
+      }
+      if (next.imagePromptState !== row.imagePromptState || next.videoPromptState !== row.videoPromptState) {
+        changed = true
+        return next
+      }
+      return row
+    })
+    return changed ? { ...state, rows } : state
+  }
+
+  const markPromptBatchFailed = (batchRunId: string, batchId: string, message: string) => {
+    const state = options.getState()
+    const targetRun = state.promptBatchRuns.find((run) => run.runId === batchRunId)
+    const targetBatch = targetRun?.batches.find((batch) => batch.batchId === batchId)
+    const rowIds = targetBatch?.shotIds ?? []
+    const retryable = markPromptRowsRetryable(state, rowIds)
+    commitState({
+      ...retryable,
+      promptBatchRuns: retryable.promptBatchRuns.map((run) =>
+        run.runId !== batchRunId
+          ? run
+          : {
+              ...run,
+              batches: run.batches.map((batch) =>
+                batch.batchId === batchId
+                  ? { ...batch, status: 'failed' as const, error: message }
+                  : batch,
+              ),
+              updatedAt: FIXTURE_TIMESTAMP,
+            },
+      ),
+    })
+  }
+
+  const writePromptResult = (
+    result: ScriptV2Run,
+    requestContexts: ScriptV2PromptRequestContext[],
+  ) => {
+    if (result.operation !== 'recompute-prompts' || !result.result) {
+      throw new Error('Script V2 提示词结果与 operation 不匹配')
+    }
+    for (const context of requestContexts) {
+      latestOperationIds[`${context.shotId}:${context.track}`] = context.operationId
+    }
+    const current = options.getState()
+    for (const row of current.rows) {
+      if (!requestContexts.some((context) => context.shotId === row.id)) continue
+      if (row.imagePromptState === 'user_edited' || row.imagePromptState === 'user_edited_stale') {
+        delete latestOperationIds[`${row.id}:image`]
+      }
+      if (row.videoPromptState === 'user_edited' || row.videoPromptState === 'user_edited_stale') {
+        delete latestOperationIds[`${row.id}:video`]
+      }
+    }
+    commitState(
+      resolveScriptV2PromptWriteback({
+        state: current,
+        result: result.result,
+        requestContexts,
+        latestOperationIds,
+      }),
+    )
   }
 
   const controller: ScriptV2RunController = {
@@ -399,30 +476,7 @@ export function createScriptV2RunController(
             throw new Error('Script V2 提示词结果与 operation 不匹配')
           }
 
-          const current = options.getState()
-          for (const row of current.rows) {
-            if (!contextByShot.has(row.id)) continue
-            if (
-              row.imagePromptState === 'user_edited' ||
-              row.imagePromptState === 'user_edited_stale'
-            ) {
-              delete latestOperationIds[`${row.id}:image`]
-            }
-            if (
-              row.videoPromptState === 'user_edited' ||
-              row.videoPromptState === 'user_edited_stale'
-            ) {
-              delete latestOperationIds[`${row.id}:video`]
-            }
-          }
-          commitState(
-            resolveScriptV2PromptWriteback({
-              state: current,
-              result: finished.result,
-              requestContexts,
-              latestOperationIds,
-            }),
-          )
+          writePromptResult(finished, requestContexts)
           updateBatchRun(runId, (run) => ({
             ...run,
             batches: run.batches.map((batch, batchIndex) =>
@@ -435,25 +489,101 @@ export function createScriptV2RunController(
         return completed
       } catch (error) {
         if (!disposed) {
-          updateBatchRun(runId, (run) => ({
-            ...run,
-            status: error instanceof Error && error.name === 'AbortError' ? 'cancelled' : 'failed',
-            batches: run.batches.map((batch) =>
-              batch.status === 'running' || batch.status === 'submitting'
-                ? {
-                    ...batch,
-                    status:
-                      error instanceof Error && error.name === 'AbortError'
-                        ? 'cancelled'
-                        : 'failed',
-                    error: error instanceof Error ? error.message : String(error),
-                  }
-                : batch,
+          const current = markPromptRowsRetryable(options.getState(), validIds)
+          commitState({
+            ...current,
+            promptBatchRuns: current.promptBatchRuns.map((run) =>
+              run.runId !== runId
+                ? run
+                : {
+                    ...run,
+                    status: error instanceof Error && error.name === 'AbortError' ? 'cancelled' : 'failed',
+                    batches: run.batches.map((batch) =>
+                      batch.status === 'running' || batch.status === 'submitting'
+                        ? {
+                            ...batch,
+                            status:
+                              error instanceof Error && error.name === 'AbortError'
+                                ? 'cancelled'
+                                : 'failed',
+                            error: error instanceof Error ? error.message : String(error),
+                          }
+                        : batch,
+                    ),
+                    updatedAt: FIXTURE_TIMESTAMP,
+                  },
             ),
-          }))
+          })
         }
         throw error
       } finally {
+        finish(operation)
+      }
+    },
+
+    async resumePromptBatches() {
+      // A freshly submitted run is persisted as `running` before its first
+      // provider task receives a taskId. Do not let the reload-resume effect
+      // mistake that in-flight operation for a crashed run and abort it.
+      if (resumeInFlight || activeAbort) return
+      const persistedRuns = options
+        .getState()
+        .promptBatchRuns
+        .filter((run) => run.status === 'running')
+      if (!persistedRuns.length) return
+
+      resumeInFlight = true
+      const operation = begin()
+      try {
+        for (const persistedRun of persistedRuns) {
+          let failed = false
+          for (const batch of persistedRun.batches) {
+            if (batch.status === 'succeeded') continue
+            if (operation.signal.aborted || disposed) throw abortError()
+
+            if (!batch.taskId || !batch.requestContexts?.length) {
+              markPromptBatchFailed(
+                persistedRun.runId,
+                batch.batchId,
+                '本地任务缺少 taskId，已标记为孤儿任务',
+              )
+              failed = true
+              continue
+            }
+
+            try {
+              const response = await api.getRun(batch.taskId, { signal: operation.signal })
+              const finished = await poll(response, batch.shotIds, operation.signal)
+              writePromptResult(finished, batch.requestContexts)
+              updateBatchRun(persistedRun.runId, (run) => ({
+                ...run,
+                batches: run.batches.map((candidate) =>
+                  candidate.batchId === batch.batchId
+                    ? { ...candidate, status: 'succeeded' as const }
+                    : candidate,
+                ),
+                updatedAt: FIXTURE_TIMESTAMP,
+              }))
+            } catch (error) {
+              if (error instanceof Error && error.name === 'AbortError') throw error
+              markPromptBatchFailed(
+                persistedRun.runId,
+                batch.batchId,
+                error instanceof Error ? error.message : String(error),
+              )
+              failed = true
+            }
+          }
+          updateBatchRun(persistedRun.runId, (run) => ({
+            ...run,
+            status: failed || run.batches.some((batch) => batch.status === 'failed')
+              ? 'failed'
+              : 'completed',
+            updatedAt: FIXTURE_TIMESTAMP,
+          }))
+        }
+      } finally {
+        resumeInFlight = false
         finish(operation)
       }
     },
@@ -532,6 +662,7 @@ export interface UseScriptV2RunsOptions {
   state: ScriptV2State
   onStateChange(state: ScriptV2State): void
   flushPendingPromptEdits?(): void | Promise<void>
+  resumePersistedPromptRuns?: boolean
 }
 
 export function useScriptV2Runs(options: UseScriptV2RunsOptions) {
@@ -581,6 +712,16 @@ export function useScriptV2Runs(options: UseScriptV2RunsOptions) {
     }
   }, [controller])
 
+  const resumableRunKey = options.state.promptBatchRuns
+    .filter((run) => run.status === 'running')
+    .map((run) => run.runId)
+    .join('|')
+
+  useEffect(() => {
+    if (!options.resumePersistedPromptRuns || !resumableRunKey) return
+    void controller.resumePromptBatches()
+  }, [controller, options.resumePersistedPromptRuns, resumableRunKey])
+
   return {
     activeRun,
     progressByRowId,
@@ -588,6 +729,7 @@ export function useScriptV2Runs(options: UseScriptV2RunsOptions) {
     generateScript: controller.generateScript,
     recognizeAssets: controller.recognizeAssets,
     recomputePrompts: controller.recomputePrompts,
+    resumePromptBatches: controller.resumePromptBatches,
     generateAssets: controller.generateAssets,
     cancelRun: controller.cancelRun,
   }

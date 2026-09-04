@@ -8,6 +8,7 @@ import type {
 import {
   appendScriptV2Row,
   defaultScriptV2State,
+  scriptV2PromptInputFingerprint,
   updateScriptV2Row,
   type ScriptV2State,
 } from '@/domain/script-v2'
@@ -136,8 +137,10 @@ describe('createScriptV2RunController', () => {
     expect(flushes).toBe(1)
 
     state = updateScriptV2Row(state, target.id, {
+      plotDescription: '请求提交后用户改写的新画面描述',
+    })
+    state = updateScriptV2Row(state, target.id, {
       imageGenerationPrompt: '这是用户在请求期间保存的图片提示词',
-      imagePromptState: 'user_edited',
     })
 
     await vi.advanceTimersByTimeAsync(400)
@@ -156,7 +159,9 @@ describe('createScriptV2RunController', () => {
       'succeeded:1',
     ])
     expect(state.rows[0].imageGenerationPrompt).toBe('这是用户在请求期间保存的图片提示词')
+    expect(state.rows[0].imagePromptState).toBe('user_edited')
     expect(state.rows[0].videoMotionPrompt).not.toBe('旧视频提示词 1')
+    expect(state.rows[0].videoPromptState).toBe('stale')
     expect(state.rows[20].imageGenerationPrompt).not.toBe('旧图片提示词 21')
     expect(controller.getProgressByRowId()).toEqual(
       Object.fromEntries(state.rows.map((row) => [row.id, 100])),
@@ -192,5 +197,117 @@ describe('createScriptV2RunController', () => {
 
     await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('resumes a persisted running prompt batch after reload and completes its writeback', async () => {
+    let state = stateWithRows(1)
+    const row = state.rows[0]
+    const events: string[] = []
+    const api = fakeApi(events)
+    const created = await api.createRun({
+      idempotencyKey: 'resume-fixture',
+      canvasId: 'canvas_fixture',
+      nodeId: 'node_script_fixture',
+      operation: 'recompute-prompts',
+      input: { state, rowIds: [row.id] },
+    })
+    const requestContexts = (['image', 'video'] as const).map((track) => ({
+      shotId: row.id,
+      track,
+      operationId: `resume-operation-${track}`,
+      requestInputFingerprint: scriptV2PromptInputFingerprint(
+        row,
+        track,
+        state.assets,
+        state.styleDescription,
+      ),
+    }))
+    state = {
+      ...state,
+      rows: state.rows.map((candidate) =>
+        candidate.id === row.id
+          ? { ...candidate, imagePromptState: 'generating', videoPromptState: 'generating' }
+          : candidate,
+      ),
+      promptBatchRuns: [{
+        runId: 'persisted-prompt-run',
+        status: 'running',
+        targetShotIds: [row.id],
+        batchSize: 20,
+        batches: [{
+          batchId: 'persisted-prompt-run_1',
+          shotIds: [row.id],
+          status: 'running',
+          taskId: created.run.id,
+          requestContexts,
+        }],
+        createdAt: FIXTURE_TIME,
+        updatedAt: FIXTURE_TIME,
+      }],
+    }
+
+    const controller = createScriptV2RunController({
+      canvasId: 'canvas_fixture',
+      nodeId: 'node_script_fixture',
+      getState: () => state,
+      onStateChange: (next) => {
+        state = next
+      },
+      api,
+      pollIntervalMs: 400,
+    })
+
+    const promise = controller.resumePromptBatches()
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(800)
+    await promise
+
+    expect(events).toContain('succeeded:1')
+    expect(state.rows[0].imagePromptState).toBe('synced')
+    expect(state.rows[0].videoPromptState).toBe('synced')
+    expect(state.promptBatchRuns[0]).toMatchObject({
+      status: 'completed',
+      batches: [{ status: 'succeeded', taskId: created.run.id }],
+    })
+  })
+
+  it('marks persisted prompt batches without a task id as orphaned failures and clears generating state', async () => {
+    let state = stateWithRows(1)
+    const row = state.rows[0]
+    state = {
+      ...state,
+      rows: state.rows.map((candidate) =>
+        candidate.id === row.id
+          ? { ...candidate, imagePromptState: 'generating', videoPromptState: 'generating' }
+          : candidate,
+      ),
+      promptBatchRuns: [{
+        runId: 'orphaned-prompt-run',
+        status: 'running',
+        targetShotIds: [row.id],
+        batchSize: 20,
+        batches: [{ batchId: 'orphaned-prompt-run_1', shotIds: [row.id], status: 'submitting' }],
+        createdAt: FIXTURE_TIME,
+        updatedAt: FIXTURE_TIME,
+      }],
+    }
+    const controller = createScriptV2RunController({
+      canvasId: 'canvas_fixture',
+      nodeId: 'node_script_fixture',
+      getState: () => state,
+      onStateChange: (next) => {
+        state = next
+      },
+      api: fakeApi([]),
+    })
+
+    await controller.resumePromptBatches()
+
+    expect(state.promptBatchRuns[0]).toMatchObject({
+      status: 'failed',
+      batches: [{ status: 'failed', error: '本地任务缺少 taskId，已标记为孤儿任务' }],
+    })
+    expect(state.rows[0].imagePromptState).toBe('stale')
+    expect(state.rows[0].videoPromptState).toBe('stale')
   })
 })

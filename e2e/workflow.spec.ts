@@ -547,7 +547,7 @@ test('the new surfaces are reachable from the home page', async ({ page }) => {
   await page.goto('/')
   // A page nothing links to is the same as a page that does not exist.
   for (const [label, path] of [
-    ['技能库', '/skills'],
+    ['全部 Skill', '/skills'],
     ['公开作品', '/showcase'],
     ['账户', '/account'],
   ] as const) {

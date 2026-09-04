@@ -615,7 +615,7 @@ export function HomeAgentComposer({
             </button>
           )
         })}
-        <Link href="/skills" aria-label="全部Skill" className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-white/[0.045] px-3 text-[12px] text-white/65 transition-colors hover:bg-white/[0.08] hover:text-white">
+        <Link href="/skills" aria-label="全部 Skill" className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-white/[0.045] px-3 text-[12px] text-white/65 transition-colors hover:bg-white/[0.08] hover:text-white">
           全部 Skill <span aria-hidden="true">›</span>
         </Link>
       </div>

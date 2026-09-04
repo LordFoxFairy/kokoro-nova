@@ -18,7 +18,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | loading | `/project`，延迟 `GET /api/projects` | spinner、`aria-busy` | 同左；壳层收起 | 同左；无页面级横向溢出 | 列表未就绪时不显示空态；请求恢复后进入列表 | 通过（既有隔离证据） |
 | loading | `/canvas?...`，延迟项目 bootstrap | `role=status`：`正在加载画布` | 同左 | 同左；底部控件不应覆盖加载层 | `aria-busy="true"`，完成后进入工作区 | 通过（既有隔离证据） |
-| empty | `authenticated-empty` → `/project` | `还没有项目`、开始入口 | 侧栏收起，标题栏可见 | 两列布局，文本不应推出页面宽度 | 开始第一个项目入口可用；顶部操作当前保持 enabled | 通过；空态禁用预期待产品确认 |
+| empty | `authenticated-empty` → `/project` | `还没有项目`、开始入口 | 侧栏收起，标题栏可见 | 两列布局，文本不应推出页面宽度 | 开始第一个项目、回收站和新建文件夹均 enabled | 通过；官网空态已直接确认 |
 | empty | 空工作流 → Workflow / Storyboard | 空画布起始卡、Storyboard 空态 | 起始卡仍在可视区域 | 起始卡改为窄屏网格；画布自然裁切 | 不误报生成失败 | 通过（既有桌面/窄屏证据） |
 | populated | `authenticated-populated` → `/project` / Canvas | 四列项目卡、节点和媒体可见 | 项目三列；侧栏收起 | 项目两列；画布工具条首个按钮在视口内 | 项目/画布内容可刷新恢复 | 通过；Storyboard 初始视频列仍有发现性问题 |
 | error | 项目列表 `503` | 错误卡与错误文本 | 同左 | 同左，按钮不被标题栏挤出 | `project-load-error` + `重试` | 通过（浏览器拦截证据） |

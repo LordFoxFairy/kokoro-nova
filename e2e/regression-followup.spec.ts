@@ -99,6 +99,8 @@ test.describe('状态与响应式回归（本地临时服务）', () => {
         await expect(page.locator('[aria-busy="true"]')).toBeVisible()
         await releaseProjects()
         await expect(page.getByTestId('project-empty-state')).toBeVisible()
+        await expect(page.getByRole('button', { name: '回收站', exact: true })).toBeEnabled()
+        await expect(page.getByTestId('new-folder')).toBeEnabled()
         await expectNoPageOverflow(page)
 
         let failOnce = true

@@ -115,7 +115,9 @@ V8.1 等条目，以及视频目录中的 Seedance 2.0 VIP、Kling O3、Kling 3.
 Agent 起始器与 TV Show 搜索仍共同组成首页第一层。动态文案已变为 Seedance 2.5、
 Wan 3.0 和 Minimax H3 Max 等当前组合；这进一步验证卡片与营销内容必须以 fixture/
 配置承载。完整的可见 UI 证据、边界和本地映射见
-[2026-09-04-public-surface.md](2026-09-04-public-surface.md)。
+[2026-09-04-public-surface.md](2026-09-04-public-surface.md)。空项目页的 toolbar、空态和
+二级操作 enabled 语义另见
+[2026-09-04-project-empty-surface.md](2026-09-04-project-empty-surface.md)。
 
 ## 2026-09-03 当前官网复核
 

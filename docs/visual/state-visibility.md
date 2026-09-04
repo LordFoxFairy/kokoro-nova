@@ -96,6 +96,6 @@ pnpm lint
 1. **已完成 — 有效报价确认门 fixture。** `video-awaiting-valid-confirmation` 使用固定的未来报价到期时间；隔离 Playwright 覆盖 enabled、确认期间 busy/disabled、本地积分预留和 `生成中` 收敛。
 2. **已完成 — Storyboard 合规阻断独立建模。** `regenerationStatusForJob(compliance_blocked)` 使用独立状态、琥珀色语义、专用 test id 和“修改后重试”恢复入口。
 3. **已完成 — 隔离浏览器状态矩阵。** 将本报告的 scenario 切换、项目/画布 loading 拦截、失败/取消/合规 retry 可见性固化到隔离 `DATA_DIR` 的 Playwright 流程；每个 case 只读断言或拦截请求，不调用真实 provider。
-4. **P2 — 明确空账户顶部操作的禁用契约。** 当前空态中 `回收站`、`新建文件夹` 和 `开始第一个项目` 均 enabled；若产品要求“没有数据时回收站禁用”，应补 UI 断言和 disabled reason，否则将现状写入验收标准。
+4. **已完成 — 空账户二级操作契约。** 2026-09-04 官网 `/project` 空态直接显示 enabled 的 `回收站` 与 `新建文件夹`；本地 mock 保持相同语义并在隔离回归中断言。
 
 本轮完整 Vitest 与有效报价的隔离 Playwright 均已通过；后者使用临时 `DATA_DIR` 和端口，不触碰主 `3200` 服务或其数据。

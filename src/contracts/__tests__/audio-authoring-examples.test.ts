@@ -66,7 +66,7 @@ describe('Audio authoring API examples', () => {
 
   it('publishes Audio state, voice and model capability schemas plus executable examples', () => {
     const document = openApi()
-    expect(document.info.version).toBe('1.10.0-skills-composer')
+    expect(document.info.version).toBe('1.11.0-contract-hardening')
     expect(document.components.schemas.NodeExtra.properties.audioAuthoring.$ref).toBe(
       '#/components/schemas/AudioAuthoringState',
     )

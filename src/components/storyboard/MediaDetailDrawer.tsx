@@ -160,10 +160,14 @@ export function MediaDetailDrawer({
   card,
   onClose,
   onOpenClipEditor,
+  onLocateNode,
+  onDuplicateNode,
 }: {
   card: StoryboardCard | null
   onClose: () => void
   onOpenClipEditor: () => void
+  onLocateNode: (nodeId: string) => void
+  onDuplicateNode: (nodeId: string) => void | Promise<void>
 }) {
   const document = useEditor((s) => s.document)
   const canvasId = useEditor((s) => s.canvasId)
@@ -581,6 +585,7 @@ export function MediaDetailDrawer({
           type="button"
           onClick={(e) => moreMenu.openFrom(e, 'point')}
           aria-label="更多操作"
+          data-testid="storyboard-card-more"
           className="ml-auto rounded-lg p-1.5 text-ink-500 transition-colors hover:bg-ink-50"
         >
           <IconMore size={16} />
@@ -993,10 +998,15 @@ export function MediaDetailDrawer({
                     ),
                 },
                 {
+                  id: 'locate',
+                  label: '在工作流中定位',
+                  onSelect: () => onLocateNode(card.nodeId),
+                },
+                {
                   id: 'duplicate',
                   label: '创建副本',
                   icon: <IconCopy size={14} />,
-                  onSelect: () => toast('已在工作流中创建副本', 'success'),
+                  onSelect: () => void onDuplicateNode(card.nodeId),
                 },
                 {
                   id: 'download',

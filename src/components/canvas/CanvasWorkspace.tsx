@@ -30,6 +30,7 @@ import type {
   GenerationJob,
   NodeData,
   NodeType,
+  WorkflowNode,
   WorkflowGroup,
 } from '@/domain/types'
 import { ApiError, client } from '@/lib/api'
@@ -44,6 +45,7 @@ import type { ScriptDraft } from '../script/script-model'
 import { readScriptV2State } from '@/domain/script-v2'
 import { createScriptV2BatchMutations, type ScriptV2BatchKind, type ScriptV2BatchMaterializeOptions } from '@/domain/script-v2-mock'
 import { StoryboardView } from '../storyboard/StoryboardView'
+import { duplicateStoryboardNode } from '@/domain/storyboard'
 import { Menu } from '../ui/Menu'
 import { Spinner } from '../ui/controls'
 import { AssetSidebar } from './AssetSidebar'
@@ -146,6 +148,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   const loading = useEditor((s) => s.loading)
   const project = useEditor((s) => s.project)
   const viewMode = useEditor((s) => s.viewMode)
+  const setViewMode = useEditor((s) => s.setViewMode)
   const loadedCanvasId = useEditor((s) => s.canvasId)
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
@@ -378,12 +381,19 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
   )
 
   const focusCanvasNodeElement = useCallback((nodeId: string) => {
-    window.requestAnimationFrame(() => {
+    const focus = (attempt = 0) => {
       const nodeElement = [...window.document.querySelectorAll<HTMLElement>('.react-flow__node')].find(
         (element) => element.dataset.id === nodeId,
       )
-      nodeElement?.focus()
-    })
+      if (nodeElement) {
+        nodeElement.focus({ preventScroll: true })
+        return
+      }
+      // A view switch mounts React Flow asynchronously. Retry for a few
+      // frames so a locate request cannot be lost between the two views.
+      if (attempt < 8) window.requestAnimationFrame(() => focus(attempt + 1))
+    }
+    window.requestAnimationFrame(() => focus())
   }, [])
 
   const locateNode = useCallback(
@@ -398,6 +408,37 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       focusCanvasNodeElement(nodeId)
     },
     [flow, focusCanvasNodeElement, select],
+  )
+
+  const openWorkflowNode = useCallback(
+    (nodeId: string) => {
+      setViewMode('workflow')
+      // Wait for the workflow view to mount before querying its React Flow
+      // node; the second frame makes the handoff focusable instead of only
+      // updating the store selection.
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => locateNode(nodeId))
+      })
+    },
+    [locateNode, setViewMode],
+  )
+
+  const duplicateStoryboardCard = useCallback(
+    async (nodeId: string) => {
+      const created: { node: WorkflowNode | null } = { node: null }
+      const ok = await commitWith((doc) => {
+        const result = duplicateStoryboardNode(doc, nodeId)
+        created.node = result?.node ?? null
+        return result?.mutations ?? []
+      }, '创建副本')
+      if (!ok || !created.node) return
+      toast('已在工作流中创建副本', 'success')
+      setViewMode('workflow')
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => locateNode(created.node!.id))
+      })
+    },
+    [commitWith, locateNode, setViewMode, toast],
   )
 
   const startCanvasSelection = useCallback(
@@ -1109,7 +1150,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
             )}
           </>
         ) : (
-          <StoryboardView />
+          <StoryboardView onLocateNode={openWorkflowNode} onDuplicateNode={duplicateStoryboardCard} />
         )}
 
         {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && inspectedNode.type !== 'audio' && inspectedNode.type !== 'text' && inspectedNode.type !== 'script' && (

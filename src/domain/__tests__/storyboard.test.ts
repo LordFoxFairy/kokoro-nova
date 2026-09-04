@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createEdge, createNode, emptyDocument } from '@/domain/factory'
 import { applyMutations } from '@/domain/mutations'
 import {
+  duplicateStoryboardNode,
   filterVideoCards,
   projectStoryboard,
   reconcileStoryboardExpandedColumn,
@@ -311,5 +312,35 @@ describe('reconcileStoryboardExpandedColumn', () => {
 
     expect(reconcileStoryboardExpandedColumn('audio', projection)).toBeNull()
     expect(reconcileStoryboardExpandedColumn(undefined, projection)).toBeNull()
+  })
+})
+
+describe('duplicateStoryboardNode', () => {
+  it('creates a detached copy with a stable copy name and cloned data', () => {
+    const source = node('image', 'nd_image', '2026-01-01T00:00:00.000Z', {
+      prompt: '雪夜城市',
+      extra: { presetId: 'preset-1', nested: { keep: true } },
+    })
+    const doc = build([source, node('image', 'nd_other', '2026-01-01T00:00:01.000Z')])
+
+    const result = duplicateStoryboardNode(doc, source.id)
+
+    expect(result).not.toBeNull()
+    expect(result?.node.id).not.toBe(source.id)
+    expect(result?.node.type).toBe('image')
+    expect(result?.node.name).toBe('image-nd_image副本')
+    expect(result?.node.position).toEqual({ x: 48, y: 48 })
+    expect(result?.node.groupId).toBeNull()
+    expect(result?.node.data).toEqual(source.data)
+    expect(result?.mutations).toEqual([{ op: 'addNode', node: result?.node }])
+    expect(result?.node.data).not.toBe(source.data)
+    expect(result?.node.data.extra).not.toBe(source.data.extra)
+  })
+
+  it('returns null for a missing or non-storyboard node', () => {
+    const doc = build([node('style', 'nd_style', '2026-01-01T00:00:00.000Z')])
+
+    expect(duplicateStoryboardNode(doc, 'missing')).toBeNull()
+    expect(duplicateStoryboardNode(doc, 'nd_style')).toBeNull()
   })
 })

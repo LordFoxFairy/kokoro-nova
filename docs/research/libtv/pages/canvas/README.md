@@ -497,6 +497,13 @@ Agent 资产；完整资产库负责文件夹、上传、标签和批量组织�
 - 协作相机、跟随对象和缩放属于 presence/view state，不能写回共享工作流文档。
 - 真实生成前应有确认门、积分预估、并发校验、人像合规校验和幂等键。
 
+## Kokoro Nova 本地一致性补充
+
+故事板媒体详情的更多操作复用同一 `WorkflowDocument`：`在工作流中定位` 会切回工作流并
+选中、居中源节点，`创建副本` 会通过单次 mutation 创建带有独立数据对象的节点副本；两者都不引入
+故事板专属持久化状态。对应的 1440×900 交互基线为
+[`storyboard-card-actions-1440x900-darwin.png`](../../../../../e2e/canvas-parity.spec.ts-snapshots/storyboard-card-actions-1440x900-darwin.png)。
+
 ## 待补状态
 
 - 图片、视频、音频和脚本的真实运行、取消、失败、重试、结果与成本结算。

@@ -289,6 +289,49 @@ test('storyboard preserves the document while matching default, expanded and Age
   await expectVisualBaseline(page, 'storyboard-agent-dark-1440x900.png')
 })
 
+test('storyboard card actions locate the source node and create a workflow copy', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-populated')
+  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+
+  await page.getByTestId('view-storyboard').click()
+  const card = page.getByTestId('storyboard-card-node_image_01').first()
+  await card.click()
+  const detail = page.getByTestId('media-detail')
+  await expect(detail).toBeVisible()
+
+  await detail.getByRole('button', { name: '更多操作', exact: true }).click()
+  const menu = page.getByRole('menu').last()
+  await expect(menu.getByRole('menuitem', { name: '在工作流中定位', exact: true })).toBeVisible()
+  await expect(menu.getByRole('menuitem', { name: '创建副本', exact: true })).toBeVisible()
+  await expectVisualBaseline(page, 'storyboard-card-actions-1440x900.png')
+
+  await menu.getByRole('menuitem', { name: '创建副本', exact: true }).click()
+  await expect(page.getByTestId('view-workflow')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('media-detail')).toHaveCount(0)
+  await expect(page.locator('[data-node-type="image"]')).toHaveCount(2)
+  await expect(page.getByText('副本', { exact: false }).first()).toBeVisible()
+
+  const toast = page.getByTestId('toast').filter({ hasText: '已在工作流中创建副本' })
+  await expect(toast).toBeVisible()
+})
+
+test('storyboard can return to the source workflow node from the card menu', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-populated')
+  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+
+  await page.getByTestId('view-storyboard').click()
+  await page.getByTestId('storyboard-card-node_video_01').first().click()
+  const detail = page.getByTestId('media-detail')
+  await detail.getByRole('button', { name: '更多操作', exact: true }).click()
+  await page.getByRole('menu').last().getByRole('menuitem', { name: '在工作流中定位', exact: true }).click()
+
+  await expect(page.getByTestId('view-workflow')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('media-detail')).toHaveCount(0)
+  await expect(page.getByTestId('node-shell-node_video_01')).toHaveAttribute('data-selected', 'true')
+})
+
 test('Agent asset management keeps the dedicated empty surface free of personal browse controls', async ({ page, request }) => {
   await selectScenario(request, 'authenticated-empty')
   await createEmptyProject(page)

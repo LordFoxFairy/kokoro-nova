@@ -1,5 +1,6 @@
+import { createNode } from './factory'
 import { NODE_META } from './nodes'
-import type { WorkflowDocument, WorkflowNode, Artifact, NodeReference } from './types'
+import type { CanvasMutation, WorkflowDocument, WorkflowNode, Artifact, NodeReference } from './types'
 
 /**
  * Storyboard is a *projection* of the same workflow document, not a separate
@@ -194,6 +195,34 @@ export function reconcileStoryboardExpandedColumn(
 export function filterVideoCards(cards: StoryboardCard[], filter: VideoFilter): StoryboardCard[] {
   if (filter === 'all') return cards
   return cards.filter((c) => c.videoKind === filter)
+}
+
+/**
+ * Build the mutation used by the storyboard "创建副本" action.
+ *
+ * The storyboard is a projection, so duplicating a card must create a normal
+ * workflow node rather than a second storyboard-only record. A copy starts
+ * outside any group and gets its own data object, while preserving the source
+ * prompt, output settings and artifacts for local deterministic fixtures.
+ */
+export function duplicateStoryboardNode(
+  doc: WorkflowDocument,
+  nodeId: string,
+): { node: WorkflowNode; mutations: CanvasMutation[] } | null {
+  const source = doc.nodes.find((node) => node.id === nodeId)
+  if (!source || !NODE_META[source.type]?.storyboardColumn) return null
+
+  const copy = createNode(
+    source.type,
+    { x: source.position.x + 48, y: source.position.y + 48 },
+    doc.nodes,
+    {
+      name: `${source.name}副本`,
+      data: JSON.parse(JSON.stringify(source.data)) as WorkflowNode['data'],
+    },
+  )
+
+  return { node: copy, mutations: [{ op: 'addNode', node: copy }] }
 }
 
 export const VIDEO_FILTER_LABELS: Record<VideoFilter, string> = {

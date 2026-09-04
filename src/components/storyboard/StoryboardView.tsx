@@ -60,7 +60,15 @@ export function getStoryboardGridTemplate(hasLeftRail: boolean, mediaColumnCount
  * node id, and every reference chip traces to the node that produced it. That
  * is what lets 参考元素 → 源节点 → 添加到对话 work without a parallel store.
  */
-export function StoryboardView() {
+export function StoryboardView({
+  onLocateNode,
+  onDuplicateNode,
+}: {
+  /** Switch back to the workflow and centre the matching node. */
+  onLocateNode: (nodeId: string) => void
+  /** Duplicate the projected card in the source workflow document. */
+  onDuplicateNode: (nodeId: string) => void | Promise<void>
+}) {
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
   const [videoFilter, setVideoFilter] = useState<VideoFilter>('all')
@@ -305,7 +313,13 @@ export function StoryboardView() {
         />
       )}
 
-      <MediaDetailDrawer card={detail} onClose={() => setDetailNodeId(null)} onOpenClipEditor={openClipEditor} />
+      <MediaDetailDrawer
+        card={detail}
+        onClose={() => setDetailNodeId(null)}
+        onOpenClipEditor={openClipEditor}
+        onLocateNode={onLocateNode}
+        onDuplicateNode={onDuplicateNode}
+      />
     </div>
   )
 }

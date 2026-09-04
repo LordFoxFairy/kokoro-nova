@@ -1,5 +1,8 @@
 'use client'
 
+/* Public snapshots retain their original cover URLs, including arbitrary fixture URLs. */
+/* eslint-disable @next/next/no-img-element */
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { SnapshotSummary } from '@/domain/publish'
@@ -175,7 +178,7 @@ export function ShowcaseGallery() {
           <Link href="/project" className="rounded-lg bg-white px-3.5 py-2 text-[12px] font-medium text-[#151515] transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">我的项目</Link>
         </nav>
       </header>
-      <main className="px-4 pb-16 sm:px-8" aria-labelledby="showcase-title" aria-describedby="showcase-status">
+      <main className="px-4 pb-16 sm:px-8" aria-labelledby="showcase-title" aria-describedby="showcase-status" data-request-state={requestState}>
         <div className="mx-auto max-w-[1500px]">
           <div className="flex flex-wrap items-baseline justify-between gap-2 pt-7">
             <div><h1 id="showcase-title" className="text-[18px] font-semibold tracking-tight text-white">TV Show</h1><p className="mt-1 text-[12px] text-white/45">公开探索 · 只读浏览发布时冻结的制作过程</p></div>

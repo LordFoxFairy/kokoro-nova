@@ -339,7 +339,12 @@ test('script v2 stage 1 exposes the observed stage metrics, semantic headers and
     '操作',
   ])
   await expect(workspace.getByRole('button', { name: '添加镜头', exact: true })).toBeVisible()
-  await expect(workspace.getByRole('button', { name: '一键合成全部提示词', exact: true })).toBeDisabled()
+  const next = workspace.getByRole('button', { name: '下一步：准备资产', exact: true })
+  await expect(next).toBeEnabled()
+  const stageSaved = waitForCanvasMutation(page)
+  await next.click()
+  await stageSaved
+  await expect(workspace.getByTestId('script-v2-assets')).toBeVisible()
 })
 
 test('script v2 prompt stage exposes the dual-track single-shot compose surface', async ({ page }) => {
@@ -1314,7 +1319,7 @@ test('script v2 preserves desktop visual baselines through its three-stage autho
   await expectVisualBaseline(page, 'script-v2-shots-1440x900.png')
 
   persisted = waitForCanvasMutation(page)
-  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^准备资产/ }).click()
   await persisted
   await expect(workspace.getByTestId('script-v2-assets')).toBeVisible()
   await expectVisualBaseline(page, 'script-v2-assets-1440x900.png')

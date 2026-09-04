@@ -18,7 +18,7 @@ import {
   type ScriptV2State,
 } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
-import { IconCheck, IconClose, IconImage, IconPlus, IconScript, IconSparkle, IconVideo } from '../icons'
+import { IconCheck, IconClose, IconImage, IconPlus, IconScript, IconVideo } from '../icons'
 import { ScriptV2Assets } from './ScriptV2Assets'
 import type { ScriptV2CanvasImageCandidate } from './ScriptV2Dialogs'
 import {
@@ -65,7 +65,7 @@ function promptReady(state: ScriptV2State) {
   }).length
 }
 
-/** Full-screen three-stage Script V2 workspace rooted in canonical node state. */
+/** Bottom-drawer three-stage Script V2 workspace rooted in canonical node state. */
 export function ScriptV2Workspace({
   open,
   canvasId,
@@ -152,7 +152,6 @@ export function ScriptV2Workspace({
     },
     { id: 'prompts', title: '合成提示词', subtitle: `${readyPrompts}/${workspaceState.rows.length} 已合成` },
   ]
-  const canCompose = workspaceState.rows.length > 0 && workspaceState.rows.every((row) => row.plotDescription.trim())
 
   const openPrompt = (rowId: string) => {
     promptFlushRef.current?.()
@@ -263,7 +262,7 @@ export function ScriptV2Workspace({
       aria-modal="true"
       aria-label="脚本 V2 工作区"
       data-testid="script-v2-workspace"
-      className="fixed inset-0 z-[160] flex flex-col bg-[#171717] text-white"
+      className="fixed inset-x-0 bottom-0 z-[160] flex h-[min(820px,calc(100dvh-64px))] flex-col overflow-hidden rounded-t-[22px] border-t border-white/10 bg-[#171717] text-white shadow-[0_-24px_60px_rgba(0,0,0,0.45)]"
     >
       <header className="flex h-[72px] shrink-0 items-center gap-4 border-b border-white/8 px-5">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/7 text-white/70">
@@ -378,16 +377,12 @@ export function ScriptV2Workspace({
             </FooterButton>
             <button
               type="button"
-              disabled={!canCompose}
-              title={canCompose ? undefined : '请先补全所有镜头的画面描述'}
-              onClick={() => {
-                setStage('prompts')
-                openBatchPrompt()
-              }}
+              disabled={workspaceState.rows.length === 0}
+              title={workspaceState.rows.length > 0 ? undefined : '请先添加至少一个镜头'}
+              onClick={() => setStage('assets')}
               className="ml-auto flex h-10 items-center gap-2 rounded-xl bg-white px-5 text-[12px] font-medium text-[#202020] disabled:cursor-not-allowed disabled:opacity-30"
             >
-              <IconSparkle size={14} />
-              一键合成全部提示词
+              下一步：准备资产
             </button>
           </>
         )}

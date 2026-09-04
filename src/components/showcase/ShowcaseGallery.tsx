@@ -3,7 +3,8 @@
 import { useMemo, useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { SnapshotSummary } from '@/domain/publish'
-import { ApiError, api } from '@/lib/api'
+import type { ShowcaseEntryProjection } from '@/contracts/showcase'
+import { ApiError, client } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { EmptyState, Spinner } from '../ui/controls'
 import { IconChevronRight, IconClose, IconImage, IconLayers, IconPlay, IconRefresh, IconSearch } from '../icons'
@@ -35,6 +36,11 @@ export type ShowcaseEntry = {
   author: string
   authorTier: string | null
   likeCount: number
+  viewCount?: number
+  authorAvatarUrl?: string | null
+  hasAiContent?: boolean
+  processAvailable?: boolean
+  media?: ShowcaseEntryProjection['media']
 }
 
 /**
@@ -55,6 +61,10 @@ export function toShowcaseEntry(snapshot: SnapshotSummary): ShowcaseEntry {
     author: '公开创作者',
     authorTier: null,
     likeCount: 0,
+    viewCount: 0,
+    authorAvatarUrl: null,
+    hasAiContent: snapshot.mediaCount > 0,
+    processAvailable: true,
   }
 }
 
@@ -119,7 +129,7 @@ export function getShowcaseRequestState({
  * to branch on and no editing affordance to hide.
  */
 export function ShowcaseGallery() {
-  const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([])
+  const [snapshots, setSnapshots] = useState<ShowcaseEntry[]>([])
   const [category, setCategory] = useState<ShowcaseEntry['category']>('全部')
   const [draftQuery, setDraftQuery] = useState('')
   const [query, setQuery] = useState('')
@@ -131,11 +141,11 @@ export function ShowcaseGallery() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    void api
-      .get<{ snapshots: SnapshotSummary[] }>('/api/publish')
+    void client.showcase
+      .list()
       .then((data) => {
         if (cancelled) return
-        setSnapshots(data.snapshots)
+        setSnapshots(data.entries)
       })
       .catch((cause: unknown) => {
         if (cancelled) return
@@ -150,7 +160,7 @@ export function ShowcaseGallery() {
   }, [reloadToken])
 
   const requestState = getShowcaseRequestState({ loading, hasData: snapshots.length > 0, error })
-  const entries = useMemo(() => snapshots.map(toShowcaseEntry), [snapshots])
+  const entries = useMemo(() => snapshots, [snapshots])
   const filtered = useMemo(() => filterShowcaseEntries(entries, category, query), [category, entries, query])
   const searchFeedback = getShowcaseSearchFeedback({
     category,

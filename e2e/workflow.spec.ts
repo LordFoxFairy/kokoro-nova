@@ -439,6 +439,8 @@ test('publish freezes a snapshot that the public gallery serves read-only', asyn
   await page.screenshot({ path: `${SHOTS}/showcase-gallery.png` })
 
   await card.click()
+  await expect(page.getByTestId('showcase-detail')).toBeVisible()
+  await page.getByTestId('showcase-process').click()
   await expect(page.getByTestId('public-canvas-view')).toBeVisible()
   await expect(page.getByTestId('public-workflow')).toBeVisible()
 

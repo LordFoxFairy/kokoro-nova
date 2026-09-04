@@ -228,6 +228,13 @@ export const IconShare = (p: IconProps) => (
   </Icon>
 )
 
+export const IconVolume = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 10h3.4l4.4-4v12l-4.4-4H4z" />
+    <path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" />
+  </Icon>
+)
+
 export const IconChevronDown = (p: IconProps) => (
   <Icon {...p}>
     <path d="m6 9.5 6 5.5 6-5.5" />

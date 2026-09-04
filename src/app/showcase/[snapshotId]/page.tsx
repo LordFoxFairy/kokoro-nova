@@ -1,4 +1,4 @@
-import { PublicCanvasView } from '@/components/showcase/PublicCanvasView'
+import { ShowcaseDetailView } from '@/components/showcase/ShowcaseDetailView'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,5 +15,5 @@ export default async function ShowcaseDetailPage({
   params: Promise<{ snapshotId: string }>
 }) {
   const { snapshotId } = await params
-  return <PublicCanvasView snapshotId={snapshotId} />
+  return <ShowcaseDetailView snapshotId={snapshotId} />
 }

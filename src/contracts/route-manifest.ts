@@ -14,6 +14,7 @@ export type LocalApiTag =
   | 'Agent'
   | 'Skills'
   | 'Publish'
+  | 'Showcase'
   | 'Ledger'
   | 'Presence'
   | 'Script V2'
@@ -183,6 +184,14 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'public-showcase',
   ]),
   route('POST', '/api/publish', 'Publish', 'publishCanvas', ['发布与分享菜单发布作品']),
+
+  route('GET', '/api/showcase/{snapshotId}', 'Showcase', 'getShowcaseDetail', ['TV Show 作品详情、播放器和相邻作品带'], [
+    'public-showcase',
+  ]),
+  route('GET', '/api/showcase', 'Showcase', 'listShowcaseEntries', ['TV Show 目录发现 projection'], [
+    'anonymous',
+    'public-showcase',
+  ]),
 
   route('GET', '/api/skills/{skillId}', 'Skills', 'getSkill', ['打开 Skill 详情']),
   route('POST', '/api/skills/{skillId}', 'Skills', 'toggleSkillFavorite', ['Skill 卡或详情收藏']),

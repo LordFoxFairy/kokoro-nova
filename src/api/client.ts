@@ -42,6 +42,10 @@ import {
   ToggleSkillFavouriteRequestSchema,
   ToggleSkillFavouriteResponseSchema,
 } from '@/contracts/skills'
+import {
+  ShowcaseDetailResponseSchema,
+  ShowcaseListResponseSchema,
+} from '@/contracts/showcase'
 
 export type JsonTransport = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -188,6 +192,11 @@ export function createApiClient(transport: JsonTransport = fetch) {
           LedgerViewProjectionSchema,
           limit === undefined ? '/api/ledger' : `/api/ledger?limit=${encodeURIComponent(String(limit))}`,
         ),
+    },
+    showcase: {
+      list: () => requestTyped(ShowcaseListResponseSchema, '/api/showcase'),
+      detail: (snapshotId: string) =>
+        requestTyped(ShowcaseDetailResponseSchema, `/api/showcase/${encodeURIComponent(snapshotId)}`),
     },
     jobs: {
       list: (canvasId?: string) =>

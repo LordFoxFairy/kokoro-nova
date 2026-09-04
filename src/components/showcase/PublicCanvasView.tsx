@@ -54,7 +54,7 @@ export function getPublicSnapshotState({
  * gesture to disable in the first place. The workflow side is a static layout
  * driven by each node's stored position.
  */
-export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
+export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; onClose?: () => void }) {
   const [snapshot, setSnapshot] = useState<PublishedSnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -91,12 +91,23 @@ export function PublicCanvasView({ snapshotId }: { snapshotId: string }) {
   return (
     <div className="flex h-screen flex-col bg-canvas" data-testid="public-canvas-view" aria-busy={loading}>
       <header className="flex shrink-0 items-center gap-3 bg-surface px-5 py-3 shadow-[var(--shadow-float)]">
-        <Link
-          href="/showcase"
-          className="flex shrink-0 items-center gap-1 text-[13px] text-ink-600 transition-colors hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <IconChevronLeft size={15} /> 公开作品
-        </Link>
+        {onClose ? (
+          <button
+            type="button"
+            data-testid="public-process-close"
+            onClick={onClose}
+            className="flex shrink-0 items-center gap-1 text-[13px] text-ink-600 transition-colors hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <IconChevronLeft size={15} /> 返回作品
+          </button>
+        ) : (
+          <Link
+            href="/showcase"
+            className="flex shrink-0 items-center gap-1 text-[13px] text-ink-600 transition-colors hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <IconChevronLeft size={15} /> 公开作品
+          </Link>
+        )}
         <span className="h-4 w-px shrink-0 bg-ink-200" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold text-ink-900">

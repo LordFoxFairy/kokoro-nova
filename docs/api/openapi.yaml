@@ -3163,6 +3163,103 @@
         }
       }
     },
+    "/api/showcase/{snapshotId}": {
+      "get": {
+        "tags": [
+          "Showcase"
+        ],
+        "summary": "TV Show 作品详情、播放器和相邻作品带",
+        "operationId": "getShowcaseDetail",
+        "x-ui-triggers": [
+          "TV Show 作品详情、播放器和相邻作品带"
+        ],
+        "x-mock-scenarios": [
+          "public-showcase"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标作品不存在或已下架",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地公开发现 projection 读取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "公开快照的稳定本地标识"
+          }
+        ]
+      }
+    },
+    "/api/showcase": {
+      "get": {
+        "tags": [
+          "Showcase"
+        ],
+        "summary": "TV Show 目录发现 projection",
+        "operationId": "listShowcaseEntries",
+        "x-ui-triggers": [
+          "TV Show 目录发现 projection"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "public-showcase"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地公开发现 projection 读取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/publish/{snapshotId}": {
       "get": {
         "tags": [
@@ -5799,6 +5896,126 @@
               "string",
               "null"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShowcaseMedia": {
+        "type": "object",
+        "required": [
+          "url",
+          "posterUrl",
+          "durationSeconds",
+          "width",
+          "height",
+          "originalQualityLabel"
+        ],
+        "properties": {
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "posterUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "originalQualityLabel": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShowcaseEntryProjection": {
+        "type": "object",
+        "required": [
+          "id",
+          "snapshotId",
+          "title",
+          "summary",
+          "coverUrl",
+          "publishedAt",
+          "nodeCount",
+          "mediaCount",
+          "category",
+          "author",
+          "authorTier",
+          "authorAvatarUrl",
+          "likeCount",
+          "viewCount",
+          "hasAiContent",
+          "processAvailable",
+          "media"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "snapshotId": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "coverUrl": { "type": ["string", "null"] },
+          "publishedAt": { "type": "string", "format": "date-time" },
+          "nodeCount": { "type": "integer", "minimum": 0 },
+          "mediaCount": { "type": "integer", "minimum": 0 },
+          "category": {
+            "type": "string",
+            "enum": [
+              "AI 漫剧精卫计划",
+              "广告导演请就位",
+              "精选画布",
+              "专业影视",
+              "短剧漫剧",
+              "商业广告",
+              "动漫游戏",
+              "教育生活",
+              "TV 工具箱"
+            ]
+          },
+          "author": { "type": "string" },
+          "authorTier": { "type": ["string", "null"] },
+          "authorAvatarUrl": { "type": ["string", "null"] },
+          "likeCount": { "type": "integer", "minimum": 0 },
+          "viewCount": { "type": "integer", "minimum": 0 },
+          "hasAiContent": { "type": "boolean" },
+          "processAvailable": { "type": "boolean" },
+          "media": { "$ref": "#/components/schemas/ShowcaseMedia" }
+        },
+        "additionalProperties": false
+      },
+      "ShowcaseListResponse": {
+        "type": "object",
+        "required": ["entries"],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ShowcaseEntryProjection" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShowcaseDetailResponse": {
+        "type": "object",
+        "required": ["entry", "related"],
+        "properties": {
+          "entry": { "$ref": "#/components/schemas/ShowcaseEntryProjection" },
+          "related": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ShowcaseEntryProjection" }
           }
         },
         "additionalProperties": false

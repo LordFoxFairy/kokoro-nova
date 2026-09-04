@@ -145,6 +145,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | Audio/TTS/音乐、音色与参考 | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 WAV） |
 | Text 生成、手写文档与三个启动 Workflow | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 TXT + 内联文本） |
 | Script V2 三阶段脚本 | `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run`；状态写回仍走 `mutateCanvas` |
+| TV Show 目录与详情 | `listShowcaseEntries`, `getShowcaseDetail`, `getPublishedSnapshot`；详情媒体、作者、统计和相邻作品属于独立 discovery projection，工作流仍读取冻结快照 |
 | 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |

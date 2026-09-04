@@ -18,8 +18,8 @@
 
 - `/showcase` 已升级为深色 TV Show 目录：活动条、LibTV 品牌、分类、提交式搜索、空查询
   推荐回退、作者/作品卡层级和公开流程入口都由 `e2e/public-discovery.spec.ts` 覆盖，并留有
-  `docs/screenshots/showcase-gallery-{catalog,filters}.png` 两张本地 1440×900 证据。它仍没有
-  官方详情的沉浸媒体背景、播放器控制或相邻作品带。
+  `docs/screenshots/showcase-gallery-{catalog,filters}.png` 两张本地 1440×900 证据；
+  `/showcase/:snapshotId` 另有详情沉浸媒体背景、播放器控制、相邻作品带与过程覆盖层基线。
 - `/skills` 是浅色满宽技能瀑布流，具备分类、搜索和收藏星标；它不保留官网顶部创作 composer
   或详情中的媒体轮播/lightbox 链路。
 - `/account` 是浅色居中 ledger，余额预留/结算的领域投影完整；它与官网深色头像账户菜单、
@@ -53,7 +53,7 @@ Storyboard 都可渲染，`复制项目` enabled 后会打开本地登录门。�
 
 | Surface | 官网已观察的事实 | 当前本地实现 | Fidelity 缺口 | 进入 `VERIFIED_LOCAL` 的最小验收 |
 | --- | --- | --- | --- | --- |
-| TV Show 目录与详情 | 分类/搜索、媒体卡、详情沉浸背景、播放控制、相邻作品带、只读制作过程、登录后复制门槛；见 [`pages/showcase/README.md`](../pages/showcase/README.md) | 首页与 `/showcase` 都使用深色 TV Show 层级；目录覆盖分类、提交式搜索、无精确匹配回退、作者/互动信息和只读快照卡 | 详情/播放器、相邻作品带、共享 `ShowcaseEntry` API 与首页目录之间仍未统一；当前目录仍从 `PublishedSnapshot` 只读投影派生 | 一个版本化 `ShowcaseEntry` fixture；详情/播放器、只读 Workflow/Storyboard、认证复制门分别有确定性 mock 状态、API operation、1440×900 快照与键盘流程 |
+| TV Show 目录与详情 | 分类/搜索、媒体卡、详情沉浸背景、播放控制、相邻作品带、只读制作过程、登录后复制门槛；见 [`pages/showcase/README.md`](../pages/showcase/README.md) | 深色 TV Show 目录与详情共用 `/api/showcase` projection；详情覆盖沉浸背景、播放器、质量/倍速/音量/全屏、喜欢登录门、过程覆盖层和只读快照卡 | 首页的 `HomeShowcaseItem` 仍是独立首页摘要，登录后复制、真正后端媒体变体与分页仍待补 | 版本化 `ShowcaseEntry` fixture；详情/播放器、只读 Workflow/Storyboard、认证复制门分别有确定性 mock 状态、API operation、1440×900 快照与键盘流程 |
 | Skill 广场与详情 | 顶部创作输入、全部/收藏/我的、分类、卡片、详情四图轮播/原图层、添加 Skill/收藏/分享语义；见 [`pages/skills/README.md`](../pages/skills/README.md) | `/skills` 提供浅色列表、搜索、分类、收藏和结构化详情；首页与画布已分别有 Skill 上下文 | 页面 shell、详情媒体轮播/原图层、未登录与登录的收藏/我的门、详情“添加”到 composer 的回流没有按官网链路实现 | Skill 目录与详情共用版本化 mock；收藏、添加、认证门、轮播/lightbox、返回 composer 上下文各有 E2E；目录和详情各有桌面视觉基线 |
 | 账户与共享账户域 | 深色头像菜单内有身份、会员、积分/余额池、存储、主题、水印、通知和个人中心入口；钱包/资产/订阅跨 LibTV 与主站共享；见 [`pages/account/README.md`](../pages/account/README.md) | `/account` 是浅色本地 ledger；编辑器/首页有积分余额但没有官网账户菜单投影 | ledger 的预留/返还领域正确，但外层导航、主题偏好、通知/水印/存储入口及共享账户边界没有被表达 | 深色账户菜单以显式的 local identity fixture 驱动；余额池、ledger、偏好和入口状态写入契约；菜单键盘、余额刷新/错误、积分账本各有 E2E 与桌面基线 |
 
@@ -61,7 +61,7 @@ Storyboard 都可渲染，`复制项目` enabled 后会打开本地登录门。�
 
 | Local route | 当前主要 API | 保留的后端 seam |
 | --- | --- | --- |
-| `/showcase` / `/showcase/:snapshotId` | `GET /api/publish`、`GET /api/publish/{snapshotId}`、`POST /api/publish`、`DELETE /api/publish/{snapshotId}` | `PublishedSnapshot` 继续作为冻结只读 document；需补独立的发现条目/播放投影，不把浏览统计或播放器状态写回快照 document |
+| `/showcase` / `/showcase/:snapshotId` | `GET /api/showcase`、`GET /api/showcase/{snapshotId}`、`GET /api/publish/{snapshotId}`、`POST /api/publish`、`DELETE /api/publish/{snapshotId}` | `ShowcaseEntry` 详情/播放器 projection 与 `PublishedSnapshot` 解耦；快照继续作为冻结只读 document，作者、分类、统计和播放器瞬态状态不写回快照 |
 | `/skills` / `/skills/:skillId` | `GET /api/skills`、`GET|POST /api/skills/{skillId}` | `SkillCard` 与版本化 detail 保持分层；用户收藏和 composer 上下文属于 account/session 状态，不能混入公开 Skill catalogue |
 | `/account` | `GET /api/ledger` | 余额、预留、结算、返还继续由 ledger 单一事实源提供；身份、偏好、通知和团队属于未来 account seam，应使用独立 mock contract，而不是改写 Jobs API |
 

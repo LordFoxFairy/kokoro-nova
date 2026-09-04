@@ -20,12 +20,12 @@ import {
   IconHelp,
   IconRefresh,
   IconSearch,
-  IconSend,
   IconSkill,
   IconSparkle,
 } from '../icons'
 import { LibTvLogo } from '../shell/LibTvLogo'
 import { PromoStrip } from '../shell/PromoStrip'
+import { SkillMarketComposer } from './SkillMarketComposer'
 
 interface SkillListResponse {
   skills: SkillCard[]
@@ -57,8 +57,6 @@ export function SkillGallery() {
   const [category, setCategory] = useState<string>('全部')
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
-  const [composerDraft, setComposerDraft] = useState('')
-  const [composerGateOpen, setComposerGateOpen] = useState(false)
 
   const [skills, setSkills] = useState<SkillCard[]>([])
   const [counts, setCounts] = useState({ all: 0, favourite: 0, mine: 0 })
@@ -173,25 +171,7 @@ export function SkillGallery() {
           <div data-testid="skill-status" role="status" aria-live="polite" className="sr-only">
             {requestState === 'initial-loading' ? '正在加载技能库…' : requestState === 'refreshing' ? '正在刷新技能库…' : ''}
           </div>
-          <form
-            data-testid="skill-composer"
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (composerDraft.trim()) setComposerGateOpen(true)
-            }}
-            className="mx-auto mt-7 max-w-[860px] rounded-2xl border border-white/[0.14] bg-[#202020] p-3 shadow-[0_18px_70px_rgba(0,0,0,.18)] transition-colors focus-within:border-white/[0.24]"
-          >
-            <label htmlFor="skill-composer-input" className="sr-only">输入创作灵感</label>
-            <textarea id="skill-composer-input" data-testid="skill-composer-input" value={composerDraft} onChange={(event) => setComposerDraft(event.target.value)} placeholder="请输入你的创作灵感，或从下方挑选一个 Skill 开始" rows={3} className="min-h-[82px] w-full resize-none bg-transparent px-1 py-1 text-[13px] leading-relaxed text-white/85 outline-none placeholder:text-white/30" />
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-4 text-white/45">
-                <button type="button" aria-label="添加素材" title="添加素材" className="transition-colors hover:text-white"><span className="text-[22px] leading-none">＋</span></button>
-                <button type="button" aria-label="选择 Skill" title="选择 Skill" className="transition-colors hover:text-white"><IconSkill size={18} /></button>
-                <button type="button" aria-label="添加参考" title="添加参考" className="hidden transition-colors hover:text-white sm:block"><span className="text-[18px]">▧</span></button>
-              </div>
-              <button type="submit" data-testid="skill-composer-submit" aria-label="开始创作" disabled={!composerDraft.trim()} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/65 text-[#191919] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:bg-white/25 disabled:text-white/45"><IconSend size={17} /></button>
-            </div>
-          </form>
+          <SkillMarketComposer />
         </section>
 
         <section className="mt-11" aria-label="技能市场筛选">
@@ -244,7 +224,6 @@ export function SkillGallery() {
         </div>
       </main>
 
-      {composerGateOpen && <ComposerLoginGate draft={composerDraft} onClose={() => setComposerGateOpen(false)} />}
     </div>
   )
 }
@@ -280,19 +259,6 @@ function CollectionEmptyState({ collection, filtered, onClear }: { collection: S
   if (collection === '收藏') return <EmptyState icon={<IconSparkle size={30} />} title="当前暂无 Skill" description="收藏过的能力包会集中在这里，方便下次直接加载。" />
   if (collection === '我的') return <EmptyState icon={<IconSparkle size={30} />} title="还没有自建 Skill" description="把反复用到的步骤、约束和产出格式沉淀成一份执行契约。" />
   return <EmptyState icon={<IconSparkle size={30} />} title="技能库还没有内容" description="能力包会在这里按分类陈列，加载后 Agent 就按它写定的契约工作。" />
-}
-
-function ComposerLoginGate({ draft, onClose }: { draft: string; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" data-testid="skill-composer-login-gate">
-      <button type="button" aria-label="关闭登录提示" className="absolute inset-0 cursor-default" onClick={onClose} />
-      <div className="relative w-full max-w-[390px] rounded-2xl border border-white/[0.12] bg-[#202020] p-6 shadow-[0_24px_80px_rgba(0,0,0,.5)]">
-        <div className="flex items-start justify-between gap-5"><div><p className="text-[15px] font-medium text-white/90">登录后开始创作</p><p className="mt-2 text-[12px] leading-relaxed text-white/45">你的灵感已经保留在当前页面。登录 LibTV 后，Agent 才能创建会话并加载 Skill。</p></div><button type="button" aria-label="关闭" onClick={onClose} className="rounded-lg p-1 text-white/45 hover:bg-white/10 hover:text-white"><IconClose size={16} /></button></div>
-        <p className="mt-4 rounded-xl bg-black/25 px-3 py-2 text-[12px] text-white/55">「{draft}」</p>
-        <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg px-3.5 py-2 text-[12px] text-white/55 hover:bg-white/[0.06]">继续浏览</button><Link href="/account" className="rounded-lg bg-white px-3.5 py-2 text-[12px] font-medium text-[#151515]">注册 / 登录</Link></div>
-      </div>
-    </div>
-  )
 }
 
 function formatUsage(count: number): string {

@@ -1,6 +1,33 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
 const PROJECT_URL = '/canvas?projectId=prj_video_demo&canvasId=can_video_main'
+const CANVAS_API_PATH = '/api/canvases/can_video_main'
+
+async function readCanvas(request: APIRequestContext) {
+  const response = await request.get(CANVAS_API_PATH)
+  const contentType = response.headers()['content-type'] ?? ''
+  const responseUrl = new URL(response.url())
+
+  // Keep polling failures actionable. A transient dev-server or route error
+  // must report the request URL, status, and content type before Playwright
+  // attempts to decode the body as JSON.
+  expect(responseUrl.pathname, `Unexpected canvas response URL: ${response.url()}`).toBe(CANVAS_API_PATH)
+  expect(response.status(), `Canvas GET ${response.url()} returned ${response.status()}`).toBe(200)
+  expect(contentType, `Canvas GET ${response.url()} returned content type ${contentType}`).toContain('application/json')
+  return response.json()
+}
+
+async function waitForCanvasMutation(page: Page) {
+  const response = await page.waitForResponse((candidate) => {
+    const url = new URL(candidate.url())
+    return candidate.request().method() === 'POST' && url.pathname === CANVAS_API_PATH
+  })
+  const contentType = response.headers()['content-type'] ?? ''
+  expect(response.status(), `Canvas mutation ${response.url()} returned ${response.status()}`).toBe(200)
+  expect(contentType, `Canvas mutation ${response.url()} returned content type ${contentType}`).toContain(
+    'application/json',
+  )
+}
 
 async function selectPopulated(request: APIRequestContext) {
   const response = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-populated' } })
@@ -142,8 +169,7 @@ test('switching to Minimax H3 Max clamps output controls and persists AutoLink o
 
   await expect
     .poll(async () => {
-      const response = await request.get('/api/canvases/can_video_main')
-      const body = await response.json()
+      const body = await readCanvas(request)
       const node = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
       return {
         modelId: node.data.modelId,
@@ -169,7 +195,7 @@ test('specialized action-transfer and digital-human models expose exact dependen
 
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       return body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01').data.modelId
     })
     .toBe('kling-3-motion-transfer')
@@ -246,22 +272,26 @@ test('Video reference mode toggles graph edges and restores the node editor chro
     animations: 'disabled',
   })
 
+  const imageMutation = waitForCanvasMutation(page)
   await imageCandidate.click()
+  await imageMutation
   await expect(imageCandidate).toContainText('添加参考')
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       return body.canvas.document.edges.some(
         (edge: { source: string; target: string }) => edge.source === 'node_image_01' && edge.target === 'node_video_01',
       )
     })
     .toBe(false)
 
+  const textMutation = waitForCanvasMutation(page)
   await textCandidate.click()
+  await textMutation
   await expect(textCandidate).toContainText('取消选择')
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       return body.canvas.document.edges.some(
         (edge: { source: string; target: string }) => edge.source === 'node_text_01' && edge.target === 'node_video_01',
       )
@@ -293,7 +323,7 @@ test('reference cards support rich @ mentions, source preview, locating and dele
 
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
       return video.data.extra.videoMentions
     })
@@ -304,7 +334,7 @@ test('reference cards support rich @ mentions, source preview, locating and dele
   await expect(editor.getByTestId('video-mention-chip')).toHaveCount(0)
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
       return {
         linked: body.canvas.document.edges.some(
@@ -329,7 +359,7 @@ test('element selection persists a deterministic local image region', async ({ p
   await expect(editor.getByTestId('video-element-chip')).toContainText('元素 1')
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
       return video.data.extra.elementMarks
     })
@@ -376,7 +406,7 @@ test('camera movement library mirrors the 23-card plaza, favorites and Escape la
 
   await expect
     .poll(async () => {
-      const body = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+      const body = await readCanvas(request)
       const video = body.canvas.document.nodes.find((item: { id: string }) => item.id === 'node_video_01')
       return {
         cameraMove: video.data.extra.cameraMove,

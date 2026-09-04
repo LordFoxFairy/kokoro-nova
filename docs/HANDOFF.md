@@ -666,7 +666,7 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 - `/api/ledger` 的前端调用方是账户页（`src/components/account/AccountPage.tsx:38`）。
   除此之外，界面各处的余额都来自 project / canvas / job 各接口顺带返回的 `balance` 字段，
   而**不是**再查一次账本——所以账本投影出问题不会让余额显示出错，反之亦然。
-- **画布侧栏的「资产」标签页仍是空态占位**（`src/components/canvas/AssetSidebar.tsx`）；完整素材库在 `AssetLibraryPanel`（底部「添加资源 → 上传」进入），那条路径是接了真实接口的。
+- **画布侧栏的「资产」标签页已接入真实接口**（`src/components/canvas/AssetSidebar.tsx`）：个人命名空间提供搜索/类型筛选和完整资产库入口；Agent 命名空间保持独立，并按官网空态隐藏个人浏览、上传和完整库操作。完整素材库在 `AssetLibraryPanel`（底部「添加资源 → 上传」进入）。
 - **`NodeReference.origin: 'upload'` 仍没有产生方**：上传得到的是 Asset，插入画布时走的是产物路径，不是 `NodeReference`。
 - **`WORKFLOW_SCHEMA_VERSION` 只是被写进文档，没有任何迁移代码。** 改文档结构时需要自己补迁移。
 - **没有文档历史。** `Canvas.revision` 是乐观锁计数器，不是版本号；撤销栈只存在于客户端内存（上限 50 帧），刷新即丢。

@@ -343,7 +343,7 @@ Agent 资产；完整资产库负责文件夹、上传、标签和批量组织�
 | 节点更多动作 | [asset-management-node-more-actions-rename-copy.png](screenshots/asset-management-node-more-actions-rename-copy.png) | 节点行提供重命名和复制；本轮只展开菜单，未改写原节点。 |
 | 个人资产空态 | [asset-management-personal-assets-empty-state.png](screenshots/asset-management-personal-assets-empty-state.png) | 侧栏个人资产支持搜索和标签筛选；当前账户为空。 |
 | 标签筛选 | [asset-management-asset-tag-filter-options.png](screenshots/asset-management-asset-tag-filter-options.png) | 标签包含其它、人物、场景、物品、风格和音效，并有清空/应用动作。 |
-| Agent 资产空态 | [asset-management-agent-assets-separate-empty-state.png](screenshots/asset-management-agent-assets-separate-empty-state.png) | Agent 是独立资产命名空间，不与个人资产空态合并。 |
+| Agent 资产空态 | [asset-management-agent-assets-separate-empty-state.png](screenshots/asset-management-agent-assets-separate-empty-state.png) | Agent 是独立资产命名空间，不与个人资产空态合并；本地 `AssetSidebar` 已按该状态隐藏个人搜索、类型筛选、上传/完整资产库入口和空态上传动作。 |
 | 完整个人资产库 | [asset-management-full-personal-library-empty-state.png](screenshots/asset-management-full-personal-library-empty-state.png) | 完整弹层提供分类、搜索、批量操作、新建和上传入口。 |
 | 新建菜单 | [asset-management-new-folder-upload-menu.png](screenshots/asset-management-new-folder-upload-menu.png) | “新建”分流到新建文件夹和上传资产。 |
 | 批量动作 | [asset-management-batch-actions-and-fifty-item-limit.png](screenshots/asset-management-batch-actions-and-fifty-item-limit.png) | 批量态支持全选当前页、移动、改标签和删除；文件夹不参与选择，单次上限 50 个资产。 |

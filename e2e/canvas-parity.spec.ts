@@ -266,3 +266,21 @@ test('storyboard preserves the document while matching default, expanded and Age
   expect(videoBox?.width).toBeLessThanOrEqual(355)
   await expectVisualBaseline(page, 'storyboard-agent-dark-1440x900.png')
 })
+
+test('Agent asset management keeps the dedicated empty surface free of personal browse controls', async ({ page, request }) => {
+  await selectScenario(request, 'authenticated-empty')
+  await createEmptyProject(page)
+
+  await page.getByTestId('asset-sidebar-toggle').click()
+  const sidebar = page.getByTestId('asset-sidebar')
+  await expect(sidebar).toBeVisible()
+  await sidebar.getByRole('button', { name: '资产', exact: true }).click()
+  await sidebar.getByTestId('sidebar-assets-agent').click()
+
+  await expect(sidebar.getByText('暂无素材')).toBeVisible()
+  await expect(sidebar.getByTestId('sidebar-asset-search')).toHaveCount(0)
+  await expect(sidebar.locator('[data-testid^="sidebar-asset-kind-"]')).toHaveCount(0)
+  await expect(sidebar.getByTestId('sidebar-upload')).toHaveCount(0)
+  await expect(sidebar.getByTestId('sidebar-open-library')).toHaveCount(0)
+  await expect(sidebar.getByTestId('sidebar-empty-upload')).toHaveCount(0)
+})

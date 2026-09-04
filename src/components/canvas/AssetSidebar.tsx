@@ -145,10 +145,19 @@ export function AssetSidebar({
     setAssetError(null)
   }, [assetNamespace])
 
+  // Agent assets are a generated-output namespace in the observed canvas UI:
+  // unlike personal assets, it has no personal browse/filter controls or
+  // upload/library actions in its empty surface.
+  const isAgentNamespace = assetNamespace === 'agent'
   const visibleAssets = useMemo(
-    () => filterSidebarAssets(assets, { query: assetQuery, kind: assetKind }),
-    [assets, assetQuery, assetKind],
+    () =>
+      filterSidebarAssets(assets, {
+        query: isAgentNamespace ? '' : assetQuery,
+        kind: isAgentNamespace ? 'all' : assetKind,
+      }),
+    [assets, assetQuery, assetKind, isAgentNamespace],
   )
+  const personalFiltersActive = !isAgentNamespace && (assetQuery.trim() !== '' || assetKind !== 'all')
 
   const openLibrary = () => {
     if (onOpenLibrary) onOpenLibrary()
@@ -305,55 +314,61 @@ export function AssetSidebar({
                   { value: 'agent', label: 'Agent', testId: 'sidebar-assets-agent' },
                 ]}
               />
-              <button
-                type="button"
-                data-testid="sidebar-upload"
-                aria-label="上传资产"
-                title="上传资产"
-                onClick={() => setUploadOpen(true)}
-                className="ml-auto rounded-lg bg-ink-900 p-1.5 text-white transition-opacity hover:opacity-85"
-              >
-                <IconUpload size={14} />
-              </button>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
-              <IconSearch size={13} className="shrink-0 text-ink-400" />
-              <input
-                value={assetQuery}
-                data-testid="sidebar-asset-search"
-                onChange={(event) => setAssetQuery(event.target.value)}
-                placeholder="搜索资产"
-                aria-label="搜索资产"
-                className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
-              />
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {(['all', 'image', 'video', 'audio', 'text'] as const).map((kind) => (
+              {!isAgentNamespace && (
                 <button
-                  key={kind}
                   type="button"
-                  data-testid={`sidebar-asset-kind-${kind}`}
-                  aria-pressed={assetKind === kind}
-                  onClick={() => setAssetKind(kind)}
-                  className={cn(
-                    'rounded-md px-1.5 py-1 text-[10px] transition-colors',
-                    assetKind === kind ? 'bg-ink-900 text-white' : 'bg-ink-50 text-ink-500 hover:bg-ink-100',
-                  )}
+                  data-testid="sidebar-upload"
+                  aria-label="上传资产"
+                  title="上传资产"
+                  onClick={() => setUploadOpen(true)}
+                  className="ml-auto rounded-lg bg-ink-900 p-1.5 text-white transition-opacity hover:opacity-85"
                 >
-                  <span className="mr-0.5 opacity-70"><SidebarAssetIcon kind={kind} size={11} /></span>
-                  {SIDEBAR_ASSET_LABELS[kind]}
+                  <IconUpload size={14} />
                 </button>
-              ))}
+              )}
             </div>
-            <button
-              type="button"
-              data-testid="sidebar-open-library"
-              onClick={openLibrary}
-              className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-2 py-1.5 text-[11px] text-ink-600 transition-colors hover:bg-ink-50"
-            >
-              <IconAssetLibrary size={13} />
-              打开完整资产库
-            </button>
+            {!isAgentNamespace && (
+              <>
+                <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-1.5">
+                  <IconSearch size={13} className="shrink-0 text-ink-400" />
+                  <input
+                    value={assetQuery}
+                    data-testid="sidebar-asset-search"
+                    onChange={(event) => setAssetQuery(event.target.value)}
+                    placeholder="搜索资产"
+                    aria-label="搜索资产"
+                    className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-ink-400"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(['all', 'image', 'video', 'audio', 'text'] as const).map((kind) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      data-testid={`sidebar-asset-kind-${kind}`}
+                      aria-pressed={assetKind === kind}
+                      onClick={() => setAssetKind(kind)}
+                      className={cn(
+                        'rounded-md px-1.5 py-1 text-[10px] transition-colors',
+                        assetKind === kind ? 'bg-ink-900 text-white' : 'bg-ink-50 text-ink-500 hover:bg-ink-100',
+                      )}
+                    >
+                      <span className="mr-0.5 opacity-70"><SidebarAssetIcon kind={kind} size={11} /></span>
+                      {SIDEBAR_ASSET_LABELS[kind]}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  data-testid="sidebar-open-library"
+                  onClick={openLibrary}
+                  className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-2 py-1.5 text-[11px] text-ink-600 transition-colors hover:bg-ink-50"
+                >
+                  <IconAssetLibrary size={13} />
+                  打开完整资产库
+                </button>
+              </>
+            )}
           </div>
 
           <div className="thin-scrollbar flex-1 overflow-y-auto px-2" data-testid="sidebar-asset-list">
@@ -402,23 +417,25 @@ export function AssetSidebar({
               <EmptyState
                 compact
                 icon={<IconAssetLibrary size={26} />}
-                title={assetQuery.trim() || assetKind !== 'all' ? '没有匹配的资产' : assetNamespace === 'personal' ? '暂无资产' : '暂无素材'}
+                title={personalFiltersActive ? '没有匹配的资产' : assetNamespace === 'personal' ? '暂无资产' : '暂无素材'}
                 description={
-                  assetQuery.trim() || assetKind !== 'all'
+                  personalFiltersActive
                     ? '调整搜索词或类型筛选后重试。'
                     : assetNamespace === 'personal'
                       ? '上传或保存生成结果后，素材会出现在这里。'
                       : 'Agent 产生的素材是独立命名空间。'
                 }
                 action={
-                  <button
-                    type="button"
-                    data-testid="sidebar-empty-upload"
-                    onClick={() => setUploadOpen(true)}
-                    className="rounded-lg bg-ink-900 px-3 py-1.5 text-[11px] font-medium text-white"
-                  >
-                    上传资产
-                  </button>
+                  !isAgentNamespace ? (
+                    <button
+                      type="button"
+                      data-testid="sidebar-empty-upload"
+                      onClick={() => setUploadOpen(true)}
+                      className="rounded-lg bg-ink-900 px-3 py-1.5 text-[11px] font-medium text-white"
+                    >
+                      上传资产
+                    </button>
+                  ) : undefined
                 }
               />
             ) : (

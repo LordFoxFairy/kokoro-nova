@@ -1,0 +1,7 @@
+{
+  "participantId": "usr_fixture_alice",
+  "name": "Alice",
+  "color": "#8b5cf6",
+  "cursor": { "x": 160, "y": 240 },
+  "viewport": { "x": 0, "y": 0, "zoom": 1 }
+}

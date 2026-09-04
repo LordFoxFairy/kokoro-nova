@@ -1,0 +1,21 @@
+{
+  "project": {
+    "id": "prj_fixture_new",
+    "spaceId": "spc_demo",
+    "folderId": null,
+    "name": "未命名项目 4",
+    "coverUrl": null,
+    "createdAt": "2026-09-03T12:00:00.000Z",
+    "updatedAt": "2026-09-03T12:00:00.000Z",
+    "canvasIds": ["cvs_fixture_new"]
+  },
+  "canvas": {
+    "id": "cvs_fixture_new",
+    "projectId": "prj_fixture_new",
+    "name": "画布 1",
+    "revision": 1,
+    "document": { "nodes": [], "edges": [], "groups": [], "viewport": { "x": 0, "y": 0, "zoom": 1 } },
+    "createdAt": "2026-09-03T12:00:00.000Z",
+    "updatedAt": "2026-09-03T12:00:00.000Z"
+  }
+}

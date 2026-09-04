@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.10.0-skills-composer",
+    "version": "1.11.0-contract-hardening",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -1603,6 +1603,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResetScenarioResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ResetScenarioResponseExample"
+                  }
                 }
               }
             }
@@ -1627,7 +1632,8 @@
               }
             }
           }
-        }
+        },
+        "description": "仅开发环境：重建当前选中的 fixture，不会切换 scenario；production 返回 403。"
       }
     },
     "/api/dev/scenario": {
@@ -1650,6 +1656,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScenarioResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ScenarioResponseExample"
+                  }
                 }
               }
             }
@@ -1695,6 +1706,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScenarioResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/ScenarioResponseExample"
+                  }
                 }
               }
             }
@@ -1739,7 +1755,8 @@
               }
             }
           }
-        }
+        },
+        "description": "选择 scenario 后立刻重建整个本地 workspace；production 返回 403。"
       }
     },
     "/api/folders/{folderId}": {
@@ -1757,37 +1774,22 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "已更新的项目文件夹",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/Folder"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/FolderCreateResponseExample"
+                  }
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "文件夹不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1797,7 +1799,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求 JSON 或本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1843,17 +1845,22 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "已删除的文件夹及连带删除计数",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/FolderDeleteResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/FolderDeleteResponseExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "confirmName 不匹配",
             "content": {
               "application/json": {
                 "schema": {
@@ -1863,17 +1870,7 @@
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "文件夹不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -1883,7 +1880,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1902,6 +1899,16 @@
               "type": "string"
             },
             "description": "folderId 的稳定本地标识"
+          },
+          {
+            "name": "confirmName",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "必须与当前文件夹名称完全一致；删除同时永久移除该文件夹内的项目。"
           }
         ]
       }
@@ -1921,47 +1928,22 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "创建的项目文件夹",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/Folder"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/FolderCreateResponseExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -1971,16 +1953,7 @@
             }
           }
         },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RenameRequest"
-              }
-            }
-          }
-        }
+        "description": "立即创建默认名为“未命名文件夹”的项目文件夹；不读取 request body。名称和封面后续由 PATCH 更新。"
       }
     },
     "/api/jobs/{jobId}": {
@@ -2434,17 +2407,21 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "SSE data 行是 PresenceStreamEvent JSON；注释帧作为 keepalive。",
             "content": {
-              "application/json": {
+              "text/event-stream": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "type": "string",
+                  "format": "binary"
+                },
+                "x-sse-event-schema": {
+                  "$ref": "#/components/schemas/PresenceStreamEvent"
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "canvasId 或订阅者 query 不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -2453,18 +2430,8 @@
               }
             }
           },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "429": {
+            "description": "该画布的实时连接数已达上限",
             "content": {
               "application/json": {
                 "schema": {
@@ -2474,7 +2441,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "SSE 初始化失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2490,11 +2457,73 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
-            },
-            "description": "canvasId 的稳定本地标识"
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            }
+          },
+          {
+            "name": "participantId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 24
+            }
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          },
+          {
+            "name": "x",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0,
+              "minimum": -1000000,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "y",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0,
+              "minimum": -1000000,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "zoom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 1,
+              "minimum": 0.01,
+              "maximum": 100
+            }
           }
-        ]
+        ],
+        "description": "建立 text/event-stream 长连接。请求 query 标识订阅者；服务端先写 snapshot，随后写 join/move/leave。连接中每 20 秒发送 SSE 注释 keepalive。存在状态是进程内短暂视图状态，不写入 workspace。"
       },
       "post": {
         "tags": [
@@ -2511,17 +2540,22 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "接受的最新协作者状态",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
+                  "$ref": "#/components/schemas/PresenceHeartbeatResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/PresenceHeartbeatResponseExample"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "请求参数或业务状态不合法",
+            "description": "心跳字段或 canvasId 不合法",
             "content": {
               "application/json": {
                 "schema": {
@@ -2530,18 +2564,8 @@
               }
             }
           },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+          "429": {
+            "description": "该画布的协作人数已达上限",
             "content": {
               "application/json": {
                 "schema": {
@@ -2551,7 +2575,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地 presence hub 异常",
             "content": {
               "application/json": {
                 "schema": {
@@ -2577,11 +2601,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PresenceUpdateRequest"
+                "$ref": "#/components/schemas/PresenceHeartbeatRequest"
+              },
+              "examples": {
+                "fixture": {
+                  "$ref": "#/components/examples/PresenceHeartbeatRequestExample"
+                }
               }
             }
           }
-        }
+        },
+        "description": "上报协作者的最新光标与视口。服务端按 participantId upsert，并向同画布 SSE 订阅者广播 join/move；15 秒无心跳会以 leave/expired 结束。"
       }
     },
     "/api/preview/character": {
@@ -2792,37 +2822,17 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "已更新项目",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/Project"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "项目不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -2832,7 +2842,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "请求 JSON 或本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2878,37 +2888,17 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "已删除项目",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/ProjectDeleteResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "项目不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -2918,7 +2908,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -2954,37 +2944,17 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "已创建的项目副本",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/Project"
                 }
               }
             }
           },
           "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
+            "description": "项目不存在",
             "content": {
               "application/json": {
                 "schema": {
@@ -2994,7 +2964,7 @@
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3015,16 +2985,7 @@
             "description": "projectId 的稳定本地标识"
           }
         ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GenericJsonObject"
-              }
-            }
-          }
-        }
+        "description": "深拷贝项目和其所有画布 document；没有 request body。副本与源项目不共享可变节点对象。"
       }
     },
     "/api/projects": {
@@ -3109,47 +3070,22 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "新建项目及默认画布",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数或业务状态不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "目标对象不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "revision 或编辑租约冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                  "$ref": "#/components/schemas/CreateProjectResponse"
+                },
+                "examples": {
+                  "fixture": {
+                    "$ref": "#/components/examples/CreateProjectResponseExample"
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "mock 执行异常",
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -3160,7 +3096,7 @@
           }
         },
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
@@ -3168,7 +3104,8 @@
               }
             }
           }
-        }
+        },
+        "description": "body 可省略或为空；服务端会创建默认名称，并同时创建“画布 1”。folderId 不存在时当前 mock 不作引用完整性校验，真实后端接入时应在 adapter/后端收紧。"
       }
     },
     "/api/showcase/{snapshotId}": {
@@ -12194,6 +12131,281 @@
             "$ref": "#/components/schemas/MaterialCatalogItem"
           }
         }
+      },
+      "CreateProjectResponse": {
+        "type": "object",
+        "required": [
+          "project",
+          "canvas"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "canvas": {
+            "$ref": "#/components/schemas/Canvas"
+          }
+        }
+      },
+      "FolderDeleteResponse": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "deletedProjects"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "minLength": 1
+          },
+          "deletedProjects": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ProjectDeleteResponse": {
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ResetScenarioResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "projects"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "projects": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PresencePoint": {
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "y": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          }
+        }
+      },
+      "PresenceViewport": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "zoom"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "y": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 100
+          }
+        }
+      },
+      "PresenceParticipant": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "color",
+          "cursor",
+          "viewport",
+          "lastSeenAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "cursor": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PresencePoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/PresenceViewport"
+          },
+          "lastSeenAt": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Epoch milliseconds; ephemeral and not persisted."
+          }
+        }
+      },
+      "PresenceHeartbeatRequest": {
+        "type": "object",
+        "required": [
+          "participantId",
+          "name",
+          "color",
+          "cursor",
+          "viewport"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "participantId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "cursor": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PresencePoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/PresenceViewport"
+          }
+        }
+      },
+      "PresenceHeartbeatResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "participant"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "participant": {
+            "$ref": "#/components/schemas/PresenceParticipant"
+          }
+        }
+      },
+      "PresenceStreamEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "participants"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "snapshot"
+              },
+              "participants": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PresenceParticipant"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "participant"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "join",
+                  "move"
+                ]
+              },
+              "participant": {
+                "$ref": "#/components/schemas/PresenceParticipant"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "participantId",
+              "reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "leave"
+              },
+              "participantId": {
+                "type": "string"
+              },
+              "reason": {
+                "enum": [
+                  "closed",
+                  "expired"
+                ]
+              }
+            }
+          }
+        ]
       }
     },
     "examples": {
@@ -12852,6 +13064,27 @@
       },
       "MaterialFavouriteResponseExample": {
         "externalValue": "./examples/materials-favourite.response.json"
+      },
+      "CreateProjectResponseExample": {
+        "externalValue": "./examples/project-create.response.json"
+      },
+      "FolderCreateResponseExample": {
+        "externalValue": "./examples/folder-create.response.json"
+      },
+      "FolderDeleteResponseExample": {
+        "externalValue": "./examples/folder-delete.response.json"
+      },
+      "PresenceHeartbeatRequestExample": {
+        "externalValue": "./examples/presence-heartbeat.request.json"
+      },
+      "PresenceHeartbeatResponseExample": {
+        "externalValue": "./examples/presence-heartbeat.response.json"
+      },
+      "ScenarioResponseExample": {
+        "externalValue": "./examples/scenario.response.json"
+      },
+      "ResetScenarioResponseExample": {
+        "externalValue": "./examples/reset.response.json"
       }
     }
   },

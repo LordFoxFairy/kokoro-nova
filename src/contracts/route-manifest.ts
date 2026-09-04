@@ -1,6 +1,7 @@
 import type { ScenarioId } from './scenario'
 
 export type LocalApiMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
+export type LocalApiTransport = 'json' | 'sse' | 'binary'
 
 export type LocalApiTag =
   | 'Projects'
@@ -29,6 +30,8 @@ export type LocalApiRoute = {
   operationId: string
   uiTriggers: readonly string[]
   scenarios: readonly ScenarioId[]
+  /** Wire format at the page/client boundary; it must match the OpenAPI 200 response. */
+  transport: LocalApiTransport
 }
 
 function route(
@@ -38,8 +41,9 @@ function route(
   operationId: string,
   uiTriggers: readonly string[],
   scenarios: readonly ScenarioId[] = ['authenticated-populated'],
+  transport: LocalApiTransport = 'json',
 ): LocalApiRoute {
-  return { method, path, tag, operationId, uiTriggers, scenarios }
+  return { method, path, tag, operationId, uiTriggers, scenarios, transport }
 }
 
 const VIDEO_STATES = [
@@ -133,11 +137,15 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-populated',
     ...VIDEO_STATES,
   ]),
-  route('GET', '/api/media/{path}', 'Assets', 'readLocalMedia', ['图片、视频和音频播放器读取本地 fixture'], [
-    'authenticated-populated',
-    'public-showcase',
-    ...VIDEO_STATES,
-  ]),
+  route(
+    'GET',
+    '/api/media/{path}',
+    'Assets',
+    'readLocalMedia',
+    ['图片、视频和音频播放器读取本地 fixture'],
+    ['authenticated-populated', 'public-showcase', ...VIDEO_STATES],
+    'binary',
+  ),
   route('GET', '/api/models', 'Models', 'listModels', ['打开模型目录', '搜索或筛选模型'], [
     'anonymous',
     'authenticated-populated',
@@ -150,13 +158,37 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('POST', '/api/materials/{materialId}', 'Materials', 'toggleMaterialFavorite', [
     '收藏或取消收藏风格/特效',
   ]),
-  route('GET', '/api/presence/{canvasId}', 'Presence', 'getCanvasPresence', ['画布协作者和跟随状态']),
+  route(
+    'GET',
+    '/api/presence/{canvasId}',
+    'Presence',
+    'getCanvasPresence',
+    ['画布协作者和跟随状态'],
+    ['authenticated-populated'],
+    'sse',
+  ),
   route('POST', '/api/presence/{canvasId}', 'Presence', 'updateCanvasPresence', ['光标、视口、跟随和编辑租约心跳'], [
     'authenticated-populated',
     'session-expired',
   ]),
-  route('GET', '/api/preview/character', 'Assets', 'previewCharacterReference', ['角色库参考图预览']),
-  route('GET', '/api/preview/stitch', 'Assets', 'previewStoryboardStitch', ['分镜组 2K 拼接预览']),
+  route(
+    'GET',
+    '/api/preview/character',
+    'Assets',
+    'previewCharacterReference',
+    ['角色库参考图预览'],
+    ['authenticated-populated'],
+    'binary',
+  ),
+  route(
+    'GET',
+    '/api/preview/stitch',
+    'Assets',
+    'previewStoryboardStitch',
+    ['分镜组 2K 拼接预览'],
+    ['authenticated-populated'],
+    'binary',
+  ),
 
   route('POST', '/api/script-v2/quotes', 'Script V2', 'quoteScriptV2', [
     '四种 Script V2 operation 执行前展示确定性本地报价',

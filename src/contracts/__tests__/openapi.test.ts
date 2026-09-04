@@ -105,6 +105,10 @@ function responseSchemaRef(operation: OpenApiOperation, status: string): string 
   return operation.responses?.[status]?.content?.['application/json']?.schema?.$ref
 }
 
+function successContentTypes(operation: OpenApiOperation): string[] {
+  return Object.keys(operation.responses?.['200']?.content ?? {}).sort()
+}
+
 describe('local API manifest and OpenAPI', () => {
   it('lists exactly every exported local route method', () => {
     const manifestPairs = LOCAL_API_ROUTES.map((route) => `${route.method} ${route.path}`).sort()
@@ -134,6 +138,14 @@ describe('local API manifest and OpenAPI', () => {
       expect(operation?.operationId).toBe(route.operationId)
       expect(operation?.['x-ui-triggers']).toEqual(route.uiTriggers)
       expect(operation?.['x-mock-scenarios']).toEqual(route.scenarios)
+
+      const contentTypes = successContentTypes(operation as OpenApiOperation)
+      if (route.transport === 'json') expect(contentTypes).toEqual(['application/json'])
+      if (route.transport === 'sse') expect(contentTypes).toEqual(['text/event-stream'])
+      if (route.transport === 'binary') {
+        expect(contentTypes).toHaveLength(1)
+        expect(contentTypes).not.toContain('application/json')
+      }
     }
   })
 
@@ -166,7 +178,7 @@ describe('local API manifest and OpenAPI', () => {
   it('versions and exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.10.0-skills-composer')
+    expect(document.info?.version).toBe('1.11.0-contract-hardening')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -228,7 +240,7 @@ describe('local API manifest and OpenAPI', () => {
     const document = openApiDocument()
     const scriptRoutes = LOCAL_API_ROUTES.filter((route) => route.tag === 'Script V2')
 
-    expect(document.info?.version).toBe('1.10.0-skills-composer')
+    expect(document.info?.version).toBe('1.11.0-contract-hardening')
     expect(scriptRoutes).toHaveLength(4)
     expect(scriptRoutes.map((route) => route.operationId)).toEqual([
       'quoteScriptV2',
@@ -366,6 +378,54 @@ describe('local API manifest and OpenAPI', () => {
     )
     expect(ToggleMaterialFavouriteResponseSchema.parse(materialsFavouriteResponseExample)).toEqual(
       materialsFavouriteResponseExample,
+    )
+  })
+
+  it('tightens project/folder writes, development fixtures and the ephemeral presence transport', () => {
+    const document = openApiDocument()
+
+    const createProject = operationAt(document, 'POST', '/api/projects')
+    expect(createProject.requestBody?.required).toBe(false)
+    expect(responseSchemaRef(createProject, '200')).toBe('#/components/schemas/CreateProjectResponse')
+
+    const createFolder = operationAt(document, 'POST', '/api/folders')
+    expect(createFolder.requestBody).toBeUndefined()
+    expect(responseSchemaRef(createFolder, '200')).toBe('#/components/schemas/Folder')
+
+    const deleteFolder = operationAt(document, 'DELETE', '/api/folders/{folderId}')
+    expect(responseSchemaRef(deleteFolder, '200')).toBe('#/components/schemas/FolderDeleteResponse')
+    expect(deleteFolder.parameters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'confirmName', in: 'query', required: true })]),
+    )
+
+    expect(responseSchemaRef(operationAt(document, 'PATCH', '/api/projects/{projectId}'), '200')).toBe(
+      '#/components/schemas/Project',
+    )
+    expect(responseSchemaRef(operationAt(document, 'DELETE', '/api/projects/{projectId}'), '200')).toBe(
+      '#/components/schemas/ProjectDeleteResponse',
+    )
+    const duplicateProject = operationAt(document, 'PUT', '/api/projects/{projectId}')
+    expect(duplicateProject.requestBody).toBeUndefined()
+    expect(responseSchemaRef(duplicateProject, '200')).toBe('#/components/schemas/Project')
+
+    const presenceStream = operationAt(document, 'GET', '/api/presence/{canvasId}')
+    expect(successContentTypes(presenceStream)).toEqual(['text/event-stream'])
+    expect(presenceStream.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'participantId', in: 'query', required: true }),
+        expect.objectContaining({ name: 'name', in: 'query', required: true }),
+        expect.objectContaining({ name: 'color', in: 'query', required: true }),
+      ]),
+    )
+    const heartbeat = operationAt(document, 'POST', '/api/presence/{canvasId}')
+    expect(heartbeat.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/PresenceHeartbeatRequest',
+    )
+    expect(responseSchemaRef(heartbeat, '200')).toBe('#/components/schemas/PresenceHeartbeatResponse')
+    expect(Object.keys(heartbeat.responses ?? {}).filter((status) => status !== '200').sort()).toEqual(['400', '429', '500'])
+
+    expect(responseSchemaRef(operationAt(document, 'POST', '/api/dev/reset'), '200')).toBe(
+      '#/components/schemas/ResetScenarioResponse',
     )
   })
 

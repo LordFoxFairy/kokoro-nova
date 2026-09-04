@@ -1,0 +1,8 @@
+{
+  "scenario": {
+    "id": "authenticated-populated",
+    "label": "已登录完整工作区",
+    "description": "可重复的本地完整项目、画布、任务与资产 fixture"
+  },
+  "state": { "projects": 3, "canvases": 4, "jobs": 2, "assets": 6 }
+}

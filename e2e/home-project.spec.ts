@@ -275,3 +275,78 @@ test('anonymous home keeps discovery visible and gates private Agent context act
   await expect(page.getByTestId('home-login-dialog')).toBeVisible()
   await expect(page.getByTestId('home-login-dialog')).toContainText('登录后即可创建项目')
 })
+
+test('home CreationContext persists every official composer control and freezes the first local Agent request', async ({ page }) => {
+  await page.goto('/')
+
+  const composer = page.getByTestId('home-composer')
+  const send = page.getByTestId('home-agent-send')
+  await expect(send).toBeDisabled()
+  await composer.focus()
+
+  // The observed pop-up keeps attachment sources together: local upload,
+  // personal asset attachment and personal asset reference are explicit flows.
+  await page.getByTestId('home-attachment-trigger').click()
+  await expect(page.getByTestId('home-attachment-menu')).toBeVisible()
+  await page.getByTestId('home-asset-library').click()
+  const attachmentDialog = page.getByTestId('home-asset-library-dialog')
+  await expect(attachmentDialog).toContainText('选择素材作为 Agent 附件')
+  const attachmentName = await attachmentDialog.getByTestId('home-asset-option').first().innerText()
+  await attachmentDialog.getByTestId('home-asset-option').first().click()
+  await expect(page.getByTestId('home-context-rail')).toContainText(attachmentName)
+
+  await page.getByTestId('home-attachment-trigger').click()
+  await page.getByTestId('home-reference-library').click()
+  const referenceDialog = page.getByTestId('home-asset-library-dialog')
+  await expect(referenceDialog).toContainText('选择素材作为生成参考')
+  const referenceName = await referenceDialog.getByTestId('home-asset-option').first().innerText()
+  await referenceDialog.getByTestId('home-asset-option').first().click()
+  await expect(page.getByTestId('home-context-rail')).toContainText(referenceName)
+
+  await page.getByTestId('home-model-trigger').click()
+  await expect(page.getByTestId('home-model-list')).toBeVisible()
+  await page.getByTestId('home-model-option').first().click()
+  await expect(page.getByTestId('home-model-trigger')).not.toContainText('模型')
+
+  await page.getByTestId('home-skill-trigger').click()
+  await expect(page.getByTestId('home-skill-list')).toBeVisible()
+  const skillName = (await page.getByTestId('home-skill-option').first().innerText()).split('\n')[0]
+  await page.getByTestId('home-skill-option').first().click()
+  await expect(page.getByTestId('home-context-rail')).toContainText(skillName)
+
+  await page.getByTestId('home-mode-trigger').click()
+  await page.getByTestId('home-mode-option-auto').click()
+  await expect(page.getByTestId('home-composer-state')).toContainText('自动模式')
+
+  // Browser recovery is intentionally independent from a running mock process.
+  await page.reload()
+  await expect(page.getByTestId('home-context-rail')).toContainText(attachmentName)
+  await expect(page.getByTestId('home-context-rail')).toContainText(referenceName)
+  await expect(page.getByTestId('home-context-rail')).toContainText(skillName)
+  await expect(page.getByTestId('home-composer-state')).toContainText('自动模式')
+
+  await page.getByTestId('home-model-trigger').click()
+  await page.getByTestId('home-model-clear').click()
+  await expect(page.getByTestId('home-model-trigger')).toContainText('模型')
+  await page.getByTestId('home-model-trigger').click()
+  await page.getByTestId('home-model-option').first().click()
+
+  // Each selected kind also has an explicit removal affordance before send.
+  await page.getByRole('button', { name: `移除${attachmentName}` }).first().click()
+  await expect(page.getByTestId('home-context-chip')).toHaveCount(2)
+
+  await composer.fill('一支雨夜城市的电影感短片')
+  await expect(send).toBeEnabled()
+  const frozen = page.waitForResponse((response) =>
+    response.url().includes('/api/creation-context') && response.request().method() === 'POST',
+  )
+  await send.click()
+  const body = await (await frozen).json()
+  expect(body.request.context.version).toBe('2026-09-04.1')
+  expect(body.request.context.attachments).toEqual([])
+  expect(body.request.context.references).toHaveLength(1)
+  expect(body.request.context.skill).toMatchObject({ label: expect.any(String), version: expect.any(String) })
+  expect(body.request.context.model).toMatchObject({ id: expect.any(String), catalogVersion: expect.any(String) })
+  expect(body.request.context.generationMode).toBe('auto')
+  await page.waitForURL(/\/canvas\?.*creationRequestId=creation-request-/)
+})

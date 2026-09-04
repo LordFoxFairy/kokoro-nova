@@ -69,6 +69,7 @@ function HomeSurface() {
       const { project, canvas } = await client.projects.create({ name })
       const query = new URLSearchParams({ projectId: project.id, canvasId: canvas.id })
       if (brief) query.set('brief', brief)
+      if (request) query.set('creationRequestId', request.creationRequestId)
       router.push(`/canvas?${query.toString()}`)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '创建项目失败，请重试')
@@ -80,10 +81,15 @@ function HomeSurface() {
     void createAndOpen(
       {
         text: `[${tool.intent}] ${tool.title}：${tool.description}`,
-        context: [],
-        modelId: null,
-        modelLabel: null,
-        generationMode: 'manual',
+        creationContext: {
+          version: '2026-09-04.1',
+          attachments: [],
+          model: null,
+          skill: null,
+          references: [],
+          generationMode: 'manual',
+        },
+        creationRequestId: 'home-tool-intent',
       },
       tool.title,
     )

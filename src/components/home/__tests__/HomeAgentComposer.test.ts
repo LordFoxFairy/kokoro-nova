@@ -1,59 +1,95 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
 
 import {
   buildHomeAgentBrief,
   nextHomeComposerEscapeState,
   type HomeAgentRequest,
-} from '../HomeAgentComposer'
+} from "../HomeAgentComposer";
 
 const request: HomeAgentRequest = {
-  text: '一支雨夜城市的电影感短片',
-  context: [
-    { id: 'asset-1', kind: 'asset', label: '雨夜参考图' },
-    { id: 'skill-1', kind: 'skill', label: '分镜拆解' },
-  ],
-  modelId: 'seedance-2-5',
-  modelLabel: 'Seedance 2.5',
-  generationMode: 'auto',
-}
+  text: "一支雨夜城市的电影感短片",
+  creationRequestId: "creation-request-0001",
+  creationContext: {
+    version: "2026-09-04.1",
+    attachments: [
+      {
+        id: "asset-1",
+        source: "personal-asset",
+        assetId: "asset-1",
+        label: "雨夜附件",
+        mediaKind: "image",
+        thumbnailUrl: "/fixtures/libtv/assets/rain.webp",
+      },
+    ],
+    model: {
+      id: "seedance-2-5",
+      label: "Seedance 2.5",
+      media: "video",
+      catalogVersion: "local-catalog-2026-09-04.1",
+    },
+    skill: { id: "skill-1", label: "分镜拆解", version: "1.4.0" },
+    references: [
+      {
+        id: "reference-1",
+        source: "personal-asset",
+        assetId: "asset-2",
+        label: "雨夜参考图",
+        mediaKind: "image",
+        thumbnailUrl: "/fixtures/libtv/assets/rain.webp",
+      },
+    ],
+    generationMode: "auto",
+  },
+};
 
-describe('home Agent composer request boundary', () => {
-  it('serializes prompt, context, model and mode for the existing canvas seam', () => {
+describe("home Agent composer request boundary", () => {
+  it("serializes prompt, context, model and mode for the existing canvas seam", () => {
     expect(buildHomeAgentBrief(request)).toBe(
-      '一支雨夜城市的电影感短片\n上下文：雨夜参考图、分镜拆解\n模型：Seedance 2.5\n生成模式：自动',
-    )
-  })
+      "一支雨夜城市的电影感短片\n附件：雨夜附件\n参考：雨夜参考图\nSkill：分镜拆解 (1.4.0)\n模型：Seedance 2.5\n生成模式：自动",
+    );
+  });
 
-  it('does not add empty context lines to a clean request', () => {
+  it("does not add empty context lines to a clean request", () => {
     expect(
       buildHomeAgentBrief({
-        text: '只写一个想法',
-        context: [],
-        modelId: null,
-        modelLabel: null,
-        generationMode: 'manual',
+        text: "只写一个想法",
+        creationRequestId: "creation-request-0002",
+        creationContext: {
+          version: "2026-09-04.1",
+          attachments: [],
+          model: null,
+          skill: null,
+          references: [],
+          generationMode: "manual",
+        },
       }),
-    ).toBe('只写一个想法\n生成模式：手动')
-  })
+    ).toBe("只写一个想法\n生成模式：手动");
+  });
 
-  it('closes the active popover before collapsing the expanded composer', () => {
-    expect(nextHomeComposerEscapeState({ expanded: true, activePopover: 'model' })).toEqual({
+  it("closes the active popover before collapsing the expanded composer", () => {
+    expect(
+      nextHomeComposerEscapeState({ expanded: true, activePopover: "model" }),
+    ).toEqual({
       expanded: true,
       activePopover: null,
       handled: true,
-    })
-    expect(nextHomeComposerEscapeState({ expanded: true, activePopover: null })).toEqual({
+    });
+    expect(
+      nextHomeComposerEscapeState({ expanded: true, activePopover: null }),
+    ).toEqual({
       expanded: false,
       activePopover: null,
       handled: true,
-    })
-  })
+    });
+  });
 
-  it('leaves a collapsed composer alone when no layer is open', () => {
-    expect(nextHomeComposerEscapeState({ expanded: false, activePopover: null })).toEqual({
+  it("leaves a collapsed composer alone when no layer is open", () => {
+    expect(
+      nextHomeComposerEscapeState({ expanded: false, activePopover: null }),
+    ).toEqual({
       expanded: false,
       activePopover: null,
       handled: false,
-    })
-  })
-})
+    });
+  });
+});

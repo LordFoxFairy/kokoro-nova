@@ -83,6 +83,10 @@
     {
       "name": "Materials",
       "description": "风格与特效独立素材目录"
+    },
+    {
+      "name": "Creation Context",
+      "description": "首页首次 Agent 请求的版本化、可恢复上下文"
     }
   ],
   "paths": {
@@ -4212,317 +4216,6 @@
         }
       }
     },
-    "/api/identity": {
-      "get": {
-        "tags": [
-          "Account"
-        ],
-        "summary": "读取本地身份与会话回跳",
-        "operationId": "getLocalIdentity",
-        "x-ui-triggers": [
-          "首页或画布头像菜单打开"
-        ],
-        "x-mock-scenarios": [
-          "anonymous",
-          "authenticated-empty",
-          "authenticated-populated"
-        ],
-        "parameters": [
-          {
-            "name": "returnTo",
-            "in": "query",
-            "required": false,
-            "description": "登录成功后只允许回到本站相对路径",
-            "schema": {
-              "$ref": "#/components/schemas/LocalReturnTo"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "脱敏身份与本地会话",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IdentityResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "returnTo 不是站内路径",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "本地 identity mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Account"
-        ],
-        "summary": "切换本地登录会话",
-        "operationId": "updateLocalSession",
-        "x-ui-triggers": [
-          "退出登录",
-          "登录并返回"
-        ],
-        "x-mock-scenarios": [
-          "anonymous",
-          "authenticated-empty",
-          "authenticated-populated"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateSessionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "更新后的本地会话",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IdentityResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "本地 identity mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/preferences": {
-      "get": {
-        "tags": [
-          "Account"
-        ],
-        "summary": "读取本地显示与水印偏好",
-        "operationId": "getLocalPreferences",
-        "x-ui-triggers": [
-          "账户菜单打开",
-          "页面恢复主题"
-        ],
-        "x-mock-scenarios": [
-          "anonymous",
-          "authenticated-empty",
-          "authenticated-populated"
-        ],
-        "responses": {
-          "200": {
-            "description": "当前 local preference",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PreferencesResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "本地 preference mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "tags": [
-          "Account"
-        ],
-        "summary": "更新本地显示与水印偏好",
-        "operationId": "updateLocalPreferences",
-        "x-ui-triggers": [
-          "亮/暗模式切换",
-          "AI 水印设置"
-        ],
-        "x-mock-scenarios": [
-          "anonymous",
-          "authenticated-empty",
-          "authenticated-populated"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePreferencesRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "已持久化的 local preference",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PreferencesResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "本地 preference mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/notifications": {
-      "get": {
-        "tags": [
-          "Account"
-        ],
-        "summary": "读取账户菜单通知摘要",
-        "operationId": "getNotificationSummary",
-        "x-ui-triggers": [
-          "账户菜单通知 badge"
-        ],
-        "x-mock-scenarios": [
-          "anonymous",
-          "authenticated-empty",
-          "authenticated-populated"
-        ],
-        "responses": {
-          "200": {
-            "description": "最多三个通知预览与未读数",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationsResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "本地 notification mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Account"
-        ],
-        "summary": "标记本地菜单通知已读",
-        "operationId": "markNotificationsRead",
-        "x-ui-triggers": [
-          "账户菜单全部通知已读"
-        ],
-        "x-mock-scenarios": [
-          "authenticated-empty",
-          "authenticated-populated"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateNotificationsRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "未读数归零后的通知摘要",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数不合法",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "本地 notification mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/materials": {
       "get": {
         "tags": [
@@ -4990,6 +4683,444 @@
                 "schema": {
                   "$ref": "#/components/schemas/LegacyErrorResponse"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取本地身份与会话回跳",
+        "operationId": "getLocalIdentity",
+        "x-ui-triggers": [
+          "首页或画布头像菜单打开"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "returnTo",
+            "in": "query",
+            "required": false,
+            "description": "登录成功后只允许回到本站相对路径",
+            "schema": {
+              "$ref": "#/components/schemas/LocalReturnTo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "脱敏身份与本地会话",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "returnTo 不是站内路径",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 identity mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "切换本地登录会话",
+        "operationId": "updateLocalSession",
+        "x-ui-triggers": [
+          "退出登录",
+          "登录并返回"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的本地会话",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 identity mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/preferences": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取本地显示与水印偏好",
+        "operationId": "getLocalPreferences",
+        "x-ui-triggers": [
+          "账户菜单打开",
+          "页面恢复主题"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "当前 local preference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 preference mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "更新本地显示与水印偏好",
+        "operationId": "updateLocalPreferences",
+        "x-ui-triggers": [
+          "亮/暗模式切换",
+          "AI 水印设置"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已持久化的 local preference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 preference mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取账户菜单通知摘要",
+        "operationId": "getNotificationSummary",
+        "x-ui-triggers": [
+          "账户菜单通知 badge"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "最多三个通知预览与未读数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 notification mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "标记本地菜单通知已读",
+        "operationId": "markNotificationsRead",
+        "x-ui-triggers": [
+          "账户菜单全部通知已读"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "未读数归零后的通知摘要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 notification mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/creation-context": {
+      "get": {
+        "tags": [
+          "Creation Context"
+        ],
+        "summary": "首页恢复 CreationContext 草稿",
+        "operationId": "getHomeCreationContext",
+        "x-ui-triggers": [
+          "首页恢复 CreationContext 草稿"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreationContextReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Creation Context"
+        ],
+        "summary": "首页附件、模型、Skill、参考与模式变更",
+        "operationId": "saveHomeCreationContext",
+        "x-ui-triggers": [
+          "首页附件、模型、Skill、参考与模式变更"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreationContextWriteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreationContextWriteRequest"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Creation Context"
+        ],
+        "summary": "首页 Agent 发送前冻结上下文",
+        "operationId": "submitHomeCreationContext",
+        "x-ui-triggers": [
+          "首页 Agent 发送前冻结上下文"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCreationAgentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCreationAgentRequest"
               }
             }
           }
@@ -13373,6 +13504,314 @@
         "properties": {
           "action": {
             "const": "markAllRead"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationAttachment": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "assetId",
+          "label",
+          "mediaKind",
+          "thumbnailUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local-upload",
+              "personal-asset"
+            ]
+          },
+          "assetId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "mediaKind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text"
+            ]
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "仅 /fixtures/libtv/ 或浏览器 blob: URL"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationReference": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "assetId",
+          "label",
+          "mediaKind",
+          "thumbnailUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "const": "personal-asset"
+          },
+          "assetId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "mediaKind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio"
+            ]
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationModel": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "media",
+          "catalogVersion"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "media": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "catalogVersion": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationSkill": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationContext": {
+        "type": "object",
+        "required": [
+          "version",
+          "attachments",
+          "model",
+          "skill",
+          "references",
+          "generationMode"
+        ],
+        "properties": {
+          "version": {
+            "const": "2026-09-04.1"
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "$ref": "#/components/schemas/CreationAttachment"
+            }
+          },
+          "model": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreationModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skill": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreationSkill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "references": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/CreationReference"
+            }
+          },
+          "generationMode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationContextReadResponse": {
+        "type": "object",
+        "required": [
+          "scope",
+          "context"
+        ],
+        "properties": {
+          "scope": {
+            "const": "home"
+          },
+          "context": {
+            "$ref": "#/components/schemas/CreationContext"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationContextWriteRequest": {
+        "type": "object",
+        "required": [
+          "scope",
+          "context"
+        ],
+        "properties": {
+          "scope": {
+            "const": "home"
+          },
+          "context": {
+            "$ref": "#/components/schemas/CreationContext"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationContextWriteResponse": {
+        "type": "object",
+        "required": [
+          "scope",
+          "context"
+        ],
+        "properties": {
+          "scope": {
+            "const": "home"
+          },
+          "context": {
+            "$ref": "#/components/schemas/CreationContext"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateCreationAgentRequest": {
+        "type": "object",
+        "required": [
+          "scope",
+          "prompt",
+          "context"
+        ],
+        "properties": {
+          "scope": {
+            "const": "home"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "context": {
+            "$ref": "#/components/schemas/CreationContext"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreationAgentRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "prompt",
+          "context",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scope": {
+            "const": "home"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "context": {
+            "$ref": "#/components/schemas/CreationContext"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateCreationAgentResponse": {
+        "type": "object",
+        "required": [
+          "request"
+        ],
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/CreationAgentRequest"
           }
         },
         "additionalProperties": false

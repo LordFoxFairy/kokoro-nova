@@ -8,6 +8,7 @@ export type LocalApiTag =
   | 'Recycle Bin'
   | 'Folders'
   | 'Canvases'
+  | 'Creation Context'
   | 'Workflow'
   | 'Jobs'
   | 'Models'
@@ -59,6 +60,10 @@ const VIDEO_STATES = [
 ] as const satisfies readonly ScenarioId[]
 
 export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
+  route('GET', '/api/creation-context', 'Creation Context', 'getHomeCreationContext', ['首页恢复 CreationContext 草稿'], ['authenticated-populated']),
+  route('PUT', '/api/creation-context', 'Creation Context', 'saveHomeCreationContext', ['首页附件、模型、Skill、参考与模式变更'], ['authenticated-populated']),
+  route('POST', '/api/creation-context', 'Creation Context', 'submitHomeCreationContext', ['首页 Agent 发送前冻结上下文'], ['authenticated-populated']),
+
   route('POST', '/api/agent/sessions/{sessionId}/messages', 'Agent', 'sendAgentMessage', ['Agent 输入框发送消息']),
   route('PATCH', '/api/agent/sessions/{sessionId}/messages', 'Agent', 'resolveAgentMessage', [
     '回答 ask_human',

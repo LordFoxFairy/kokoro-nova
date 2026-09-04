@@ -7,12 +7,21 @@ async function selectEmpty(request: APIRequestContext) {
   expect(response.ok()).toBe(true)
 }
 
+async function startEmptyProject(page: Page) {
+  // App-router navigation can finish in the same task as the mutation when
+  // the canvas route is already warm. Register the URL waiter first; waiting
+  // after click misses that completed transition and leaves the test waiting
+  // for a second navigation that will never happen.
+  const canvasNavigation = page.waitForURL(/\/canvas\?projectId=/, { waitUntil: 'commit' })
+  await page.getByTestId('start-create').click()
+  await canvasNavigation
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+}
+
 async function createAudioNode(page: Page, request: APIRequestContext) {
   await selectEmpty(request)
   await page.goto('/project')
-  await page.getByTestId('start-create').click()
-  await page.waitForURL(/\/canvas\?projectId=/)
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await startEmptyProject(page)
 
   await page.getByTestId('add-node-button').click()
   const persisted = waitForCanvasMutation(page)
@@ -484,9 +493,7 @@ test('voice preview stays local and clone flow persists a reusable custom voice 
 test('Audio reference mode accepts text and audio nodes, rejects images and restores reference cards', async ({ page, request }) => {
   await selectEmpty(request)
   await page.goto('/project')
-  await page.getByTestId('start-create').click()
-  await page.waitForURL(/\/canvas\?projectId=/)
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await startEmptyProject(page)
 
   await addCanvasNode(page, '文本')
   await addCanvasNode(page, '图片')

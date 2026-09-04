@@ -23,6 +23,13 @@ Agent 同处于上方 chrome；切换工作流/故事板不离开当前 project�
 `快捷键`、`教程`。另一条状态轨包含资产管理、整理画布、小地图、连线显示、网格吸附与
 缩放选项。当前会话缩放显示为 23%，因此缩放必须作为可持久化的 view state，而不是固定布局值。
 
+### 生成历史的当前空态
+
+在同一已登录项目打开 `生成历史` 后，覆盖层不离开画布，且包含 `本画布`、`图片 0`、`视频 0`、
+`音频 0` 四个范围 tab，`所有评级`筛选、`时间倒序`排序和`批量操作`。当前项目显示`暂无历史记录`。
+这说明空 history 不是把整个工具轨禁用，而是仍提供范围、筛选、排序和批量入口；本地 fixture 应让这些
+控件在空集合时保持可访问，并把历史范围作为 UI 查询条件而非写进 `WorkflowDocument`。
+
 ### 同一画布的节点异质性
 
 已加载的真实项目同时可见文字生音乐、文生视频、图片反推提示词等预设，Script V2 阶段节点、
@@ -40,6 +47,7 @@ Script V2 建立平行状态副本。
 | --- | --- |
 | 全屏顶栏和双视图切换 | `TopBar.tsx` 与 Workflow/Storyboard 同路由切换 |
 | 双底部轨道 | `BottomToolbar.tsx` 的主工具与 view state 控件 |
+| 生成历史的范围/筛选/排序/批量空态 | `LibraryPanels.tsx` 的生成历史本地 query state；空集合仍保留工具控件 |
 | Script V2 阶段摘要和打开入口 | `ScriptV2NodeEditor` / `ScriptV2Workspace` 与 `extra.scriptV2` |
 | 混合节点图 | `WorkflowDocument`、`projectStoryboard()` 与 typed node schema |
 | Agent 不覆盖画布 | `CanvasWorkspace` 的右侧重排面板 |

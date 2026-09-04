@@ -2,7 +2,7 @@
 
 本目录是当前纯前端子仓库的正式 API 契约。它服务两个消费者：
 
-1. 当前 Next.js Route Handler 实现的确定性本地 mock；
+1. 当前 Next.js Route Handler 实现的确定性本地 mock（frontend-only，不读取真实 LibTV 凭证，也不调用真实后端）；
 2. 未来按相同契约实现的真实后端。
 
 LibTV 官网原始请求不会直接成为本地业务模型。官网证据记录在
@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；29 个 path、52 个 operation |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；32 个 path、56 个 operation |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
@@ -21,6 +21,8 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`IMAGE_AUTHORING_STATE.md`](IMAGE_AUTHORING_STATE.md) | Image 模型矩阵、参考、风格、预设与非破坏式派生工具契约 |
 | [`AUDIO_AUTHORING_STATE.md`](AUDIO_AUTHORING_STATE.md) | Audio 六模型、TTS 标记、音色库/克隆、参考与生成契约 |
 | [`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md) | Text 四模型、富文本文档、三个启动 Workflow、编译与内联产物契约 |
+| [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md) | Script V2 状态、四个 operation、批量/幂等/stale writeback 与后端 handoff |
+| [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
 | `src/contracts/local.ts` / `src/contracts/home.ts` | 本地资源的 Zod 运行时 Schema |
@@ -35,12 +37,13 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.7.0-text-authoring-state
+Contract version: 1.9.0-script-v2
 OpenAPI: 3.1.0
 ```
 
-当前版本保留已有 route 的非版本化 `/api/*` 路径。真实后端接入时以部署层 base URL
-切换，不要求页面组件改路径或直接读取环境变量。
+当前版本保留已有 route 的非版本化 `/api/*` 路径。当前实现只向本地 Next.js mock 发请求；
+真实后端接入时以部署层 base URL 切换，不要求页面组件改路径或直接读取环境变量，也不把
+凭证下沉到组件。
 
 ## 传输约定
 
@@ -137,6 +140,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | Image 参考、风格、预设、派生工具 | `mutateCanvas`（原子图 mutation 与可重放 metadata） |
 | Audio/TTS/音乐、音色与参考 | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 WAV） |
 | Text 生成、手写文档与三个启动 Workflow | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 TXT + 内联文本） |
+| Script V2 三阶段脚本 | `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run`；状态写回仍走 `mutateCanvas` |
 | 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
@@ -183,6 +187,20 @@ Text 完整目录见 [`examples/models-text.response.json`](examples/models-text
 Canvas 节点编辑器与 Storyboard 再生成面板消费同一个 registry、目录组件和
 `WorkflowNode.data`。后端不需要维护“故事板参数”副本；任一入口的修改都通过
 `mutateCanvas` 增加 revision，另一入口重新投影同一文档即可看到结果。
+
+### Script V2 契约
+
+Script V2 是唯一写入 `WorkflowNode.data.extra.scriptV2` 的三阶段脚本状态。四个 local
+operation 覆盖报价、幂等提交、轮询和取消/重试；四种 operation 值为
+`generate-full`、`recognize-assets-only`、`recompute-prompts`、`generate-asset`。
+请求/响应由 `src/contracts/script-v2.ts` 的 Zod 判别联合约束，OpenAPI 也用四个
+`oneOf` 分支描述 `input` 与 `result`，不是 `unknown` 占位。
+
+本地 mock 固定为 create=`queued`、第一次 GET=`running/48%`、第二次 GET=`succeeded/100%`；
+相同 `idempotencyKey` 和 fingerprint 重放原 run，不同输入返回 409。Script 状态写回仍需
+`expectedRevision`，迟到或过期结果不得覆盖用户编辑。完整字段表、阶段门槛、错误码、CSV
+规则和真实后端交接顺序见 [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md)；官网 shape/bundle
+证据见 [`2026-09-03-script-v2.md`](../research/libtv/api/captures/2026-09-03-script-v2.md)。
 
 ### 生成任务契约
 

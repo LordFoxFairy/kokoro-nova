@@ -6,6 +6,7 @@ import {
   IMAGE_RESOLUTIONS,
 } from '@/domain/models'
 import { AudioModelCapabilitiesSchema } from './audio'
+import { TextModelCapabilitiesSchema } from './text'
 
 export const ModelMediaSchema = z.enum(['image', 'video', 'audio', 'text'])
 export const VideoGenerationModeSchema = z.enum([
@@ -74,6 +75,7 @@ export const ModelDefinitionSchema = z.object({
   capabilities: VideoModelCapabilitiesSchema.optional(),
   imageCapabilities: ImageModelCapabilitiesSchema.optional(),
   audioCapabilities: AudioModelCapabilitiesSchema.optional(),
+  textCapabilities: TextModelCapabilitiesSchema.optional(),
   membershipTier: z.enum(['standard', 'vip']).optional(),
   availability: z.enum(['available', 'preview', 'coming-soon']).optional(),
   iconKey: z.string().optional(),

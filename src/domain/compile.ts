@@ -9,6 +9,7 @@ import {
 } from './models'
 import { audioExecutionOutput, readAudioAuthoringState } from './audio-authoring'
 import { MEDIA_OF_NODE } from './nodes'
+import { readTextAuthoringState, textDocumentPlainText } from './text-authoring'
 import type { ExecutionInput, ExecutionSpec, Quote, WorkflowDocument, WorkflowNode } from './types'
 
 /** Stable non-cryptographic digest of the compiled inputs, for audit trails. */
@@ -112,7 +113,12 @@ function resolveInputs(doc: WorkflowDocument, node: WorkflowNode): ExecutionInpu
   for (const source of upstreamNodes(doc, node.id)) {
     const media = MEDIA_OF_NODE[source.type]
     if (media === 'text') {
-      const text = (source.data.prompt ?? '').trim()
+      const authoring = source.type === 'text' ? readTextAuthoringState(source.data.extra) : null
+      const text = (
+        authoring?.mode === 'document'
+          ? textDocumentPlainText(authoring)
+          : (source.data.prompt ?? '')
+      ).trim()
       if (text) inputs.push({ kind: 'text', value: text, fromNodeId: source.id })
       continue
     }

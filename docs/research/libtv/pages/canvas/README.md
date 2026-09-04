@@ -2,7 +2,9 @@
 
 实测路径：项目列表 `/project`；画布 `/canvas?spaceId=<space>&projectId=<project>`。
 
-证据等级：除“官方指南补充”外，本页均为登录后实际 UI 观察。调研项目中保留了用于验证映射的文本节点、图片节点和一条连线，没有提交任何付费生成。
+证据等级：除“官方指南补充”外，本页均为登录后实际 UI 观察。没有提交任何付费生成。
+本轮 Text/Script 协议调研另外留下一个手写 Text、三个 starter 组和一个 Script V2 临时节点；
+这些云端变更只会在删除动作发生前获得用户明确确认后清理。
 
 ## 2026-09-03 当前深色桌面基线
 
@@ -169,6 +171,26 @@
 
 以下状态均来自当前登录态画布。只展开默认配置、选择器、空态和可逆预设，未提交图片、
 视频、音频或脚本生成，也未消耗积分。
+
+### 文本节点
+
+| 状态 | 截图/证据 | 观察结论 |
+| --- | --- | --- |
+| 空节点 | [text-node-arranged-full-card.png](screenshots/text-node-arranged-full-card.png) | 固定显示自己编写内容、文生视频、图片反推提示词、文字生音乐四个入口。 |
+| 节点生成器 | [当前 Text 捕获](../../api/captures/2026-09-03-text-authoring.md) | 深色节点附着浮层约 660px；提示词、参考、模型、翻译、积分和生成位于同一层。 |
+| 模型目录 | [当前 Text 捕获](../../api/captures/2026-09-03-text-authoring.md) | 顺序为 GVLM 3.1、CVLM 5.5、GVLM 3.1 Flash、Qwen 3 VL Flash，并显示 10–20s 与描述。 |
+| 手写文档 | [当前 Text 捕获](../../api/captures/2026-09-03-text-authoring.md) | 约 350×200；工具栏包含背景、三级标题、正文、粗斜体、两类列表、分割线、复制和展开。 |
+| 文生视频 | [当前 Text 捕获](../../api/captures/2026-09-03-text-authoring.md) | 一次创建 `预设 - 文生视频` 的 Text → Video 图，Video 默认为 2.0 Fast / 16:9 / 720p / 5s / 1 / 静音。 |
+| 图片反推提示词 | [当前 Text 捕获](../../api/captures/2026-09-03-text-authoring.md) | 一次创建 `预设 - 图片反推提示词` 的 Image → Text 图。 |
+| 文字生音乐 | [当前 Text 捕获](../../api/captures/2026-09-03-text-authoring.md) | 一次创建 `预设 - 文字生音乐` 的 Text → Audio 图，Audio 使用 Mureka V8。 |
+
+当前 Text 编辑进一步触发了 `POST /api/canvas/nodes/batch`；手写节点投影为
+`text_resource + content[]`，生成节点使用独立 prompt/model 语义；报价响应确认
+`POST /api/task/generation/power/calculator` 的 `data.power`。完整脱敏字段见上表链接。
+本地复刻将富文本保存为无 HTML 的 block tree，三个 starter 作为一个 revision transaction，
+并通过通用 Job 生成 `.txt + textContent` 后投影到 Storyboard。实现差异和基线见
+[`../../visual/text-authoring-comparison.md`](../../visual/text-authoring-comparison.md)，长期后端契约见
+[`../../../../api/TEXT_AUTHORING_STATE.md`](../../../../api/TEXT_AUTHORING_STATE.md)。
 
 ### 图片节点
 

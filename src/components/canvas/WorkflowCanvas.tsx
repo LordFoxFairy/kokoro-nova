@@ -19,6 +19,8 @@ import type { ImageTransformRequest } from '@/domain/image-authoring'
 import { MEDIA_OF_NODE, NODE_META } from '@/domain/nodes'
 import { canConvertToStoryboardGroup } from '@/domain/mutations'
 import { videoReferenceCandidates } from '@/domain/video-references'
+import { createTextStarterMutations } from '@/domain/text-workflows'
+import type { TextStarterIntent } from '@/domain/text-authoring'
 import type { CanvasMutation, NodeType, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -157,14 +159,33 @@ function CanvasInner({
   )
 
   const handleSetIntent = useCallback(
-    (nodeId: string, intent: string) => {
-      void commit(
-        [{ op: 'updateNode', nodeId, patch: { data: { ...document.nodes.find((n) => n.id === nodeId)?.data, extra: { intent } } } }],
-        '设置文本用途',
-      )
-      onOpenNode(nodeId)
+    async (nodeId: string, intent: TextStarterIntent) => {
+      let createdNodeIds: string[] = []
+      const ok = await commitWith((current) => {
+        const result = createTextStarterMutations(current, nodeId, intent)
+        createdNodeIds = result.createdNodeIds
+        return result.mutations
+      }, intent === 'free' ? '自己编写文本' : `使用文本预设 ${intent}`)
+      if (!ok) return
+
+      if (intent === 'free') {
+        select([])
+        setSelectedGroupId(null)
+        onOpenNode(nodeId)
+        return
+      }
+
+      onOpenNode(null)
+      select(createdNodeIds)
+      window.requestAnimationFrame(() => {
+        flow.fitView({
+          nodes: createdNodeIds.map((id) => ({ id })),
+          duration: 400,
+          padding: 0.28,
+        })
+      })
     },
-    [commit, document.nodes, onOpenNode],
+    [commitWith, flow, onOpenNode, select],
   )
 
   const nodes: FlowNode[] = useMemo(
@@ -178,7 +199,6 @@ function CanvasInner({
         data: {
           node,
           job: jobByNode.get(node.id) ?? null,
-          onOpen: onOpenNode,
           onRun,
           onCancel: onCancelJob,
           onDuplicate: handleDuplicate,
@@ -231,7 +251,6 @@ function CanvasInner({
       document.nodes,
       selection,
       jobByNode,
-      onOpenNode,
       onRun,
       onCancelJob,
       handleDuplicate,
@@ -368,6 +387,7 @@ function CanvasInner({
         if (nodeId) {
           event.preventDefault()
           event.stopPropagation()
+          window.dispatchEvent(new Event('libtv:cancel-node-suggestion'))
           // Node-attached authoring is an inspection mode, not a batch canvas
           // selection. ReactFlow's native click sequence can otherwise leave
           // the card selected or unselected depending on render timing.

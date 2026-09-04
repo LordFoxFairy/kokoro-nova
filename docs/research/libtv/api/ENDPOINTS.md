@@ -23,6 +23,7 @@
 | 2026-09-03 | `/project` 全部项目 | 是 | [项目列表](captures/2026-09-03-project-list.md) |
 | 2026-09-03 | `/canvas` 画布初始化 | 是 | [画布初始化](captures/2026-09-03-canvas-bootstrap.md) |
 | 2026-09-03 | Workflow Video 节点 / 生成任务客户端 | 是 | [Video 任务协议](captures/2026-09-03-video-task-client-contract.md) |
+| 2026-09-03 | Workflow Text / 手写 / 三个 starter | 是 | [Text 创作与持久化](captures/2026-09-03-text-authoring.md) |
 
 ## 当前已确认端点
 
@@ -40,15 +41,21 @@
 | `POST` | `/api/canvas/folder/entries` | 最近文件夹查询 | `shape-confirmed`, `interaction-linked` |
 | `GET` | `/api/canvas/project/detail-by-space?spaceId=<SPACE_ID>&projectUuid=<PROJECT_UUID>` | 初始化项目、权限、节点与连线 | `shape-confirmed`, `interaction-linked` |
 | `POST` | `/api/canvas/project/draft/update` | 保存项目草稿与当前视口 | `shape-confirmed` |
+| `POST` | `/api/canvas/nodes/batch` | 当前细粒度节点、连线与 Text starter 批量持久化 | `shape-confirmed`, `interaction-linked` |
 | `POST` | `/api/canvas/project/heartbeat` | 维持当前项目编辑会话 | `shape-confirmed`, `interaction-linked` |
 | `POST` | `/api/task/generation/progress/batch` | 批量同步生成任务进度 | `shape-confirmed` |
 | `POST` | `/api/task/generation/create` | 创建单个生成任务 | `bundle-confirmed`, `interaction-linked` |
 | `POST` | `/api/task/generation/progress` | 读取指定任务进度与结果 | `bundle-confirmed`, `interaction-linked` |
 | `POST` | `/api/task/generation/stop/batch` | 批量停止生成任务 | `bundle-confirmed`, `interaction-linked` |
-| `POST` | `/api/task/generation/power/calculator` | 单个生成请求算力报价 | `bundle-confirmed`, `interaction-linked` |
+| `POST` | `/api/task/generation/power/calculator` | 单个生成请求算力报价；Text 响应确认 `data.power` | `shape-confirmed`, `interaction-linked` |
 | `POST` | `/api/task/generation/power/calculator/batch` | 批量生成请求算力报价 | `bundle-confirmed` |
 | `POST` | `/api/task/generation/video/opt` | Video 任务优化入口 | `bundle-confirmed`；字段待捕获 |
 | `POST` | `/api/agreement/check` | 检查功能协议签署状态 | `shape-confirmed` |
+
+`/api/canvas/project/draft/update` 来自初始化批次与项目级草稿/视口保存；当前 Text 单节点编辑和
+starter 实例化则直接观察到 `/api/canvas/nodes/batch`。两者的存在不代表本地需要暴露两套领域
+写入 API；本地仍统一为带 `expectedRevision` 的 Canvas mutation。字段级脱敏记录见
+[Text 创作与持久化](captures/2026-09-03-text-authoring.md)。
 
 ### LibTV Agent 会话域：`https://im.liblib.tv`
 
@@ -87,8 +94,8 @@
 ## 下一批捕获顺序
 
 1. 项目创建、项目卡菜单、重命名、文件夹与分页的单动作请求；
-2. 工作流节点编辑、连线、分组、保存和并发会话冲突；
+2. `/api/canvas/nodes/batch` 的并发冲突、删除与跨节点类型差异；
 3. 故事板投影与媒体详情；
-4. Video 真实生成确认、进度、取消和成功/失败网络样本（请求结构已有 bundle 证据）；
+4. Video/Text 真实生成确认、进度、取消和成功/失败网络样本；
 5. 视频合成器有效时间线、导出请求与失败响应；
 6. Agent、素材、Skill、TV Show 和账户页面。

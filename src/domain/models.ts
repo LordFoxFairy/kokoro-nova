@@ -1,5 +1,6 @@
 import type { OutputSpec } from './types'
 import type { AudioModelCapabilities, AudioSettings } from './audio-authoring'
+import type { TextModelCapabilities } from './text-authoring'
 
 export type ModelMedia = 'image' | 'video' | 'audio' | 'text'
 
@@ -93,6 +94,8 @@ export interface ModelDefinition {
   imageCapabilities?: ImageModelCapabilities
   /** Versioned authoring rules for audio models. */
   audioCapabilities?: AudioModelCapabilities
+  /** Versioned authoring/provider rules for text models. */
+  textCapabilities?: TextModelCapabilities
   membershipTier?: MembershipTier
   availability?: ModelAvailability
   /** Stable family key used by the local icon tile; never a remote asset URL. */
@@ -101,7 +104,7 @@ export interface ModelDefinition {
   description: string
 }
 
-export const MODEL_CATALOG_VERSION = '2026-09-03.2'
+export const MODEL_CATALOG_VERSION = '2026-09-03.3'
 
 export const VIDEO_MODE_LABELS: Record<VideoGenerationMode, string> = {
   text2video: '文生视频',
@@ -909,43 +912,75 @@ export const MODELS: ModelDefinition[] = [
   {
     id: 'gvlm-3.1',
     label: 'GVLM 3.1',
-    provider: 'Lib',
+    provider: 'aurora',
     media: 'text',
-    latencyLabel: '约 10 秒',
+    latencyLabel: '20s',
     baseCredits: 6,
     controls: [],
     tags: ['默认'],
-    description: '脚本拆解、提示词合成与图片反推的默认语言模型。',
-  },
-  {
-    id: 'gvlm-3.1-pro',
-    label: 'GVLM 3.1 Pro',
-    provider: 'Lib',
-    media: 'text',
-    latencyLabel: '约 20 秒',
-    baseCredits: 12,
-    controls: [],
-    description: '更长上下文与更稳定的分镜结构化输出。',
-  },
-  {
-    id: 'gvlm-3.1-flash-lite',
-    label: 'GVLM 3.1 Flash Lite',
-    provider: 'Lib',
-    media: 'text',
-    latencyLabel: '约 10 秒',
-    baseCredits: 3,
-    description: '低成本快速草稿。',
-    controls: [],
+    description: '多模态文本模型Pro',
+    textCapabilities: {
+      family: 'multimodal',
+      maxCharacters: 20_000,
+      acceptsReferences: ['text', 'image'],
+      providerModelId: 'aurora-3-prime',
+      scene: 'text-generate',
+      supportsTranslation: true,
+    },
   },
   {
     id: 'cvlm-5.5',
     label: 'CVLM 5.5',
     provider: 'Lib',
     media: 'text',
-    latencyLabel: '约 15 秒',
+    latencyLabel: '10s',
     baseCredits: 9,
     controls: [],
-    description: '中文创意写作与对白偏好更强。',
+    description: '超智能大语言模型',
+    textCapabilities: {
+      family: 'language',
+      maxCharacters: 32_000,
+      acceptsReferences: ['text', 'image'],
+      providerModelId: 'cvlm-5.5',
+      scene: 'text-generate',
+      supportsTranslation: true,
+    },
+  },
+  {
+    id: 'gvlm-3.1-flash',
+    label: 'GVLM 3.1 Flash',
+    provider: 'Lib',
+    media: 'text',
+    latencyLabel: '15s',
+    baseCredits: 3,
+    description: '多模态文本模型lite',
+    controls: [],
+    textCapabilities: {
+      family: 'multimodal',
+      maxCharacters: 12_000,
+      acceptsReferences: ['text', 'image'],
+      providerModelId: 'aurora-3-flash',
+      scene: 'text-generate',
+      supportsTranslation: true,
+    },
+  },
+  {
+    id: 'qwen-3-vl-flash',
+    label: 'Qwen 3 VL Flash',
+    provider: 'Qwen',
+    media: 'text',
+    latencyLabel: '10s',
+    baseCredits: 4,
+    controls: [],
+    description: 'Qwen 3 VL Flash',
+    textCapabilities: {
+      family: 'multimodal',
+      maxCharacters: 16_000,
+      acceptsReferences: ['text', 'image'],
+      providerModelId: 'qwen-3-vl-flash',
+      scene: 'text-generate',
+      supportsTranslation: true,
+    },
   },
 ]
 
@@ -968,6 +1003,11 @@ export function imageModelOutputOptions(modelId: string): ImageModelCapabilities
 export function audioModelOutputOptions(modelId: string): AudioModelCapabilities | null {
   const model = MODELS_BY_ID.get(modelId)
   return model?.media === 'audio' ? (model.audioCapabilities ?? null) : null
+}
+
+export function textModelOutputOptions(modelId: string): TextModelCapabilities | null {
+  const model = MODELS_BY_ID.get(modelId)
+  return model?.media === 'text' ? (model.textCapabilities ?? null) : null
 }
 
 /** Normalize image-only output and deliberately discard cross-media fields. */

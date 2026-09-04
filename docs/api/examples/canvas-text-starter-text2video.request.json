@@ -1,0 +1,107 @@
+{
+  "canvasId": "canvas_text_contract",
+  "expectedRevision": 4,
+  "label": "使用文本预设 文生视频",
+  "mutations": [
+    {
+      "op": "updateNode",
+      "nodeId": "node_text_contract",
+      "patch": {
+        "data": {
+          "prompt": "电影级人物镜头 雨夜街头，霓虹灯反射在湿漉漉的地面，女主撑伞站在路灯下，表情克制而坚定，镜头环绕人物360度缓慢移动，浅景深，光影对比强烈，电影级调色，真实皮肤质感",
+          "modelId": "gvlm-3.1",
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "intent": "text2video",
+            "textAuthoring": {
+              "schemaVersion": 1,
+              "mode": "generator",
+              "intent": "text2video",
+              "document": {
+                "background": "charcoal",
+                "blocks": [
+                  {
+                    "id": "block-1",
+                    "kind": "paragraph",
+                    "text": "",
+                    "marks": []
+                  }
+                ]
+              },
+              "translationEnabled": false,
+              "expanded": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "addNode",
+      "node": {
+        "id": "node_video_text_starter",
+        "type": "video",
+        "name": "视频生成",
+        "position": {
+          "x": 900,
+          "y": 260
+        },
+        "size": {
+          "width": 400,
+          "height": 300
+        },
+        "groupId": "group_text_to_video",
+        "keyElement": false,
+        "createdAt": "2026-09-03T12:00:00.000Z",
+        "updatedAt": "2026-09-03T12:00:00.000Z",
+        "data": {
+          "prompt": "根据文字描述生成视频。",
+          "modelId": "seedance-2-fast",
+          "output": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "durationSeconds": 5,
+            "count": 1,
+            "withAudio": false,
+            "mode": "text2video"
+          },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "advanced": {
+              "webSearch": false,
+              "autoCompliance": true,
+              "autoLink": true
+            },
+            "cameraMove": null,
+            "effect": null
+          }
+        }
+      }
+    },
+    {
+      "op": "addEdge",
+      "edge": {
+        "id": "edge_text_to_video",
+        "source": "node_text_contract",
+        "target": "node_video_text_starter",
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    },
+    {
+      "op": "addGroup",
+      "group": {
+        "id": "group_text_to_video",
+        "kind": "normal",
+        "name": "预设 - 文生视频",
+        "nodeIds": [
+          "node_text_contract",
+          "node_video_text_starter"
+        ],
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    }
+  ]
+}

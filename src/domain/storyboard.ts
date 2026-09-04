@@ -28,6 +28,8 @@ export interface StoryboardCard {
   pending: boolean
   dimensions: string | null
   durationLabel: string | null
+  /** Inline Text artifact copy, when the provider returned one. */
+  textContent?: string | null
 }
 
 export interface StoryboardReference {
@@ -135,6 +137,7 @@ export function projectStoryboard(
       pending: artifacts.length === 0,
       dimensions: dimensionsLabel(artifact),
       durationLabel: durationLabel(artifact),
+      textContent: artifact?.kind === 'text' ? (artifact.textContent ?? null) : null,
     })
   }
 

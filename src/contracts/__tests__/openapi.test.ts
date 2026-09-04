@@ -123,10 +123,10 @@ describe('local API manifest and OpenAPI', () => {
     ])
   })
 
-  it('versions and exposes the persisted Video, Image and Audio authoring metadata shapes', () => {
+  it('versions and exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.6.0-audio-authoring-state')
+    expect(document.info?.version).toBe('1.7.0-text-authoring-state')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -151,11 +151,17 @@ describe('local API manifest and OpenAPI', () => {
     expect(document.components?.schemas?.NodeExtra?.properties?.audioAuthoring?.$ref).toBe(
       '#/components/schemas/AudioAuthoringState',
     )
+    expect(document.components?.schemas?.NodeExtra?.properties?.textAuthoring?.$ref).toBe(
+      '#/components/schemas/TextAuthoringState',
+    )
     expect(document.components?.schemas?.ModelDefinition?.properties?.imageCapabilities?.$ref).toBe(
       '#/components/schemas/ImageModelCapabilities',
     )
     expect(document.components?.schemas?.ModelDefinition?.properties?.audioCapabilities?.$ref).toBe(
       '#/components/schemas/AudioModelCapabilities',
+    )
+    expect(document.components?.schemas?.ModelDefinition?.properties?.textCapabilities?.$ref).toBe(
+      '#/components/schemas/TextModelCapabilities',
     )
     expect(document.components?.schemas?.GenerationOutputSpec?.properties?.quality?.enum).toEqual([
       ...IMAGE_QUALITIES,

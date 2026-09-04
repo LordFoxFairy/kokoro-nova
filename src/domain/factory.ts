@@ -2,6 +2,7 @@ import { ids } from './ids'
 import { audioExecutionOutput, defaultAudioAuthoringState } from './audio-authoring'
 import { DEFAULT_MODEL } from './models'
 import { NODE_META, type NodeType } from './nodes'
+import { defaultTextAuthoringState } from './text-authoring'
 import {
   WORKFLOW_SCHEMA_VERSION,
   type Canvas,
@@ -13,7 +14,7 @@ import {
 } from './types'
 
 export const NODE_SIZE: Record<NodeType, { width: number; height: number }> = {
-  text: { width: 360, height: 300 },
+  text: { width: 350, height: 200 },
   image: { width: 400, height: 320 },
   video: { width: 400, height: 300 },
   videoComposite: { width: 420, height: 260 },
@@ -109,7 +110,7 @@ function defaultData(type: NodeType): NodeData {
         references: [],
         artifacts: [],
         jobId: null,
-        extra: { intent: null },
+        extra: { intent: null, textAuthoring: defaultTextAuthoringState() },
       }
     case 'style':
     case 'effect':

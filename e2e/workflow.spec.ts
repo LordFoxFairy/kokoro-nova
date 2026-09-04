@@ -117,21 +117,25 @@ test('canvas: build a graph, connect nodes, generate, and project to storyboard'
   await page.getByTestId('asset-sidebar-toggle').click()
   await expect(page.getByTestId('asset-sidebar')).toHaveCount(0)
 
-  // Write a prompt through the inspector.
+  // Write a prompt through the Text node-attached generator.
   // The camera follows the latest (video) node, so refit before interacting
   // with the first text node rather than relying on optimistic-write timing.
   await fitView(page)
   const textNode = page.locator('[data-node-type="text"]').first()
   await textNode.dblclick()
-  await expect(page.getByTestId('node-inspector')).toBeVisible()
-  await page.getByTestId('node-prompt').fill('雪夜里的一盏灯，镜头缓慢推近')
-  await page.getByTestId('node-prompt').blur()
+  const textEditor = page.getByTestId('text-node-editor')
+  await expect(textEditor).toBeVisible()
+  await expect(page.getByTestId('node-inspector')).toHaveCount(0)
+  await textEditor.getByTestId('text-prompt').fill('雪夜里的一盏灯，镜头缓慢推近')
+  const textSaved = waitForCanvasMutation(page)
+  await textEditor.getByTestId('text-prompt').blur()
+  await textSaved
 
   await page.screenshot({ path: `${SHOTS}/canvas-workflow.png` })
 
   // Select all three and connect them left-to-right with ⌘L.
   await page.keyboard.press('Escape')
-  await expect(page.getByTestId('node-inspector')).toHaveCount(0)
+  await expect(page.getByTestId('text-node-editor')).toHaveCount(0)
   await fitView(page)
   await selectNode(page, 'text')
   await selectNode(page, 'image', true)
@@ -410,8 +414,11 @@ test('publish freezes a snapshot that the public gallery serves read-only', asyn
 
   const textNode = page.locator('[data-node-type="text"]').first()
   await textNode.dblclick()
-  await page.getByTestId('node-prompt').fill('雪夜城市的霓虹倒影')
-  await page.getByTestId('node-prompt').blur()
+  const textPrompt = page.getByTestId('text-node-editor').getByTestId('text-prompt')
+  await textPrompt.fill('雪夜城市的霓虹倒影')
+  const textSaved = waitForCanvasMutation(page)
+  await textPrompt.blur()
+  await textSaved
   await expect(textNode).toContainText('雪夜城市')
   await page.keyboard.press('Escape')
 

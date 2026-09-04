@@ -295,6 +295,8 @@ export interface Artifact {
   modelId: string
   /** Set once the artifact has been registered into the asset library. */
   assetId: string | null
+  /** Inline copy for Text artifacts; avoids a second fetch for result previews. */
+  textContent?: string | null
 }
 
 /* ------------------------------------------------------------------ *

@@ -1,0 +1,120 @@
+{
+  "canvasId": "canvas_text_contract",
+  "expectedRevision": 4,
+  "label": "使用文本预设 文字生音乐",
+  "mutations": [
+    {
+      "op": "updateNode",
+      "nodeId": "node_text_contract",
+      "patch": {
+        "data": {
+          "prompt": "生成一首现代品牌电子音乐（约 110 BPM），干净有力的低频贝斯，清晰电子鼓点，整体风格高级、未来感强。开场节奏型贝斯与简洁合成器音色建立律动。主段加入稳定鼓点，节奏清晰，保持克制的张力。强化段加入更丰富的音层，合成器音色提升，律动增强但不过度拥挤。结尾鼓点减弱，仅保留低频与氛围音渐出，干净利落收尾。",
+          "modelId": "gvlm-3.1",
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "intent": "text2music",
+            "textAuthoring": {
+              "schemaVersion": 1,
+              "mode": "generator",
+              "intent": "text2music",
+              "document": {
+                "background": "charcoal",
+                "blocks": [
+                  {
+                    "id": "block-1",
+                    "kind": "paragraph",
+                    "text": "",
+                    "marks": []
+                  }
+                ]
+              },
+              "translationEnabled": false,
+              "expanded": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "addNode",
+      "node": {
+        "id": "node_audio_music_target",
+        "type": "audio",
+        "name": "音乐生成",
+        "position": {
+          "x": 480,
+          "y": 610
+        },
+        "size": {
+          "width": 380,
+          "height": 260
+        },
+        "groupId": "group_text_music",
+        "keyElement": false,
+        "createdAt": "2026-09-03T12:00:00.000Z",
+        "updatedAt": "2026-09-03T12:00:00.000Z",
+        "data": {
+          "prompt": "",
+          "modelId": "mureka-v8",
+          "output": {
+            "durationSeconds": 30,
+            "murekaMode": "description",
+            "instrumental": true
+          },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "audioAuthoring": {
+              "schemaVersion": 1,
+              "settings": {
+                "language": "zh",
+                "sampleRate": "24k",
+                "format": "wav",
+                "voiceId": "voice-girl",
+                "speed": 1,
+                "pitch": 0,
+                "volume": 1,
+                "effectPitch": 0,
+                "effectStrength": 0,
+                "timbre": 0,
+                "soundEffect": "none",
+                "stability": "natural",
+                "musicDurationSeconds": 30,
+                "murekaMode": "description",
+                "instrumental": true
+              },
+              "favoriteVoiceIds": [],
+              "customVoices": [],
+              "advancedOpen": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "addEdge",
+      "edge": {
+        "id": "edge_text_music",
+        "source": "node_text_contract",
+        "target": "node_audio_music_target",
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    },
+    {
+      "op": "addGroup",
+      "group": {
+        "id": "group_text_music",
+        "kind": "normal",
+        "name": "预设 - 文字生音乐",
+        "nodeIds": [
+          "node_text_contract",
+          "node_audio_music_target"
+        ],
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    }
+  ]
+}

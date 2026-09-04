@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { NodeType } from '@/domain/nodes'
 import {
   IconAssetLibrary,
@@ -107,6 +107,20 @@ export function ArtifactPreview({
 
 /** Suggestion rows shown inside an empty generator node. */
 export function TrySuggestions({ items }: { items: { icon: ReactNode; label: string; onClick: () => void }[] }) {
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const cancel = () => {
+      if (pending.current) clearTimeout(pending.current)
+      pending.current = null
+    }
+    window.addEventListener('libtv:cancel-node-suggestion', cancel)
+    return () => {
+      cancel()
+      window.removeEventListener('libtv:cancel-node-suggestion', cancel)
+    }
+  }, [])
+
   return (
     <div className="space-y-1.5">
       <div className="text-[11px] text-ink-400">尝试：</div>
@@ -114,7 +128,20 @@ export function TrySuggestions({ items }: { items: { icon: ReactNode; label: str
         <button
           key={item.label}
           type="button"
-          onClick={item.onClick}
+          onClick={() => {
+            if (pending.current) clearTimeout(pending.current)
+            // A node double click emits two `click` events before `dblclick`.
+            // Defer starter activation long enough for the latter to cancel it.
+            pending.current = setTimeout(() => {
+              pending.current = null
+              item.onClick()
+            }, 220)
+          }}
+          onDoubleClick={(event) => {
+            event.preventDefault()
+            if (pending.current) clearTimeout(pending.current)
+            pending.current = null
+          }}
           className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-[12px] text-ink-700 transition-colors hover:bg-ink-50"
         >
           <span className="text-ink-500">{item.icon}</span>

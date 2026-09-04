@@ -20,6 +20,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`VIDEO_REFERENCE_STATE.md`](VIDEO_REFERENCE_STATE.md) | Video 图引用、`@` token、局部元素与运镜持久化契约 |
 | [`IMAGE_AUTHORING_STATE.md`](IMAGE_AUTHORING_STATE.md) | Image 模型矩阵、参考、风格、预设与非破坏式派生工具契约 |
 | [`AUDIO_AUTHORING_STATE.md`](AUDIO_AUTHORING_STATE.md) | Audio 六模型、TTS 标记、音色库/克隆、参考与生成契约 |
+| [`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md) | Text 四模型、富文本文档、三个启动 Workflow、编译与内联产物契约 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
 | `src/contracts/local.ts` / `src/contracts/home.ts` | 本地资源的 Zod 运行时 Schema |
@@ -34,7 +35,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.6.0-audio-authoring-state
+Contract version: 1.7.0-text-authoring-state
 OpenAPI: 3.1.0
 ```
 
@@ -135,6 +136,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | Video 参考、元素、运镜 | `mutateCanvas`（同一 revision 的边与节点元数据事务） |
 | Image 参考、风格、预设、派生工具 | `mutateCanvas`（原子图 mutation 与可重放 metadata） |
 | Audio/TTS/音乐、音色与参考 | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 WAV） |
+| Text 生成、手写文档与三个启动 Workflow | `listModels`, `mutateCanvas`, Jobs 四 operation（本地 TXT + 内联文本） |
 | 节点生成 | `listGenerationJobs`, `createGenerationJob`, `transitionGenerationJob`, `getGenerationJob` |
 | 模型目录与参数联动 | `listModels` |
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
@@ -162,6 +164,8 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 
 Image 项的 `imageCapabilities` 固定质量、清晰度、13 种画幅、生成数量及默认值；Audio 项的
 `audioCapabilities` 固定五种模型族、字符上限、text/audio 参考、音色与 TTS token 支持及完整 defaults；
+Text 项的 `textCapabilities` 固定四项模型顺序、provider model、字符上限、text/image 参考、
+翻译能力和 `text-generate` scene；
 Video 项的 `capabilities` 同时提供：
 
 - 支持的画幅、清晰度、时长、生成数量和音频策略；
@@ -172,6 +176,9 @@ Video 项的 `capabilities` 同时提供：
 页面切换模型后先按此能力对象归一化编辑态，`compileNode()` 在创建任务前再次执行同一
 归一化，避免导入旧草稿或直接 mutation 留下不可执行参数。完整响应样本见
 [`examples/models-video.response.json`](examples/models-video.response.json)。
+Text 完整目录见 [`examples/models-text.response.json`](examples/models-text.response.json)，富文本文档、
+下游纯文本投影、三个原子 starter 与内联 `.txt` 产物见
+[`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md)。
 
 Canvas 节点编辑器与 Storyboard 再生成面板消费同一个 registry、目录组件和
 `WorkflowNode.data`。后端不需要维护“故事板参数”副本；任一入口的修改都通过

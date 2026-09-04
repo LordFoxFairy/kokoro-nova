@@ -11,6 +11,7 @@ import { defaultAudioAuthoringState } from '@/domain/audio-authoring'
 import { createEdge, createNode, emptyDocument } from '@/domain/factory'
 import { PRICE_VERSION } from '@/domain/models'
 import { applyMutations } from '@/domain/mutations'
+import { defaultTextAuthoringState } from '@/domain/text-authoring'
 import type { Artifact, CanvasMutation, NodeData, WorkflowDocument, WorkflowNode } from '@/domain/types'
 
 function artifact(kind: Artifact['kind'], url: string): Artifact {
@@ -112,6 +113,36 @@ describe('compileNode / validation', () => {
 })
 
 describe('compileNode / inputs and prompt', () => {
+  it('uses manual rich-document text as the upstream value instead of hidden generator metadata', () => {
+    const authoring = defaultTextAuthoringState()
+    authoring.mode = 'document'
+    authoring.intent = 'free'
+    authoring.translationEnabled = true
+    authoring.expanded = true
+    authoring.document.blocks = [
+      { id: 'title', kind: 'heading-1', text: '雨夜天台', marks: ['bold'] },
+      { id: 'body', kind: 'paragraph', text: '机器人抬头看星星。', marks: ['italic'] },
+    ]
+    const text = node('text', 'nd_manual_text', {
+      prompt: '',
+      extra: { textAuthoring: authoring, internalOnly: 'do-not-leak' },
+    })
+    const video = node('video', 'nd_video_from_document', {
+      prompt: '电影级镜头',
+      modelId: 'seedance-2-5',
+    })
+    const doc = build([text, video], [{ op: 'addEdge', edge: createEdge(text.id, video.id) }])
+
+    const { spec } = compileNode(doc, video.id)
+
+    expect(spec.inputs).toEqual([
+      { kind: 'text', value: '雨夜天台\n机器人抬头看星星。', fromNodeId: text.id },
+    ])
+    expect(spec.prompt).toBe('电影级镜头\n雨夜天台\n机器人抬头看星星。')
+    expect(JSON.stringify(spec)).not.toContain('internalOnly')
+    expect(JSON.stringify(spec)).not.toContain('translationEnabled')
+  })
+
   it('collects upstream text and upstream image artifacts as inputs', () => {
     const t = node('text', 'nd_t', { prompt: '  暴风雨中的灯塔  ' })
     const empty = node('text', 'nd_empty', { prompt: '   ' })

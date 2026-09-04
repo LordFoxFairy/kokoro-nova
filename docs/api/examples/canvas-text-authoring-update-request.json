@@ -1,0 +1,53 @@
+{
+  "canvasId": "canvas_text_contract",
+  "expectedRevision": 3,
+  "label": "编辑文本内容",
+  "mutations": [
+    {
+      "op": "updateNode",
+      "nodeId": "node_text_contract",
+      "patch": {
+        "size": {
+          "width": 350,
+          "height": 200
+        },
+        "data": {
+          "prompt": "",
+          "modelId": "gvlm-3.1",
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "intent": "free",
+            "textAuthoring": {
+              "schemaVersion": 1,
+              "mode": "document",
+              "intent": "free",
+              "document": {
+                "background": "paper",
+                "blocks": [
+                  {
+                    "id": "block-title",
+                    "kind": "heading-1",
+                    "text": "雨夜天台",
+                    "marks": [
+                      "bold"
+                    ]
+                  },
+                  {
+                    "id": "block-body",
+                    "kind": "paragraph",
+                    "text": "一个来自未来的机器人，在城市屋顶看星星。",
+                    "marks": []
+                  }
+                ]
+              },
+              "translationEnabled": false,
+              "expanded": false
+            }
+          }
+        }
+      }
+    }
+  ]
+}

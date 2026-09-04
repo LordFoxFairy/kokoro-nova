@@ -130,13 +130,19 @@ export function StoryboardView() {
                   <button
                     key={card.nodeId}
                     type="button"
+                    data-testid={`storyboard-card-${card.nodeId}`}
                     onClick={() => setDetail(card)}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-ink-50"
                   >
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-400">
                       <IconText size={14} />
                     </span>
-                    <span className="truncate text-[12px] text-ink-700">{card.nodeName}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] text-ink-700">{card.nodeName}</span>
+                      {card.textContent && (
+                        <span className="mt-0.5 block truncate text-[10px] text-ink-400">{card.textContent}</span>
+                      )}
+                    </span>
                   </button>
                 ))}
               </div>

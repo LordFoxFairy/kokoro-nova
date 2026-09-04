@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { NODE_META } from '@/domain/nodes'
 import { MODELS_BY_ID, quoteCredits } from '@/domain/models'
 import type { ImageTransformRequest } from '@/domain/image-authoring'
+import { readTextAuthoringState, type TextStarterIntent } from '@/domain/text-authoring'
 import type { GenerationJob, JobStatus, WorkflowNode } from '@/domain/types'
 import { cn } from '@/lib/cn'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
@@ -28,18 +29,18 @@ import { ArtifactPreview, MediaPlaceholder, NODE_ICON, TrySuggestions } from './
 import { VideoNodeEditor } from './VideoNodeEditor'
 import { ImageNodeEditor } from './ImageNodeEditor'
 import { AudioNodeEditor } from './AudioNodeEditor'
+import { TextDocumentPreview, TextNodeEditor } from './TextNodeEditor'
 
 export interface NodeCardData extends Record<string, unknown> {
   node: WorkflowNode
   job: GenerationJob | null
-  onOpen: (nodeId: string) => void
   onRun: (nodeId: string) => void
   onCancel: (jobId: string) => void
   onDuplicate: (nodeId: string) => void
   onDelete: (nodeId: string) => void
   onToggleKeyElement: (nodeId: string) => void
   onAddToAgent: (nodeId: string) => void
-  onSetIntent: (nodeId: string, intent: string) => void
+  onSetIntent: (nodeId: string, intent: TextStarterIntent) => void
   onStartVideoSelection: (kind: 'reference' | 'element', targetNodeId: string) => void
   onExitVideoSelection: () => void
   onSelectCanvasCandidate: (nodeId: string) => void
@@ -78,7 +79,6 @@ function NodeCardImpl({ data, selected }: NodeProps) {
   const {
     node,
     job,
-    onOpen,
     onRun,
     onCancel,
     onDuplicate,
@@ -117,6 +117,8 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     artifact?.width && artifact.height ? `${artifact.width} × ${artifact.height}` : null
 
   const cost = node.data.modelId ? quoteCredits(node.data.modelId, node.data.output).credits : 0
+  const textAuthoring = node.type === 'text' ? readTextAuthoringState(node.data.extra) : null
+  const isManualText = textAuthoring?.mode === 'document'
 
   const menuSections: MenuSection[] = [
     {
@@ -227,12 +229,11 @@ function NodeCardImpl({ data, selected }: NodeProps) {
             job={job}
             compactMedia={isGeneratedMedia}
             onSetIntent={onSetIntent}
-            onOpen={onOpen}
           />
         </div>
 
         {/* Status footer: cost + run control, or progress while running. */}
-        {meta.produces && (
+        {meta.produces && !isManualText && (
           <div
             className={cn(
               'flex items-center gap-2 px-3 py-2',
@@ -376,6 +377,20 @@ function NodeCardImpl({ data, selected }: NodeProps) {
         />
       )}
 
+      {node.type === 'text' && open && (
+        <TextNodeEditor
+          node={node}
+          job={job}
+          onRun={onRun}
+          onCancel={onCancel}
+          selectionMode={canvasSelection?.targetNodeId === node.id ? canvasSelection.kind : null}
+          onStartSelection={onStartVideoSelection}
+          onExitSelection={onExitVideoSelection}
+          onRemoveReference={onRemoveVideoReference}
+          onLocateReference={onLocateNode}
+        />
+      )}
+
       {canvasSelection && canvasSelection.targetNodeId !== node.id && (
         <button
           type="button"
@@ -422,20 +437,29 @@ function NodeBody({
   job,
   compactMedia,
   onSetIntent,
-  onOpen,
 }: {
   node: WorkflowNode
   artifact: WorkflowNode['data']['artifacts'] extends (infer A)[] | undefined ? A | null : never
   running: boolean
   job: GenerationJob | null
   compactMedia: boolean
-  onSetIntent: (nodeId: string, intent: string) => void
-  onOpen: (nodeId: string) => void
+  onSetIntent: (nodeId: string, intent: TextStarterIntent) => void
 }) {
   const prompt = node.data.prompt ?? ''
 
   switch (node.type) {
     case 'text': {
+      const authoring = readTextAuthoringState(node.data.extra)
+      if (authoring.mode === 'document') {
+        return <TextDocumentPreview node={node} />
+      }
+      if (artifact?.kind === 'text' && artifact.textContent) {
+        return (
+          <div className="flex-1 overflow-hidden text-[12px] leading-relaxed whitespace-pre-wrap text-ink-700">
+            {artifact.textContent.length > 320 ? `${artifact.textContent.slice(0, 320)}…` : artifact.textContent}
+          </div>
+        )
+      }
       if (prompt) {
         return (
           <div className="flex-1 overflow-hidden text-[12px] leading-relaxed whitespace-pre-wrap text-ink-700">
@@ -447,7 +471,7 @@ function NodeBody({
         <div className="flex flex-1 flex-col justify-center">
           <TrySuggestions
             items={[
-              { icon: <IconText size={14} />, label: '自己编写内容', onClick: () => onOpen(node.id) },
+              { icon: <IconText size={14} />, label: '自己编写内容', onClick: () => onSetIntent(node.id, 'free') },
               { icon: <IconVideo size={14} />, label: '文生视频', onClick: () => onSetIntent(node.id, 'text2video') },
               { icon: <IconImage size={14} />, label: '图片反推提示词', onClick: () => onSetIntent(node.id, 'caption') },
               { icon: <IconAudio size={14} />, label: '文字生音乐', onClick: () => onSetIntent(node.id, 'text2music') },

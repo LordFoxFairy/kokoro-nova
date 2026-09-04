@@ -1,0 +1,97 @@
+{
+  "canvasId": "canvas_text_contract",
+  "expectedRevision": 4,
+  "label": "使用文本预设 图片反推提示词",
+  "mutations": [
+    {
+      "op": "updateNode",
+      "nodeId": "node_text_contract",
+      "patch": {
+        "data": {
+          "prompt": "根据图片生成结构化中文提示词，包括主体描述、环境、光影、镜头语言、风格关键词。",
+          "modelId": "gvlm-3.1",
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {
+            "intent": "caption",
+            "textAuthoring": {
+              "schemaVersion": 1,
+              "mode": "generator",
+              "intent": "caption",
+              "document": {
+                "background": "charcoal",
+                "blocks": [
+                  {
+                    "id": "block-1",
+                    "kind": "paragraph",
+                    "text": "",
+                    "marks": []
+                  }
+                ]
+              },
+              "translationEnabled": false,
+              "expanded": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "addNode",
+      "node": {
+        "id": "node_image_caption_source",
+        "type": "image",
+        "name": "参考图片",
+        "position": {
+          "x": -100,
+          "y": 260
+        },
+        "size": {
+          "width": 400,
+          "height": 320
+        },
+        "groupId": "group_image_caption",
+        "keyElement": false,
+        "createdAt": "2026-09-03T12:00:00.000Z",
+        "updatedAt": "2026-09-03T12:00:00.000Z",
+        "data": {
+          "prompt": "",
+          "modelId": "lib-image-2",
+          "output": {
+            "aspectRatio": "16:9",
+            "quality": "standard",
+            "resolution": "2K",
+            "count": 1
+          },
+          "references": [],
+          "artifacts": [],
+          "jobId": null,
+          "extra": {}
+        }
+      }
+    },
+    {
+      "op": "addEdge",
+      "edge": {
+        "id": "edge_image_caption",
+        "source": "node_image_caption_source",
+        "target": "node_text_contract",
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    },
+    {
+      "op": "addGroup",
+      "group": {
+        "id": "group_image_caption",
+        "kind": "normal",
+        "name": "预设 - 图片反推提示词",
+        "nodeIds": [
+          "node_image_caption_source",
+          "node_text_contract"
+        ],
+        "createdAt": "2026-09-03T12:00:00.000Z"
+      }
+    }
+  ]
+}

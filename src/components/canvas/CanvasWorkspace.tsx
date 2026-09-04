@@ -202,6 +202,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       const supported =
         target?.type === 'video' ||
         target?.type === 'image' ||
+        (target?.type === 'text' && kind === 'reference') ||
         (target?.type === 'audio' && kind === 'reference')
       if (!supported) return
       setLeftPanel(null)
@@ -738,7 +739,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           <StoryboardView />
         )}
 
-        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && inspectedNode.type !== 'audio' && (
+        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && inspectedNode.type !== 'audio' && inspectedNode.type !== 'text' && (
           <NodeInspector
             node={inspectedNode}
             job={inspectedJob}

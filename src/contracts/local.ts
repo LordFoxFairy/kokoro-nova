@@ -7,6 +7,9 @@ import {
   AudioVoiceSchema,
 } from './audio'
 import { ScenarioResponseSchema } from './scenario'
+import { TextAuthoringStateSchema } from './text'
+
+export { TextAuthoringStateSchema } from './text'
 
 const IsoTimestampSchema = z.string().datetime()
 
@@ -85,6 +88,7 @@ export const ArtifactSchema = z.object({
   createdAt: IsoTimestampSchema,
   modelId: z.string(),
   assetId: z.string().nullable(),
+  textContent: z.string().nullable().optional(),
 })
 
 export const NodeReferenceSchema = z.object({
@@ -99,6 +103,7 @@ export const NodeReferenceSchema = z.object({
 export const NodeExtraSchema = z
   .object({
     audioAuthoring: AudioAuthoringStateSchema.optional(),
+    textAuthoring: TextAuthoringStateSchema.optional(),
   })
   .catchall(z.unknown())
 

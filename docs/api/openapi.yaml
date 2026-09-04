@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.6.0-audio-authoring-state",
-    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Audio 六模型能力、TTS/音乐参数、音色收藏与本地克隆状态。"
+    "version": "1.7.0-text-authoring-state",
+    "description": "纯前端 LibTV 能力复刻的本地确定性 API。官网原始协议证据位于 docs/research/libtv/api；本文件描述规范化本地契约。本版本补充 Text 四模型能力、富文本文档状态、原子预设 Workflow 与内联文本产物。"
   },
   "servers": [
     {
@@ -1697,6 +1697,16 @@
               }
             }
           },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
           "503": {
             "description": "本地 ffmpeg 不可用",
             "content": {
@@ -1709,16 +1719,6 @@
           },
           "504": {
             "description": "合成超过 90 秒执行预算",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "mock 执行异常",
             "content": {
               "application/json": {
                 "schema": {
@@ -3091,6 +3091,16 @@
               }
             }
           },
+          "401": {
+            "description": "登录态或编辑会话已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "目标对象不存在",
             "content": {
@@ -3113,16 +3123,6 @@
           },
           "500": {
             "description": "mock 执行异常",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "登录态或编辑会话已过期",
             "content": {
               "application/json": {
                 "schema": {
@@ -4636,6 +4636,13 @@
               "string",
               "null"
             ]
+          },
+          "textContent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Text 产物的内联副本；其他媒体通常省略。"
           }
         },
         "additionalProperties": false
@@ -4735,7 +4742,7 @@
       },
       "NodeExtra": {
         "type": "object",
-        "description": "各节点共享的扩展袋；列出 Video、Image 与 Audio 稳定字段并保留其他节点的未知扩展。",
+        "description": "各节点共享的扩展袋；列出 Video、Image、Audio 与 Text 稳定字段并保留其他节点的未知扩展。",
         "properties": {
           "advanced": {
             "$ref": "#/components/schemas/VideoAdvancedSettings"
@@ -4783,6 +4790,9 @@
           },
           "audioAuthoring": {
             "$ref": "#/components/schemas/AudioAuthoringState"
+          },
+          "textAuthoring": {
+            "$ref": "#/components/schemas/TextAuthoringState"
           }
         },
         "additionalProperties": true
@@ -6404,6 +6414,9 @@
           },
           "audioCapabilities": {
             "$ref": "#/components/schemas/AudioModelCapabilities"
+          },
+          "textCapabilities": {
+            "$ref": "#/components/schemas/TextModelCapabilities"
           }
         },
         "additionalProperties": false
@@ -7305,6 +7318,179 @@
           }
         },
         "additionalProperties": false
+      },
+      "TextBlock": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "marks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "在同一 TextAuthoringDocument.blocks 内必须唯一。"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "paragraph",
+              "heading-1",
+              "heading-2",
+              "heading-3",
+              "bullet-list",
+              "ordered-list",
+              "divider"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 50000,
+            "description": "纯文本；不会持久化原始 HTML。"
+          },
+          "marks": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 2,
+            "items": {
+              "type": "string",
+              "enum": [
+                "bold",
+                "italic"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TextAuthoringDocument": {
+        "type": "object",
+        "required": [
+          "background",
+          "blocks"
+        ],
+        "properties": {
+          "background": {
+            "type": "string",
+            "enum": [
+              "charcoal",
+              "slate",
+              "indigo",
+              "paper",
+              "sand"
+            ]
+          },
+          "blocks": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "block id 必须唯一；除 divider 外的 text 合计最多 50000 字符。",
+            "items": {
+              "$ref": "#/components/schemas/TextBlock"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TextAuthoringState": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "mode",
+          "intent",
+          "document",
+          "translationEnabled",
+          "expanded"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "generator",
+              "document"
+            ]
+          },
+          "intent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "free",
+              "text2video",
+              "caption",
+              "text2music",
+              null
+            ]
+          },
+          "document": {
+            "$ref": "#/components/schemas/TextAuthoringDocument"
+          },
+          "translationEnabled": {
+            "type": "boolean"
+          },
+          "expanded": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TextModelCapabilities": {
+        "type": "object",
+        "required": [
+          "family",
+          "maxCharacters",
+          "acceptsReferences",
+          "providerModelId",
+          "scene",
+          "supportsTranslation"
+        ],
+        "properties": {
+          "family": {
+            "type": "string",
+            "enum": [
+              "multimodal",
+              "language"
+            ]
+          },
+          "maxCharacters": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "acceptsReferences": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "maxItems": 2,
+            "items": {
+              "type": "string",
+              "enum": [
+                "text",
+                "image"
+              ]
+            }
+          },
+          "providerModelId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "适配器使用的 provider model；不是远程凭证。"
+          },
+          "scene": {
+            "type": "string",
+            "const": "text-generate"
+          },
+          "supportsTranslation": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {
@@ -7677,6 +7863,26 @@
       "AudioModelCatalogResponseExample": {
         "summary": "六项 Audio 模型与模型族能力矩阵",
         "externalValue": "./examples/models-audio.response.json"
+      },
+      "TextAuthoringUpdateRequestExample": {
+        "summary": "更新 Text 手写模式与安全富文本块",
+        "externalValue": "./examples/canvas-text-authoring-update-request.json"
+      },
+      "TextStarterVideoRequestExample": {
+        "summary": "原子创建 Text -> Video 预设工作流",
+        "externalValue": "./examples/canvas-text-starter-text2video.request.json"
+      },
+      "TextModelCatalogResponseExample": {
+        "summary": "四项 Text 模型与 provider 能力映射",
+        "externalValue": "./examples/models-text.response.json"
+      },
+      "TextStarterCaptionRequestExample": {
+        "summary": "原子创建 Image -> Text 图片反推预设",
+        "externalValue": "./examples/canvas-text-starter-caption.request.json"
+      },
+      "TextStarterMusicRequestExample": {
+        "summary": "原子创建 Text -> Audio 音乐预设",
+        "externalValue": "./examples/canvas-text-starter-music.request.json"
       }
     }
   },

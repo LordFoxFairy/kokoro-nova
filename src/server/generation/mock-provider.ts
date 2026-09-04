@@ -188,6 +188,7 @@ async function produce(request: ProviderSubmitRequest): Promise<
         height: null,
         durationSeconds: null,
         modelId: spec.modelId,
+        textContent: text,
       })
       continue
     }

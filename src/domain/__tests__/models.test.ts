@@ -190,7 +190,7 @@ describe('model catalog', () => {
   })
 
   it('publishes a versioned deterministic catalog', () => {
-    expect(MODEL_CATALOG_VERSION).toBe('2026-09-03.2')
+    expect(MODEL_CATALOG_VERSION).toBe('2026-09-03.3')
     expect(DEFAULT_MODEL.video).toBe('seedance-2-5')
   })
 

@@ -51,11 +51,12 @@ docs/screenshots/        Local visual baselines
 | Workspace orchestration | `src/components/canvas/CanvasWorkspace.tsx` |
 | Header, project/canvas switcher, view tabs | `src/components/canvas/TopBar.tsx` |
 | Infinite canvas and graph commands | `src/components/canvas/WorkflowCanvas.tsx` |
-| Node visuals and editors | `src/components/canvas/NodeCard.tsx`, `node-visuals.tsx`, `NodeInspector.tsx` |
+| Node visuals and editors | `src/components/canvas/NodeCard.tsx`, `node-visuals.tsx`, `TextNodeEditor.tsx`, `ImageNodeEditor.tsx`, `VideoNodeEditor.tsx`, `AudioNodeEditor.tsx` |
+| Text authoring and starters | `src/domain/text-authoring.ts`, `src/domain/text-workflows.ts`, `src/contracts/text.ts`, `src/components/text/TextModelCatalog.tsx` |
 | Left libraries and bottom controls | `LibraryPanels.tsx`, `AssetSidebar.tsx`, `BottomToolbar.tsx` |
 | Storyboard columns/detail/editor | `src/components/storyboard/*` |
 | Presence/follow state | `PresenceLayer.tsx`, `src/lib/presence-client.ts`, `src/server/presence.ts` |
-| Canvas and workflow contracts | `src/contracts/canvas.ts`, `src/domain/types.ts` |
+| Canvas and workflow contracts | `src/contracts/canvas.ts`, `src/contracts/local.ts`, `src/domain/types.ts`, `docs/api/*_AUTHORING_STATE.md` |
 | Official evidence | `docs/research/libtv/pages/canvas/README.md`, adjacent `screenshots/` |
 | Existing browser journeys | `e2e/workflow.spec.ts`, `e2e/scenarios.spec.ts` |
 

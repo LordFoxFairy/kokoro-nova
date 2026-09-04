@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createProjectAndOpenCanvas, openCanvasFixture, selectCanvasScenario } from './helpers/canvas-fixtures'
+import { waitForStableVisuals } from './helpers/visual-stability'
 
 type RectExpectation = Partial<Record<'x' | 'y' | 'width' | 'height' | 'right' | 'bottom' | 'centerX', number>>
 
@@ -36,8 +37,7 @@ async function directMenuRows(menu: Locator) {
 }
 
 async function expectVisualBaseline(page: Page, name: string) {
-  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
-  await page.evaluate(() => document.fonts.ready)
+  await waitForStableVisuals(page)
   await expect(page).toHaveScreenshot(name, {
     animations: 'disabled',
     caret: 'hide',
@@ -365,7 +365,12 @@ test('storyboard preserves the document while matching default, expanded and Age
   await openCanvasFixture(page, request)
 
   const before = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+  const assetLifecyclesLoaded = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return response.request().method() === 'GET' && url.pathname === '/api/assets' && url.searchParams.get('visibility') === 'all' && response.ok()
+  })
   await page.getByTestId('view-storyboard').click()
+  await assetLifecyclesLoaded
 
   const storyboard = page.getByTestId('storyboard-view')
   const leftRail = page.getByTestId('storyboard-left-rail')

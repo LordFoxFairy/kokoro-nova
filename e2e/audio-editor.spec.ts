@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { waitForStableVisuals } from './helpers/visual-stability'
 
 const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
 
@@ -116,8 +117,7 @@ async function flowNodeId(locator: ReturnType<Page['locator']>) {
 }
 
 async function expectVisualBaseline(page: Page, name: string) {
-  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
-  await page.evaluate(() => document.fonts.ready)
+  await waitForStableVisuals(page)
   await expect(page).toHaveScreenshot(name, {
     animations: 'disabled',
     caret: 'hide',

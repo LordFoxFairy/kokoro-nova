@@ -25,6 +25,20 @@
 
 这些截图仅用于本地现状审计，不被加入视觉 baseline，也不作为官网证据。
 
+## 当前公开路径的运行时契约复核
+
+同一隔离 `public-showcase` fixture 下，`POST /api/dev/scenario`、`GET /api/publish`
+与 `GET /api/publish/{snapshotId}` 均返回 `200`。目录固定返回一个条目；其 summary 字段仅为
+`id`、`projectId`、`canvasId`、`title`、`summary`、`coverUrl`、`publishedAt`、`state`、
+`nodeCount`、`mediaCount`。这证实了当前 endpoint 是冻结 workflow 快照目录，而不是官网
+TV Show 的发现/播放目录：缺少作者、等级、分类、互动统计、相邻作品和播放源。
+
+浏览器继续证明该现有契约的可用边界：目录卡可进入只读页面，默认 Workflow 与切换后的
+Storyboard 都可渲染，`复制项目` enabled 后会打开本地登录门。登录门明确保持“浏览不受影响”，
+而没有制造虚假的复制成功。下一批应保留这三项已验证语义，同时在独立 `ShowcaseEntry`
+发现 projection 中补齐目录和详情所需字段；不应把作者、分类或播放器瞬态状态塞进
+`PublishedSnapshot.document`。
+
 ## 证据对照
 
 | Surface | 官网已观察的事实 | 当前本地实现 | Fidelity 缺口 | 进入 `VERIFIED_LOCAL` 的最小验收 |

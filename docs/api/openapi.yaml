@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.18.0-backend-auth-handoff",
+    "version": "1.19.0-asset-lifecycle",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -633,7 +633,7 @@
         "tags": [
           "Assets"
         ],
-        "summary": "重命名、移动或修改资产标签",
+        "summary": "重命名、移动、修改标签或执行资产生命周期动作",
         "operationId": "updateAsset",
         "x-ui-triggers": [
           "重命名、移动或修改资产标签"
@@ -647,7 +647,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Asset"
+                  "$ref": "#/components/schemas/AssetLifecycleView"
                 },
                 "examples": {
                   "fixture": {
@@ -689,6 +689,16 @@
           },
           "500": {
             "description": "本地状态写入失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资产当前生命周期不允许该动作",
             "content": {
               "application/json": {
                 "schema": {
@@ -745,7 +755,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Asset"
+                  "$ref": "#/components/schemas/AssetLifecycleView"
                 },
                 "examples": {
                   "fixture": {
@@ -909,7 +919,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssetListResponse"
+                  "$ref": "#/components/schemas/AssetLifecycleListResponse"
                 },
                 "examples": {
                   "fixture": {
@@ -980,6 +990,35 @@
                 "音效"
               ]
             }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "unavailable",
+                "all"
+              ],
+              "default": "active"
+            },
+            "description": "按可用性过滤资产；默认仅返回可用资产。"
+          },
+          {
+            "name": "fixture",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "media-missing"
+              ],
+              "default": "none"
+            },
+            "description": "仅用于本地 mock 视觉/异常态 fixture；真实后端不应实现。"
           }
         ],
         "x-authorization": "workspace",
@@ -1007,7 +1046,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Asset"
+                  "$ref": "#/components/schemas/AssetLifecycleView"
                 },
                 "examples": {
                   "fixture": {
@@ -7633,25 +7672,14 @@
         "additionalProperties": false
       },
       "UpdateAssetRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/UpdateAssetMetadataRequest"
           },
-          "folderId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          {
+            "$ref": "#/components/schemas/AssetLifecycleActionRequest"
           }
-        },
-        "additionalProperties": false
+        ]
       },
       "RegisterAssetRequest": {
         "type": "object",
@@ -15479,6 +15507,242 @@
               "cancel",
               "retry"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetLifecycle": {
+        "type": "object",
+        "required": [
+          "assetId",
+          "availability",
+          "reason",
+          "changedAt",
+          "recoverableUntil"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "active",
+              "missing",
+              "deleted",
+              "recoverable"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "available",
+              "media_url_unavailable",
+              "deleted_by_user",
+              "source_artifact_removed",
+              "source_node_deleted"
+            ]
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recoverableUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetLifecycleView": {
+        "type": "object",
+        "required": [
+          "id",
+          "spaceId",
+          "namespace",
+          "kind",
+          "name",
+          "url",
+          "thumbnailUrl",
+          "width",
+          "height",
+          "durationSeconds",
+          "byteSize",
+          "tags",
+          "folderId",
+          "state",
+          "createdAt",
+          "sourceArtifactId",
+          "lifecycle"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "agent"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^/(api/media|fixtures/libtv/media)/"
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^/(api/media|fixtures/libtv/media)/"
+          },
+          "width": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "height": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "其它",
+                "人物",
+                "场景",
+                "物品",
+                "风格",
+                "音效"
+              ]
+            }
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "staging",
+              "committed",
+              "revoked"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sourceArtifactId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/AssetLifecycle"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetLifecycleListResponse": {
+        "type": "object",
+        "required": [
+          "assets"
+        ],
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetLifecycleView"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssetLifecycleActionRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "restore",
+              "mark-media-missing"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAssetMetadataRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "folderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false

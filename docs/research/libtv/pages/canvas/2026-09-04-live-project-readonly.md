@@ -30,6 +30,21 @@ Agent 同处于上方 chrome；切换工作流/故事板不离开当前 project�
 这说明空 history 不是把整个工具轨禁用，而是仍提供范围、筛选、排序和批量入口；本地 fixture 应让这些
 控件在空集合时保持可访问，并把历史范围作为 UI 查询条件而非写进 `WorkflowDocument`。
 
+### 素材库与风格广场的当前目录态
+
+在底部主工具轨打开`素材库`，当前首层是一个紧凑菜单，提供`风格库`与`特效库`，两项都标记为
+“新增…节点 / NEW”；它不是个人上传资产列表的别名。进入`风格库`后，目录以覆盖式工作区呈现：
+
+- 顶部有`风格广场`、`我的收藏`、`最近使用`范围 tab、搜索框、最小化和关闭；
+- 有横向可继续展开的分类带：推荐、摄影写真、电商营销、动漫游戏、风格插画、平面设计、建筑及室内设计、
+  创意玩法、文创周边、小说推文；
+- 查询条件还包含`仅看可商用`复选框和`全部`下拉筛选；
+- 卡片同时暴露缩略图、基础模型标识、收藏、详情、商用标记、作者和使用计数，并支持继续加载。
+
+本次仅打开目录和读取可访问性结构，未收藏、未查看详情、未应用风格或创建节点。复刻时应将风格/特效
+目录建模为独立的可搜索 catalog 状态（scope、query、category、commercialOnly、model filter、分页），
+由“应用”动作显式创建专用节点；不能把它降级为资产面板的静态图片网格。
+
 ### 同一画布的节点异质性
 
 已加载的真实项目同时可见文字生音乐、文生视频、图片反推提示词等预设，Script V2 阶段节点、
@@ -48,6 +63,7 @@ Script V2 建立平行状态副本。
 | 全屏顶栏和双视图切换 | `TopBar.tsx` 与 Workflow/Storyboard 同路由切换 |
 | 双底部轨道 | `BottomToolbar.tsx` 的主工具与 view state 控件 |
 | 生成历史的范围/筛选/排序/批量空态 | `LibraryPanels.tsx` 的生成历史本地 query state；空集合仍保留工具控件 |
+| 素材库的风格/特效入口和风格 catalog 查询态 | `LibraryPanels.tsx` 的独立 catalog query 与“应用后创建节点”边界 |
 | Script V2 阶段摘要和打开入口 | `ScriptV2NodeEditor` / `ScriptV2Workspace` 与 `extra.scriptV2` |
 | 混合节点图 | `WorkflowDocument`、`projectStoryboard()` 与 typed node schema |
 | Agent 不覆盖画布 | `CanvasWorkspace` 的右侧重排面板 |

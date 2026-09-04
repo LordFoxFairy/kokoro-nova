@@ -184,4 +184,27 @@ test.describe('状态与响应式回归（本地临时服务）', () => {
     await expect(page.getByTestId('canvas-load-error').getByRole('button', { name: '重试', exact: true })).toBeEnabled()
     await expect(page.getByTestId('workflow-canvas')).toHaveCount(0)
   })
+
+  test('768px Storyboard 媒体详情在横向内容上保持焦点闭环', async ({ page, request }) => {
+    await page.setViewportSize({ width: 768, height: 700 })
+    await selectScenario(request, 'video-succeeded')
+    await page.goto(PROJECT_URL)
+    await page.getByTestId('view-storyboard').click()
+    await expect(page.getByTestId('storyboard-scroll-hint')).toBeVisible()
+
+    await page.getByTestId('storyboard-card-node_video_01').click()
+    const detail = page.getByTestId('media-detail')
+    await expect(detail).toBeVisible()
+    await expectNoPageOverflow(page)
+
+    for (let index = 0; index < 16; index += 1) {
+      await page.keyboard.press('Tab')
+      const focusedWithinDetail = await detail.evaluate((element) => element.contains(document.activeElement))
+      expect(focusedWithinDetail).toBe(true)
+    }
+
+    await page.keyboard.press('Escape')
+    await expect(detail).toHaveCount(0)
+    await expect(page.getByTestId('storyboard-card-node_video_01')).toBeFocused()
+  })
 })

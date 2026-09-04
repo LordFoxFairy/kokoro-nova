@@ -401,15 +401,15 @@ function MediaGrid({
       {cards.map((card) => (
         <div
           key={card.nodeId}
-          data-testid={`storyboard-card-${card.nodeId}`}
           draggable
           onDragStart={(event) => setReferenceDragData(event, card)}
         >
           <div className="mb-1.5 text-[11px] text-ink-400">{card.nodeName}</div>
           <button
             type="button"
+            data-testid={`storyboard-card-${card.nodeId}`}
             onClick={() => onOpen(card)}
-            className="block w-full overflow-hidden rounded-xl bg-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
+            className="block w-full overflow-hidden rounded-xl bg-ink-100 text-left transition-shadow hover:shadow-[var(--shadow-float)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             style={{ aspectRatio: mediaAspectRatio(card) }}
           >
             {card.artifact ? (

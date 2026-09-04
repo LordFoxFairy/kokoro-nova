@@ -46,6 +46,13 @@ export interface SkillSpecSection {
   body: string
 }
 
+export interface SkillExampleMedia {
+  id: string
+  src: string
+  label: string
+  alt: string
+}
+
 export interface Skill {
   id: string
   name: string
@@ -67,6 +74,13 @@ export interface Skill {
 
 /** A catalogue row projected for one reader: the row plus that reader's star. */
 export type SkillCard = Skill & { favourite: boolean }
+
+const SKILL_MEDIA_FIXTURES = [
+  '/fixtures/libtv/skills/example-01.svg',
+  '/fixtures/libtv/skills/example-02.svg',
+  '/fixtures/libtv/skills/example-03.svg',
+  '/fixtures/libtv/skills/example-04.svg',
+] as const
 
 export const SKILL_CATALOGUE: Skill[] = [
   {
@@ -593,6 +607,29 @@ export const SKILL_CATALOGUE: Skill[] = [
     ],
   },
 ]
+
+/**
+ * Deterministic media projection for the local marketplace fixture.
+ *
+ * The catalogue contract intentionally stays text-first; these four local
+ * boards are the visual proof that a Skill can produce, and are stable across
+ * cards, the detail carousel and its lightbox. A real service would return
+ * signed asset URLs alongside the versioned contract.
+ */
+export function getSkillMedia(skill: Pick<Skill, 'id' | 'name'>): SkillExampleMedia[] {
+  return SKILL_MEDIA_FIXTURES.map((src, index) => ({
+    id: `${skill.id}-example-${index + 1}`,
+    src,
+    label: `示例 ${index + 1}`,
+    alt: `${skill.name} ${index + 1} 号示例板`,
+  }))
+}
+
+/** Clamp a carousel move rather than wrapping, matching the observed arrows. */
+export function getSkillMediaIndex(current: number, delta: number, length: number): number {
+  if (length <= 0) return 0
+  return Math.min(Math.max(current + delta, 0), length - 1)
+}
 
 const SKILL_BY_ID = new Map(SKILL_CATALOGUE.map((skill) => [skill.id, skill]))
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
+  getSkillMedia,
   SKILL_CATEGORIES,
   SKILL_COLLECTIONS,
   type SkillCard,
@@ -10,8 +11,21 @@ import {
 } from '@/domain/skills'
 import { ApiError, api } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { Chip, EmptyState, SegmentedControl, Spinner } from '../ui/controls'
-import { IconRefresh, IconSearch, IconSkill, IconSparkle } from '../icons'
+import { EmptyState, Spinner } from '../ui/controls'
+import {
+  IconAgent,
+  IconChevronRight,
+  IconClose,
+  IconCredit,
+  IconHelp,
+  IconRefresh,
+  IconSearch,
+  IconSend,
+  IconSkill,
+  IconSparkle,
+} from '../icons'
+import { LibTvLogo } from '../shell/LibTvLogo'
+import { PromoStrip } from '../shell/PromoStrip'
 
 interface SkillListResponse {
   skills: SkillCard[]
@@ -37,38 +51,25 @@ export function getSkillGalleryRequestState({
   return hasSkills ? 'ready' : 'empty'
 }
 
-/**
- * Skill library.
- *
- * Browsing is anonymous and read-only — the catalogue is shared seed data — with
- * exactly one piece of per-reader state on the surface: the star. So the card
- * carries a favourite toggle and nothing else actionable; anything that needs a
- * session lives on the detail page, where there is room to explain itself.
- */
+/** Dark discovery shell for the public, read-only Skill marketplace. */
 export function SkillGallery() {
   const [collection, setCollection] = useState<SkillCollection>('全部')
   const [category, setCategory] = useState<string>('全部')
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
+  const [composerDraft, setComposerDraft] = useState('')
+  const [composerGateOpen, setComposerGateOpen] = useState(false)
 
   const [skills, setSkills] = useState<SkillCard[]>([])
   const [counts, setCounts] = useState({ all: 0, favourite: 0, mine: 0 })
   const [loading, setLoading] = useState(true)
-  // The first load has nothing to show and gets the spinner; every later one
-  // keeps the current grid on screen and only dims it, so typing in the search
-  // box does not strobe between results and a loader.
   const [initialised, setInitialised] = useState(false)
-  // Two failure modes, two slots: a failed listing has no grid to show, while a
-  // failed star still has one — collapsing them would let a rejected toggle wipe
-  // a catalogue that loaded perfectly well.
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [failedFavourite, setFailedFavourite] = useState<SkillCard | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
 
-  // Typing must not fire a request per keystroke, but it must still feel live —
-  // one short settle window, not a submit button.
   useEffect(() => {
     const timer = setTimeout(() => setQuery(draft), 220)
     return () => clearTimeout(timer)
@@ -115,13 +116,11 @@ export function SkillGallery() {
           action: next ? 'favourite' : 'unfavourite',
         })
         setSkills((rows) =>
-          // Unstarring from inside 收藏 removes the card: leaving it there would
-          // show a row the collection no longer contains.
           collection === '收藏' && !updated.favourite
             ? rows.filter((row) => row.id !== updated.id)
             : rows.map((row) => (row.id === updated.id ? { ...row, favourite: updated.favourite } : row)),
         )
-        setCounts((prev) => ({ ...prev, favourite: prev.favourite + (next ? 1 : -1) }))
+        setCounts((prev) => ({ ...prev, favourite: Math.max(0, prev.favourite + (next ? 1 : -1)) }))
         setFailedFavourite(null)
       } catch (cause) {
         setActionError(cause instanceof ApiError ? cause.message : '收藏失败，请稍后重试')
@@ -133,330 +132,169 @@ export function SkillGallery() {
     [collection, pendingId],
   )
 
-  const filtered = category !== '全部' || query.trim() !== ''
   const requestState = getSkillGalleryRequestState({
     loading,
     initialised,
     hasSkills: skills.length > 0,
     error: loadError,
   })
+  const filtered = category !== '全部' || query.trim() !== ''
   const retry = () => setReloadToken((n) => n + 1)
 
   return (
-    <div className="min-h-screen bg-surface" data-testid="skill-gallery" aria-busy={loading}>
-      <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8 sm:py-5">
-        <Link href="/" className="flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink-900 text-white">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 7.5 8 5l6 2.5L20 5v11.5L14 19l-6-2.5L4 19z" />
-            </svg>
-          </span>
-          <span className="text-[15px] font-semibold tracking-tight text-ink-900">Kokoro Nova</span>
+    <div
+      data-app-shell="authenticated"
+      data-testid="skill-gallery"
+      className="min-h-screen overflow-x-hidden bg-[#111] text-white"
+      aria-busy={loading}
+    >
+      <div className="px-2 pt-2 max-sm:px-1 max-sm:pt-1">
+        <PromoStrip campaign={null} />
+      </div>
+
+      <header className="flex min-h-[64px] items-center justify-between gap-4 border-b border-white/[0.07] px-4 py-3 sm:px-8">
+        <Link href="/" className="flex shrink-0 items-center text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60c9ef]">
+          <LibTvLogo className="h-6 w-[88px]" />
+          <span className="sr-only">LibTV 首页</span>
         </Link>
-        <Link
-          href="/project"
-          className="rounded-full bg-ink-50 px-4 py-2 text-[13px] font-medium text-ink-700 transition-colors hover:bg-ink-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          我的项目
-        </Link>
+        <nav aria-label="技能市场工具" className="flex items-center gap-2">
+          <Link href="/showcase" className="hidden rounded-lg border border-[#755b2a]/40 bg-[#2b2519] px-4 py-2 text-[12px] text-[#d8b66d] transition-colors hover:bg-[#3b301e] sm:inline-flex">创作者挑战赛</Link>
+          <Link href="/canvas" aria-label="LibTV Agent" title="LibTV Agent" className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.05] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"><IconAgent size={17} /></Link>
+          <Link href="/account" aria-label="帮助" title="帮助" className="hidden h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.05] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white sm:flex"><IconHelp size={17} /></Link>
+          <Link href="/account" className="hidden items-center gap-1.5 rounded-lg border border-[#60c9ef]/30 bg-[#0f2a38] px-3 py-2 text-[12px] text-[#71d6f4] transition-colors hover:bg-[#123a4b] md:flex"><span className="text-[#60c9ef]">▣</span> 会员超市</Link>
+          <Link href="/account" className="hidden items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-[12px] text-white/70 transition-colors hover:bg-white/[0.1] sm:flex"><IconCredit size={14} className="text-[#e6b766]" /> 开通会员</Link>
+          <Link href="/account" className="rounded-lg bg-white px-3.5 py-2 text-[12px] font-medium text-[#151515] transition-opacity hover:opacity-85">注册/登录</Link>
+        </nav>
       </header>
 
-      <div className="px-4 pb-5 sm:px-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-[17px] font-semibold text-ink-900">技能库</h1>
-          <div className="text-[12px] text-ink-600" data-testid="skill-status" role="status" aria-live="polite">
+      <main className="mx-auto max-w-[1320px] px-4 pb-16 sm:px-8" aria-labelledby="skill-gallery-title">
+        <section className="relative pt-10 sm:pt-12">
+          <h1 id="skill-gallery-title" className="text-center font-serif text-[23px] font-medium tracking-wide text-white/90 sm:text-[25px]">一个 Skill，慢慢打磨你的故事</h1>
+          <div data-testid="skill-status" role="status" aria-live="polite" className="sr-only">
             {requestState === 'initial-loading' ? '正在加载技能库…' : requestState === 'refreshing' ? '正在刷新技能库…' : ''}
           </div>
-        </div>
-        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-ink-600">
-          Skill 是能被 Agent 加载的能力包：一份写定的执行契约，规定它按哪些步骤工作、交回什么格式。加载时锁定版本，同一个版本的产出结构始终一致。
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3 sm:px-8">
-        <div role="group" aria-label="技能集合">
-          <SegmentedControl
-            value={collection}
-            onChange={setCollection}
-            options={SKILL_COLLECTIONS.map((item) => ({
-              value: item,
-              testId: `skill-collection-${item}`,
-              label: (
-                <>
-                  {item}
-                  {initialised && (
-                    <span className="tabular-nums text-ink-600">
-                      {' '}{item === '全部' ? counts.all : item === '收藏' ? counts.favourite : counts.mine}
-                    </span>
-                  )}
-                </>
-              ),
-            }))}
-          />
-        </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-ink-100 px-2.5 py-2">
-          <IconSearch size={14} className="text-ink-600" aria-hidden="true" />
-          <input
-            value={draft}
-            data-testid="skill-search"
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="搜索技能、作者或标签"
-            aria-label="搜索技能、作者或标签"
-            aria-controls="skill-grid"
-            className="w-52 bg-transparent text-[13px] text-ink-900 outline-none placeholder:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 px-4 pb-6 sm:px-8">
-        {SKILL_CATEGORIES.map((item) => (
-          <button
-            key={item}
-            type="button"
-            data-testid={`skill-category-${item}`}
-            aria-pressed={item === category}
-            onClick={() => setCategory(item)}
-            className={cn(
-              'rounded-full px-3 py-1 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              item === category ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
-            )}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-
-      <div className="px-4 pb-16 sm:px-8" aria-busy={loading}>
-        {!initialised || (loading && skills.length === 0) ? (
-          <div className="flex justify-center py-20 text-ink-600" role="status" aria-label="正在加载技能库">
-            <Spinner size={22} />
-          </div>
-        ) : loadError && !skills.length ? (
-          <EmptyState
-            icon={<IconSparkle size={30} />}
-            title="技能库暂时打不开"
-            description={loadError}
-            action={
-              <button
-                type="button"
-                data-testid="skill-retry"
-                onClick={retry}
-                disabled={loading}
-                aria-busy={loading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:bg-ink-200 disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <IconRefresh size={14} className={loading ? 'animate-spin' : undefined} />
-                {loading ? '重试中…' : '重试'}
-              </button>
-            }
-          />
-        ) : skills.length === 0 ? (
-          <CollectionEmptyState
-            collection={collection}
-            filtered={filtered}
-            onClear={() => {
-              setCategory('全部')
-              setDraft('')
+          <form
+            data-testid="skill-composer"
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (composerDraft.trim()) setComposerGateOpen(true)
             }}
-          />
-        ) : (
-          <>
-            {loadError && (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert">
-                <span>刷新失败，仍显示上次成功读取的技能：{loadError}</span>
-                <button
-                  type="button"
-                  data-testid="skill-retry"
-                  onClick={retry}
-                  disabled={loading}
-                  aria-busy={loading}
-                  className="rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
-                >
-                  {loading ? '重试中…' : '重试'}
-                </button>
+            className="mx-auto mt-7 max-w-[860px] rounded-2xl border border-white/[0.14] bg-[#202020] p-3 shadow-[0_18px_70px_rgba(0,0,0,.18)] transition-colors focus-within:border-white/[0.24]"
+          >
+            <label htmlFor="skill-composer-input" className="sr-only">输入创作灵感</label>
+            <textarea id="skill-composer-input" data-testid="skill-composer-input" value={composerDraft} onChange={(event) => setComposerDraft(event.target.value)} placeholder="请输入你的创作灵感，或从下方挑选一个 Skill 开始" rows={3} className="min-h-[82px] w-full resize-none bg-transparent px-1 py-1 text-[13px] leading-relaxed text-white/85 outline-none placeholder:text-white/30" />
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-4 text-white/45">
+                <button type="button" aria-label="添加素材" title="添加素材" className="transition-colors hover:text-white"><span className="text-[22px] leading-none">＋</span></button>
+                <button type="button" aria-label="选择 Skill" title="选择 Skill" className="transition-colors hover:text-white"><IconSkill size={18} /></button>
+                <button type="button" aria-label="添加参考" title="添加参考" className="hidden transition-colors hover:text-white sm:block"><span className="text-[18px]">▧</span></button>
               </div>
-            )}
-            {actionError && (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert">
-                <span>{actionError}</span>
-                {failedFavourite && (
-                  <button
-                    type="button"
-                    data-testid="skill-favourite-retry"
-                    onClick={() => void toggleFavourite(failedFavourite)}
-                    disabled={Boolean(pendingId)}
-                    aria-busy={Boolean(pendingId)}
-                    className="rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
-                  >
-                    重试收藏
+              <button type="submit" data-testid="skill-composer-submit" aria-label="开始创作" disabled={!composerDraft.trim()} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/65 text-[#191919] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:bg-white/25 disabled:text-white/45"><IconSend size={17} /></button>
+            </div>
+          </form>
+        </section>
+
+        <section className="mt-11" aria-label="技能市场筛选">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08]">
+            <div className="flex items-center gap-5" role="tablist" aria-label="技能集合">
+              {SKILL_COLLECTIONS.map((item) => {
+                const active = collection === item
+                const count = item === '全部' ? counts.all : item === '收藏' ? counts.favourite : counts.mine
+                return (
+                  <button key={item} type="button" role="tab" aria-selected={active} data-testid={`skill-collection-${item}`} onClick={() => setCollection(item)} className={cn('relative pb-3 text-[14px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60c9ef]', active ? 'font-medium text-white' : 'text-white/40 hover:text-white/75')}>
+                    {item}
+                    {initialised && <span className="ml-1 text-[11px] tabular-nums text-white/35">{count}</span>}
+                    {active && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[#60c9ef]" />}
                   </button>
-                )}
+                )
+              })}
+            </div>
+            <form role="search" aria-label="搜索 Skill" onSubmit={(event) => { event.preventDefault(); setQuery(draft.trim()) }} className="mb-2 flex h-9 w-full items-center gap-2 rounded-full border border-white/[0.12] px-3 text-white/40 transition-colors focus-within:border-white/[0.28] sm:w-64">
+              <IconSearch size={14} />
+              <label htmlFor="skill-search" className="sr-only">搜索 Skill</label>
+              <input id="skill-search" data-testid="skill-search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="搜索 Skill" className="min-w-0 flex-1 bg-transparent text-[12px] text-white/85 outline-none placeholder:text-white/30" />
+              {(draft || query) && <button type="button" data-testid="skill-clear-search" aria-label="清除搜索" onClick={() => { setDraft(''); setQuery('') }} className="rounded-full p-0.5 text-white/45 hover:bg-white/10 hover:text-white"><IconClose size={12} /></button>}
+            </form>
+          </div>
+
+          <div className="no-scrollbar flex gap-2 overflow-x-auto py-4" role="group" aria-label="技能分类">
+            {SKILL_CATEGORIES.map((item) => (
+              <button key={item} type="button" data-testid={`skill-category-${item}`} aria-pressed={item === category} onClick={() => setCategory(item)} className={cn('shrink-0 rounded-lg border px-3 py-1.5 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60c9ef]', item === category ? 'border-white/[0.18] bg-white/[0.12] text-white' : 'border-white/[0.09] text-white/45 hover:bg-white/[0.06] hover:text-white/80')}>{item}</button>
+            ))}
+          </div>
+        </section>
+
+        <div className="min-h-[400px]" aria-busy={loading}>
+          {!initialised || (loading && skills.length === 0) ? (
+            <div className="flex justify-center py-24 text-white/45" role="status" aria-label="正在加载技能库"><Spinner size={22} /></div>
+          ) : loadError && !skills.length ? (
+            <EmptyState icon={<IconSparkle size={30} />} title="技能库暂时打不开" description={loadError} action={<RetryButton loading={loading} onClick={retry} testId="skill-retry" />} />
+          ) : skills.length === 0 ? (
+            <CollectionEmptyState collection={collection} filtered={filtered} onClear={() => { setCategory('全部'); setDraft(''); setQuery('') }} />
+          ) : (
+            <>
+              {loadError && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#5a262b]/50 px-3.5 py-2.5 text-[12px] text-[#ff9a9f]" role="alert"><span>刷新失败，仍显示上次成功读取的技能：{loadError}</span><RetryButton loading={loading} onClick={retry} testId="skill-retry" /></div>}
+              {actionError && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#5a262b]/50 px-3.5 py-2.5 text-[12px] text-[#ff9a9f]" role="alert"><span>{actionError}</span>{failedFavourite && <button type="button" data-testid="skill-favourite-retry" onClick={() => void toggleFavourite(failedFavourite)} disabled={Boolean(pendingId)} className="rounded-lg bg-[#262020] px-3 py-1.5 font-medium text-[#ffb0b4] ring-1 ring-[#ff9a9f]/20">重试收藏</button>}</div>}
+              <div className="grid grid-cols-1 gap-4 pt-1 md:grid-cols-2 xl:grid-cols-3" data-testid="skill-grid" id="skill-grid">
+                {skills.map((skill, index) => <SkillGridCard key={skill.id} skill={skill} mediaIndex={index} busy={pendingId === skill.id} onToggleFavourite={() => void toggleFavourite(skill)} />)}
               </div>
-            )}
-            <div
-              className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-7"
-              data-testid="skill-grid"
-              id="skill-grid"
-            >
-              {skills.map((skill) => (
-                <SkillGridCard
-                  key={skill.id}
-                  skill={skill}
-                  busy={pendingId === skill.id}
-                  onToggleFavourite={() => void toggleFavourite(skill)}
-                />
-              ))}
-            </div>
-            <div className="pt-14 text-center text-[13px] text-ink-600" role="status" aria-live="polite">
-              共 {skills.length} 个 Skill，没有更多了
-            </div>
-          </>
-        )}
+              <div className="pt-12 text-center text-[12px] text-white/30" role="status" aria-live="polite">没有更多了 · 共 {skills.length} 个 Skill</div>
+            </>
+          )}
+        </div>
+      </main>
+
+      {composerGateOpen && <ComposerLoginGate draft={composerDraft} onClose={() => setComposerGateOpen(false)} />}
+    </div>
+  )
+}
+
+function RetryButton({ loading, onClick, testId }: { loading: boolean; onClick: () => void; testId: string }) {
+  return <button type="button" data-testid={testId} onClick={onClick} disabled={loading} aria-busy={loading} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515] transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60"><IconRefresh size={14} className={loading ? 'animate-spin' : undefined} />{loading ? '重试中…' : '重试'}</button>
+}
+
+function SkillGridCard({ skill, mediaIndex, busy, onToggleFavourite }: { skill: SkillCard; mediaIndex: number; busy: boolean; onToggleFavourite: () => void }) {
+  const media = getSkillMedia(skill)[mediaIndex % 4]
+  return (
+    <article className="group relative min-w-0" data-testid={`skill-card-${skill.id}`}>
+      <Link href={`/skills/${skill.id}`} className="flex min-h-[128px] gap-3 rounded-2xl border border-white/[0.1] bg-[#1c1c1c] p-3 transition-colors hover:border-white/[0.2] hover:bg-[#232323] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60c9ef]">
+        <span className="relative h-[102px] w-[166px] shrink-0 overflow-hidden rounded-xl bg-[#292929] ring-1 ring-white/[0.06] sm:w-[182px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={media.src} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]" />
+          <span className="absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white/80">{skill.category === '叙事分镜' ? '图片' : 'Skill'}</span>
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col py-0.5">
+          <span className="truncate pr-6 text-[14px] font-medium text-white/90">{skill.name}</span>
+          <span className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/45">{skill.summary}</span>
+          <span className="mt-auto flex items-center gap-1.5 truncate text-[11px] text-white/42"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#efe2cf] to-[#514d46] text-[8px] text-[#222]">✦</span><span className="truncate">{skill.author}</span><span className="text-white/20">·</span><span>{formatUsage(skill.usageCount)}</span></span>
+        </span>
+        <span className="absolute bottom-3 right-3 text-white/20 transition-colors group-hover:text-white/55"><IconChevronRight size={15} /></span>
+      </Link>
+      <button type="button" disabled={busy} aria-busy={busy} data-testid={`skill-favourite-${skill.id}`} aria-pressed={skill.favourite} aria-label={skill.favourite ? `取消收藏 ${skill.name}` : `收藏 ${skill.name}`} title={skill.favourite ? '取消收藏' : '收藏'} onClick={onToggleFavourite} className={cn('absolute right-[196px] top-[17px] rounded-full p-1.5 transition-colors sm:right-[210px]', skill.favourite ? 'text-[#ffd36f]' : 'text-white/55 hover:bg-white/10 hover:text-white', busy && 'cursor-wait opacity-70', 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#60c9ef]')}><IconSkill size={16} fill={skill.favourite ? 'currentColor' : 'none'} /></button>
+    </article>
+  )
+}
+
+function CollectionEmptyState({ collection, filtered, onClear }: { collection: SkillCollection; filtered: boolean; onClear: () => void }) {
+  if (filtered) return <EmptyState icon={<IconSearch size={28} />} title="没有匹配的 Skill" description={collection === '全部' ? '换个分类或搜索词试试。' : `「${collection}」里没有符合当前分类和搜索词的能力包。`} action={<button type="button" data-testid="skill-clear-filters" onClick={onClear} className="rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515]">清除筛选</button>} />
+  if (collection === '收藏') return <EmptyState icon={<IconSparkle size={30} />} title="当前暂无 Skill" description="收藏过的能力包会集中在这里，方便下次直接加载。" />
+  if (collection === '我的') return <EmptyState icon={<IconSparkle size={30} />} title="还没有自建 Skill" description="把反复用到的步骤、约束和产出格式沉淀成一份执行契约。" />
+  return <EmptyState icon={<IconSparkle size={30} />} title="技能库还没有内容" description="能力包会在这里按分类陈列，加载后 Agent 就按它写定的契约工作。" />
+}
+
+function ComposerLoginGate({ draft, onClose }: { draft: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" data-testid="skill-composer-login-gate">
+      <button type="button" aria-label="关闭登录提示" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <div className="relative w-full max-w-[390px] rounded-2xl border border-white/[0.12] bg-[#202020] p-6 shadow-[0_24px_80px_rgba(0,0,0,.5)]">
+        <div className="flex items-start justify-between gap-5"><div><p className="text-[15px] font-medium text-white/90">登录后开始创作</p><p className="mt-2 text-[12px] leading-relaxed text-white/45">你的灵感已经保留在当前页面。登录 LibTV 后，Agent 才能创建会话并加载 Skill。</p></div><button type="button" aria-label="关闭" onClick={onClose} className="rounded-lg p-1 text-white/45 hover:bg-white/10 hover:text-white"><IconClose size={16} /></button></div>
+        <p className="mt-4 rounded-xl bg-black/25 px-3 py-2 text-[12px] text-white/55">「{draft}」</p>
+        <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg px-3.5 py-2 text-[12px] text-white/55 hover:bg-white/[0.06]">继续浏览</button><Link href="/account" className="rounded-lg bg-white px-3.5 py-2 text-[12px] font-medium text-[#151515]">注册 / 登录</Link></div>
       </div>
     </div>
   )
 }
 
-function SkillGridCard({
-  skill,
-  busy,
-  onToggleFavourite,
-}: {
-  skill: SkillCard
-  busy: boolean
-  onToggleFavourite: () => void
-}) {
-  return (
-    <div className="group relative flex flex-col" data-testid={`skill-card-${skill.id}`}>
-      <Link href={`/skills/${skill.id}`} className="flex flex-col rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
-        <SkillCover hue={skill.hue} sections={skill.executableSpec.length} version={skill.version} />
-        <span className="mt-2.5 block truncate text-[13px] text-ink-900">{skill.name}</span>
-        <span className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-ink-600">{skill.summary}</span>
-        <span className="mt-1.5 flex items-center gap-1.5">
-          <Chip>{skill.category}</Chip>
-          <span className="truncate text-[12px] text-ink-600">{skill.author}</span>
-        </span>
-        <span className="mt-1 block text-[12px] text-ink-600">{formatUsage(skill.usageCount)} 次调用</span>
-      </Link>
-
-      {/* Outside the Link, not nested in it: a control inside an anchor is
-          neither valid markup nor reachable by keyboard as its own stop. */}
-      <button
-        type="button"
-        disabled={busy}
-        aria-busy={busy}
-        data-testid={`skill-favourite-${skill.id}`}
-        aria-pressed={skill.favourite}
-        aria-label={skill.favourite ? `取消收藏 ${skill.name}` : `收藏 ${skill.name}`}
-        title={skill.favourite ? '取消收藏' : '收藏'}
-        onClick={onToggleFavourite}
-        className={cn(
-          'absolute right-2.5 top-2.5 rounded-full p-2 backdrop-blur-sm transition-colors',
-          skill.favourite ? 'bg-surface/90 text-accent-ink' : 'bg-ink-900/25 text-white hover:bg-ink-900/40',
-          busy && 'cursor-wait opacity-70',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-        )}
-      >
-        <IconSkill size={15} fill={skill.favourite ? 'currentColor' : 'none'} />
-      </button>
-    </div>
-  )
-}
-
-/**
- * Cover art.
- *
- * A skill has no artwork to show — it is text. The stripes stand for the spec's
- * sections, so the tile carries one true fact about the pack instead of a stock
- * illustration, and the hue makes it recognisable at a glance (see how the other
- * libraries paint their tiles in src/domain/libraries.ts).
- */
-function SkillCover({ hue, sections, version }: { hue: number; sections: number; version: string }) {
-  return (
-    <span
-      className="relative flex aspect-[4/3] w-full flex-col justify-center gap-2 overflow-hidden rounded-2xl px-5 transition-shadow group-hover:shadow-[var(--shadow-float)]"
-      style={{
-        background: `linear-gradient(140deg, hsl(${hue} 62% 62%), hsl(${(hue + 45) % 360} 58% 42%))`,
-      }}
-    >
-      {Array.from({ length: Math.min(sections, 5) }).map((_, index) => (
-        <span
-          key={index}
-          className="block h-[5px] rounded-full bg-white/45"
-          style={{ width: `${[86, 62, 74, 48, 68][index]}%` }}
-        />
-      ))}
-      <span className="absolute bottom-2.5 right-2.5 rounded-md bg-ink-900/25 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white">
-        v{version}
-      </span>
-    </span>
-  )
-}
-
-/** Each collection is empty for its own reason, so each says its own thing. */
-function CollectionEmptyState({
-  collection,
-  filtered,
-  onClear,
-}: {
-  collection: SkillCollection
-  filtered: boolean
-  onClear: () => void
-}) {
-  if (filtered) {
-    return (
-      <EmptyState
-        icon={<IconSearch size={28} />}
-        title="没有匹配的 Skill"
-        description={
-          collection === '全部'
-            ? '换个分类或搜索词试试。'
-            : `「${collection}」里没有符合当前分类和搜索词的能力包。`
-        }
-        action={
-          <button
-            type="button"
-            data-testid="skill-clear-filters"
-            onClick={onClear}
-            className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
-          >
-            清除筛选
-          </button>
-        }
-      />
-    )
-  }
-
-  if (collection === '收藏') {
-    return (
-      <EmptyState
-        icon={<IconSparkle size={30} />}
-        title="还没有收藏任何 Skill"
-        description="点卡片右上角的星标，收藏过的能力包会集中在这里，方便下次直接加载。"
-      />
-    )
-  }
-
-  if (collection === '我的') {
-    return (
-      <EmptyState
-        icon={<IconSparkle size={30} />}
-        title="还没有自建 Skill"
-        description="把反复用到的步骤、约束和产出格式沉淀成一份执行契约，它就会出现在这里。"
-      />
-    )
-  }
-
-  return (
-    <EmptyState
-      icon={<IconSparkle size={30} />}
-      title="技能库还没有内容"
-      description="能力包会在这里按分类陈列，加载后 Agent 就按它写定的契约工作。"
-    />
-  )
-}
-
-/** 万 reads faster than six digits on a card; below that the exact number wins. */
 function formatUsage(count: number): string {
   if (count < 10_000) return count.toLocaleString('zh-CN')
   return `${(count / 10_000).toFixed(1)} 万`

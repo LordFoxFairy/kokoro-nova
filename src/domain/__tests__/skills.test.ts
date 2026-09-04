@@ -6,6 +6,8 @@ import {
   applyFavourite,
   favouriteSkills,
   findSkill,
+  getSkillMedia,
+  getSkillMediaIndex,
   isFavourite,
   parseSkillCategory,
   parseSkillCollection,
@@ -249,5 +251,28 @@ describe('toSkillCards', () => {
 
   it('marks nothing when the reader has no stars', () => {
     expect(toSkillCards(rows, []).every((c) => !c.favourite)).toBe(true)
+  })
+})
+
+describe('skill example media', () => {
+  it('provides four stable media fixtures for a detail carousel', () => {
+    const media = getSkillMedia(SKILL_CATALOGUE[0])
+
+    expect(media).toHaveLength(4)
+    expect(media.map((item) => item.id)).toEqual([
+      'skill-storyboard-breakdown-example-1',
+      'skill-storyboard-breakdown-example-2',
+      'skill-storyboard-breakdown-example-3',
+      'skill-storyboard-breakdown-example-4',
+    ])
+    expect(media.every((item) => item.src.startsWith('/fixtures/libtv/skills/'))).toBe(true)
+  })
+
+  it('keeps carousel navigation inside the available media range', () => {
+    expect(getSkillMediaIndex(0, 1, 4)).toBe(1)
+    expect(getSkillMediaIndex(3, 1, 4)).toBe(3)
+    expect(getSkillMediaIndex(0, -1, 4)).toBe(0)
+    expect(getSkillMediaIndex(2, -1, 4)).toBe(1)
+    expect(getSkillMediaIndex(2, 1, 0)).toBe(0)
   })
 })

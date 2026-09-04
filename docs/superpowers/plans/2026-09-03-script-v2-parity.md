@@ -83,7 +83,7 @@
 - Produces: `updateScriptV2Row(state, rowId, patch): ScriptV2State`, `moveScriptV2Row(state, from, to): ScriptV2State`, `removeScriptV2Row(state, rowId): ScriptV2State`, `appendScriptV2Row(state): ScriptV2State`.
 - Consumes: existing screenplay parsing and asset extraction helpers from `src/components/script/script-model.ts` until Task 10 removes duplicate ownership.
 
-- [ ] **Step 1: Write failing vocabulary and default-state tests**
+- [x] **Step 1: Write failing vocabulary and default-state tests**
 
 ```ts
 expect(SCRIPT_V2_SHOT_SIZES).toEqual([
@@ -100,21 +100,21 @@ expect(defaultScriptV2State('script-seed')).toMatchObject({
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify missing exports fail**
+- [x] **Step 2: Run the focused test and verify missing exports fail**
 
 Run: `pnpm vitest run src/domain/__tests__/script-v2.test.ts`
 
 Expected: FAIL because `@/domain/script-v2` does not exist.
 
-- [ ] **Step 3: Implement canonical state and stable seeded factories**
+- [x] **Step 3: Implement canonical state and stable seeded factories**
 
 Implement integer duration clamping, stable ids derived from `seed + ordinal`, empty asset buckets, explicit generator state and explicit prompt composer state. Keep viewport-only modal visibility out of persisted state.
 
-- [ ] **Step 4: Add failing row-transition tests**
+- [x] **Step 4: Add failing row-transition tests**
 
 Cover append inheritance, dense renumbering after move/delete, color label non-staleness, content edit staleness, `user_edited → user_edited_stale`, and independent image/video prompt state.
 
-- [ ] **Step 5: Implement row reducers and fingerprint reconciliation**
+- [x] **Step 5: Implement row reducers and fingerprint reconciliation**
 
 Use these signatures:
 
@@ -127,7 +127,7 @@ export function reconcileScriptV2PromptState(
 ): ScriptV2Row
 ```
 
-- [ ] **Step 6: Run domain tests**
+- [x] **Step 6: Run domain tests**
 
 Run: `pnpm vitest run src/domain/__tests__/script-v2.test.ts`
 
@@ -342,16 +342,16 @@ Return 404 for unknown run, 409 for transitions from an incompatible terminal st
 
 Add tag `Script V2` and operationIds `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run` with observed UI triggers.
 
-- [ ] **Step 7: Run server and route-manifest tests**
+- [ ] **Step 7: Run server tests**
 
-Run: `pnpm vitest run src/server/__tests__/script-v2.test.ts src/contracts/__tests__/openapi.test.ts`
+Run: `pnpm vitest run src/server/__tests__/script-v2.test.ts`
 
-Expected during this task: server tests PASS; OpenAPI test may remain RED until Task 11 adds matching paths.
+Expected: PASS. Route manifest registration moves to Task 12 with its matching OpenAPI paths, so no intermediate commit knowingly leaves the parity suite red.
 
 - [ ] **Step 8: Commit Task 5 without weakening the OpenAPI parity assertion**
 
 ```bash
-git add src/server/script-v2.ts src/server/__tests__/script-v2.test.ts src/app/api/script-v2 src/contracts/route-manifest.ts
+git add src/server/script-v2.ts src/server/__tests__/script-v2.test.ts src/app/api/script-v2
 git commit -m "feat: add script v2 mock task api"
 ```
 
@@ -650,6 +650,7 @@ git commit -m "feat: complete script v2 batch workflows"
 - Modify: `docs/api/README.md`
 - Modify: `docs/api/openapi.yaml`
 - Modify: `src/contracts/__tests__/openapi.test.ts`
+- Modify: `src/contracts/route-manifest.ts`
 
 **Interfaces:**
 - Documents all state fields, UI triggers, request/response schemas, idempotency, revision behavior, mock progression and official-to-local mapping.
@@ -667,9 +668,9 @@ Record observed UI, shape-confirmed `/api/canvas/nodes/batch`, power calculator 
 
 Add schemas matching `src/contracts/script-v2.ts`, examples by `$ref`, 200/400/404/409/422 responses, and increment info version to `1.9.0-script-v2`.
 
-- [ ] **Step 4: Extend OpenAPI parity tests**
+- [ ] **Step 4: Register routes and extend OpenAPI parity tests**
 
-Assert every Script V2 route manifest operation is present once and all six JSON examples validate against runtime schemas.
+Add tag `Script V2` and operationIds `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run` to `LOCAL_API_ROUTES`. Assert every Script V2 route manifest operation is present once and all six JSON examples validate against runtime schemas.
 
 - [ ] **Step 5: Scan documentation for secret-shaped values**
 

@@ -367,28 +367,28 @@ git commit -m "feat: add script v2 mock task api"
 - Produces: `useScriptV2Runs({ nodeId, state, onStateChange })` with `generateScript`, `recognizeAssets`, `recomputePrompts`, `generateAssets`, `cancelRun`.
 - Consumes: Script V2 API schemas and conflict-safe writeback.
 
-- [ ] **Step 1: Add failing typed-client transport tests**
+- [x] **Step 1: Add failing typed-client transport tests**
 
 Assert URL encoding, exact JSON bodies, response decoding and `INVALID_DATA` for malformed quote/run responses.
 
-- [ ] **Step 2: Implement typed endpoint group**
+- [x] **Step 2: Implement typed endpoint group**
 
 Validate inputs before transport and responses after transport, following the Jobs client pattern.
 
-- [ ] **Step 3: Write a hook test for serial 20-shot batches with fake timers**
+- [x] **Step 3: Write a hook test for serial 20-shot batches with fake timers**
 
 Use 21 rows and assert two runs are submitted in order, the second starts after the first succeeds, progress maps by row id, and stale writeback preserves a manual edit.
 
-- [ ] **Step 4: Implement run orchestration with cancellation cleanup**
+- [x] **Step 4: Implement run orchestration with cancellation cleanup**
 
 Use one active `AbortController`, 400ms local polling, exact operation ids, and flush pending prompt edits before starting recompute. No interval may survive unmount.
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
-Run: `pnpm vitest run src/api/__tests__/client.test.ts src/components/script/__tests__/useScriptV2Runs.test.tsx`
+Run: `pnpm vitest run src/api/__tests__/client.test.ts src/components/script/__tests__/useScriptV2Runs.test.ts`
 
 ```bash
-git add src/api/client.ts src/api/__tests__/client.test.ts src/components/script/useScriptV2Runs.ts src/components/script/__tests__/useScriptV2Runs.test.tsx
+git add src/api/client.ts src/api/__tests__/client.test.ts src/components/script/useScriptV2Runs.ts src/components/script/__tests__/useScriptV2Runs.test.ts
 git commit -m "feat: add typed script v2 client orchestration"
 ```
 

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { ApiError, createApiClient, type JsonTransport } from '@/api/client'
+import quoteRequest from '../../../docs/api/examples/script-v2-quote.request.json'
+import quoteResponse from '../../../docs/api/examples/script-v2-quote.response.json'
+import runRequest from '../../../docs/api/examples/script-v2-run.request.json'
+import runResponse from '../../../docs/api/examples/script-v2-run.response.json'
+import {
+  CreateScriptV2RunRequestSchema,
+  ScriptV2QuoteRequestSchema,
+} from '@/contracts/script-v2'
 import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
 import { buildVideoWorkspace } from '@/mocks/scenarios/video-project'
 
@@ -134,5 +142,72 @@ describe('createApiClient', () => {
 
     await expect(jobs.list()).rejects.toMatchObject({ status: 502, code: 'INVALID_DATA' })
     expect(() => jobs.transition('job_fixture', 'poll' as 'confirm')).toThrow()
+  })
+
+  it('exposes exact typed Script V2 quote/create/get/transition methods', async () => {
+    const seen: Array<{ url: string; method?: string; body?: string }> = []
+    const transport: JsonTransport = async (input, init) => {
+      const url = String(input)
+      seen.push({
+        url,
+        method: init?.method,
+        body: typeof init?.body === 'string' ? init.body : undefined,
+      })
+      return json(url.endsWith('/quotes') ? quoteResponse : runResponse)
+    }
+    const scriptV2 = createApiClient(transport).scriptV2
+
+    await expect(scriptV2.quote(ScriptV2QuoteRequestSchema.parse(quoteRequest))).resolves.toEqual(
+      quoteResponse,
+    )
+    await expect(
+      scriptV2.createRun(CreateScriptV2RunRequestSchema.parse(runRequest)),
+    ).resolves.toEqual(runResponse)
+    await expect(scriptV2.getRun('run/id')).resolves.toEqual(runResponse)
+    await expect(scriptV2.transitionRun('run/id', 'retry')).resolves.toEqual(runResponse)
+
+    expect(seen).toEqual([
+      {
+        url: '/api/script-v2/quotes',
+        method: 'POST',
+        body: JSON.stringify(quoteRequest),
+      },
+      {
+        url: '/api/script-v2/runs',
+        method: 'POST',
+        body: JSON.stringify(runRequest),
+      },
+      { url: '/api/script-v2/runs/run%2Fid', method: undefined, body: undefined },
+      {
+        url: '/api/script-v2/runs/run%2Fid',
+        method: 'POST',
+        body: '{"action":"retry"}',
+      },
+    ])
+  })
+
+  it('rejects invalid Script V2 input before transport and malformed output as INVALID_DATA', async () => {
+    let calls = 0
+    const transport: JsonTransport = async () => {
+      calls += 1
+      return json({ quote: { credits: '18' } })
+    }
+    const scriptV2 = createApiClient(transport).scriptV2
+
+    expect(() =>
+      scriptV2.quote({
+        operation: 'recompute-prompts',
+        modelId: 'gvlm-3.1',
+        shotCount: 0,
+      }),
+    ).toThrow()
+    expect(calls).toBe(0)
+
+    await expect(
+      scriptV2.quote(ScriptV2QuoteRequestSchema.parse(quoteRequest)),
+    ).rejects.toMatchObject({
+      status: 502,
+      code: 'INVALID_DATA',
+    })
   })
 })

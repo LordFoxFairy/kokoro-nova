@@ -18,6 +18,13 @@ import {
   ScenarioResponseSchema,
 } from '@/contracts/local'
 import type { ScenarioId } from '@/contracts/scenario'
+import {
+  CreateScriptV2RunRequestSchema,
+  ScriptV2QuoteRequestSchema,
+  ScriptV2QuoteResponseSchema,
+  ScriptV2RunResponseSchema,
+  TransitionScriptV2RunRequestSchema,
+} from '@/contracts/script-v2'
 
 export type JsonTransport = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -150,6 +157,48 @@ export function createApiClient(transport: JsonTransport = fetch) {
         )
       },
     },
+    scriptV2: {
+      quote: (
+        input: z.input<typeof ScriptV2QuoteRequestSchema>,
+        options: { signal?: AbortSignal } = {},
+      ) => {
+        const body = ScriptV2QuoteRequestSchema.parse(input)
+        return requestTyped(
+          ScriptV2QuoteResponseSchema,
+          '/api/script-v2/quotes',
+          { ...jsonInit('POST', body), signal: options.signal },
+        )
+      },
+      createRun: (
+        input: z.input<typeof CreateScriptV2RunRequestSchema>,
+        options: { signal?: AbortSignal } = {},
+      ) => {
+        const body = CreateScriptV2RunRequestSchema.parse(input)
+        return requestTyped(
+          ScriptV2RunResponseSchema,
+          '/api/script-v2/runs',
+          { ...jsonInit('POST', body), signal: options.signal },
+        )
+      },
+      getRun: (runId: string, options: { signal?: AbortSignal } = {}) =>
+        requestTyped(
+          ScriptV2RunResponseSchema,
+          `/api/script-v2/runs/${encodeURIComponent(runId)}`,
+          options.signal ? { signal: options.signal } : undefined,
+        ),
+      transitionRun: (
+        runId: string,
+        action: z.input<typeof TransitionScriptV2RunRequestSchema>['action'],
+        options: { signal?: AbortSignal } = {},
+      ) => {
+        const body = TransitionScriptV2RunRequestSchema.parse({ action })
+        return requestTyped(
+          ScriptV2RunResponseSchema,
+          `/api/script-v2/runs/${encodeURIComponent(runId)}`,
+          { ...jsonInit('POST', body), signal: options.signal },
+        )
+      },
+    },
     scenarios: {
       get: () => requestTyped(ScenarioResponseSchema, '/api/dev/scenario'),
       set: (scenarioId: ScenarioId) =>
@@ -158,5 +207,7 @@ export function createApiClient(transport: JsonTransport = fetch) {
     raw,
   }
 }
+
+export type ApiClient = ReturnType<typeof createApiClient>
 
 export const client = createApiClient()

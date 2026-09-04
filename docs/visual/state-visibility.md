@@ -42,7 +42,7 @@ Playwright CLI 的只读快照/输出：
 - 空账户：`.playwright-cli/page-2026-09-04T11-56-28-680Z.yml`
 - 有内容账户：`.playwright-cli/page-2026-09-04T11-57-33-767Z.yml`
 - 等待确认及过期禁用态：`.playwright-cli/page-2026-09-04T11-57-46-494Z.yml`
-- 有效报价的确认/预留/运行态：`e2e/regression-followup.spec.ts` 的隔离 `REGRESSION_BASE_URL` 回归
+- 有效报价的确认/预留/运行态：`e2e/regression-followup.spec.ts` 的 Playwright 隔离回归
 - 合规阻断 Workflow：`.playwright-cli/page-2026-09-04T11-59-59-017Z.yml`
 - 合规阻断 Storyboard：`.playwright-cli/page-2026-09-04T12-01-44-734Z.yml`
 - 项目列表 loading：`.playwright-cli/page-2026-09-04T12-00-34-067Z.yml`
@@ -89,7 +89,7 @@ pnpm typecheck
 pnpm lint
 ```
 
-验证结果：`pnpm typecheck`、`pnpm lint` 通过；完整 Vitest `71 files / 756 tests passed`；有效报价交互在隔离 `REGRESSION_BASE_URL` 服务上通过。
+验证结果：`pnpm typecheck`、`pnpm lint` 通过；完整 Vitest `105 files / 887 tests passed`；有效报价交互在 Playwright 隔离服务上通过。
 
 ## 遗留风险与下一批任务优先级
 

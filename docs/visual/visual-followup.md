@@ -42,7 +42,7 @@
 - `1440×900`、`1024×768`、`768×700` 的页面级溢出、Shell/Project 栅格、Canvas 主 rail、Storyboard 内部滚动；
 - 所有请求均为本地相对 API 路径；不点击真实生成、不写截图基线。
 
-运行时必须显式注入临时服务地址，例如 `REGRESSION_BASE_URL=http://127.0.0.1:PORT`，并由调用方将 `DATA_DIR` 指向临时目录。没有注入地址时测试不会回退到主 `3200`。
+`playwright.config.ts` 现在由 Playwright 自己启动临时服务（独立 `DATA_DIR`、`NEXT_DIST_DIR` 与端口 `3210`），因此这些回归已纳入默认 `pnpm e2e`，仍不会触碰主 `3200/.data`。
 
 ## 验证记录
 

@@ -1,11 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
 /**
- * State/response regression only. The lane deliberately requires an explicit
- * temporary base URL so an accidental default run cannot touch the main 3200
- * service or its .data directory.
+ * State/response regression runs in Playwright's isolated server. The shared
+ * runner owns a disposable DATA_DIR, so this suite can be part of `pnpm e2e`
+ * without ever touching a developer preview on :3200.
  */
-const REGRESSION_BASE_URL = process.env.REGRESSION_BASE_URL
 const PROJECT_URL = '/canvas?projectId=prj_video_demo&canvasId=can_video_main'
 const VIEWPORTS = [
   { width: 1440, height: 900 },
@@ -23,14 +22,7 @@ const STATUS_FIXTURES = [
   ['video-compliance-blocked', '素材合规校验未通过'],
 ] as const
 
-// This suite deliberately mutates deterministic scenarios and is designed to
-// run against a disposable DATA_DIR. Keep the everyday `pnpm e2e` command
-// side-effect free for a developer's active local preview; CI/regression jobs
-// opt in with REGRESSION_BASE_URL and an isolated server.
-test.skip(!REGRESSION_BASE_URL, '需要 REGRESSION_BASE_URL 指向隔离本地服务')
-
 test.use({
-  baseURL: REGRESSION_BASE_URL ?? 'http://127.0.0.1:PORT',
   locale: 'zh-CN',
   deviceScaleFactor: 1,
 })
@@ -78,10 +70,6 @@ async function pauseFirstProjectListResponse(page: Page) {
 
 test.describe('状态与响应式回归（本地临时服务）', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeEach(() => {
-    expect(REGRESSION_BASE_URL, '请使用 REGRESSION_BASE_URL 指向临时端口').toBeTruthy()
-  })
 
   test.afterEach(async ({ request }) => {
     await selectScenario(request, 'authenticated-empty')

@@ -70,6 +70,8 @@ export function buildScenario(id: ScenarioId): WorkspaceState {
       return buildVideoWorkspace('succeeded')
     case 'video-awaiting-confirmation':
       return buildVideoWorkspace('awaiting_confirmation')
+    case 'video-awaiting-valid-confirmation':
+      return buildVideoWorkspace('awaiting_confirmation', 7, '2099-12-31T23:59:00.000Z')
     case 'video-queued':
       return buildVideoWorkspace('queued')
     case 'video-running':

@@ -215,7 +215,7 @@ function imageJob(): GenerationJob {
   }
 }
 
-function videoJob(status: VideoScenarioStatus): GenerationJob {
+function videoJob(status: VideoScenarioStatus, quoteExpiresAt = isoAt(600)): GenerationJob {
   return {
     id: VIDEO_JOB_ID,
     spaceId: SPACE_ID,
@@ -249,7 +249,7 @@ function videoJob(status: VideoScenarioStatus): GenerationJob {
     quote: {
       credits: 70,
       priceVersion: 'fixture-2026-09-03',
-      expiresAt: isoAt(600),
+      expiresAt: quoteExpiresAt,
       breakdown: [
         { label: 'Seedance 2.0 基础', credits: 35 },
         { label: '10 秒', credits: 35 },
@@ -343,7 +343,11 @@ function ledger(status: VideoScenarioStatus): LedgerEntry[] {
   return entries
 }
 
-export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): WorkspaceState {
+export function buildVideoWorkspace(
+  status: VideoScenarioStatus,
+  revision = 7,
+  quoteExpiresAt?: string,
+): WorkspaceState {
   const space: Space = { id: SPACE_ID, name: '我的空间', createdAt: isoAt(-7_200) }
   const project: Project = {
     id: PROJECT_ID,
@@ -518,7 +522,7 @@ export function buildVideoWorkspace(status: VideoScenarioStatus, revision = 7): 
     projects: [untitled.project, doro.project, project],
     canvases: [canvas, doro.canvas, untitled.canvas],
     assets: [asset],
-    jobs: [videoJob(status), imageJob()],
+    jobs: [videoJob(status, quoteExpiresAt), imageJob()],
     ledger: entries,
     sessions: [session],
     messages,

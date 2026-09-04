@@ -14,6 +14,7 @@ const REQUIRED = [
   'account-switch-required',
   'session-expired',
   'video-awaiting-confirmation',
+  'video-awaiting-valid-confirmation',
   'video-queued',
   'video-running',
   'video-succeeded',
@@ -104,6 +105,7 @@ describe('buildScenario', () => {
   it('represents every video job state with stable project topology', () => {
     const states = [
       'video-awaiting-confirmation',
+      'video-awaiting-valid-confirmation',
       'video-queued',
       'video-running',
       'video-succeeded',
@@ -128,6 +130,7 @@ describe('buildScenario', () => {
   it('maps scenario names to the exact primary video job status', () => {
     const expected = {
       'video-awaiting-confirmation': 'awaiting_confirmation',
+      'video-awaiting-valid-confirmation': 'awaiting_confirmation',
       'video-queued': 'queued',
       'video-running': 'running',
       'video-succeeded': 'succeeded',
@@ -139,6 +142,13 @@ describe('buildScenario', () => {
     for (const [id, status] of Object.entries(expected) as Array<[keyof typeof expected, (typeof expected)[keyof typeof expected]]>) {
       expect(buildScenario(id).jobs[0]).toMatchObject({ id: 'job_video_01', status })
     }
+  })
+
+  it('keeps expired and valid quote fixtures intentionally distinct', () => {
+    expect(buildScenario('video-awaiting-confirmation').jobs[0].quote.expiresAt).toBe(isoAt(600))
+    expect(buildScenario('video-awaiting-valid-confirmation').jobs[0].quote.expiresAt).toBe(
+      '2099-12-31T23:59:00.000Z',
+    )
   })
 
   it('uses only local fixture or local API URLs', () => {

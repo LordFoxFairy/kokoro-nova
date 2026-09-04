@@ -1109,6 +1109,7 @@
           "session-expired",
           "revision-conflict",
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -1986,6 +1987,7 @@
         ],
         "x-mock-scenarios": [
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -2066,6 +2068,7 @@
         ],
         "x-mock-scenarios": [
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -2159,6 +2162,7 @@
         ],
         "x-mock-scenarios": [
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -2222,7 +2226,8 @@
         ],
         "x-mock-scenarios": [
           "authenticated-populated",
-          "video-awaiting-confirmation"
+          "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation"
         ],
         "responses": {
           "200": {
@@ -2296,6 +2301,7 @@
         "x-mock-scenarios": [
           "authenticated-populated",
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -2371,6 +2377,7 @@
           "authenticated-populated",
           "public-showcase",
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -2707,6 +2714,7 @@
           "authenticated-populated",
           "session-expired",
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",
@@ -4216,6 +4224,7 @@
           "account-switch-required",
           "session-expired",
           "video-awaiting-confirmation",
+          "video-awaiting-valid-confirmation",
           "video-queued",
           "video-running",
           "video-succeeded",

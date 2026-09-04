@@ -115,7 +115,8 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | `authenticated-populated` | 完整项目、节点、资产和 Agent 会话 |
 | `account-switch-required` | 账户选择门 |
 | `session-expired` | 画布编辑租约失效与刷新恢复 |
-| `video-awaiting-confirmation` | 报价确认门 |
+| `video-awaiting-confirmation` | 过期报价保护与关闭/取消入口 |
+| `video-awaiting-valid-confirmation` | 有效报价确认、积分预留与运行态收敛 |
 | `video-queued` | 排队态 |
 | `video-running` | 固定 58% 的刷新恢复态 |
 | `video-succeeded` | 本地视频产物写回 |
@@ -125,7 +126,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | `revision-conflict` | 服务端 revision 领先一版 |
 | `public-showcase` | 冻结公开快照 |
 
-所有场景使用 `2026-09-03T12:00:00.000Z` 固定时钟、稳定对象 ID 和本地媒体路径。
+所有场景使用稳定对象 ID 和本地媒体路径；常规 fixture 使用 `2026-09-03T12:00:00.000Z` 固定时钟，`video-awaiting-valid-confirmation` 以固定的 `2099-12-31T23:59:00.000Z` 报价到期时间提供可重复的有效确认门。
 
 ## UI 到 API 主链路
 

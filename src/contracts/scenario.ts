@@ -7,6 +7,7 @@ export const SCENARIO_IDS = [
   'account-switch-required',
   'session-expired',
   'video-awaiting-confirmation',
+  'video-awaiting-valid-confirmation',
   'video-queued',
   'video-running',
   'video-succeeded',

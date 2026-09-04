@@ -123,11 +123,12 @@ curl -sS -X POST http://localhost:3200/api/dev/reset
 推荐演示顺序：
 
 1. `authenticated-populated`：完整项目、节点、资产和 Agent；
-2. `video-awaiting-confirmation`：报价门、确认/取消；
-3. `video-running`：刷新恢复和进度；
-4. `video-succeeded`：产物写回、Storyboard 和 compositor；
-5. `revision-conflict` / `session-expired`：并发与恢复反馈；
-6. `anonymous` / `public-showcase`：公开发现和登录门。
+2. `video-awaiting-confirmation`：过期报价门、关闭/取消；
+3. `video-awaiting-valid-confirmation`：有效报价确认、积分预留与运行态收敛；
+4. `video-running`：刷新恢复和进度；
+5. `video-succeeded`：产物写回、Storyboard 和 compositor；
+6. `revision-conflict` / `session-expired`：并发与恢复反馈；
+7. `anonymous` / `public-showcase`：公开发现和登录门。
 
 场景只用于本地演示，production 的 `/api/dev/*` 返回 `403`。
 

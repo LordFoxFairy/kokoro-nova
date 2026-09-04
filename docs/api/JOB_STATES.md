@@ -115,7 +115,8 @@ GET /api/jobs/{jobId}
 
 | 场景 | status | progress | balance | error |
 |---|---|---:|---:|---|
-| `video-awaiting-confirmation` | awaiting_confirmation | 0 | 478 | null |
+| `video-awaiting-confirmation` | awaiting_confirmation | 0 | 478 | null（报价已过期） |
+| `video-awaiting-valid-confirmation` | awaiting_confirmation | 0 | 478 | null（固定有效报价） |
 | `video-queued` | queued | 0 | 408 | null |
 | `video-running` | running | 58 | 408 | null |
 | `video-succeeded` | succeeded | 100 | 408 | null |

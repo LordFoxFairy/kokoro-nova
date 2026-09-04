@@ -41,6 +41,7 @@ function route(
 
 const VIDEO_STATES = [
   'video-awaiting-confirmation',
+  'video-awaiting-valid-confirmation',
   'video-queued',
   'video-running',
   'video-succeeded',
@@ -118,6 +119,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('POST', '/api/jobs', 'Jobs', 'createGenerationJob', ['节点点击生成并创建报价'], [
     'authenticated-populated',
     'video-awaiting-confirmation',
+    'video-awaiting-valid-confirmation',
   ]),
   route('GET', '/api/ledger', 'Ledger', 'listLedgerEntries', ['账户积分余额与明细'], [
     'authenticated-populated',

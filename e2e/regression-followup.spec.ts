@@ -178,6 +178,43 @@ test.describe('状态与响应式回归（本地临时服务）', () => {
     })
   }
 
+  test('有效视频报价确认后扣减本地积分并收敛到运行态', async ({ page, request }) => {
+    const node = await openVideoScenario(page, request, 'video-awaiting-valid-confirmation')
+    const gate = page.getByTestId('confirm-gate')
+    await expect(gate).toBeVisible()
+    await expect(page.getByTestId('quote-expired')).toHaveCount(0)
+    await expect(page.getByTestId('confirm-generate')).toBeEnabled()
+
+    let releaseTransition!: () => void
+    const transitionBlocked = new Promise<void>((resolve) => {
+      releaseTransition = resolve
+    })
+    await page.route('**/api/jobs/job_video_01', async (route) => {
+      const request = route.request()
+      if (request.method() !== 'POST' || new URL(request.url()).pathname !== '/api/jobs/job_video_01') {
+        await route.continue()
+        return
+      }
+      await transitionBlocked
+      await route.continue()
+    })
+
+    const transitionPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/jobs/job_video_01',
+    )
+    await page.getByTestId('confirm-generate').click()
+    await expect(page.getByTestId('confirm-generate')).toBeDisabled()
+    await expect(page.getByTestId('confirm-action-status')).toContainText('正在确认')
+    releaseTransition()
+
+    const transition = await transitionPromise
+    expect(transition.ok()).toBe(true)
+    await expect(gate).toBeHidden()
+    await expect(node.getByTestId('job-status-job_video_01')).toContainText('生成中')
+    await expect(page.getByTestId('credit-balance')).toContainText('408')
+  })
+
   test('画布错误态提供 retry 且不渲染半成品工作区', async ({ page }) => {
     await page.goto('/canvas?projectId=missing-regression-project&canvasId=missing-regression-canvas')
     await expect(page.getByTestId('canvas-load-error')).toBeVisible()

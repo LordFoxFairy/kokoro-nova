@@ -20,12 +20,15 @@
    - 路径：`src/components/shell/AppSidebar.tsx`、`src/components/project/ProjectListPage.tsx`、`src/components/project/ProjectToolbar.tsx`
    - 当前结果：`1024px` 侧栏收起、项目三列；`768px` 项目两列，标题和主要操作仍有可点击区域，页面级无水平溢出。
 
+### 已完成的状态闭环
+
+- **有效报价确认门**：新增 `video-awaiting-valid-confirmation`，以固定的 `2099-12-31T23:59:00.000Z` 报价到期时间补足有效态；隔离 Playwright 已断言确认按钮 enabled、请求期间 busy/disabled、请求成功、积分从 478 预留至 408，以及状态收敛到 `生成中`。
+- **Storyboard 合规阻断**：`compliance_blocked` 已使用独立的 regeneration status、琥珀色状态提示和“修改后重试”恢复入口；详情抽屉有专用 test id 与回归断言。
+
 ### 仍需跟进的缺口
 
 | 优先级 | 路径 / 状态 | 复现或证据 | 处理建议 |
 | --- | --- | --- | --- |
-| P0 | `src/mocks/scenarios/video-project.ts`：`awaiting_confirmation` | fixture 报价为 `FIXED_NOW + 600s`；当前日期已越过 expiry，所以只能看到过期保护和 disabled 确认按钮 | 增加未来有效报价 fixture 或可控测试时钟，再验收 enabled、重复点击锁定、`正在确认…`、`queued/running` 收敛 |
-| P1 | `src/components/storyboard/MediaDetailDrawer.tsx`、`src/components/storyboard/StoryboardView.tsx`：合规阻断 | `regenerationStatusForJob('compliance_blocked')` 走通用 failed 分支；标签虽显示 `合规阻断`，状态/辅助技术语义仍共享 | 引入独立状态/test id/role/label；保留现有 retry 文案 |
 | P1 | `src/components/storyboard/StoryboardView.tsx`：`768×700` | 三列使用内部横向滚动；视频筛选/展开入口在初始左端不完整可见 | 明确降列、列头紧凑化或更明显的滚动指示；补媒体详情抽屉与 focus-trap 验收 |
 | P2 | Home / Project 次级信息 | 窄屏日期、模型辅助文案仍可能省略或使用低 alpha | 做对比度与信息优先级审计，不以截图像素作为契约 |
 
@@ -34,7 +37,8 @@
 新增 `e2e/regression-followup.spec.ts` 只覆盖：
 
 - 本地 scenario 的 loading、empty、error/retry；
-- `awaiting / queued / running / succeeded / failed / cancelled / compliance_blocked` 的可见状态和恢复入口；
+- `awaiting（过期/有效）/ queued / running / succeeded / failed / cancelled / compliance_blocked` 的可见状态和恢复入口；
+- 有效报价的确认、积分预留与运行态收敛；
 - `1440×900`、`1024×768`、`768×700` 的页面级溢出、Shell/Project 栅格、Canvas 主 rail、Storyboard 内部滚动；
 - 所有请求均为本地相对 API 路径；不点击真实生成、不写截图基线。
 

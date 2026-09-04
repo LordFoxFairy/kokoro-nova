@@ -37,15 +37,31 @@ async function chooseAudioModel(page: Page, modelId: string, query: string) {
   await page.getByTestId('audio-model-selector').click()
   const catalog = page.getByTestId('audio-model-catalog')
   await catalog.getByRole('searchbox', { name: '搜索音频模型' }).fill(query)
+  const persisted = waitForCanvasMutation(page)
   await catalog.getByTestId(`audio-model-option-${modelId}`).click()
+  await persisted
   await expect(catalog).toHaveCount(0)
 }
 
-async function readAudioNode(request: APIRequestContext, canvasId: string, nodeId: string) {
+async function readCanvas(request: APIRequestContext, canvasId: string) {
   const response = await request.get(`/api/canvases/${canvasId}`)
-  expect(response.ok()).toBe(true)
+  const expectedPath = `/api/canvases/${encodeURIComponent(canvasId)}`
+  const contentType = response.headers()['content-type'] ?? ''
+  expect(new URL(response.url()).pathname, `Unexpected canvas response URL: ${response.url()}`).toBe(expectedPath)
+  expect(response.status(), `Canvas GET ${response.url()} returned ${response.status()}`).toBe(200)
+  expect(contentType, `Canvas GET ${response.url()} returned content type ${contentType}`).toContain('application/json')
   const body = await response.json()
-  return body.canvas.document.nodes.find((node: { id: string }) => node.id === nodeId)
+  expect(body, `Canvas GET ${response.url()} returned an invalid envelope`).toMatchObject({
+    canvas: { document: { nodes: expect.any(Array) } },
+  })
+  return body
+}
+
+async function readAudioNode(request: APIRequestContext, canvasId: string, nodeId: string) {
+  const body = await readCanvas(request, canvasId)
+  const node = body.canvas.document.nodes.find((candidate: { id: string }) => candidate.id === nodeId)
+  expect(node, `Canvas GET /api/canvases/${canvasId} did not contain node ${nodeId}`).toBeDefined()
+  return node
 }
 
 async function setCanvasZoom(request: APIRequestContext, canvasId: string, zoom: number) {
@@ -69,7 +85,13 @@ async function setCanvasZoom(request: APIRequestContext, canvasId: string, zoom:
 function waitForCanvasMutation(page: Page) {
   return page.waitForResponse((response) => {
     const url = new URL(response.url())
-    return response.request().method() === 'POST' && /^\/api\/canvases\/[^/]+$/.test(url.pathname) && response.ok()
+    return response.request().method() === 'POST' && /^\/api\/canvases\/[^/]+$/.test(url.pathname)
+  }).then((response) => {
+    const contentType = response.headers()['content-type'] ?? ''
+    expect(response.status(), `Canvas mutation ${response.url()} returned ${response.status()}`).toBe(200)
+    expect(contentType, `Canvas mutation ${response.url()} returned content type ${contentType}`).toContain(
+      'application/json',
+    )
   })
 }
 
@@ -366,17 +388,19 @@ test('voice library mirrors tabs, first-page rows, pagination, search, filters a
   await expect(library.locator('[data-testid^="voice-row-"]')).toHaveCount(2)
   await search.clear()
 
-  await library
-    .locator(
-      'button[aria-label="收藏 青涩青年音色"], button[aria-label="收藏 精英青年音色"]',
-    )
-    .evaluateAll((buttons) => buttons.forEach((button) => (button as HTMLButtonElement).click()))
+  for (const voiceName of ['青涩青年音色', '精英青年音色']) {
+    const persisted = waitForCanvasMutation(page)
+    await library.getByRole('button', { name: `收藏 ${voiceName}`, exact: true }).click()
+    await persisted
+  }
   await expect
     .poll(async () => (await readAudioNode(request, canvasId, nodeId!)).data.extra.audioAuthoring.favoriteVoiceIds)
     .toEqual(['voice-young-green', 'voice-young-elite'])
   await library.getByRole('tab', { name: '收藏音色' }).click()
   await expect(library.locator('[data-testid^="voice-row-"]')).toHaveCount(2)
+  const voiceSelection = waitForCanvasMutation(page)
   await library.getByTestId('voice-row-voice-young-green').getByRole('button', { name: '选择 青涩青年音色', exact: true }).click()
+  await voiceSelection
   await expect(library).toHaveCount(0)
   await expect(editor.getByTestId('audio-voice-selector')).toContainText('青涩青年音色')
   await expect
@@ -438,12 +462,16 @@ test('voice preview stays local and clone flow persists a reusable custom voice 
   await expect(clone).toContainText('录音已完成')
   await clone.getByRole('checkbox', { name: /我已阅读并同意/ }).check()
   await expect(generate).toBeEnabled()
+  const cloneMutation = waitForCanvasMutation(page)
   await generate.click()
+  await cloneMutation
 
   await expect(clone).toHaveCount(0)
   await expect(library.getByRole('tab', { name: '我的音色' })).toHaveAttribute('aria-selected', 'true')
   await expect(library.getByTestId('voice-row-voice-custom-1')).toContainText('我的音色 1')
+  const customVoiceSelection = waitForCanvasMutation(page)
   await library.getByRole('button', { name: '选择 我的音色 1' }).click()
+  await customVoiceSelection
   await expect(editor.getByTestId('audio-voice-selector')).toContainText('我的音色 1')
   await expect
     .poll(async () => (await readAudioNode(request, canvasId, nodeId!)).data.extra.audioAuthoring)
@@ -497,8 +525,12 @@ test('Audio reference mode accepts text and audio nodes, rejects images and rest
   await expect(imageCandidate).toBeDisabled()
   await expect(imageCandidate).toHaveAttribute('title', '音频节点不接受图片输入')
 
+  const textMutation = waitForCanvasMutation(page)
   await textCandidate.click()
+  await textMutation
+  const audioMutation = waitForCanvasMutation(page)
   await audioCandidate.click()
+  await audioMutation
   await banner.getByRole('button', { name: '返回节点' }).click()
   await expect(editor).toBeVisible()
   const strip = editor.getByTestId('audio-reference-strip')
@@ -509,7 +541,7 @@ test('Audio reference mode accepts text and audio nodes, rejects images and rest
   expect(canvasId).toBeTruthy()
   await expect
     .poll(async () => {
-      const body = await request.get(`/api/canvases/${canvasId}`).then((response) => response.json())
+      const body = await readCanvas(request, canvasId!)
       return body.canvas.document.edges
         .filter((edge: { target: string }) => edge.target === targetAudioId)
         .map((edge: { source: string }) => edge.source)

@@ -8,7 +8,7 @@ import { AuthenticatedShell, useHomeDiscovery, useHomeDiscoveryState } from '@/c
 import type { HomeDiscoveryResponse } from '@/contracts/home'
 import { Dialog } from '@/components/ui/Dialog'
 import { CreatorToolGrid } from './CreatorToolGrid'
-import { HomeAgentComposer } from './HomeAgentComposer'
+import { buildHomeAgentBrief, HomeAgentComposer, type HomeAgentRequest } from './HomeAgentComposer'
 import { RecentProjects } from './RecentProjects'
 import { TvShowFeed } from './TvShowFeed'
 
@@ -55,7 +55,7 @@ function HomeSurface() {
   const [error, setError] = useState<string | null>(null)
   const [loginPromptOpen, setLoginPromptOpen] = useState(false)
 
-  const createAndOpen = async (brief?: string, preferredName?: string) => {
+  const createAndOpen = async (request?: HomeAgentRequest, preferredName?: string) => {
     if (submitting) return
     if (publicMode) {
       setLoginPromptOpen(true)
@@ -64,6 +64,7 @@ function HomeSurface() {
     setSubmitting(true)
     setError(null)
     try {
+      const brief = request ? buildHomeAgentBrief(request) : undefined
       const name = preferredName ?? (brief ? brief.replace(/^\[[^\]]+]\s*/, '').slice(0, 18) : undefined)
       const { project, canvas } = await client.projects.create({ name })
       const query = new URLSearchParams({ projectId: project.id, canvasId: canvas.id })
@@ -76,7 +77,16 @@ function HomeSurface() {
   }
 
   const startTool = (tool: CreatorTool) => {
-    void createAndOpen(`[${tool.intent}] ${tool.title}：${tool.description}`, tool.title)
+    void createAndOpen(
+      {
+        text: `[${tool.intent}] ${tool.title}：${tool.description}`,
+        context: [],
+        modelId: null,
+        modelLabel: null,
+        generationMode: 'manual',
+      },
+      tool.title,
+    )
   }
 
   if (!home) {
@@ -147,7 +157,9 @@ function HomeSurface() {
         <HomeAgentComposer
           skills={home.featuredSkills}
           submitting={submitting}
-          onSubmit={(brief) => void createAndOpen(brief)}
+          publicMode={publicMode}
+          onLoginRequired={() => setLoginPromptOpen(true)}
+          onSubmit={(request) => void createAndOpen(request)}
         />
       </div>
 

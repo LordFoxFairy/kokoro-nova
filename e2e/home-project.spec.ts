@@ -214,3 +214,63 @@ test('home creator tool carries deterministic intent into the new canvas brief',
 
   expect(new URL(page.url()).searchParams.get('brief')).toContain('[video-model] Seedance 2.5')
 })
+
+test('home Agent composer keeps context controls local, accessible and keyboard dismissible', async ({ page }) => {
+  await page.goto('/')
+
+  const composer = page.getByTestId('home-composer')
+  await composer.focus()
+  await expect(page.getByTestId('home-agent-composer')).toHaveAttribute('data-state', 'expanded')
+  await expect(page.getByTestId('home-agent-send')).toBeDisabled()
+
+  await page.getByTestId('home-attachment-trigger').click()
+  await expect(page.getByTestId('home-attachment-menu')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('home-attachment-menu')).toHaveCount(0)
+
+  await page.getByTestId('home-attachment-trigger').click()
+  await page.getByTestId('home-asset-library').click()
+  await expect(page.getByTestId('home-asset-library-dialog')).toBeVisible()
+  await expect(page.getByTestId('home-asset-empty').or(page.getByTestId('home-asset-list'))).toBeVisible()
+  await page.getByTestId('home-asset-library-dialog').getByRole('button', { name: '关闭' }).last().click()
+
+  await page.getByTestId('home-model-trigger').click()
+  await expect(page.getByTestId('home-model-menu')).toBeVisible()
+  await expect(page.getByTestId('home-model-list')).toBeVisible()
+  await page.getByTestId('home-model-tab-video').click()
+  await expect(page.getByTestId('home-model-option').first()).toBeVisible()
+  await page.getByTestId('home-model-option').first().click()
+  await expect(page.getByTestId('home-model-trigger')).toContainText('Seedance')
+
+  await page.getByTestId('home-skill-trigger').click()
+  await expect(page.getByTestId('home-skill-menu')).toBeVisible()
+  await expect(page.getByTestId('home-skill-list')).toBeVisible()
+  await page.getByTestId('home-skill-collection-收藏').click()
+  await expect(page.getByTestId('home-skill-empty')).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.getByTestId('home-mode-trigger').click()
+  await expect(page.getByTestId('home-mode-menu')).toBeVisible()
+  await page.getByTestId('home-mode-option-auto').click()
+  await expect(page.getByTestId('home-composer-state')).toContainText('自动模式')
+
+  await composer.fill('一支雨夜城市的电影感短片')
+  await expect(page.getByTestId('home-agent-send')).toBeEnabled()
+  await composer.press('Enter')
+  await page.waitForURL(/\/canvas\?.*brief=/)
+  const brief = new URL(page.url()).searchParams.get('brief') ?? ''
+  expect(brief).toContain('模型：')
+  expect(brief).toContain('生成模式：自动')
+})
+
+test('anonymous home keeps discovery visible and gates private Agent context actions', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'anonymous' } })
+  expect(selected.ok()).toBe(true)
+  await page.goto('/')
+
+  await expect(page.getByTestId('home-login-entry')).toBeVisible()
+  await page.getByTestId('home-composer').fill('匿名用户的创意草稿')
+  await page.getByTestId('home-agent-send').click()
+  await expect(page.getByTestId('home-login-dialog')).toBeVisible()
+  await expect(page.getByTestId('home-login-dialog')).toContainText('登录后即可创建项目')
+})

@@ -226,6 +226,7 @@ test.describe('状态与响应式回归（本地临时服务）', () => {
     await expect(rail).toBeVisible()
     await expect(page.getByTestId('tv-show-scroll-left')).toBeVisible()
     await expect(page.getByTestId('tv-show-scroll-right')).toBeVisible()
+    await expect(page.getByTestId('tv-show-process-showcase-wash-white')).toBeDisabled()
     const geometry = await rail.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }))
     expect(geometry.scrollWidth).toBeGreaterThan(geometry.clientWidth)
 

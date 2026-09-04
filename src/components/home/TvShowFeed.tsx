@@ -221,17 +221,22 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
                 />
               </Link>
-              {item.processAvailable && (
-                <button
-                  type="button"
-                  data-testid="tv-show-process"
-                  aria-label="查看创作过程"
-                  onClick={() => setSelectedItem(item)}
-                  className="absolute bottom-3 right-3 rounded-full bg-black/65 px-3 py-1.5 text-[11px] text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
-                >
-                  查看创作过程
-                </button>
-              )}
+              <button
+                type="button"
+                data-testid={`tv-show-process-${item.id}`}
+                aria-label="查看创作过程"
+                disabled={!item.processAvailable}
+                title={item.processAvailable ? undefined : '该作品暂未开放创作过程'}
+                onClick={() => setSelectedItem(item)}
+                className={cn(
+                  'absolute bottom-3 right-3 rounded-full bg-black/65 px-3 py-1.5 text-[11px] text-white backdrop-blur transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]',
+                  item.processAvailable
+                    ? 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                    : 'cursor-not-allowed opacity-55',
+                )}
+              >
+                查看创作过程
+              </button>
             </div>
             <Link
               href="/showcase"

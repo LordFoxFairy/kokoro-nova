@@ -102,7 +102,7 @@ export const HOME_DISCOVERY_CATALOG: HomeDiscoveryCatalog = {
       authorTier: null,
       coverUrl: '/fixtures/libtv/showcase/wash-white.webp',
       likeCount: 5,
-      processAvailable: true,
+      processAvailable: false,
       category: '精选画布',
     },
     {

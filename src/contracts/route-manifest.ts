@@ -201,7 +201,10 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
 
   route('GET', '/api/skills/{skillId}', 'Skills', 'getSkill', ['打开 Skill 详情']),
   route('POST', '/api/skills/{skillId}', 'Skills', 'toggleSkillFavorite', ['Skill 卡或详情收藏']),
-  route('GET', '/api/skills', 'Skills', 'listSkills', ['首页推荐与 Skill 市场'], [
+  route('GET', '/api/skills', 'Skills', 'listSkills', [
+    '首页推荐与 Skill 市场',
+    '打开附件、参考、Skill 与生成模式上下文',
+  ], [
     'anonymous',
     'authenticated-populated',
   ]),

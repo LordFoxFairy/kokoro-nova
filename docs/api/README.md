@@ -41,7 +41,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.9.0-script-v2
+Contract version: 1.10.0-skills-composer
 OpenAPI: 3.1.0
 ```
 
@@ -188,11 +188,15 @@ DELETE /api/publish/SNAPSHOT_ID
 
 ```text
 GET  /api/skills?category=全部&collection=全部&q=关键词
+GET  /api/skills?composer=attachments|references|skills|modes&fixture=empty|error
 GET  /api/skills/SKILL_ID
 POST /api/skills/SKILL_ID  { action: "favourite" | "unfavourite" }
 ```
 
-列表响应为 `{ skills, category, collection, counts }`。`category`、`collection` 的未知
+未传 `composer` 的列表响应为 `{ skills, category, collection, counts }`。传入 `composer` 后，
+附件/参考响应为 `{ kind, items }`，Skill 响应额外返回 `{ counts }`，生成模式响应为
+`{ kind: "modes", items }`。`fixture=empty` 和 `fixture=error` 是仅供 local mock 验证
+drawer 的确定性空态和 `503` 错误态。`category`、`collection` 的未知
 查询值按“全部”处理，搜索覆盖名称、摘要、作者和标签；每个 `SkillCard` 都带版本、执行
 说明和当前 workspace 的 `favourite` 投影。收藏请求表达目标状态而不是 flip，因此重试和
 重复点击是幂等的。Skill catalogue 是只读本地 fixture，收藏 id 按 space 持久化，不会污染

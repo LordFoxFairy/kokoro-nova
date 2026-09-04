@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.9.0-script-v2",
+    "version": "1.10.0-skills-composer",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -3624,10 +3624,11 @@
         "tags": [
           "Skills"
         ],
-        "summary": "首页推荐与 Skill 市场",
+        "summary": "Skill 市场与 Composer 上下文",
         "operationId": "listSkills",
         "x-ui-triggers": [
-          "首页推荐与 Skill 市场"
+          "首页推荐与 Skill 市场",
+          "打开附件、参考、Skill 与生成模式上下文"
         ],
         "x-mock-scenarios": [
           "anonymous",
@@ -3635,11 +3636,41 @@
         ],
         "responses": {
           "200": {
-            "description": "成功",
+            "description": "目录或 Composer 上下文",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SkillListResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SkillListResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SkillComposerContextResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SkillComposerModesResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "未知 Composer 上下文",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "本地 Composer fixture 不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
                 }
               }
             }
@@ -3696,8 +3727,37 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "composer",
+            "in": "query",
+            "required": false,
+            "description": "请求确定性 Composer 上下文；省略时返回 Skill 市场目录。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "attachments",
+                "references",
+                "skills",
+                "modes"
+              ]
+            }
+          },
+          {
+            "name": "fixture",
+            "in": "query",
+            "required": false,
+            "description": "仅 local mock：`empty` 返回空集合，`error` 返回 503。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "empty",
+                "error"
+              ]
+            }
           }
-        ]
+        ],
+        "description": "未传 `composer` 时返回市场目录；传入 `attachments`、`references`、`skills` 或 `modes` 时返回对应的 Composer 可选上下文。`fixture=empty` 固定返回空集合，`fixture=error` 固定返回 503。"
       }
     },
     "/api/home": {
@@ -11346,6 +11406,210 @@
           "unreadCount": {
             "type": "integer",
             "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillComposerAsset": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "description",
+          "type",
+          "meta",
+          "thumbnail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "document",
+              "character",
+              "style"
+            ]
+          },
+          "meta": {
+            "type": "string",
+            "minLength": 1
+          },
+          "thumbnail": {
+            "type": "string",
+            "description": "本地 fixture 路径或绝对 URL。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillComposerSkill": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "category",
+          "version",
+          "favourite"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "叙事分镜",
+              "角色一致性",
+              "广告文案",
+              "提示词工程",
+              "声音与配乐",
+              "交付规范"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "favourite": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillComposerMode": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "description",
+          "hint"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto",
+              "draft"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "hint": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillComposerAssetContextResponse": {
+        "type": "object",
+        "required": [
+          "kind",
+          "items"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "attachments",
+              "references"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillComposerAsset"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillComposerSkillContextResponse": {
+        "type": "object",
+        "required": [
+          "kind",
+          "items",
+          "counts"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "skills"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillComposerSkill"
+            }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SkillCounts"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillComposerContextResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SkillComposerAssetContextResponse"
+          },
+          {
+            "$ref": "#/components/schemas/SkillComposerSkillContextResponse"
+          }
+        ]
+      },
+      "SkillComposerModesResponse": {
+        "type": "object",
+        "required": [
+          "kind",
+          "items"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "modes"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillComposerMode"
+            }
           }
         },
         "additionalProperties": false

@@ -30,7 +30,7 @@ type OpenApiOperation = {
     content?: Record<string, { schema?: { $ref?: string } }>
   }
   parameters?: Array<{ name?: string; in?: string; required?: boolean }>
-  responses?: Record<string, { content?: Record<string, { schema?: { $ref?: string; type?: string; format?: string } }> }>
+  responses?: Record<string, { content?: Record<string, { schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> } }> }>
 }
 type OpenApiDocument = {
   openapi?: string
@@ -156,7 +156,7 @@ describe('local API manifest and OpenAPI', () => {
   it('versions and exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.9.0-script-v2')
+    expect(document.info?.version).toBe('1.10.0-skills-composer')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -218,7 +218,7 @@ describe('local API manifest and OpenAPI', () => {
     const document = openApiDocument()
     const scriptRoutes = LOCAL_API_ROUTES.filter((route) => route.tag === 'Script V2')
 
-    expect(document.info?.version).toBe('1.9.0-script-v2')
+    expect(document.info?.version).toBe('1.10.0-skills-composer')
     expect(scriptRoutes).toHaveLength(4)
     expect(scriptRoutes.map((route) => route.operationId)).toEqual([
       'quoteScriptV2',
@@ -286,9 +286,12 @@ describe('local API manifest and OpenAPI', () => {
       '#/components/schemas/RevokePublishedSnapshotResponse',
     )
 
-    expect(responseSchemaRef(operationAt(document, 'GET', '/api/skills'), '200')).toBe(
-      '#/components/schemas/SkillListResponse',
-    )
+    const skills = operationAt(document, 'GET', '/api/skills')
+    expect(skills.responses?.['200']?.content?.['application/json']?.schema?.oneOf).toEqual([
+      { $ref: '#/components/schemas/SkillListResponse' },
+      { $ref: '#/components/schemas/SkillComposerContextResponse' },
+      { $ref: '#/components/schemas/SkillComposerModesResponse' },
+    ])
     expect(responseSchemaRef(operationAt(document, 'GET', '/api/skills/{skillId}'), '200')).toBe(
       '#/components/schemas/GetSkillResponse',
     )
@@ -303,13 +306,20 @@ describe('local API manifest and OpenAPI', () => {
       'favourite',
       'unfavourite',
     ])
-    expect(operationAt(document, 'GET', '/api/skills').parameters).toEqual(
+    expect(skills.parameters).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'category', in: 'query' }),
         expect.objectContaining({ name: 'collection', in: 'query' }),
         expect.objectContaining({ name: 'q', in: 'query' }),
+        expect.objectContaining({ name: 'composer', in: 'query' }),
+        expect.objectContaining({ name: 'fixture', in: 'query' }),
       ]),
     )
+    expect(Object.keys(skills.responses ?? {}).filter((status) => status !== '200').sort()).toEqual(['400', '500', '503'])
+    expect(document.components?.schemas?.SkillComposerContextResponse?.oneOf).toEqual([
+      { $ref: '#/components/schemas/SkillComposerAssetContextResponse' },
+      { $ref: '#/components/schemas/SkillComposerSkillContextResponse' },
+    ])
   })
 
   it('pins key surface request/response schemas and handler-accurate HTTP statuses', () => {

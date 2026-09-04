@@ -39,11 +39,12 @@ test('production: the core creation path works end to end', async ({ page }) => 
   // A real generation against the built server: compile, quote, confirm gate,
   // reserve, run, artifact written back.
   await node.dblclick()
-  await page.getByTestId('node-prompt').fill('生产构建冒烟：黄昏的海岸线')
-  await page.getByTestId('node-prompt').blur()
+  await expect(page.getByTestId('image-node-editor')).toBeVisible()
+  await page.getByTestId('image-prompt').fill('生产构建冒烟：黄昏的海岸线')
+  await page.getByTestId('image-prompt').blur()
   await expect(node).toContainText('黄昏的海岸线')
 
-  await page.getByTestId('inspector-run').click()
+  await page.getByTestId('image-run').click()
   await expect(page.getByTestId('confirm-gate')).toBeVisible()
   await page.getByTestId('confirm-generate').click()
   await expect(node.locator('img')).toBeVisible({ timeout: 90_000 })

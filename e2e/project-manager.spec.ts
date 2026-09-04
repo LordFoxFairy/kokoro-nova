@@ -70,6 +70,28 @@ test.describe('项目管理交互夹具', () => {
     await expect(projectMore).toBeFocused()
   })
 
+  test('移动至文件夹子菜单在悬停时保持打开并可选择目标文件夹', async ({ page, request }) => {
+    await openProjects(page, request)
+
+    await page.getByTestId('new-folder').click()
+    const folder = page.locator('[data-testid^="folder-card-"]').first()
+    await expect(folder).toBeVisible()
+
+    const project = page.locator('[data-testid^="project-card-"]').first()
+    const projectTestId = await project.getAttribute('data-testid')
+    expect(projectTestId).toBeTruthy()
+    await project.getByRole('button', { name: '项目操作' }).click()
+    const move = page.getByRole('menuitem', { name: '移动至文件夹' })
+    await expect(move).toBeVisible()
+    await move.hover()
+
+    const destination = page.getByRole('menuitem', { name: '未命名文件夹', exact: true })
+    await expect(destination).toBeVisible()
+    await destination.click()
+    await expect(page.getByTestId(projectTestId as string)).toHaveCount(0)
+    await expect(folder).toContainText('1 个项目')
+  })
+
   test('文件夹删除要求精确名称，并展示封面图与项目数量', async ({ page, request }) => {
     await openProjects(page, request)
     await page.getByTestId('new-folder').click()

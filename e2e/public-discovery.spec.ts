@@ -1,6 +1,22 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const SHOTS = 'docs/screenshots'
+
+test.use({
+  viewport: { width: 1440, height: 900 },
+  deviceScaleFactor: 1,
+})
+
+async function expectVisualBaseline(page: Page, name: string) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
+  await page.evaluate(() => document.fonts.ready)
+  await expect(page).toHaveScreenshot(name, {
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+    maxDiffPixelRatio: 0.0001,
+  })
+}
 
 test.beforeEach(async ({ request }) => {
   const selected = await request.post('/api/dev/scenario', {
@@ -12,7 +28,7 @@ test.beforeEach(async ({ request }) => {
 })
 
 test('home TV Show cards trace to the same ids and gate anonymous creation', async ({ page, request }) => {
-  const projection = await request.get('/api/showcase')
+  const projection = await request.get('/api/showcase?limit=24')
   expect(projection.ok()).toBe(true)
   const ids = (await projection.json()).entries.map((entry: { id: string }) => entry.id)
 
@@ -40,6 +56,7 @@ test('TV Show catalog keeps category and search discovery states visible', async
   await expect(page.getByRole('heading', { name: 'TV Show' })).toBeVisible()
   await expect(page.getByTestId('showcase-card-pub_city_night_01')).toBeVisible()
   await expect(page.getByTestId('showcase-category-全部')).toHaveAttribute('data-selected', 'true')
+  await expectVisualBaseline(page, 'tv-show-directory-dark-1440x900.png')
   await page.screenshot({ path: `${SHOTS}/showcase-gallery-catalog.png`, scale: 'css' })
   await page.getByTestId('showcase-category-专业影视').click()
   await expect(page.getByTestId('showcase-category-专业影视')).toHaveAttribute('data-selected', 'true')
@@ -78,6 +95,7 @@ test('TV Show detail, player and read-only process preserve the public work cont
   await expect(page.getByTestId('showcase-watch')).toBeVisible()
   await expect(page.getByTestId('showcase-process')).toBeVisible()
   await expect(page.getByTestId('showcase-related')).toBeVisible()
+  await expectVisualBaseline(page, 'tv-show-detail-dark-1440x900.png')
   await page.screenshot({ path: `${SHOTS}/showcase-detail.png`, scale: 'css' })
 
   await page.getByTestId('showcase-watch').click()
@@ -109,6 +127,7 @@ test('TV Show detail, player and read-only process preserve the public work cont
   await expect(page.getByTestId('clone-project')).toBeVisible()
   await page.getByTestId('clone-project').click()
   await expect(page.getByTestId('clone-gate')).toBeVisible()
+  await expectVisualBaseline(page, 'tv-show-clone-login-gate-dark-1440x900.png')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('clone-gate')).toHaveCount(0)
   await page.getByTestId('public-process-close').click()
@@ -122,7 +141,7 @@ test('TV Show detail, player and read-only process preserve the public work cont
 
 test('TV Show catalogue exposes empty, error and retry states', async ({ page }) => {
   let attempts = 0
-  await page.route('**/api/showcase', async (route) => {
+  await page.route('**/api/showcase**', async (route) => {
     attempts += 1
     if (attempts === 1) {
       await route.fulfill({
@@ -135,7 +154,19 @@ test('TV Show catalogue exposes empty, error and retry states', async ({ page })
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ entries: [] }),
+      body: JSON.stringify({
+        entries: [],
+        page: {
+          offset: 0,
+          limit: 4,
+          total: 0,
+          hasMore: false,
+          nextOffset: null,
+          category: '全部',
+          query: '',
+          searchFallback: false,
+        },
+      }),
     })
   })
 

@@ -1,6 +1,22 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const SHOTS = 'docs/screenshots'
+
+test.use({
+  viewport: { width: 1440, height: 900 },
+  deviceScaleFactor: 1,
+})
+
+async function expectVisualBaseline(page: Page, name: string) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
+  await page.evaluate(() => document.fonts.ready)
+  await expect(page).toHaveScreenshot(name, {
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+    maxDiffPixelRatio: 0.0001,
+  })
+}
 
 test.describe('Skill discovery parity', () => {
   test.beforeEach(async ({ request }) => {
@@ -15,6 +31,7 @@ test.describe('Skill discovery parity', () => {
     const favourite = page.getByTestId('skill-favourite-skill-storyboard-breakdown')
     await favourite.click()
     await expect(favourite).toHaveAttribute('aria-pressed', 'true')
+    await expectVisualBaseline(page, 'skills-market-dark-1440x900.png')
     await page.screenshot({ path: `${SHOTS}/skills-market-dark-1440x900.png`, scale: 'css' })
 
     await page.getByTestId('skill-composer-input').fill('把这个产品故事变成一条有节奏的短片')
@@ -32,6 +49,7 @@ test.describe('Skill discovery parity', () => {
 
     await page.getByTestId('skill-media-next').click()
     await expect(page.getByTestId('skill-media-carousel')).toContainText('2 / 4')
+    await expectVisualBaseline(page, 'skills-detail-carousel-dark-1440x900.png')
     await page.screenshot({ path: `${SHOTS}/skills-detail-carousel-dark-1440x900.png`, scale: 'css' })
     await page.getByTestId('skill-media-open').click()
     await expect(page.getByTestId('skill-media-lightbox')).toBeVisible()
@@ -98,12 +116,14 @@ test.describe('Skill discovery parity', () => {
     await expect(page.getByTestId('skill-composer-login-gate')).toHaveCount(0)
     await page.keyboard.press('Escape')
 
+    let referenceAttempts = 0
     await page.route('**/api/skills?composer=references*', async (route) => {
+      referenceAttempts += 1
+      if (referenceAttempts > 1) return route.continue()
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'fixture error' }) })
     })
     await page.getByTestId('skill-composer-reference').click()
     await expect(page.getByTestId('skill-composer-drawer-error')).toBeVisible()
-    await page.unroute('**/api/skills?composer=references*')
     await page.getByTestId('skill-composer-drawer-retry').click()
     await expect(page.getByTestId('skill-composer-asset-option-reference-main-character')).toBeVisible()
     await page.getByTestId('skill-composer-asset-option-reference-main-character').click()

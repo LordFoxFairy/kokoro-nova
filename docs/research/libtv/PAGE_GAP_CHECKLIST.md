@@ -112,6 +112,7 @@
 - [x] 版本化 `Skill`/`SkillCard`、官方/社区/个人 origin、稳定 slash 语义、作者、使用量、标签和结构化执行规范。
 - [x] 收藏/取消收藏持久到 local workspace，错误/重试和收藏/我的空态有状态模型。
 - [x] 详情页元数据、四图轮播、缩略图、原图 lightbox、Escape、分享提示、添加到 composer、立即使用登录门。
+- [x] 受控 1440×900 Playwright 基线覆盖市场收藏态与详情轮播态；断言使用 local fixture、CSS-scale 截图、禁用动画和隐藏光标。
 
 ### 差距
 
@@ -139,6 +140,7 @@
 - [x] 详情沉浸背景、观看、播放/暂停、进度、倍速、质量菜单、音量和全屏。
 - [x] 公开工作流/故事板只读覆盖、过程关闭、复制项目登录门、喜欢登录门。
 - [x] `PublishedSnapshot` 与 `ShowcaseEntryProjection` 分层；公共 fixture 不依赖远端媒体。
+- [x] 受控 1440×900 Playwright 基线覆盖 TV Show 目录、详情和匿名复制登录门。
 
 ### 差距
 
@@ -164,11 +166,12 @@
 - [x] 首次 loading、刷新、陈旧数据保留、首次错误和 retry 状态；单元测试覆盖状态文案。
 - [x] 账本与 Jobs/ledger domain projection 分层，避免 UI 直接重算 charge。
 - [x] 官网账户菜单、暗色主题、水印规则、通知和个人中心的只读截图已归档。
+- [x] 受控 1440×900 Playwright 基线覆盖深色身份菜单，以及切换浅色/水印/通知后的偏好状态；身份信息保持脱敏。
 
 ### 差距
 
-- [ ] local 没有官网深色头像菜单的身份摘要、脱敏 UUID、Access key、团队、会员权益、存储空间和外部链接。
-- [ ] 主题切换、AI 水印偏好、通知中心、个人中心资料与发布/点赞 tab 没有 local contract。
+- [ ] `/account` 仍以账本为主；身份菜单中的团队、会员权益、存储空间和外部链接尚未在独立账户页形成完整投影。
+- [ ] 个人中心资料与发布/点赞 tab 尚未形成 local contract。
 - [ ] 订阅/开发票、模型超市、共享资产和团队/席位属于独立账户域，不能继续用 `/account` 静态入口代替。
 - [ ] Access key 只应由专用测试凭据或脱敏状态验证；不要把真实值写入 fixture、截图或日志。
 - [ ] 没有官网账户会话过期、跨设备退出、账号注销和数据导出证据。
@@ -185,4 +188,4 @@
 - [ ] 首页 TV Show card → Showcase detail → 播放 → 只读过程 → Storyboard → 复制登录门。
 - [ ] Project card → Canvas → Workflow/Storyboard → 刷新，document/revision 保持一致。
 - [ ] Canvas 生成确认门 → Job 状态 → Ledger held/settled/released → Account 账本定位。
-- [ ] 1440×900 七个 surface 各有一张首屏基线；关键 menu/dialog 另有状态图。
+- [x] 1440×900 七个 surface 各有一张首屏基线；Skills、TV Show 和 Account 的关键 menu/dialog 另有受控状态图。见 [visual regression index](../../screenshots/SCREENSHOT_INDEX.md)。

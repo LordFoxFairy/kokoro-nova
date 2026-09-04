@@ -1,4 +1,20 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+test.use({
+  viewport: { width: 1440, height: 900 },
+  deviceScaleFactor: 1,
+})
+
+async function expectVisualBaseline(page: Page, name: string) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; } [data-testid="home-campaign-image"] { visibility: hidden !important; }' })
+  await page.evaluate(() => document.fonts.ready)
+  await expect(page).toHaveScreenshot(name, {
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+    maxDiffPixelRatio: 0.0001,
+  })
+}
 
 async function resetIdentity(page: import('@playwright/test').Page) {
   const scenario = await page.request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-populated' } })
@@ -32,6 +48,7 @@ test('home identity menu exposes redacted account groups with keyboard dismissal
   await expect(menu).toContainText('订阅与开发票')
   await expect(menu).toContainText('CLI & Skill')
   await expect(menu).toContainText('通知')
+  await expectVisualBaseline(page, 'account-identity-menu-dark-1440x900.png')
 
   await page.keyboard.press('Escape')
   await expect(menu).toHaveCount(0)
@@ -44,6 +61,7 @@ test('home identity menu exposes redacted account groups with keyboard dismissal
   await expect(page.getByRole('menuitemcheckbox', { name: 'AI 水印设置' })).toHaveAttribute('aria-checked', 'false')
   await page.getByRole('button', { name: '全部通知已读' }).click()
   await expect(menu.getByText('通知', { exact: false })).toContainText('0')
+  await expectVisualBaseline(page, 'account-identity-menu-light-preferences-1440x900.png')
 })
 
 test('canvas identity menu completes logout/login returnTo without exposing credentials', async ({ page }) => {

@@ -2,7 +2,7 @@ import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
 import { SCENARIO_CATALOG } from '@/mocks/scenarios/catalog'
 import { handle } from '@/server/http'
 import { listShowcaseEntries } from '@/server/showcase'
-import { activeScenarioId, DEFAULT_SPACE_ID, readState } from '@/server/store'
+import { activeScenarioId, DEFAULT_SPACE_ID, isProjectRecycled, readState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +12,7 @@ export async function GET() {
     const viewer = SCENARIO_CATALOG[scenarioId].viewer
     const authenticated = viewer !== 'anonymous'
     const recentProjects = state.projects
-      .filter((project) => project.spaceId === DEFAULT_SPACE_ID)
+      .filter((project) => project.spaceId === DEFAULT_SPACE_ID && !isProjectRecycled(project))
       .slice()
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .slice(0, 3)

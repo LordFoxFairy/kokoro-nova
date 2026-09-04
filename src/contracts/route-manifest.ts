@@ -5,6 +5,7 @@ export type LocalApiTransport = 'json' | 'sse' | 'binary'
 
 export type LocalApiTag =
   | 'Projects'
+  | 'Recycle Bin'
   | 'Folders'
   | 'Canvases'
   | 'Workflow'
@@ -209,7 +210,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     ...VIDEO_STATES,
   ]),
   route('PATCH', '/api/projects/{projectId}', 'Projects', 'updateProject', ['项目重命名、移动或修改封面']),
-  route('DELETE', '/api/projects/{projectId}', 'Projects', 'deleteProject', ['项目菜单确认删除']),
+  route('DELETE', '/api/projects/{projectId}', 'Projects', 'deleteProject', ['项目菜单移入回收站']),
   route('PUT', '/api/projects/{projectId}', 'Projects', 'duplicateProject', ['项目菜单创建副本']),
   route('GET', '/api/projects', 'Projects', 'listProjects', ['首页最近项目与全部项目页'], [
     'authenticated-empty',
@@ -218,6 +219,11 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('POST', '/api/projects', 'Projects', 'createProject', ['首页开始创作与项目页开始创作'], [
     'authenticated-empty',
     'authenticated-populated',
+  ]),
+  route('GET', '/api/recycle-bin', 'Recycle Bin', 'listRecycleBin', ['项目页打开回收站']),
+  route('POST', '/api/recycle-bin/{projectId}', 'Recycle Bin', 'restoreRecycledProject', ['回收站恢复项目']),
+  route('DELETE', '/api/recycle-bin/{projectId}', 'Recycle Bin', 'permanentlyDeleteRecycledProject', [
+    '回收站输入项目名后永久删除',
   ]),
 
   route('GET', '/api/publish/{snapshotId}', 'Publish', 'getPublishedSnapshot', ['TV Show 查看制作过程'], [

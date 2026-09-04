@@ -56,6 +56,7 @@ const PUBLIC_FIXTURE_MEDIA_DIR = path.join(process.cwd(), 'public', 'fixtures', 
 const SEEDED_FIXTURE_MEDIA = ['city-night.mp4', 'compositor-bed.wav'] as const
 
 export const DEFAULT_SPACE_ID = 'sp_default'
+export const PROJECT_RECYCLE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 let writeChain: Promise<unknown> = Promise.resolve()
 
@@ -216,7 +217,17 @@ export async function resetStore(scenarioId?: ScenarioId) {
  * Selectors — pure lookups shared by route handlers
  * ------------------------------------------------------------------ */
 
+export function isProjectRecycled(project: Project): boolean {
+  return Boolean(project.recycledAt)
+}
+
+/** Lookup excluding recycled projects. Normal project and canvas routes must use this. */
 export function findProject(state: WorkspaceState, projectId: string): Project | undefined {
+  return state.projects.find((p) => p.id === projectId && !isProjectRecycled(p))
+}
+
+/** Internal recycle-bin lookup that deliberately includes soft-deleted rows. */
+export function findStoredProject(state: WorkspaceState, projectId: string): Project | undefined {
   return state.projects.find((p) => p.id === projectId)
 }
 
@@ -230,6 +241,80 @@ export function canvasesOfProject(state: WorkspaceState, projectId: string): Can
   return project.canvasIds
     .map((id) => state.canvases.find((c) => c.id === id))
     .filter((c): c is Canvas => Boolean(c))
+}
+
+export type RecycledProjectView = Project & {
+  canvasCount: number
+  originalFolderName: string | null
+  daysRemaining: number
+}
+
+/**
+ * Marks projects as recycled without touching canvases, jobs or Agent history.
+ * The original folder is retained independently so restore can fall back to the
+ * root workspace when that folder was permanently removed in the meantime.
+ */
+export function recycleProjects(
+  state: WorkspaceState,
+  projectIds: string[],
+  now: Date = new Date(),
+): string[] {
+  if (projectIds.length === 0) return []
+  const ids = new Set(projectIds)
+  const recycledAt = now.toISOString()
+  const recycleExpiresAt = new Date(now.getTime() + PROJECT_RECYCLE_RETENTION_MS).toISOString()
+  const recycled: string[] = []
+  for (const project of state.projects) {
+    if (!ids.has(project.id) || isProjectRecycled(project)) continue
+    project.recycleOriginalFolderId = project.folderId
+    project.recycledAt = recycledAt
+    project.recycleExpiresAt = recycleExpiresAt
+    project.updatedAt = recycledAt
+    recycled.push(project.id)
+  }
+  return recycled
+}
+
+/** Restore a soft-deleted project and all its untouched canvas documents. */
+export function restoreProject(state: WorkspaceState, projectId: string, now: Date = new Date()): Project | undefined {
+  const project = findStoredProject(state, projectId)
+  if (!project || !isProjectRecycled(project)) return undefined
+  const originalFolderId = project.recycleOriginalFolderId ?? project.folderId
+  project.folderId = originalFolderId && state.folders.some((folder) => folder.id === originalFolderId) ? originalFolderId : null
+  // Keep normal Project responses free of recycle-only persistence fields.
+  delete project.recycledAt
+  delete project.recycleExpiresAt
+  delete project.recycleOriginalFolderId
+  project.updatedAt = now.toISOString()
+  return project
+}
+
+/** Permanently remove recycle-bin entries whose 30-day retention elapsed. */
+export function purgeExpiredRecycledProjects(state: WorkspaceState, now: Date = new Date()): string[] {
+  const expiredIds = state.projects
+    .filter((project) => {
+      if (!isProjectRecycled(project) || !project.recycleExpiresAt) return false
+      return new Date(project.recycleExpiresAt).getTime() <= now.getTime()
+    })
+    .map((project) => project.id)
+  return deleteProjects(state, expiredIds)
+}
+
+export function recycledProjects(state: WorkspaceState, now: Date = new Date()): RecycledProjectView[] {
+  return state.projects
+    .filter((project) => isProjectRecycled(project))
+    .map((project) => {
+      const expiry = project.recycleExpiresAt ? new Date(project.recycleExpiresAt).getTime() : now.getTime()
+      return {
+        ...project,
+        canvasCount: project.canvasIds.filter((id) => state.canvases.some((canvas) => canvas.id === id)).length,
+        originalFolderName: project.recycleOriginalFolderId
+          ? state.folders.find((folder) => folder.id === project.recycleOriginalFolderId)?.name ?? null
+          : null,
+        daysRemaining: Math.max(0, Math.ceil((expiry - now.getTime()) / (24 * 60 * 60 * 1000))),
+      }
+    })
+    .sort((left, right) => (right.recycledAt ?? '').localeCompare(left.recycledAt ?? ''))
 }
 
 export function balanceOf(state: WorkspaceState, spaceId: string): number {

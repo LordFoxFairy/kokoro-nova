@@ -31,6 +31,15 @@ export interface Project {
   updatedAt: string
   /** Canvas order inside the project switcher. */
   canvasIds: string[]
+  /**
+   * Project recycle-bin metadata. A recycled project keeps its canvas and
+   * workflow rows intact, but is invisible to every normal project/canvas
+   * selector until restored or permanently purged.
+   */
+  recycledAt?: string | null
+  recycleExpiresAt?: string | null
+  /** Folder membership at the moment the project entered the recycle bin. */
+  recycleOriginalFolderId?: string | null
 }
 
 export interface Canvas {

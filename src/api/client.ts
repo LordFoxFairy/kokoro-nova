@@ -5,6 +5,11 @@ import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import { LedgerViewProjectionSchema } from '@/contracts/ledger'
 import { ModelCatalogResponseSchema } from '@/contracts/models'
 import {
+  ListRecycleBinResponseSchema,
+  PermanentlyDeleteRecycledProjectResponseSchema,
+  RestoreRecycledProjectResponseSchema,
+} from '@/contracts/recycle-bin'
+import {
   GetMaterialResponseSchema,
   MaterialCatalogResponseSchema,
   ToggleMaterialFavouriteRequestSchema,
@@ -176,6 +181,21 @@ export function createApiClient(transport: JsonTransport = fetch) {
         const body = CreateProjectInputSchema.parse(input)
         return requestTyped(CreateProjectResponseSchema, '/api/projects', jsonInit('POST', body))
       },
+    },
+    recycleBin: {
+      list: () => requestTyped(ListRecycleBinResponseSchema, '/api/recycle-bin'),
+      restore: (projectId: string) =>
+        requestTyped(
+          RestoreRecycledProjectResponseSchema,
+          `/api/recycle-bin/${encodeURIComponent(projectId)}`,
+          { method: 'POST' },
+        ),
+      permanentlyDelete: (projectId: string) =>
+        requestTyped(
+          PermanentlyDeleteRecycledProjectResponseSchema,
+          `/api/recycle-bin/${encodeURIComponent(projectId)}`,
+          { method: 'DELETE' },
+        ),
     },
     canvas: {
       bootstrap: (canvasId: string) =>

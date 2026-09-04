@@ -1,7 +1,7 @@
 import { applyMutations } from '@/domain/mutations'
 import { MutationRequestSchema, MutationResultSchema } from '@/contracts/local'
 import { HttpError, handle, parseJsonBody } from '@/server/http'
-import { findCanvas, readState, withState } from '@/server/store'
+import { findCanvas, findProject, readState, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +13,8 @@ export async function GET(_request: Request, { params }: Params) {
     const state = await readState()
     const canvas = findCanvas(state, canvasId)
     if (!canvas) throw new HttpError(404, '画布不存在')
-    const project = state.projects.find((p) => p.id === canvas.projectId)
+    const project = findProject(state, canvas.projectId)
+    if (!project) throw new HttpError(404, '项目不存在')
     const jobs = state.jobs.filter((j) => j.canvasId === canvasId)
     return {
       canvas,
@@ -47,8 +48,9 @@ export async function POST(request: Request, { params }: Params) {
       canvas.revision += 1
       canvas.updatedAt = new Date().toISOString()
 
-      const project = state.projects.find((p) => p.id === canvas.projectId)
-      if (project) project.updatedAt = canvas.updatedAt
+      const project = findProject(state, canvas.projectId)
+      if (!project) throw new HttpError(404, '项目不存在')
+      project.updatedAt = canvas.updatedAt
 
       return MutationResultSchema.parse({ revision: canvas.revision, document: canvas.document })
     })
@@ -77,7 +79,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     return withState((state) => {
       const canvas = findCanvas(state, canvasId)
       if (!canvas) throw new HttpError(404, '画布不存在')
-      const project = state.projects.find((p) => p.id === canvas.projectId)
+      const project = findProject(state, canvas.projectId)
       if (!project) throw new HttpError(404, '项目不存在')
       // The last canvas of a project cannot be deleted — the delete action is
       // disabled in the switcher for exactly this reason.

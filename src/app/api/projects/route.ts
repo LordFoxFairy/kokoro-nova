@@ -2,7 +2,7 @@ import { ids } from '@/domain/ids'
 import { createCanvas } from '@/domain/factory'
 import type { Project } from '@/domain/types'
 import { handle } from '@/server/http'
-import { DEFAULT_SPACE_ID, canvasesOfProject, readState, withState } from '@/server/store'
+import { DEFAULT_SPACE_ID, canvasesOfProject, isProjectRecycled, readState, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,7 @@ export async function GET() {
   return handle(async () => {
     const state = await readState()
     const projects = state.projects
-      .filter((p) => p.spaceId === DEFAULT_SPACE_ID)
+      .filter((p) => p.spaceId === DEFAULT_SPACE_ID && !isProjectRecycled(p))
       .slice()
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((p) => ({
@@ -23,7 +23,7 @@ export async function GET() {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((f) => ({
         ...f,
-        projectCount: state.projects.filter((p) => p.folderId === f.id).length,
+        projectCount: state.projects.filter((p) => p.folderId === f.id && !isProjectRecycled(p)).length,
       }))
     return { projects, folders, balance: state.balances[DEFAULT_SPACE_ID] ?? 0 }
   })
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as { name?: string; folderId?: string | null }
     return withState((state) => {
       const now = new Date().toISOString()
-      const existing = state.projects.filter((p) => p.spaceId === DEFAULT_SPACE_ID).length
+      const existing = state.projects.filter((p) => p.spaceId === DEFAULT_SPACE_ID && !isProjectRecycled(p)).length
       const project: Project = {
         id: ids.project(),
         spaceId: DEFAULT_SPACE_ID,

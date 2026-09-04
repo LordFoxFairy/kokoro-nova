@@ -4,7 +4,7 @@ import { ids } from '@/domain/ids'
 import { compileNode } from '@/domain/compile'
 import { MODELS_BY_ID } from '@/domain/models'
 import type { Artifact, GenerationJob, WorkflowDocument } from '@/domain/types'
-import { findCanvas, MEDIA_DIR, withState, type WorkspaceState } from '../store'
+import { findCanvas, findProject, MEDIA_DIR, withState, type WorkspaceState } from '../store'
 import { release, reserve, settle } from '../ledger'
 import { providerFor, registerProvider, type ProviderHandle } from './provider'
 import { mockProvider } from './mock-provider'
@@ -38,7 +38,7 @@ export async function createJob(params: {
   return withState((state) => {
     const canvas = findCanvas(state, params.canvasId)
     if (!canvas) throw new Error('画布不存在')
-    const project = state.projects.find((p) => p.id === canvas.projectId)
+    const project = findProject(state, canvas.projectId)
     if (!project) throw new Error('项目不存在')
 
     const { spec, quote } = compileNode(canvas.document, params.nodeId)

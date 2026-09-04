@@ -1,5 +1,5 @@
 import { HttpError, handle } from '@/server/http'
-import { deleteProjects, withState } from '@/server/store'
+import { deleteProjects, isProjectRecycled, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +41,7 @@ export async function DELETE(request: Request, { params }: Params) {
       }
       const removed = deleteProjects(
         state,
-        state.projects.filter((p) => p.folderId === folderId).map((p) => p.id),
+        state.projects.filter((p) => p.folderId === folderId && !isProjectRecycled(p)).map((p) => p.id),
       )
       state.folders = state.folders.filter((f) => f.id !== folderId)
       return { deleted: folderId, deletedProjects: removed.length }

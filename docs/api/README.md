@@ -27,7 +27,8 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
 | [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) | 风格/特效独立目录、分页 facets、详情和幂等收藏动作 |
-| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 37 个 path / 62 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
+| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 39 个 path / 65 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
+| [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) | 项目软删除、30 天保留、恢复、永久删除与画布保留边界 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
 | `src/contracts/route-manifest.ts` | 本地 route、UI 触发动作和场景的代码清单 |
@@ -43,7 +44,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.11.0-contract-hardening
+Contract version: 1.12.0-project-recycle-bin
 OpenAPI: 3.1.0
 ```
 
@@ -139,7 +140,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | UI 流程 | 主要 operation |
 |---|---|
 | 首页发现/最近项目 | `getHomeDiscovery` |
-| 全部项目 | `listProjects`, `createProject` |
+| 全部项目与回收站 | `listProjects`, `createProject`, `listRecycleBin`, `restoreRecycledProject`, `permanentlyDeleteRecycledProject` |
 | 文件夹 | `createFolder`, `renameFolder`, `deleteFolder` |
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
 | 工作流编辑 | `mutateCanvas`, `getCanvasPresence`, `updateCanvasPresence` |

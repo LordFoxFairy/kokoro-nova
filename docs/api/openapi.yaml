@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.11.0-contract-hardening",
+    "version": "1.12.0-project-recycle-bin",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -15,6 +15,10 @@
     {
       "name": "Projects",
       "description": "项目列表与生命周期"
+    },
+    {
+      "name": "Recycle Bin",
+      "description": "项目软删除、30 天保留、恢复与永久清理"
     },
     {
       "name": "Folders",
@@ -2878,27 +2882,27 @@
         "tags": [
           "Projects"
         ],
-        "summary": "项目菜单确认删除",
+        "summary": "项目菜单移入回收站",
         "operationId": "deleteProject",
         "x-ui-triggers": [
-          "项目菜单确认删除"
+          "项目菜单移入回收站"
         ],
         "x-mock-scenarios": [
           "authenticated-populated"
         ],
         "responses": {
           "200": {
-            "description": "已删除项目",
+            "description": "项目已移入回收站，画布与会话在保留期内仍会存储",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProjectDeleteResponse"
+                  "$ref": "#/components/schemas/ProjectRecycleResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "项目不存在",
+            "description": "项目不存在或已在回收站",
             "content": {
               "application/json": {
                 "schema": {
@@ -4519,6 +4523,157 @@
           },
           "500": {
             "description": "请求失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recycle-bin": {
+      "get": {
+        "tags": [
+          "Recycle Bin"
+        ],
+        "summary": "列出项目回收站",
+        "operationId": "listRecycleBin",
+        "x-ui-triggers": [
+          "项目页打开回收站"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "回收站项目；读取时会同步清理到期记录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListRecycleBinResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地状态读取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recycle-bin/{projectId}": {
+      "post": {
+        "tags": [
+          "Recycle Bin"
+        ],
+        "summary": "恢复回收站项目",
+        "operationId": "restoreRecycledProject",
+        "x-ui-triggers": [
+          "回收站恢复项目"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "projectId 的稳定本地标识"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "项目及其全部保留画布已恢复",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreRecycledProjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "回收站中不存在该项目",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地状态写入失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Recycle Bin"
+        ],
+        "summary": "永久删除回收站项目",
+        "operationId": "permanentlyDeleteRecycledProject",
+        "x-ui-triggers": [
+          "回收站输入项目名后永久删除"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "projectId 的稳定本地标识"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "项目、画布及会话历史均已永久删除",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermanentlyDeleteRecycledProjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "回收站中不存在该项目",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地状态写入失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -12408,6 +12563,128 @@
             }
           }
         ]
+      },
+      "RecycledProject": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Project"
+          }
+        ],
+        "type": "object",
+        "required": [
+          "recycledAt",
+          "recycleExpiresAt",
+          "recycleOriginalFolderId",
+          "originalFolderName",
+          "canvasCount",
+          "daysRemaining"
+        ],
+        "properties": {
+          "recycledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recycleExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recycleOriginalFolderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "originalFolderName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canvasCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "daysRemaining": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          }
+        }
+      },
+      "ProjectRecycleResponse": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "recycled"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "type": "string"
+          },
+          "recycled": {
+            "const": true
+          }
+        }
+      },
+      "ListRecycleBinResponse": {
+        "type": "object",
+        "required": [
+          "projects",
+          "purgedProjectIds"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecycledProject"
+            }
+          },
+          "purgedProjectIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RestoreRecycledProjectResponse": {
+        "type": "object",
+        "required": [
+          "project",
+          "restoredToRoot",
+          "canvasCount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "restoredToRoot": {
+            "type": "boolean"
+          },
+          "canvasCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PermanentlyDeleteRecycledProjectResponse": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "permanentlyDeleted"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "type": "string"
+          },
+          "permanentlyDeleted": {
+            "const": true
+          }
+        }
       }
     },
     "examples": {

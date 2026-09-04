@@ -1,7 +1,7 @@
 import { createCanvas } from '@/domain/factory'
 import { ids } from '@/domain/ids'
 import { HttpError, handle } from '@/server/http'
-import { activeScenarioId, canvasesOfProject, deleteProjects, findProject, readState, withState } from '@/server/store'
+import { activeScenarioId, canvasesOfProject, findProject, readState, recycleProjects, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,8 +50,8 @@ export async function DELETE(_request: Request, { params }: Params) {
     return withState((state) => {
       const project = findProject(state, projectId)
       if (!project) throw new HttpError(404, '项目不存在')
-      deleteProjects(state, [projectId])
-      return { deleted: projectId }
+      recycleProjects(state, [projectId])
+      return { deleted: projectId, recycled: true }
     })
   })
 }

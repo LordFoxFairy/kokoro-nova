@@ -1,0 +1,14 @@
+{
+  "project": {
+    "id": "prj_video_demo",
+    "spaceId": "sp_default",
+    "folderId": null,
+    "name": "未命名",
+    "coverUrl": null,
+    "createdAt": "2026-09-03T12:00:00.000Z",
+    "updatedAt": "2026-09-04T12:01:00.000Z",
+    "canvasIds": ["can_video_main"]
+  },
+  "restoredToRoot": true,
+  "canvasCount": 1
+}

@@ -600,13 +600,17 @@ function ProjectListSurface() {
           />
         )}
 
-        <RecycleBinDialog open={recycleBinOpen} onClose={() => setRecycleBinOpen(false)} />
+        <RecycleBinDialog
+          open={recycleBinOpen}
+          onClose={() => setRecycleBinOpen(false)}
+          onProjectsChanged={refreshOrThrow}
+        />
 
         <ConfirmDialog
           open={Boolean(deleteProject)}
           title="删除项目"
-          description={`确定删除「${deleteProject?.name}」吗？该项目下的画布会一并删除。`}
-          confirmLabel="删除"
+          description={`确定将「${deleteProject?.name}」移入回收站吗？项目和全部画布会保留 30 天，可在回收站恢复。`}
+          confirmLabel="移入回收站"
           danger
           onClose={() => setDeleteProject(null)}
           onConfirm={async () => {

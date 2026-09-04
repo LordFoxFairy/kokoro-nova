@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.11.0-contract-hardening` · scope: 37 paths / 62 operations
+> Contract version: `1.12.0-project-recycle-bin` · scope: 39 paths / 65 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -12,7 +12,7 @@ transport 的一一对应。
 
 | 范围 | path / operation | OpenAPI schema | 确定性 mock 约定 | 后端接手边界 |
 |---|---:|---|---|---|
-| Project / Folder | 4 / 9 | 已精确 | 空账户、默认命名、级联删除确认 | project/folder repository |
+| Project / Folder / Recycle Bin | 6 / 12 | 已精确 | 空账户、默认命名、软删除 30 天保留、恢复与永久删除确认 | project/folder repository |
 | Canvas / workflow | 2 / 6 | 已精确 | revision、冲突与当前 document | document store + optimistic lock |
 | Jobs / Script V2 / compose | 6 / 10 | 已精确 | quote、poll、幂等、终态与 fixture | queue/provider/render adapter |
 | Asset / media / preview | 6 / 9 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
@@ -29,7 +29,7 @@ transport 的一一对应。
 
 - 创建项目返回 `CreateProjectResponse { project, canvas }`；创建项目文件夹与重命名返回 `Folder`；
   删除文件夹返回 `{ deleted, deletedProjects }`，并强制 `confirmName` query；
-- 更新/复制项目返回 `Project`；删除返回 `{ deleted }`；复制没有 request body；
+- 更新/复制项目返回 `Project`；删除返回 `{ deleted, recycled: true }`，不删除画布；`GET /api/recycle-bin` 返回保留期限，恢复保留原画布，永久删除才走级联清理；复制没有 request body；
 - Presence 的 `GET` 是 `text/event-stream`，不是 JSON polling；`POST` 接受严格 heartbeat，返回
   `{ ok: true, participant }`；
 - scenario/reset 的成功体有可读本地样本；`reset` 的 schema 不再是悬空 `$ref`。
@@ -41,7 +41,9 @@ transport 的一一对应。
 | `GET /api/projects` | 无参数 | `projects: []`, `folders: []`, `balance: 0` | `authenticated-empty` | future repository 保持排序和计数字段 |
 | `POST /api/projects` | body 可省略；`name?`, `folderId?` | 不适用 | 默认创建“未命名项目 N”+“画布 1” | 后端应补 `folderId` 外键校验，但不改变 response |
 | `POST /api/folders` | 无 body | 不适用 | 默认“未命名文件夹” | 后端生成 ID/时间，保留默认创建语义 |
-| `DELETE /api/folders/{id}` | `confirmName` 必填且完全匹配 | 不适用 | `400` 不匹配，`404` 不存在 | 级联策略由 repository 事务实现 |
+| `DELETE /api/folders/{id}` | `confirmName` 必填且完全匹配 | 不适用 | `400` 不匹配，`404` 不存在 | 永久清理 active 子项目；已回收项目恢复时会回根目录 |
+| `GET /api/recycle-bin` | 无参数 | `projects: []`, `purgedProjectIds: []` | 读取时清理超过 30 天的软删除项目 | background purge 可替代同步 sweep，但响应语义不变 |
+| `POST/DELETE /api/recycle-bin/{id}` | POST 无 body；DELETE 由 UI 输入名称确认 | `404` 表示不在回收站 | restore 回原文件夹/根目录；永久删除级联画布和 Agent history | repository transaction + retention worker |
 | `GET /api/assets` | `namespace`, `kind`, `q`, `tag` | `{ assets: [] }` | 已撤销 asset 不出现在列表 | storage/index 取代 fixture，不改筛选字段 |
 | `GET /api/models` | `media`, `q` | 空 catalogue 是合法 200 | 无随机失败 fixture | provider registry 替换 catalogue |
 | `GET /api/skills` | `category`, `collection`, `q`, `composer`, `fixture` | `fixture=empty` 返回空 `items/skills` | `fixture=error` 返回 `503` | catalogue 与 composer context 分离替换 |
@@ -83,6 +85,7 @@ SSE 首帧为 `snapshot`，后续为 `join`、`move` 或 `leave`；每 20 秒有
 | Presence heartbeat | [`presence-heartbeat.request.json`](examples/presence-heartbeat.request.json), [`presence-heartbeat.response.json`](examples/presence-heartbeat.response.json) |
 | Scenario / reset | [`scenario.response.json`](examples/scenario.response.json), [`reset.response.json`](examples/reset.response.json) |
 | Materials 分页与收藏 | [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) |
+| 项目回收站 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) |
 | Jobs / Script V2 | [`jobs-create.request.json`](examples/jobs-create.request.json), [`script-v2-run.request.json`](examples/script-v2-run.request.json) |
 
 ## 后端接手验收

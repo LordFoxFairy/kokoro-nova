@@ -1,0 +1,21 @@
+{
+  "projects": [
+    {
+      "id": "prj_video_demo",
+      "spaceId": "sp_default",
+      "folderId": null,
+      "name": "未命名",
+      "coverUrl": null,
+      "createdAt": "2026-09-03T12:00:00.000Z",
+      "updatedAt": "2026-09-04T12:00:00.000Z",
+      "canvasIds": ["can_video_main"],
+      "recycledAt": "2026-09-04T12:00:00.000Z",
+      "recycleExpiresAt": "2026-10-04T12:00:00.000Z",
+      "recycleOriginalFolderId": null,
+      "originalFolderName": null,
+      "canvasCount": 1,
+      "daysRemaining": 30
+    }
+  ],
+  "purgedProjectIds": []
+}

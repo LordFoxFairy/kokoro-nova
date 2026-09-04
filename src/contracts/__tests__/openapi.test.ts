@@ -175,10 +175,26 @@ describe('local API manifest and OpenAPI', () => {
     ])
   })
 
+  it('documents recycle-bin retention, restore and permanent-delete responses', () => {
+    const document = openApiDocument()
+    expect(responseSchemaRef(operationAt(document, 'DELETE', '/api/projects/{projectId}'), '200')).toBe(
+      '#/components/schemas/ProjectRecycleResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'GET', '/api/recycle-bin'), '200')).toBe(
+      '#/components/schemas/ListRecycleBinResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'POST', '/api/recycle-bin/{projectId}'), '200')).toBe(
+      '#/components/schemas/RestoreRecycledProjectResponse',
+    )
+    expect(responseSchemaRef(operationAt(document, 'DELETE', '/api/recycle-bin/{projectId}'), '200')).toBe(
+      '#/components/schemas/PermanentlyDeleteRecycledProjectResponse',
+    )
+  })
+
   it('versions and exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.11.0-contract-hardening')
+    expect(document.info?.version).toBe('1.12.0-project-recycle-bin')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -240,7 +256,7 @@ describe('local API manifest and OpenAPI', () => {
     const document = openApiDocument()
     const scriptRoutes = LOCAL_API_ROUTES.filter((route) => route.tag === 'Script V2')
 
-    expect(document.info?.version).toBe('1.11.0-contract-hardening')
+    expect(document.info?.version).toBe('1.12.0-project-recycle-bin')
     expect(scriptRoutes).toHaveLength(4)
     expect(scriptRoutes.map((route) => route.operationId)).toEqual([
       'quoteScriptV2',
@@ -402,7 +418,7 @@ describe('local API manifest and OpenAPI', () => {
       '#/components/schemas/Project',
     )
     expect(responseSchemaRef(operationAt(document, 'DELETE', '/api/projects/{projectId}'), '200')).toBe(
-      '#/components/schemas/ProjectDeleteResponse',
+      '#/components/schemas/ProjectRecycleResponse',
     )
     const duplicateProject = operationAt(document, 'PUT', '/api/projects/{projectId}')
     expect(duplicateProject.requestBody).toBeUndefined()

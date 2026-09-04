@@ -8,7 +8,7 @@ import {
   type SnapshotSummary,
 } from '@/domain/publish'
 import { HttpError } from './http'
-import { findCanvas, readState, withState, type WorkspaceState } from './store'
+import { findCanvas, findProject, readState, withState, type WorkspaceState } from './store'
 
 /*
  * Persistence constraint: `WorkspaceState` is owned by src/server/store.ts and
@@ -70,7 +70,7 @@ export async function publishCanvas(input: PublishInput): Promise<PublishedSnaps
   return withState((state) => {
     const canvas = findCanvas(state, canvasId)
     if (!canvas) throw new HttpError(404, '画布不存在')
-    const project = state.projects.find((p) => p.id === canvas.projectId)
+    const project = findProject(state, canvas.projectId)
     if (!project) throw new HttpError(404, '项目不存在')
     if (canvas.document.nodes.length === 0) throw new HttpError(400, '空画布不能发布')
 

@@ -85,3 +85,44 @@ rm -rf .demo-data .next-demo
   接入边界。
 - 持久化替换仍从 `src/server/store.ts` 开始；demo 只通过 `DATA_DIR` 选择隔离的
   文件目录，不复制或旁路 store 逻辑。
+
+## Playwright 隔离运行
+
+`pnpm e2e` 不会复用演示或交互开发服务的 `:3200`。默认 runner 会启动独立服务：
+
+| 项目      | Playwright 默认值       |
+| --------- | ----------------------- |
+| URL       | `http://127.0.0.1:3210` |
+| 文件数据  | `.data-e2e/`            |
+| Next dist | `.next-e2e/`            |
+
+因此测试与 `pnpm dev`、`pnpm demo` 可同时运行。每次 runner 启动前会验证首页和
+`GET /api/dev/scenario` 的确定性 fixture envelope；验证失败或任何用例异常时，输出会包含
+`baseURL`、`serverDataDir` 与（本地模式的）`nextDistDir`，便于直接定位对应的服务状态。
+
+使用已自行启动的隔离服务时，必须显式提供其 URL，且 runner 会拒绝 `:3200`，避免误触交互预览：
+
+```bash
+# 终端 A：服务与数据目录均独立
+DATA_DIR=/tmp/kokoro-e2e-data \
+NEXT_DIST_DIR=.next-e2e-manual \
+pnpm exec next dev --turbopack -p 3245
+
+# 终端 B：仅连接上面的服务；不会创建、停止或探测 :3200
+E2E_BASE_URL=http://127.0.0.1:3245 \
+E2E_SERVER_DATA_DIR=/tmp/kokoro-e2e-data \
+pnpm e2e
+```
+
+可覆盖默认隔离地址，但 `E2E_PORT=3200` 与 `E2E_BASE_URL=*:3200` 会在浏览器启动前报错：
+
+```bash
+E2E_PORT=3246 \
+E2E_DATA_DIR=/tmp/kokoro-e2e-data \
+E2E_NEXT_DIST_DIR=.next-e2e-3246 \
+pnpm e2e
+```
+
+`E2E_REUSE_SERVER=1` 只用于明确复用同一隔离端口的排障；默认不复用，以免读取另一个
+`DATA_DIR` 的残留服务。`PROD_URL` 与 `E2E_BASE_URL` 互斥：前者继续走 production smoke，
+且不会请求开发 fixture endpoint。

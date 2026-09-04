@@ -12,6 +12,7 @@ import { ConfirmDialog, Dialog } from '../ui/Dialog'
 import { Field, InlineRename } from '../ui/controls'
 import { Tooltip } from '../ui/Tooltip'
 import { LibTvLogo } from '../shell/LibTvLogo'
+import { LocalIdentityMenu } from '../account/LocalIdentityMenu'
 import {
   IconAgent,
   IconChevronDown,
@@ -361,13 +362,7 @@ export function TopBar() {
             <IconCredit size={13} className="text-running" />
             <span data-testid="credit-balance">{balance}</span>
           </Link>
-          <Link
-            href="/account"
-            aria-label="账户"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-gradient-to-br from-sky-100 via-blue-300 to-indigo-500 text-[11px] font-bold text-slate-900 shadow-[var(--shadow-float)] focus-visible:outline-2 focus-visible:outline-accent"
-          >
-            L
-          </Link>
+          <LocalIdentityMenu variant="editor" />
           <button
             type="button"
             data-testid="agent-toggle"

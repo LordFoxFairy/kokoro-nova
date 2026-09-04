@@ -134,6 +134,35 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-empty',
     'authenticated-populated',
   ]),
+  route('GET', '/api/identity', 'Account', 'getLocalIdentity', ['首页或画布头像菜单打开'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('POST', '/api/identity', 'Account', 'updateLocalSession', ['退出登录', '登录并返回'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('GET', '/api/preferences', 'Account', 'getLocalPreferences', ['账户菜单打开', '页面恢复主题'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('PATCH', '/api/preferences', 'Account', 'updateLocalPreferences', ['亮/暗模式切换', 'AI 水印设置'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('GET', '/api/notifications', 'Account', 'getNotificationSummary', ['账户菜单通知 badge'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('POST', '/api/notifications', 'Account', 'markNotificationsRead', ['账户菜单全部通知已读'], [
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
   route('GET', '/api/ledger', 'Ledger', 'listLedgerEntries', ['账户积分余额与明细'], [
     'authenticated-populated',
     ...VIDEO_STATES,

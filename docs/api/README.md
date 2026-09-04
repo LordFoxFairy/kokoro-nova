@@ -16,13 +16,15 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；37 个 path、62 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
+| [`jobs-lifecycle.md`](jobs-lifecycle.md) | 可重放 Job fixture、停止/重试/刷新恢复和一次性账本结算 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
 | [`VIDEO_REFERENCE_STATE.md`](VIDEO_REFERENCE_STATE.md) | Video 图引用、`@` token、局部元素与运镜持久化契约 |
 | [`IMAGE_AUTHORING_STATE.md`](IMAGE_AUTHORING_STATE.md) | Image 模型矩阵、参考、风格、预设与非破坏式派生工具契约 |
 | [`AUDIO_AUTHORING_STATE.md`](AUDIO_AUTHORING_STATE.md) | Audio 六模型、TTS 标记、音色库/克隆、参考与生成契约 |
 | [`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md) | Text 四模型、富文本文档、三个启动 Workflow、编译与内联产物契约 |
 | [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md) | Script V2 状态、四个 operation、批量/幂等/stale writeback 与后端 handoff |
-| [`src/contracts/account.ts`](../../src/contracts/account.ts) | `GET /api/account` 的共享账户身份、钱包、会员、偏好和通知投影 |
+| [`src/contracts/account.ts`](../../src/contracts/account.ts) | `GET /api/account` 的既有账户中心身份、钱包、会员、偏好和通知投影 |
+| [`account-identity.md`](account-identity.md) | 首页与画布共用的 `LocalIdentity`、会话回跳、主题/水印偏好与通知摘要 contract |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
@@ -44,13 +46,13 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.12.0-project-recycle-bin
+Contract version: 1.14.0-generation-lifecycle
 OpenAPI: 3.1.0
 ```
 
 `Contract version` 是当前 mock API 契约的权威版本标记，并与 `openapi.yaml` 的
 `info.version` 保持一致；采用 SemVer `MAJOR.MINOR.PATCH`，可附带标准 prerelease/build
-标识（例如 `1.12.0-project-recycle-bin`）。版本演进不改变非版本化 `/api/*` 路径。
+标识（例如 `1.13.0-local-identity`）。版本演进不改变非版本化 `/api/*` 路径。
 
 当前实现只向本地 Next.js mock 发请求；真实后端接入时以部署层 base URL 切换，不要求页面组件改路径或直接读取环境变量，也不把凭证下沉到组件。
 
@@ -160,7 +162,8 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | Agent | `createAgentSession`, `sendAgentMessage`, `resolveAgentMessage` |
 | Skill | `listSkills`, `getSkill`, `toggleSkillFavorite` |
 | TV Show | `listPublishedSnapshots`, `getPublishedSnapshot`, `publishCanvas` |
-| 账户身份/偏好 | `getAccountProfile` |
+| 账户中心身份/偏好 | `getAccountProfile` |
+| 头像菜单身份/会话/偏好/通知 | `getLocalIdentity`, `updateLocalSession`, `getLocalPreferences`, `updateLocalPreferences`, `getNotificationSummary`, `markNotificationsRead` |
 | 账户积分 | `listLedgerEntries` |
 
 完整触发动作位于每个 OpenAPI operation 的 `x-ui-triggers`，可重放状态位于

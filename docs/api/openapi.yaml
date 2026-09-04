@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.12.0-project-recycle-bin",
+    "version": "1.13.0-local-identity",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -4201,6 +4201,317 @@
           },
           "500": {
             "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取本地身份与会话回跳",
+        "operationId": "getLocalIdentity",
+        "x-ui-triggers": [
+          "首页或画布头像菜单打开"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "returnTo",
+            "in": "query",
+            "required": false,
+            "description": "登录成功后只允许回到本站相对路径",
+            "schema": {
+              "$ref": "#/components/schemas/LocalReturnTo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "脱敏身份与本地会话",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "returnTo 不是站内路径",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 identity mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "切换本地登录会话",
+        "operationId": "updateLocalSession",
+        "x-ui-triggers": [
+          "退出登录",
+          "登录并返回"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的本地会话",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 identity mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/preferences": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取本地显示与水印偏好",
+        "operationId": "getLocalPreferences",
+        "x-ui-triggers": [
+          "账户菜单打开",
+          "页面恢复主题"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "当前 local preference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 preference mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "更新本地显示与水印偏好",
+        "operationId": "updateLocalPreferences",
+        "x-ui-triggers": [
+          "亮/暗模式切换",
+          "AI 水印设置"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已持久化的 local preference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 preference mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取账户菜单通知摘要",
+        "operationId": "getNotificationSummary",
+        "x-ui-triggers": [
+          "账户菜单通知 badge"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "最多三个通知预览与未读数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 notification mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "标记本地菜单通知已读",
+        "operationId": "markNotificationsRead",
+        "x-ui-triggers": [
+          "账户菜单全部通知已读"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "未读数归零后的通知摘要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 notification mock 执行异常",
             "content": {
               "application/json": {
                 "schema": {
@@ -12685,6 +12996,368 @@
             "const": true
           }
         }
+      },
+      "LocalReturnTo": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000,
+        "pattern": "^/(?!/).*$",
+        "description": "仅允许本地相对路径，避免 returnTo 跳转到外站。"
+      },
+      "LocalIdentityAccessKey": {
+        "type": "object",
+        "required": [
+          "label",
+          "maskedValue",
+          "state"
+        ],
+        "properties": {
+          "label": {
+            "const": "Access key"
+          },
+          "maskedValue": {
+            "type": "string",
+            "description": "固定脱敏占位，绝不包含真实凭据"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not-created",
+              "masked"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalIdentityTeam": {
+        "type": "object",
+        "required": [
+          "label",
+          "seatCount"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "seatCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalIdentityMembership": {
+        "type": "object",
+        "required": [
+          "label",
+          "benefit"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "benefit": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalCreditDistribution": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalIdentityCredits": {
+        "type": "object",
+        "required": [
+          "balance",
+          "distributions"
+        ],
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "distributions": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "$ref": "#/components/schemas/LocalCreditDistribution"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalIdentityStorage": {
+        "type": "object",
+        "required": [
+          "usedGb",
+          "totalGb"
+        ],
+        "properties": {
+          "usedGb": {
+            "type": "number",
+            "minimum": 0
+          },
+          "totalGb": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalIdentity": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "avatarInitial",
+          "maskedAccount",
+          "uuidMasked",
+          "accessKey",
+          "team",
+          "membership",
+          "credits",
+          "storage"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarInitial": {
+            "type": "string",
+            "maxLength": 2
+          },
+          "maskedAccount": {
+            "type": "string"
+          },
+          "uuidMasked": {
+            "type": "string",
+            "description": "仅限脱敏 UUID"
+          },
+          "accessKey": {
+            "$ref": "#/components/schemas/LocalIdentityAccessKey"
+          },
+          "team": {
+            "$ref": "#/components/schemas/LocalIdentityTeam"
+          },
+          "membership": {
+            "$ref": "#/components/schemas/LocalIdentityMembership"
+          },
+          "credits": {
+            "$ref": "#/components/schemas/LocalIdentityCredits"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/LocalIdentityStorage"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalSession": {
+        "type": "object",
+        "required": [
+          "status",
+          "returnTo"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "authenticated",
+              "anonymous"
+            ]
+          },
+          "returnTo": {
+            "$ref": "#/components/schemas/LocalReturnTo"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IdentityResponse": {
+        "type": "object",
+        "required": [
+          "identity",
+          "session"
+        ],
+        "properties": {
+          "identity": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session": {
+            "$ref": "#/components/schemas/LocalSession"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateSessionRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "signIn",
+              "signOut"
+            ]
+          },
+          "returnTo": {
+            "$ref": "#/components/schemas/LocalReturnTo"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LocalPreferences": {
+        "type": "object",
+        "required": [
+          "theme",
+          "aiWatermark"
+        ],
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark"
+            ]
+          },
+          "aiWatermark": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreferencesResponse": {
+        "type": "object",
+        "required": [
+          "preferences"
+        ],
+        "properties": {
+          "preferences": {
+            "$ref": "#/components/schemas/LocalPreferences"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdatePreferencesRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark"
+            ]
+          },
+          "aiWatermark": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotificationItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "body",
+          "createdAt",
+          "unread"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unread": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotificationSummary": {
+        "type": "object",
+        "required": [
+          "unreadCount",
+          "totalCount",
+          "items"
+        ],
+        "properties": {
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/NotificationItem"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotificationsResponse": {
+        "type": "object",
+        "required": [
+          "notifications"
+        ],
+        "properties": {
+          "notifications": {
+            "$ref": "#/components/schemas/NotificationSummary"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateNotificationsRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "const": "markAllRead"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "examples": {

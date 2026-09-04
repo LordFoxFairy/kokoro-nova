@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import type { HomeDiscoveryResponse } from '@/contracts/home'
 import { IconCredit } from '@/components/icons'
+import { LocalIdentityMenu } from '@/components/account/LocalIdentityMenu'
 
 type AccountRailProps = {
   account: HomeDiscoveryResponse['account'] | null
@@ -41,14 +42,7 @@ export function AccountRail({ account }: AccountRailProps) {
         <IconCredit size={14} className="text-white" />
         <span data-testid="shell-credit-balance">{account?.credits ?? '—'}</span>
       </RailButton>
-      <Link
-        href="/account"
-        aria-label="账户"
-        className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-gradient-to-br from-[#e9d8ff] to-[#6872ff] text-[12px] font-bold text-[#20213a]"
-      >
-        L
-        <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-[#ff5959]" />
-      </Link>
+      <LocalIdentityMenu variant="rail" />
     </header>
   )
 }

@@ -148,6 +148,10 @@ const CANVAS_FOCUS_STYLES = `
   outline-offset: 3px;
   box-shadow: 0 0 0 4px rgba(103, 209, 243, 0.22);
 }
+[data-testid="workflow-canvas"] .react-flow__edge:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
 [data-testid="workflow-canvas"] button[data-testid^="reference-candidate-"]:focus-visible,
 [data-testid="workflow-canvas"] button[data-testid^="element-candidate-"]:focus-visible {
   outline: 2px solid #ffffff;

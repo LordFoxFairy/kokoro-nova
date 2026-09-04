@@ -1,5 +1,7 @@
+import { AssetListFixtureSchema, AssetListVisibilitySchema } from '@/contracts/assets'
 import { ids } from '@/domain/ids'
 import type { Asset, AssetNamespace, AssetTag } from '@/domain/types'
+import { assetLifecycleView, assetMatchesLifecycle, setAssetLifecycle } from '@/server/assets'
 import { handle } from '@/server/http'
 import { DEFAULT_SPACE_ID, readState, withState } from '@/server/store'
 
@@ -12,17 +14,40 @@ export async function GET(request: Request) {
     const kind = url.searchParams.get('kind')
     const query = (url.searchParams.get('q') ?? '').trim().toLowerCase()
     const tag = url.searchParams.get('tag')
+    const visibility = AssetListVisibilitySchema.catch('active').parse(url.searchParams.get('visibility') ?? 'active')
+    const fixture = AssetListFixtureSchema.catch('none').parse(url.searchParams.get('fixture') ?? 'none')
 
     const state = await readState()
-    // Only committed rows are library content. A `staging` row has not cleared
-    // content validation, and a `revoked` one has been withdrawn.
-    let assets = state.assets.filter((a) => a.spaceId === DEFAULT_SPACE_ID && a.state === 'committed')
-    if (namespace) assets = assets.filter((a) => a.namespace === namespace)
-    if (kind) assets = assets.filter((a) => a.kind === kind)
-    if (tag) assets = assets.filter((a) => a.tags.includes(tag as AssetTag))
-    if (query) assets = assets.filter((a) => a.name.toLowerCase().includes(query))
+    // Fixture is response-local: it exercises the unavailable-media card with
+    // stable bytes and never poisons a user's persisted normal listing.
+    const fixtureOverrides = new Map<string, ReturnType<typeof assetLifecycleView>['lifecycle']>()
+    if (fixture === 'media-missing') {
+      const first = state.assets.find((asset) => asset.spaceId === DEFAULT_SPACE_ID && asset.state === 'committed')
+      if (first) {
+        fixtureOverrides.set(first.id, {
+          ...assetLifecycleView(state, first).lifecycle,
+          availability: 'missing',
+          reason: 'media_url_unavailable',
+        })
+      }
+    }
 
-    return { assets: assets.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }
+    let assets = state.assets.filter((asset) => asset.spaceId === DEFAULT_SPACE_ID)
+    if (namespace) assets = assets.filter((asset) => asset.namespace === namespace)
+    if (kind) assets = assets.filter((asset) => asset.kind === kind)
+    if (tag) assets = assets.filter((asset) => asset.tags.includes(tag as AssetTag))
+    if (query) assets = assets.filter((asset) => asset.name.toLowerCase().includes(query))
+
+    return {
+      assets: assets
+        .map((asset) => {
+          const view = assetLifecycleView(state, asset)
+          const lifecycle = fixtureOverrides.get(asset.id) ?? view.lifecycle
+          return { ...view, lifecycle }
+        })
+        .filter((asset) => assetMatchesLifecycle(asset, asset.lifecycle, visibility))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    }
   })
 }
 
@@ -45,7 +70,7 @@ export async function POST(request: Request) {
       if (!artifact) throw new Error('产物不存在')
 
       const existing = state.assets.find((a) => a.sourceArtifactId === artifact.id)
-      if (existing) return existing
+      if (existing) return assetLifecycleView(state, existing)
 
       const asset: Asset = {
         id: ids.asset(),
@@ -61,14 +86,13 @@ export async function POST(request: Request) {
         byteSize: 0,
         tags: body.tags ?? [],
         folderId: null,
-        // Generated artifacts skip quarantine: they never left the platform.
         state: 'committed',
         createdAt: new Date().toISOString(),
         sourceArtifactId: artifact.id,
       }
       state.assets.push(asset)
       artifact.assetId = asset.id
-      return asset
+      return setAssetLifecycle(state, asset, 'active', 'available')
     })
   })
 }

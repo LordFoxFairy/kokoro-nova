@@ -1,5 +1,6 @@
 import { createNode } from './factory'
 import { NODE_META } from './nodes'
+import type { AssetAvailability, AssetLifecycle, AssetLifecycleReason } from './assets'
 import type { CanvasMutation, WorkflowDocument, WorkflowNode, Artifact, NodeReference } from './types'
 
 /**
@@ -11,6 +12,13 @@ import type { CanvasMutation, WorkflowDocument, WorkflowNode, Artifact, NodeRefe
 export type StoryboardColumnId = 'audio' | 'text' | 'image' | 'video'
 
 export type VideoFilter = 'all' | 'final' | 'clip'
+
+export interface StoryboardDegradation {
+  availability: Exclude<AssetAvailability, 'active'>
+  reason: AssetLifecycleReason
+  /** Asset id exists when a saved asset is the recovery target. */
+  assetId: string | null
+}
 
 export interface StoryboardCard {
   nodeId: string
@@ -37,6 +45,8 @@ export interface StoryboardCard {
   durationLabel: string | null
   /** Inline Text artifact copy, when the provider returned one. */
   textContent?: string | null
+  /** Present only when an otherwise projectable card must render a recovery state. */
+  degradation?: StoryboardDegradation
 }
 
 export interface StoryboardReference {
@@ -46,6 +56,8 @@ export interface StoryboardReference {
   origin: NodeReference['origin']
   refId: string
   thumbnailUrl: string | null
+  /** A deleted source remains an inspectable provenance chip, not a vanished edge. */
+  degradation?: Pick<StoryboardDegradation, 'availability' | 'reason'>
 }
 
 export interface StoryboardProjection {
@@ -102,7 +114,24 @@ function referencesOf(doc: WorkflowDocument, node: WorkflowNode): StoryboardRefe
   }
 
   for (const ref of node.data.references ?? []) {
-    if (ref.origin === 'node') continue
+    if (ref.origin === 'node') {
+      // A storyboard-origin delete snapshots the source as an explicit node
+      // reference before the reducer removes its edge. If the source survived,
+      // an edge already represents it; if it did not, render an orphan chip.
+      const sourceStillExists = doc.nodes.some((candidate) => candidate.id === ref.refId)
+      if (!sourceStillExists && ref.id.startsWith('orphan:')) {
+        refs.push({
+          id: `ref:${ref.id}`,
+          label: ref.label,
+          kind: ref.kind,
+          origin: ref.origin,
+          refId: ref.refId,
+          thumbnailUrl: ref.thumbnailUrl ?? null,
+          degradation: { availability: 'deleted', reason: 'source_node_deleted' },
+        })
+      }
+      continue
+    }
     refs.push({
       id: `ref:${ref.id}`,
       label: ref.label,
@@ -114,6 +143,31 @@ function referencesOf(doc: WorkflowDocument, node: WorkflowNode): StoryboardRefe
   }
 
   return refs
+}
+
+function removedArtifact(node: WorkflowNode): Artifact | null {
+  const raw = node.data.extra?.storyboardLifecycle
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const candidates = (raw as { removedArtifacts?: unknown }).removedArtifacts
+  if (!Array.isArray(candidates) || candidates.length === 0) return null
+  const value = candidates[0]
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const artifact = value as Partial<Artifact>
+  if (!artifact.id || !artifact.jobId || !artifact.kind || !artifact.url || !artifact.createdAt || !artifact.modelId) return null
+  return {
+    id: artifact.id,
+    jobId: artifact.jobId,
+    kind: artifact.kind,
+    url: artifact.url,
+    thumbnailUrl: artifact.thumbnailUrl ?? null,
+    width: artifact.width ?? null,
+    height: artifact.height ?? null,
+    durationSeconds: artifact.durationSeconds ?? null,
+    createdAt: artifact.createdAt,
+    modelId: artifact.modelId,
+    assetId: artifact.assetId ?? null,
+    textContent: artifact.textContent ?? null,
+  }
 }
 
 /**
@@ -136,6 +190,7 @@ function videoKindOf(doc: WorkflowDocument, node: WorkflowNode): 'final' | 'clip
 export function projectStoryboard(
   doc: WorkflowDocument,
   modelLabelOf: (modelId: string | undefined) => string | null,
+  assetLifecycleOf: (assetId: string) => Pick<AssetLifecycle, 'availability' | 'reason'> | null = () => null,
 ): StoryboardProjection {
   const projection: StoryboardProjection = { audio: [], text: [], image: [], video: [], isEmpty: true }
 
@@ -151,6 +206,15 @@ export function projectStoryboard(
 
     const artifacts = node.data.artifacts ?? []
     const artifact = artifacts[0] ?? null
+    const removed = artifact ? null : removedArtifact(node)
+    const assetLifecycle = artifact?.assetId ? assetLifecycleOf(artifact.assetId) : null
+    let degradation: StoryboardDegradation | undefined
+    const availability = assetLifecycle?.availability
+    if (availability === 'missing' || availability === 'deleted' || availability === 'recoverable') {
+      degradation = { availability, reason: assetLifecycle?.reason ?? 'available', assetId: artifact?.assetId ?? null }
+    } else if (removed) {
+      degradation = { availability: 'missing', reason: 'source_artifact_removed', assetId: removed.assetId }
+    }
 
     projection[column].push({
       nodeId: node.id,
@@ -169,6 +233,7 @@ export function projectStoryboard(
       dimensions: dimensionsLabel(artifact),
       durationLabel: durationLabel(artifact),
       textContent: artifact?.kind === 'text' ? (artifact.textContent ?? null) : null,
+      ...(degradation ? { degradation } : {}),
     })
     projection.isEmpty = false
   }

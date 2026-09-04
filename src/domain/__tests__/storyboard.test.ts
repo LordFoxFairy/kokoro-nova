@@ -344,3 +344,65 @@ describe('duplicateStoryboardNode', () => {
     expect(duplicateStoryboardNode(doc, 'nd_style')).toBeNull()
   })
 })
+
+describe('projectStoryboard / asset lifecycle degradation', () => {
+  it('keeps a card visible when its registered media URL is unavailable', () => {
+    const image = node('image', 'nd_missing_media', '2026-01-01T00:00:00.000Z', {
+      artifacts: [artifact('image', 'https://cdn.test/seed.png', { assetId: 'asset_seed' })],
+    })
+
+    const [card] = projectStoryboard(build([image]), labelOf, (assetId) =>
+      assetId === 'asset_seed' ? { availability: 'missing', reason: 'media_url_unavailable' } : null,
+    ).image
+
+    expect(card.nodeId).toBe('nd_missing_media')
+    expect(card.artifact?.id).toBeTruthy()
+    expect(card.degradation).toEqual({
+      availability: 'missing',
+      reason: 'media_url_unavailable',
+      assetId: 'asset_seed',
+    })
+  })
+
+  it('retains an orphaned source reference after a source node is deleted', () => {
+    const target = node('video', 'nd_target', '2026-01-01T00:00:00.000Z', {
+      references: [{
+        id: 'orphan:ref_deleted_source',
+        kind: 'image',
+        origin: 'node',
+        refId: 'nd_deleted_source',
+        label: '已删除的首帧',
+        thumbnailUrl: '/fixtures/libtv/media/first-frame.webp',
+      }],
+    })
+
+    const [card] = projectStoryboard(build([target]), labelOf).video
+
+    expect(card.references).toEqual([{
+      id: 'ref:orphan:ref_deleted_source',
+      label: '已删除的首帧',
+      kind: 'image',
+      origin: 'node',
+      refId: 'nd_deleted_source',
+      thumbnailUrl: '/fixtures/libtv/media/first-frame.webp',
+      degradation: { availability: 'deleted', reason: 'source_node_deleted' },
+    }])
+  })
+
+  it('keeps an artifact-removed node in the storyboard as a recovery card', () => {
+    const prior = artifact('video', 'https://cdn.test/removed.mp4', { assetId: 'asset_removed' })
+    const video = node('video', 'nd_removed_artifact', '2026-01-01T00:00:00.000Z', {
+      artifacts: [],
+      extra: { storyboardLifecycle: { removedArtifacts: [prior] } },
+    })
+
+    const [card] = projectStoryboard(build([video]), labelOf).video
+
+    expect(card.pending).toBe(true)
+    expect(card.degradation).toEqual({
+      availability: 'missing',
+      reason: 'source_artifact_removed',
+      assetId: 'asset_removed',
+    })
+  })
+})

@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { listLifecycleAssets } from '@/api/assets'
+import { ASSET_AVAILABILITY_LABELS, ASSET_LIFECYCLE_REASON_LABELS, type AssetLifecycle } from '@/domain/assets'
 import { MODELS_BY_ID } from '@/domain/models'
 import {
   filterVideoCards,
@@ -75,12 +77,34 @@ export function StoryboardView({
   const [expanded, setExpanded] = useState<ExpandedColumn>(null)
   const [detailNodeId, setDetailNodeId] = useState<string | null>(null)
   const [clipEditorOpen, setClipEditorOpen] = useState(false)
+  const [assetLifecycleById, setAssetLifecycleById] = useState<Record<string, AssetLifecycle>>({})
 
   const filterMenu = useMenuAnchor()
 
+  const reloadAssetLifecycles = useCallback(async () => {
+    try {
+      const result = await listLifecycleAssets({ visibility: 'all' })
+      setAssetLifecycleById(Object.fromEntries(result.assets.map((asset) => [asset.id, asset.lifecycle])))
+    } catch {
+      // A lifecycle lookup failure never removes a storyboard card. The
+      // document continues to render with a conservative active fallback.
+    }
+  }, [])
+
+  useEffect(() => {
+    void reloadAssetLifecycles()
+    const onLifecycleChange = () => void reloadAssetLifecycles()
+    window.addEventListener('kokoro:asset-lifecycle-changed', onLifecycleChange)
+    return () => window.removeEventListener('kokoro:asset-lifecycle-changed', onLifecycleChange)
+  }, [reloadAssetLifecycles])
+
   const projection = useMemo(
-    () => projectStoryboard(document, (modelId) => (modelId ? MODELS_BY_ID.get(modelId)?.label ?? null : null)),
-    [document],
+    () => projectStoryboard(
+      document,
+      (modelId) => (modelId ? MODELS_BY_ID.get(modelId)?.label ?? null : null),
+      (assetId) => assetLifecycleById[assetId] ?? null,
+    ),
+    [assetLifecycleById, document],
   )
 
   const videoCards = filterVideoCards(projection.video, videoFilter)
@@ -171,9 +195,11 @@ export function StoryboardView({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px] text-ink-700">{card.nodeName}</span>
-                      {card.durationLabel && (
+                      {card.degradation ? (
+                        <span data-testid={`storyboard-degradation-${card.nodeId}`} className="block text-[10px] text-danger">{ASSET_AVAILABILITY_LABELS[card.degradation.availability]} · {ASSET_LIFECYCLE_REASON_LABELS[card.degradation.reason]}</span>
+                      ) : card.durationLabel ? (
                         <span className="block text-[10px] text-ink-400">{card.durationLabel}</span>
-                      )}
+                      ) : null}
                     </span>
                   </button>
                 ))}
@@ -197,9 +223,11 @@ export function StoryboardView({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px] text-ink-700">{card.nodeName}</span>
-                      {card.textContent && (
+                      {card.degradation ? (
+                        <span data-testid={`storyboard-degradation-${card.nodeId}`} className="mt-0.5 block truncate text-[10px] text-danger">{ASSET_AVAILABILITY_LABELS[card.degradation.availability]} · {ASSET_LIFECYCLE_REASON_LABELS[card.degradation.reason]}</span>
+                      ) : card.textContent ? (
                         <span className="mt-0.5 block truncate text-[10px] text-ink-400">{card.textContent}</span>
-                      )}
+                      ) : null}
                     </span>
                   </button>
                 ))}
@@ -389,7 +417,7 @@ function MediaGrid({
               className="overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
             >
               <div style={{ aspectRatio: mediaAspectRatio(card) }}>
-                {artifact ? (
+                {artifact && !card.degradation ? (
                   <ArtifactPreview
                     url={artifact.url}
                     kind={artifact.kind}
@@ -397,6 +425,8 @@ function MediaGrid({
                     alt={card.nodeName}
                     className="h-full w-full object-contain"
                   />
+                ) : card.degradation ? (
+                  <StoryboardDegradationNotice card={card} compact />
                 ) : (
                   <MediaPlaceholder kind={kind} />
                 )}
@@ -426,7 +456,7 @@ function MediaGrid({
             className="block w-full overflow-hidden rounded-xl bg-ink-100 text-left transition-shadow hover:shadow-[var(--shadow-float)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             style={{ aspectRatio: mediaAspectRatio(card) }}
           >
-            {card.artifact ? (
+            {card.artifact && !card.degradation ? (
               <ArtifactPreview
                 url={card.artifact.url}
                 kind={card.artifact.kind}
@@ -434,6 +464,8 @@ function MediaGrid({
                 alt={card.nodeName}
                 className="h-full w-full object-contain"
               />
+            ) : card.degradation ? (
+              <StoryboardDegradationNotice card={card} />
             ) : (
               <MediaPlaceholder kind={kind} />
             )}
@@ -453,10 +485,10 @@ function MediaGrid({
               {card.references.map((ref) => (
                 <span
                   key={ref.id}
-                  className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-ink-100"
-                  title={ref.label}
+                  className={cn('flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-ink-100', ref.degradation && 'ring-1 ring-danger/50 opacity-70')}
+                  title={ref.degradation ? `${ref.label}：${ASSET_LIFECYCLE_REASON_LABELS[ref.degradation.reason]}` : ref.label}
                 >
-                  {ref.thumbnailUrl ? (
+                  {ref.thumbnailUrl && !ref.degradation ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={ref.thumbnailUrl} alt={ref.label} className="h-full w-full object-cover" />
                   ) : (
@@ -468,6 +500,21 @@ function MediaGrid({
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function StoryboardDegradationNotice({ card, compact = false }: { card: StoryboardCard; compact?: boolean }) {
+  if (!card.degradation) return null
+  const { availability, reason } = card.degradation
+  return (
+    <div
+      data-testid={`storyboard-degradation-${card.nodeId}`}
+      className={cn('flex h-full w-full flex-col items-center justify-center gap-1 bg-danger/8 px-3 text-center text-danger', compact && 'text-[10px]')}
+    >
+      <span className="text-[12px] font-medium">{ASSET_AVAILABILITY_LABELS[availability]}</span>
+      <span className="max-w-[220px] text-[10px] leading-relaxed text-danger/80">{ASSET_LIFECYCLE_REASON_LABELS[reason]}</span>
+      {card.degradation.assetId && availability === 'recoverable' && <span className="text-[10px] text-danger/80">打开详情后可恢复资产</span>}
     </div>
   )
 }

@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { AssetFolder } from '@/app/api/assets/folders/route'
 import type { Asset, AssetKind, AssetNamespace, AssetTag } from '@/domain/types'
+import { ASSET_AVAILABILITY_LABELS, defaultAssetLifecycle, type AssetLifecycleView } from '@/domain/assets'
+import { changeAssetLifecycle, listLifecycleAssets } from '@/api/assets'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -118,7 +120,8 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   const [activeTags, setActiveTags] = useState<AssetTag[]>([])
   const [folderId, setFolderId] = useState<string | null>(null)
 
-  const [assets, setAssets] = useState<Asset[]>([])
+  const [assets, setAssets] = useState<AssetLifecycleView[]>([])
+  const [showUnavailable, setShowUnavailable] = useState(false)
   const [folders, setFolders] = useState<AssetFolder[]>([])
   const [folderCounts, setFolderCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
@@ -136,8 +139,8 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   const [tagEditor, setTagEditor] = useState<{ ids: string[]; draft: AssetTag[] } | null>(null)
   const [moveEditor, setMoveEditor] = useState<{ ids: string[]; target: string | null } | null>(null)
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null)
-  const [cardMenu, setCardMenu] = useState<{ asset: Asset; anchor: { x: number; y: number } } | null>(null)
-  const [detailAsset, setDetailAsset] = useState<Asset | null>(null)
+  const [cardMenu, setCardMenu] = useState<{ asset: AssetLifecycleView; anchor: { x: number; y: number } } | null>(null)
+  const [detailAsset, setDetailAsset] = useState<AssetLifecycleView | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
 
   const createMenu = useMenuAnchor()
@@ -168,7 +171,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   const loadAssets = useCallback(async () => {
     const seq = requestSeq.current + 1
     requestSeq.current = seq
-    const key = `${namespace}:${committedQuery}`
+    const key = `${namespace}:${committedQuery}:${showUnavailable}`
     if (requestKey.current !== key) {
       // A namespace/search change must not briefly display rows from the old
       // request while the new local fixture is loading.
@@ -180,11 +183,13 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
     try {
       // Kind stays out of the request: the rail shows a count per category, and
       // a kind-filtered response could only ever count the selected one.
-      const params = new URLSearchParams({ namespace })
-      if (committedQuery) params.set('q', committedQuery)
-      const data = await api.get<{ assets: Asset[] }>(`/api/assets?${params.toString()}`)
+      const data = await listLifecycleAssets({
+        namespace,
+        visibility: showUnavailable ? 'unavailable' : 'active',
+      })
       if (requestSeq.current !== seq) return
-      setAssets(data.assets)
+      const query = committedQuery.toLocaleLowerCase('zh-CN')
+      setAssets(query ? data.assets.filter((asset) => `${asset.name}\n${asset.tags.join(' ')}`.toLocaleLowerCase('zh-CN').includes(query)) : data.assets)
     } catch (error) {
       if (requestSeq.current !== seq) return
       const message = error instanceof Error ? error.message : '资产加载失败'
@@ -193,7 +198,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
     } finally {
       if (requestSeq.current === seq) setLoading(false)
     }
-  }, [namespace, committedQuery, toast])
+  }, [namespace, committedQuery, showUnavailable, toast])
 
   useEffect(() => {
     if (!open) return
@@ -217,6 +222,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
     setDetailAsset(null)
     setFolderId(null)
     setUploadOpen(false)
+    setShowUnavailable(false)
   }, [open])
 
   // A selection only makes sense for what is on screen; any filter change
@@ -224,7 +230,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   useEffect(() => {
     setSelected([])
     setCapHit(false)
-  }, [namespace, category, committedQuery, activeTags, folderId])
+  }, [namespace, category, committedQuery, activeTags, folderId, showUnavailable])
 
   /** Everything the current folder, search and tags allow, before the rail. */
   const scoped = useMemo(
@@ -233,7 +239,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
         folderId,
         query: committedQuery,
         tags: activeTags,
-      }),
+      }) as AssetLifecycleView[],
     [assets, folderId, committedQuery, activeTags],
   )
 
@@ -311,12 +317,20 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
    * Writes
    * ---------------------------------------------------------------- */
 
-  const applyPatched = (asset: Asset) =>
+  const applyPatched = (asset: AssetLifecycleView) =>
     setAssets((prev) => prev.map((a) => (a.id === asset.id ? asset : a)))
 
   const patchAsset = async (id: string, patch: { name?: string; tags?: AssetTag[]; folderId?: string | null }) => {
-    const updated = await api.patch<Asset>(`/api/assets/${id}`, patch)
+    const updated = await api.patch<AssetLifecycleView>(`/api/assets/${id}`, patch)
     applyPatched(updated)
+  }
+
+  const restoreAsset = async (asset: AssetLifecycleView) => {
+    await runSingle(async () => {
+      await changeAssetLifecycle(asset.id, 'restore')
+      await loadAssets()
+      toast(`已恢复「${asset.name}」`, 'success')
+    }, '恢复失败')
   }
 
   const runSingle = async (action: () => Promise<void>, failure: string) => {
@@ -382,7 +396,8 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
   /** A committed upload joins the listing in place: the endpoint returns the
    * finished row, so nothing has to be refetched to make it visible. */
   const addUploaded = (asset: Asset) => {
-    setAssets((prev) => [asset, ...prev.filter((a) => a.id !== asset.id)])
+    const view: AssetLifecycleView = { ...asset, lifecycle: defaultAssetLifecycle(asset) }
+    setAssets((prev) => [view, ...prev.filter((a) => a.id !== asset.id)])
   }
 
   /* ---------------------------------------------------------------- *
@@ -452,6 +467,18 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
               <Spinner size={14} />
             </span>
           )}
+          <button
+            type="button"
+            data-testid="asset-lifecycle-toggle"
+            aria-pressed={showUnavailable}
+            onClick={() => setShowUnavailable((current) => !current)}
+            className={cn(
+              'rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
+              showUnavailable ? 'bg-amber-100 text-amber-800' : 'bg-ink-100 text-ink-600 hover:bg-ink-200',
+            )}
+          >
+            {showUnavailable ? '恢复箱' : '可用资产'}
+          </button>
           <span
             data-testid="asset-library-status"
             aria-live="polite"
@@ -557,6 +584,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
           <button
             type="button"
             data-testid="asset-batch-toggle"
+            disabled={showUnavailable}
             aria-pressed={selectionMode}
             onClick={() => {
               setSelectionMode(!selectionMode)
@@ -575,6 +603,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
           <button
             type="button"
             data-testid="asset-create"
+            disabled={showUnavailable}
             onClick={(e) => createMenu.openFrom(e)}
             className="flex items-center gap-1 rounded-lg bg-ink-900 px-3 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-85"
           >
@@ -716,6 +745,7 @@ export function AssetLibraryPanel({ open, onClose, onInsert, onUpload }: AssetLi
                   onCommitRename={(next) => commitRename(asset, next)}
                   onCancelRename={() => setRenamingId(null)}
                   onOpenMenu={(anchor) => setCardMenu({ asset, anchor })}
+                  onRestore={() => void restoreAsset(asset)}
                 />
               ))}
             </div>
@@ -989,8 +1019,9 @@ function AssetCard({
   onCommitRename,
   onCancelRename,
   onOpenMenu,
+  onRestore,
 }: {
-  asset: Asset
+  asset: AssetLifecycleView
   selectionMode: boolean
   selected: boolean
   blockedByCap: boolean
@@ -1000,6 +1031,7 @@ function AssetCard({
   onCommitRename: (next: string) => void
   onCancelRename: () => void
   onOpenMenu: (anchor: { x: number; y: number }) => void
+  onRestore: () => void
 }) {
   const meta = describeAsset(asset)
 
@@ -1010,13 +1042,13 @@ function AssetCard({
       tabIndex={0}
       aria-pressed={selectionMode ? selected : undefined}
       aria-label={asset.name}
-      title={blockedByCap ? '已达选择上限' : asset.name}
+      title={blockedByCap ? '已达选择上限' : asset.lifecycle.availability === 'active' ? asset.name : `${asset.name}：${ASSET_AVAILABILITY_LABELS[asset.lifecycle.availability]}`}
       onClick={() => {
-        if (renaming) return
+        if (renaming || asset.lifecycle.availability !== 'active') return
         onActivate()
       }}
       onKeyDown={(e) => {
-        if (renaming) return
+        if (renaming || asset.lifecycle.availability !== 'active') return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onActivate()
@@ -1040,7 +1072,15 @@ function AssetCard({
           </span>
         ) : null}
 
-        {selectionMode ? (
+        {asset.lifecycle.availability !== 'active' ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink-900/65 px-3 text-center text-white">
+            <span className="text-[11px] font-medium">{ASSET_AVAILABILITY_LABELS[asset.lifecycle.availability]}</span>
+            <span className="text-[10px] text-white/75">{asset.lifecycle.reason === 'media_url_unavailable' ? '媒体地址暂时不可用' : '资产仍保留来源记录'}</span>
+            {asset.lifecycle.availability === 'recoverable' && (
+              <button type="button" data-testid={`asset-restore-${asset.id}`} onClick={(event) => { event.stopPropagation(); onRestore() }} className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-medium text-ink-900">恢复资产</button>
+            )}
+          </div>
+        ) : selectionMode ? (
           <div
             className={cn(
               'absolute inset-0 transition-colors',
@@ -1122,7 +1162,7 @@ function AssetDetailDialog({
   onClose,
   onInsert,
 }: {
-  asset: Asset | null
+  asset: AssetLifecycleView | null
   onClose: () => void
   onInsert: (asset: Asset) => void
 }) {

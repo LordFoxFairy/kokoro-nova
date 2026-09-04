@@ -1,3 +1,5 @@
+import { AssetLifecycleActionRequestSchema } from '@/contracts/assets'
+import { setAssetLifecycle, assetLifecycleView } from '@/server/assets'
 import type { AssetTag } from '@/domain/types'
 import { HttpError, handle } from '@/server/http'
 import { withState, type WorkspaceState } from '@/server/store'
@@ -14,71 +16,71 @@ function isAssetTag(value: unknown): value is AssetTag {
   return typeof value === 'string' && (ASSET_TAGS as string[]).includes(value)
 }
 
-/**
- * Asset folders live under a runtime-attached key on the workspace state —
- * see the comment in ../folders/route.ts. Absent on a store that never created
- * a folder, so an empty list is the correct fallback rather than an error.
- */
 function readAssetFolders(state: WorkspaceState): AssetFolder[] {
   const stored = (state as WorkspaceState & { assetFolders?: AssetFolder[] }).assetFolders
   return Array.isArray(stored) ? stored : []
 }
 
-/** 重命名 / 修改标签 / 移动到文件夹 — each field is applied only when present. */
+/** Rename/tags/folder and lifecycle are one PATCH contract so the UI can restore a soft-deleted row. */
 export async function PATCH(request: Request, { params }: Params) {
   return handle(async () => {
     const { assetId } = await params
-    const body = (await request.json()) as {
-      name?: string
-      tags?: unknown
-      folderId?: string | null
-    }
+    const raw = (await request.json()) as unknown
+    const lifecycleAction = AssetLifecycleActionRequestSchema.safeParse(raw)
     return withState((state) => {
-      const asset = state.assets.find((a) => a.id === assetId)
+      const asset = state.assets.find((item) => item.id === assetId)
       if (!asset) throw new HttpError(404, '资产不存在')
+
+      if (lifecycleAction.success) {
+        if (lifecycleAction.data.action === 'restore') {
+          const view = assetLifecycleView(state, asset)
+          if (view.lifecycle.availability !== 'recoverable') throw new HttpError(409, '该资产当前不可恢复')
+          asset.state = 'committed'
+          return setAssetLifecycle(state, asset, 'active', 'available')
+        }
+        // Fixture-only failure state: bytes and URL stay untouched so a later
+        // restore to active has no hidden data mutation.
+        if (asset.state !== 'committed') throw new HttpError(409, '该资产当前不可标记为媒体失效')
+        return setAssetLifecycle(state, asset, 'missing', 'media_url_unavailable')
+      }
+
+      const body = raw as { name?: string; tags?: unknown; folderId?: string | null }
       if (asset.state === 'revoked') throw new HttpError(410, '资产已删除')
+      if (assetLifecycleView(state, asset).lifecycle.availability !== 'active') {
+        throw new HttpError(409, '资产媒体不可用')
+      }
 
       if (typeof body.name === 'string') {
         const name = body.name.trim()
-        // An empty rename silently keeps the old name rather than erroring.
         if (name) asset.name = name
       }
-
       if (body.tags !== undefined) {
         if (!Array.isArray(body.tags)) throw new HttpError(400, '标签需要是数组')
         const invalid = body.tags.find((tag) => !isAssetTag(tag))
         if (invalid !== undefined) throw new HttpError(400, `标签不存在：${String(invalid)}`)
         const requested = body.tags as AssetTag[]
-        // Rebuild from the canonical order so duplicates collapse and the chip
-        // row reads the same no matter what order the client sent.
         asset.tags = ASSET_TAGS.filter((tag) => requested.includes(tag))
       }
-
       if (body.folderId !== undefined) {
-        if (body.folderId !== null && !readAssetFolders(state).some((f) => f.id === body.folderId)) {
+        if (body.folderId !== null && !readAssetFolders(state).some((folder) => folder.id === body.folderId)) {
           throw new HttpError(404, '文件夹不存在')
         }
         asset.folderId = body.folderId
       }
-
-      return asset
+      return assetLifecycleView(state, asset)
     })
   })
 }
 
-/**
- * Soft delete. Artifacts keep the id of the asset they were registered as, and
- * nodes keep asset references, so dropping the row would leave both pointing at
- * nothing; revoking hides it from every listing while the links stay resolvable.
- */
+/** Soft deletion retains the row and source IDs, exposing a recoverable lifecycle. */
 export async function DELETE(_request: Request, { params }: Params) {
   return handle(async () => {
     const { assetId } = await params
     return withState((state) => {
-      const asset = state.assets.find((a) => a.id === assetId)
+      const asset = state.assets.find((item) => item.id === assetId)
       if (!asset) throw new HttpError(404, '资产不存在')
       asset.state = 'revoked'
-      return asset
+      return setAssetLifecycle(state, asset, 'recoverable', 'deleted_by_user')
     })
   })
 }

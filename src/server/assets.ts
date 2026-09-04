@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { ids, newId } from '@/domain/ids'
 import type { Asset, AssetKind, AssetNamespace } from '@/domain/types'
+import { defaultAssetLifecycle, type AssetLifecycle, type AssetLifecycleReason, type AssetLifecycleView } from '@/domain/assets'
 import { MEDIA_PUBLIC_PREFIX } from './generation/runner'
 import { sanitizeSvg } from './svg-sanitize'
 import { DEFAULT_SPACE_ID, MEDIA_DIR, type WorkspaceState } from './store'
@@ -654,6 +655,59 @@ export async function sweepAbandonedStaging(
   const dropped = new Set(stale.map((asset) => asset.id))
   state.assets = state.assets.filter((asset) => !dropped.has(asset.id))
   return stale.length
+}
+
+/* ------------------------------------------------------------------ *
+ * Library availability lifecycle
+ * ------------------------------------------------------------------ */
+
+/**
+ * Availability lives beside the legacy asset rows instead of replacing their
+ * upload-gate state. Older workspace files have no map; their effective state
+ * is derived from `Asset.state`, so this migration is backwards compatible.
+ */
+type AssetLifecycleCarrier = WorkspaceState & { assetLifecycles?: Record<string, AssetLifecycle> }
+
+function lifecycleTable(state: WorkspaceState): Record<string, AssetLifecycle> {
+  const carrier = state as AssetLifecycleCarrier
+  if (!carrier.assetLifecycles) carrier.assetLifecycles = {}
+  return carrier.assetLifecycles
+}
+
+export function assetLifecycleFor(state: WorkspaceState, asset: Asset): AssetLifecycle {
+  return lifecycleTable(state)[asset.id] ?? defaultAssetLifecycle(asset)
+}
+
+export function assetLifecycleView(state: WorkspaceState, asset: Asset): AssetLifecycleView {
+  return { ...asset, lifecycle: assetLifecycleFor(state, asset) }
+}
+
+export function setAssetLifecycle(
+  state: WorkspaceState,
+  asset: Asset,
+  availability: AssetLifecycle['availability'],
+  reason: AssetLifecycleReason,
+  now = new Date(),
+): AssetLifecycleView {
+  const lifecycle: AssetLifecycle = {
+    assetId: asset.id,
+    availability,
+    reason,
+    changedAt: now.toISOString(),
+    // Local mock policy: only a user deletion is recoverable. A production
+    // retention period belongs to storage/back-end policy, not a browser guess.
+    recoverableUntil: availability === 'recoverable' ? null : null,
+  }
+  lifecycleTable(state)[asset.id] = lifecycle
+  return { ...asset, lifecycle }
+}
+
+/** Only committed + active entries can enter normal asset rails. */
+export function assetMatchesLifecycle(asset: Asset, lifecycle: AssetLifecycle, visibility: 'active' | 'unavailable' | 'all') {
+  const available = asset.state === 'committed' && lifecycle.availability === 'active'
+  if (visibility === 'active') return available
+  if (visibility === 'unavailable') return !available
+  return true
 }
 
 /* ------------------------------------------------------------------ *

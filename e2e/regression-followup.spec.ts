@@ -217,6 +217,25 @@ test.describe('状态与响应式回归（本地临时服务）', () => {
     await expect(page.getByTestId('credit-balance')).toContainText('408')
   })
 
+  test('768px TV Show 分类条提供官网同款左右滚动控制', async ({ page, request }) => {
+    await page.setViewportSize({ width: 768, height: 700 })
+    await selectScenario(request, 'authenticated-populated')
+    await page.goto('/')
+
+    const rail = page.getByTestId('tv-show-category-rail')
+    await expect(rail).toBeVisible()
+    await expect(page.getByTestId('tv-show-scroll-left')).toBeVisible()
+    await expect(page.getByTestId('tv-show-scroll-right')).toBeVisible()
+    const geometry = await rail.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }))
+    expect(geometry.scrollWidth).toBeGreaterThan(geometry.clientWidth)
+
+    await page.getByTestId('tv-show-scroll-right').click()
+    await expect.poll(() => rail.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+    await page.getByTestId('tv-show-scroll-left').click()
+    await expect.poll(() => rail.evaluate((element) => element.scrollLeft)).toBe(0)
+    await expectNoPageOverflow(page)
+  })
+
   test('画布错误态提供 retry 且不渲染半成品工作区', async ({ page }) => {
     await page.goto('/canvas?projectId=missing-regression-project&canvasId=missing-regression-canvas')
     await expect(page.getByTestId('canvas-load-error')).toBeVisible()

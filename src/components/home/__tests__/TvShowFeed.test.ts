@@ -5,6 +5,7 @@ import {
   filterTvShowItems,
   getTvShowSearchFeedback,
   nextTvShowEscapeState,
+  tvShowCategoryScrollDelta,
 } from '../TvShowFeed'
 
 describe('TV Show discovery helpers', () => {
@@ -22,6 +23,12 @@ describe('TV Show discovery helpers', () => {
     expect(getTvShowSearchFeedback({ category: '全部', query: '不存在', resultCount: 0 })).toBe(
       '没有匹配“不存在”的作品',
     )
+  })
+
+  it('uses a proportionate, directional scroll distance for the official category rail', () => {
+    expect(tvShowCategoryScrollDelta('right', 500)).toBe(360)
+    expect(tvShowCategoryScrollDelta('left', 500)).toBe(-360)
+    expect(tvShowCategoryScrollDelta('right', 0)).toBe(1)
   })
 
   it('uses Escape to clear the search first and then return to all categories', () => {

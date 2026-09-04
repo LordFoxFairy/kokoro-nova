@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import Link from 'next/link'
 
-import { IconClose, IconSearch } from '@/components/icons'
+import { IconChevronLeft, IconChevronRight, IconClose, IconSearch } from '@/components/icons'
 import type { HomeDiscoveryResponse } from '@/contracts/home'
 import { cn } from '@/lib/cn'
 import { Dialog } from '@/components/ui/Dialog'
@@ -45,6 +45,11 @@ export function getTvShowSearchFeedback({
   return `${category} · ${resultCount} 个作品`
 }
 
+export function tvShowCategoryScrollDelta(direction: 'left' | 'right', viewportWidth: number): number {
+  const distance = Math.max(1, Math.round(viewportWidth * 0.72))
+  return direction === 'left' ? -distance : distance
+}
+
 export function nextTvShowEscapeState({ category, query }: { category: string; query: string }) {
   if (query.trim()) return { category, query: '', handled: true }
   if (category !== '全部') return { category: '全部', query: '', handled: true }
@@ -56,6 +61,7 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
   const [category, setCategory] = useState(defaultCategory)
   const [query, setQuery] = useState('')
   const [selectedItem, setSelectedItem] = useState<TvShowItem | null>(null)
+  const categoryRailRef = useRef<HTMLDivElement>(null)
   const filtered = useMemo(() => filterTvShowItems(items, category, query), [category, items, query])
 
   useEffect(() => {
@@ -98,25 +104,57 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
       </div>
 
       <div className="mt-5 flex flex-col gap-3 border-b border-white/[0.07] pb-3 sm:flex-row sm:items-center">
-        <div className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto">
-          {categories.map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={category === item}
-              data-testid={`tv-show-category-${item}`}
-              onClick={() => setCategory(item)}
-              className={cn(
-                'shrink-0 rounded-full px-3 py-1.5 text-[12px] transition-colors',
-                category === item
-                  ? 'bg-white text-[#151515]'
-                  : 'text-white/48 hover:bg-white/[0.06] hover:text-white/76',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]',
-              )}
-            >
-              {item}
-            </button>
-          ))}
+        <div className="flex min-w-0 flex-1 items-center gap-1" aria-label="TV Show 分类">
+          <button
+            type="button"
+            data-testid="tv-show-scroll-left"
+            aria-label="向左滚动"
+            onClick={() => {
+              const rail = categoryRailRef.current
+              if (!rail) return
+              rail.scrollBy({ left: tvShowCategoryScrollDelta('left', rail.clientWidth), behavior: 'smooth' })
+            }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/46 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
+          >
+            <IconChevronLeft size={14} />
+          </button>
+          <div
+            ref={categoryRailRef}
+            data-testid="tv-show-category-rail"
+            className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto scroll-smooth"
+          >
+            {categories.map((item) => (
+              <button
+                key={item}
+                type="button"
+                data-selected={category === item ? 'true' : undefined}
+                data-testid={`tv-show-category-${item}`}
+                onClick={() => setCategory(item)}
+                className={cn(
+                  'shrink-0 rounded-full px-3 py-1.5 text-[12px] transition-colors',
+                  category === item
+                    ? 'bg-white text-[#151515]'
+                    : 'text-white/48 hover:bg-white/[0.06] hover:text-white/76',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]',
+                )}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            data-testid="tv-show-scroll-right"
+            aria-label="向右滚动"
+            onClick={() => {
+              const rail = categoryRailRef.current
+              if (!rail) return
+              rail.scrollBy({ left: tvShowCategoryScrollDelta('right', rail.clientWidth), behavior: 'smooth' })
+            }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/46 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
+          >
+            <IconChevronRight size={14} />
+          </button>
         </div>
         <form
           role="search"

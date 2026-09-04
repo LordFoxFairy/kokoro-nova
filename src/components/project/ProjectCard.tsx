@@ -34,7 +34,7 @@ export function ProjectCard({ project, renaming, onRenameCancel, onRenameCommit,
       >
         {project.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={project.coverUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]" />
+          <img data-testid={`project-cover-${project.id}`} src={project.coverUrl} alt={`${project.name} 封面`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]" />
         ) : (
           <IconImage size={41} />
         )}

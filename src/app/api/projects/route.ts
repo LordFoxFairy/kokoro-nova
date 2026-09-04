@@ -1,10 +1,18 @@
 import { ids } from '@/domain/ids'
 import { createCanvas } from '@/domain/factory'
 import type { Project } from '@/domain/types'
-import { handle } from '@/server/http'
-import { DEFAULT_SPACE_ID, canvasesOfProject, isProjectRecycled, readState, withState } from '@/server/store'
+import { HttpError, handle } from '@/server/http'
+import { DEFAULT_SPACE_ID, canvasesOfProject, findProjectFolder, isProjectRecycled, readState, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
+
+function validFolderId(state: Parameters<typeof findProjectFolder>[0], folderId: unknown, spaceId: string): string | null {
+  if (folderId === undefined || folderId === null) return null
+  if (typeof folderId !== 'string' || !folderId || !findProjectFolder(state, folderId, spaceId)) {
+    throw new HttpError(400, '目标文件夹不存在')
+  }
+  return folderId
+}
 
 export async function GET() {
   return handle(async () => {
@@ -35,10 +43,11 @@ export async function POST(request: Request) {
     return withState((state) => {
       const now = new Date().toISOString()
       const existing = state.projects.filter((p) => p.spaceId === DEFAULT_SPACE_ID && !isProjectRecycled(p)).length
+      const folderId = validFolderId(state, body.folderId, DEFAULT_SPACE_ID)
       const project: Project = {
         id: ids.project(),
         spaceId: DEFAULT_SPACE_ID,
-        folderId: body.folderId ?? null,
+        folderId,
         name: body.name?.trim() || `未命名项目 ${existing + 1}`,
         coverUrl: null,
         createdAt: now,

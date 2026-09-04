@@ -18,6 +18,7 @@ import { Menu, useMenuAnchor, type MenuSection } from '@/components/ui/Menu'
 import { Spinner } from '@/components/ui/controls'
 import type { Canvas, Project } from '@/domain/types'
 import { ApiError, api } from '@/lib/api'
+import { PROJECT_COVER_FIXTURES } from '@/contracts/project'
 import { FolderCard, ProjectCard, type FolderRow, type ProjectRow } from './ProjectCard'
 import { ProjectToolbar } from './ProjectToolbar'
 import { RecycleBinDialog } from './RecycleBinDialog'
@@ -199,34 +200,11 @@ function ProjectListSurface() {
   )
 
   const chooseCover = useCallback(
-    (kind: 'project' | 'folder', id: string) => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = 'image/*'
-      input.onchange = () => {
-        const file = input.files?.[0]
-        if (!file) return
-        if (!file.type.startsWith('image/')) {
-          setFeedback({ tone: 'error', message: '请选择图片文件' })
-          return
-        }
-        const reader = new FileReader()
-        reader.onerror = () => setFeedback({ tone: 'error', message: '封面读取失败，请重试' })
-        reader.onload = () => {
-          if (typeof reader.result !== 'string' || !reader.result) {
-            setFeedback({ tone: 'error', message: '封面读取失败，请重试' })
-            return
-          }
-          void runAction('cover', '封面已更新', async () => {
-            await api.patch(`/api/${kind === 'project' ? 'projects' : 'folders'}/${id}`, {
-              coverUrl: reader.result,
-            })
-            await refreshOrThrow()
-          })
-        }
-        reader.readAsDataURL(file)
-      }
-      input.click()
+    (kind: 'project' | 'folder', id: string, coverUrl: string | null) => {
+      void runAction('cover', coverUrl ? '示例封面已更新' : '封面已移除', async () => {
+        await api.patch(`/api/${kind === 'project' ? 'projects' : 'folders'}/${id}`, { coverUrl })
+        await refreshOrThrow()
+      })
     },
     [refreshOrThrow, runAction],
   )
@@ -277,9 +255,22 @@ function ProjectListSurface() {
         },
         {
           id: 'cover',
-          label: '修改封面',
+          label: '选择示例封面',
           icon: <IconImage size={14} />,
-          onSelect: () => chooseCover('project', project.id),
+          submenu: [
+            ...PROJECT_COVER_FIXTURES.map((fixture) => ({
+              id: fixture.id,
+              label: fixture.label,
+              checked: project.coverUrl === fixture.url,
+              onSelect: () => chooseCover('project', project.id, fixture.url),
+            })),
+            {
+              id: 'remove-cover',
+              label: '移除封面',
+              checked: project.coverUrl === null,
+              onSelect: () => chooseCover('project', project.id, null),
+            },
+          ],
         },
         {
           id: 'duplicate',
@@ -349,9 +340,22 @@ function ProjectListSurface() {
         },
         {
           id: 'cover',
-          label: '更换封面',
+          label: '选择示例封面',
           icon: <IconImage size={14} />,
-          onSelect: () => chooseCover('folder', folder.id),
+          submenu: [
+            ...PROJECT_COVER_FIXTURES.map((fixture) => ({
+              id: fixture.id,
+              label: fixture.label,
+              checked: folder.coverUrl === fixture.url,
+              onSelect: () => chooseCover('folder', folder.id, fixture.url),
+            })),
+            {
+              id: 'remove-cover',
+              label: '移除封面',
+              checked: folder.coverUrl === null,
+              onSelect: () => chooseCover('folder', folder.id, null),
+            },
+          ],
         },
         {
           id: 'delete',

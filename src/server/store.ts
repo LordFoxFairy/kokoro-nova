@@ -302,6 +302,11 @@ export function findStoredProject(state: WorkspaceState, projectId: string): Pro
   return state.projects.find((p) => p.id === projectId)
 }
 
+/** Folder membership is always scoped to the same workspace as its project. */
+export function findProjectFolder(state: WorkspaceState, folderId: string, spaceId: string): Folder | undefined {
+  return state.folders.find((folder) => folder.id === folderId && folder.spaceId === spaceId)
+}
+
 export function findCanvas(state: WorkspaceState, canvasId: string): Canvas | undefined {
   return state.canvases.find((c) => c.id === canvasId)
 }

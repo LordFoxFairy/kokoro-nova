@@ -2,6 +2,22 @@ import { z } from 'zod'
 
 import { decodeExternalEnvelope } from './http'
 
+/**
+ * Local cover choices keep the project manager deterministic: each URL is a
+ * checked-in fixture and can be rendered again after a browser reload.
+ */
+export const PROJECT_COVER_FIXTURES = [
+  { id: 'city-night', label: '城市夜景', url: '/fixtures/libtv/media/city-night-poster.webp' },
+  { id: 'first-frame', label: '电影首帧', url: '/fixtures/libtv/media/first-frame.webp' },
+  { id: 'cloud-palace', label: '云端宫殿', url: '/fixtures/libtv/showcase/cloud-palace.webp' },
+] as const
+
+export const PROJECT_COVER_URLS = PROJECT_COVER_FIXTURES.map((fixture) => fixture.url)
+
+export function isProjectFixtureCoverUrl(value: string): boolean {
+  return (PROJECT_COVER_URLS as readonly string[]).includes(value)
+}
+
 export const ProjectListRequestSchema = z.object({
   id: z.union([z.number().int().nonnegative(), z.string().min(1)]),
   spaceTypes: z.array(z.number().int()).min(1),

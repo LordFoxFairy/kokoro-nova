@@ -1,11 +1,24 @@
 import { createCanvas } from '@/domain/factory'
 import { ids } from '@/domain/ids'
+import { isProjectFixtureCoverUrl } from '@/contracts/project'
 import { HttpError, handle } from '@/server/http'
-import { activeScenarioId, canvasesOfProject, findProject, readState, recycleProjects, withState } from '@/server/store'
+import { activeScenarioId, canvasesOfProject, findProject, findProjectFolder, readState, recycleProjects, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ projectId: string }> }
+
+function validFolderId(
+  state: Parameters<typeof findProjectFolder>[0],
+  folderId: unknown,
+  spaceId: string,
+): string | null {
+  if (folderId === null) return null
+  if (typeof folderId !== 'string' || !folderId || !findProjectFolder(state, folderId, spaceId)) {
+    throw new HttpError(400, '目标文件夹不存在')
+  }
+  return folderId
+}
 
 export async function GET(_request: Request, { params }: Params) {
   return handle(async () => {
@@ -36,8 +49,13 @@ export async function PATCH(request: Request, { params }: Params) {
         // An empty rename silently keeps the old name rather than erroring.
         if (name) project.name = name
       }
-      if (body.folderId !== undefined) project.folderId = body.folderId
-      if (body.coverUrl !== undefined) project.coverUrl = body.coverUrl
+      if (body.folderId !== undefined) project.folderId = validFolderId(state, body.folderId, project.spaceId)
+      if (body.coverUrl !== undefined) {
+        if (body.coverUrl !== null && (typeof body.coverUrl !== 'string' || !isProjectFixtureCoverUrl(body.coverUrl))) {
+          throw new HttpError(400, 'coverUrl 必须是本地示例封面')
+        }
+        project.coverUrl = body.coverUrl
+      }
       project.updatedAt = new Date().toISOString()
       return project
     })
@@ -64,8 +82,14 @@ export async function PUT(_request: Request, { params }: Params) {
       const project = findProject(state, projectId)
       if (!project) throw new HttpError(404, '项目不存在')
       const now = new Date().toISOString()
+      const {
+        recycledAt: _recycledAt,
+        recycleExpiresAt: _recycleExpiresAt,
+        recycleOriginalFolderId: _recycleOriginalFolderId,
+        ...activeProject
+      } = project
       const copy = {
-        ...project,
+        ...activeProject,
         id: ids.project(),
         name: `${project.name}副本`,
         createdAt: now,

@@ -2,7 +2,19 @@ import { describe, expect, it } from 'vitest'
 
 import requestExample from '../../../docs/api/examples/project-list.request.json'
 import responseExample from '../../../docs/api/examples/project-list.response.json'
-import { ProjectListRequestSchema, decodeProjectList } from '@/contracts/project'
+import { PROJECT_COVER_FIXTURES, ProjectListRequestSchema, decodeProjectList, isProjectFixtureCoverUrl } from '@/contracts/project'
+
+describe('project fixture covers', () => {
+  it('offers only checked-in local cover URLs', () => {
+    expect(PROJECT_COVER_FIXTURES.map((fixture) => fixture.url)).toEqual([
+      '/fixtures/libtv/media/city-night-poster.webp',
+      '/fixtures/libtv/media/first-frame.webp',
+      '/fixtures/libtv/showcase/cloud-palace.webp',
+    ])
+    expect(isProjectFixtureCoverUrl('/fixtures/libtv/media/city-night-poster.webp')).toBe(true)
+    expect(isProjectFixtureCoverUrl('https://example.test/cover.webp')).toBe(false)
+  })
+})
 
 describe('ProjectListRequestSchema', () => {
   it('accepts the observed full-project-list request', () => {

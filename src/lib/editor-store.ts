@@ -283,59 +283,80 @@ export const useEditor = create<EditorState & EditorActions>((set, get) => ({
     set((state) => ({ document: mutate(state.document) }))
   },
 
-  async undo() {
-    const { undoStack, canvasId, revision } = get()
-    const frame = undoStack[undoStack.length - 1]
-    if (!frame || !canvasId) return
-    try {
-      // Undo replaces the whole document rather than replaying inverse ops.
-      const result = await api.post<{ revision: number; document: WorkflowDocument }>(
-        `/api/canvases/${canvasId}`,
-        {
-          canvasId,
-          expectedRevision: revision,
-          mutations: documentReplaceMutations(get().document, frame.before),
-          label: `撤销 ${frame.label}`,
-        },
-      )
-      set((state) => ({
-        document: result.document,
-        revision: result.revision,
-        undoStack: state.undoStack.slice(0, -1),
-        redoStack: [...state.redoStack, frame],
-        selection: [],
-        edgeSelection: [],
-      }))
-    } catch (error) {
-      get().toast(error instanceof Error ? error.message : '撤销失败', 'error')
+  undo() {
+    const run = async () => {
+      // Read the frame only after any pending optimistic edit has settled.
+      // A quick Cmd/Ctrl+Z after a trim must undo that trim, not race it with
+      // the preceding write at a stale revision.
+      const { undoStack, canvasId, revision } = get()
+      const frame = undoStack[undoStack.length - 1]
+      if (!frame || !canvasId) return
+      try {
+        // Undo replaces the whole document rather than replaying inverse ops.
+        const result = await api.post<{ revision: number; document: WorkflowDocument }>(
+          `/api/canvases/${canvasId}`,
+          {
+            canvasId,
+            expectedRevision: revision,
+            mutations: documentReplaceMutations(get().document, frame.before),
+            label: `撤销 ${frame.label}`,
+          },
+        )
+        set((state) => ({
+          document: result.document,
+          revision: result.revision,
+          undoStack: state.undoStack.slice(0, -1),
+          redoStack: [...state.redoStack, frame],
+          selection: [],
+          edgeSelection: [],
+        }))
+      } catch (error) {
+        get().toast(error instanceof Error ? error.message : '撤销失败', 'error')
+      }
     }
+
+    const next = commitQueue.then(run, run)
+    commitQueue = next.then(
+      () => undefined,
+      () => undefined,
+    )
+    return next
   },
 
-  async redo() {
-    const { redoStack, canvasId, revision } = get()
-    const frame = redoStack[redoStack.length - 1]
-    if (!frame || !canvasId) return
-    try {
-      const result = await api.post<{ revision: number; document: WorkflowDocument }>(
-        `/api/canvases/${canvasId}`,
-        {
-          canvasId,
-          expectedRevision: revision,
-          mutations: documentReplaceMutations(get().document, frame.after),
-          label: `重做 ${frame.label}`,
-        },
-      )
-      set((state) => ({
-        document: result.document,
-        revision: result.revision,
-        redoStack: state.redoStack.slice(0, -1),
-        undoStack: [...state.undoStack, frame],
-        selection: [],
-        edgeSelection: [],
-      }))
-    } catch (error) {
-      get().toast(error instanceof Error ? error.message : '重做失败', 'error')
+  redo() {
+    const run = async () => {
+      const { redoStack, canvasId, revision } = get()
+      const frame = redoStack[redoStack.length - 1]
+      if (!frame || !canvasId) return
+      try {
+        const result = await api.post<{ revision: number; document: WorkflowDocument }>(
+          `/api/canvases/${canvasId}`,
+          {
+            canvasId,
+            expectedRevision: revision,
+            mutations: documentReplaceMutations(get().document, frame.after),
+            label: `重做 ${frame.label}`,
+          },
+        )
+        set((state) => ({
+          document: result.document,
+          revision: result.revision,
+          redoStack: state.redoStack.slice(0, -1),
+          undoStack: [...state.undoStack, frame],
+          selection: [],
+          edgeSelection: [],
+        }))
+      } catch (error) {
+        get().toast(error instanceof Error ? error.message : '重做失败', 'error')
+      }
     }
+
+    const next = commitQueue.then(run, run)
+    commitQueue = next.then(
+      () => undefined,
+      () => undefined,
+    )
+    return next
   },
 
   setViewMode: (viewMode) => set({ viewMode, leftPanel: null }),

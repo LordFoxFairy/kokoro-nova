@@ -60,9 +60,11 @@ import {
   IconPlay,
   IconPlus,
   IconRefresh,
+  IconRedo,
   IconSearch,
   IconText,
   IconTrash,
+  IconUndo,
   IconVideo,
   IconZoomIn,
 } from '../icons'
@@ -290,6 +292,10 @@ export function ClipEditor({
   const workflow = useEditor((state) => state.document)
   const commitWith = useEditor((state) => state.commitWith)
   const toast = useEditor((state) => state.toast)
+  const undo = useEditor((state) => state.undo)
+  const redo = useEditor((state) => state.redo)
+  const undoLabel = useEditor((state) => state.undoStack.at(-1)?.label ?? null)
+  const redoLabel = useEditor((state) => state.redoStack.at(-1)?.label ?? null)
   const allSources = useMemo(() => collectSources(workflow), [workflow])
   const sources = useMemo(
     () => allSources.filter((source) => !isExcludedCompositeSource(source)),
@@ -406,6 +412,33 @@ export function ClipEditor({
     onClose()
   }, [onClose, persist, playhead])
 
+  /**
+   * The shared editor history persists every compositor mutation on the
+   * videoComposite node. Keep the acknowledgement local to this surface so a
+   * timeline user knows whether their keyboard action was accepted instead of
+   * having to infer it from a changed clip.
+   */
+  const applyHistory = useCallback(async (direction: 'undo' | 'redo') => {
+    const label = direction === 'undo' ? undoLabel : redoLabel
+    if (!label) {
+      setTimelineFeedback({
+        tone: 'info',
+        message: direction === 'undo' ? '没有可撤销的视频时间线操作。' : '没有可重做的视频时间线操作。',
+      })
+      return
+    }
+
+    const beforeRevision = useEditor.getState().revision
+    setTimelineFeedback({ tone: 'info', message: `${direction === 'undo' ? '正在撤销' : '正在重做'}：${label}…` })
+    await (direction === 'undo' ? undo() : redo())
+    if (!aliveRef.current) return
+
+    const saved = useEditor.getState().revision !== beforeRevision
+    setTimelineFeedback(saved
+      ? { tone: 'success', message: `${direction === 'undo' ? '已撤销' : '已重做'}：${label}。` }
+      : { tone: 'error', message: `${direction === 'undo' ? '撤销' : '重做'}失败，时间线未改变。` })
+  }, [redo, redoLabel, undo, undoLabel])
+
   useEffect(() => {
     aliveRef.current = true
     return () => {
@@ -488,6 +521,17 @@ export function ClipEditor({
     if (!open) return
     const keyboard = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
+      const isEditingText = Boolean(target?.matches('input, textarea, [contenteditable="true"]'))
+      const modifier = event.metaKey || event.ctrlKey
+      if (modifier && event.key.toLowerCase() === 'z' && !isEditingText) {
+        // Canvas shortcuts are attached on the bubbling phase. Capture the
+        // command here so undo/redo always reports compositor-specific state.
+        event.preventDefault()
+        event.stopPropagation()
+        event.stopImmediatePropagation()
+        void applyHistory(event.shiftKey ? 'redo' : 'undo')
+        return
+      }
       if (event.code === 'Space' && !target?.matches('input, textarea, [contenteditable="true"]')) {
         event.preventDefault()
         if (!empty) setPlaying((current) => !current)
@@ -500,7 +544,7 @@ export function ClipEditor({
     }
     window.addEventListener('keydown', keyboard, true)
     return () => window.removeEventListener('keydown', keyboard, true)
-  }, [close, empty, exportOpen, open, tool])
+  }, [applyHistory, close, empty, exportOpen, open, tool])
 
   const addSource = (source: CompositeSource) => {
     setFailure(null)
@@ -746,6 +790,20 @@ export function ClipEditor({
                 <Spinner size={12} /> 正在合成 {elapsed.toFixed(0)}s
               </span>
             )}
+            <div className="flex items-center gap-1 border-r border-ink-100 pr-2">
+              <ToolButton
+                testId="clip-undo"
+                label={undoLabel ? `撤销：${undoLabel}` : '撤销'}
+                disabled={!undoLabel || rendering}
+                onClick={() => void applyHistory('undo')}
+              ><IconUndo size={14} /></ToolButton>
+              <ToolButton
+                testId="clip-redo"
+                label={redoLabel ? `重做：${redoLabel}` : '重做'}
+                disabled={!redoLabel || rendering}
+                onClick={() => void applyHistory('redo')}
+              ><IconRedo size={14} /></ToolButton>
+            </div>
             <div ref={exportRef} className="relative">
               <button
                 type="button"

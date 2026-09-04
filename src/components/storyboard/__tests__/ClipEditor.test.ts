@@ -63,6 +63,23 @@ describe('ClipEditor timeline accessibility helpers', () => {
     expect(playheadValueForKey(4, 'Tab', 10)).toBeNull()
   })
 
+  it('uses overlap-aware timeline positions when validating a selected downstream split', () => {
+    let document = appendClip(emptyCompositeDocument(), source('first', 10))
+    document = appendClip(document, source('second', 10))
+    document = {
+      ...document,
+      clips: document.clips.map((clip, index) => index === 0
+        ? { ...clip, transitionAfter: { type: 'fade', durationSeconds: 1 } }
+        : clip),
+    }
+
+    const secondClipId = document.clips[1].id
+    // The second clip begins at 9 seconds because the preceding transition
+    // overlaps the two clips by one second.
+    expect(splitValidationMessage(document, secondClipId, 9)).toContain('起点')
+    expect(splitValidationMessage(document, secondClipId, 9.1)).toBeNull()
+  })
+
   it('explains split boundaries instead of silently changing a different clip', () => {
     let document = appendClip(emptyCompositeDocument(), source('a'))
     document = appendClip(document, source('b'))

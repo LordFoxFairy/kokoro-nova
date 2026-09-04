@@ -361,6 +361,38 @@ test('导演台 studio renders its viewports in a real browser', async ({ page }
   await page.screenshot({ path: `${SHOTS}/director-studio.png` })
 })
 
+test('导演台 persists staged actors and captured shots across a canvas reload', async ({ page }) => {
+  await createProject(page)
+  await addNode(page, /导演台/)
+  const directorNode = page.locator('[data-node-type="director"]').first()
+  const nodeId = await directorNode.evaluate((element) => element.closest('.react-flow__node')?.getAttribute('data-id'))
+  expect(nodeId).toBeTruthy()
+  const canvasId = new URL(page.url()).searchParams.get('canvasId')
+  expect(canvasId).toBeTruthy()
+
+  await directorNode.dblclick()
+  await page.getByTestId('open-studio').click()
+  const studio = page.getByTestId('director-body')
+  await expect(studio).toBeVisible()
+  await studio.getByRole('button', { name: '添加角色' }).click()
+  await expect(studio.getByTestId('director-tree')).toContainText('角色 3')
+  await studio.getByTestId('director-capture').click()
+  await expect(studio.getByTestId('director-shots')).toContainText('1 个已捕捉取景')
+
+  const persisted = waitForCanvasMutation(page)
+  await studio.getByTestId('director-save').click()
+  await persisted
+  await expect(page.getByTestId('director-studio')).toHaveCount(0)
+
+  await page.reload()
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await page.getByTestId(`node-${nodeId}`).dblclick()
+  await page.getByTestId('open-studio').click()
+  const restored = page.getByTestId('director-body')
+  await expect(restored.getByTestId('director-tree')).toContainText('角色 3')
+  await expect(restored.getByTestId('director-shots')).toContainText('1 个已捕捉取景')
+})
+
 test('脚本 V2 opens its canonical workspace in a real browser', async ({ page }) => {
   await createProject(page)
   await page.getByTestId('add-node-button').click()

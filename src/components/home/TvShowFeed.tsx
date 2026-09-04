@@ -25,14 +25,30 @@ export function filterTvShowItems(items: TvShowItem[], category: string, query: 
   })
 }
 
+/**
+ * The public TV Show search is a submitted discovery query, not a per-keypress
+ * client-side filter. When the frozen local catalogue has no literal match,
+ * preserve the observed recommendation fallback instead of manufacturing an
+ * empty result state for a query the real service would resolve semantically.
+ */
+export function resolveTvShowSearch(items: TvShowItem[], category: string, query: string) {
+  const normalizedQuery = query.trim()
+  if (!normalizedQuery) return { items: filterTvShowItems(items, category, ''), usedFallback: false }
+
+  const exactMatches = filterTvShowItems(items, '全部', normalizedQuery)
+  return exactMatches.length > 0 ? { items: exactMatches, usedFallback: false } : { items, usedFallback: true }
+}
+
 export function getTvShowSearchFeedback({
   category,
   query,
   resultCount,
+  usedFallback = false,
 }: {
   category: string
   query: string
   resultCount: number
+  usedFallback?: boolean
 }): string {
   const normalizedQuery = query.trim()
   if (resultCount === 0) {
@@ -40,6 +56,7 @@ export function getTvShowSearchFeedback({
     if (category !== '全部') return `${category}暂无作品`
     return '暂无公开作品'
   }
+  if (normalizedQuery && usedFallback) return `未找到“${normalizedQuery}”的精确结果，已为你推荐 ${resultCount} 个作品`
   if (normalizedQuery) return `搜索“${normalizedQuery}” · ${resultCount} 个作品`
   if (category === '全部') return `共 ${resultCount} 个公开作品`
   return `${category} · ${resultCount} 个作品`
@@ -59,22 +76,34 @@ export function nextTvShowEscapeState({ category, query }: { category: string; q
 export function TvShowFeed({ categories, items }: TvShowFeedProps) {
   const defaultCategory = categories.includes('全部') ? '全部' : categories[0] ?? '全部'
   const [category, setCategory] = useState(defaultCategory)
-  const [query, setQuery] = useState('')
+  const [searchDraft, setSearchDraft] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedItem, setSelectedItem] = useState<TvShowItem | null>(null)
   const categoryRailRef = useRef<HTMLDivElement>(null)
-  const filtered = useMemo(() => filterTvShowItems(items, category, query), [category, items, query])
+  const searchResult = useMemo(() => resolveTvShowSearch(items, category, searchQuery), [category, items, searchQuery])
+  const filtered = searchResult.items
+  const searchMode = Boolean(searchQuery.trim())
 
   useEffect(() => {
     if (categories.length === 0 || categories.includes(category)) return
     setCategory(defaultCategory)
   }, [categories, category, defaultCategory])
 
-  const searchFeedback = getTvShowSearchFeedback({ category, query, resultCount: filtered.length })
+  const searchFeedback = getTvShowSearchFeedback({
+    category,
+    query: searchQuery,
+    resultCount: filtered.length,
+    usedFallback: searchResult.usedFallback,
+  })
   const resetSearchLayer = () => {
-    const next = nextTvShowEscapeState({ category, query })
+    if (searchDraft.trim() || searchQuery.trim()) {
+      setSearchDraft('')
+      setSearchQuery('')
+      return true
+    }
+    const next = nextTvShowEscapeState({ category, query: '' })
     if (!next.handled) return false
     setCategory(next.category)
-    setQuery(next.query)
     return true
   }
 
@@ -104,7 +133,8 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
       </div>
 
       <div className="mt-5 flex flex-col gap-3 border-b border-white/[0.07] pb-3 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 items-center gap-1" aria-label="TV Show 分类">
+        {!searchMode && (
+          <div className="flex min-w-0 flex-1 items-center gap-1" aria-label="TV Show 分类">
           <button
             type="button"
             data-testid="tv-show-scroll-left"
@@ -155,20 +185,24 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
           >
             <IconChevronRight size={14} />
           </button>
-        </div>
+          </div>
+        )}
         <form
           role="search"
           aria-label="搜索公开作品"
-          onSubmit={(event) => event.preventDefault()}
-          className="flex h-8 w-full shrink-0 items-center gap-2 rounded-full border border-white/[0.08] px-3 text-white/35 transition-colors focus-within:border-white/20 sm:w-44"
+          data-testid="tv-show-search-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            setSearchQuery(searchDraft.trim())
+          }}
+          className="flex h-8 w-full shrink-0 items-center gap-2 rounded-full border border-white/[0.08] px-3 text-white/35 transition-colors focus-within:border-white/20 sm:w-52"
         >
-          <IconSearch size={14} />
           <label className="sr-only" htmlFor="tv-show-search">搜索 TV Show</label>
           <input
             id="tv-show-search"
             inputMode="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== 'Escape') return
               if (!resetSearchLayer()) return
@@ -179,18 +213,29 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
             placeholder="搜索"
             className="min-w-0 flex-1 bg-transparent text-[12px] text-white/80 outline-none placeholder:text-white/28"
           />
-          {query && (
+          {Boolean(searchDraft || searchQuery) && (
             <button
               type="button"
               data-testid="tv-show-clear-search"
               aria-label="清除 TV Show 搜索"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setQuery('')}
+              onClick={() => {
+                setSearchDraft('')
+                setSearchQuery('')
+              }}
               className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
             >
               <IconClose size={12} />
             </button>
           )}
+          <button
+            type="submit"
+            data-testid="tv-show-submit-search"
+            aria-label="搜索 TV Show"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
+          >
+            <IconSearch size={14} />
+          </button>
         </form>
       </div>
 
@@ -258,12 +303,13 @@ export function TvShowFeed({ categories, items }: TvShowFeedProps) {
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
           <p className="text-[13px] text-white/45">{searchFeedback}</p>
-          {(query.trim() || category !== '全部') && (
+          {(searchQuery.trim() || category !== '全部') && (
             <button
               type="button"
               data-testid="tv-show-clear-filters"
               onClick={() => {
-                setQuery('')
+                setSearchDraft('')
+                setSearchQuery('')
                 setCategory('全部')
               }}
               className="rounded-full border border-white/[0.12] px-3 py-1.5 text-[11px] text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"

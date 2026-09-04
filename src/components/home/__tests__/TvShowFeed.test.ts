@@ -5,6 +5,7 @@ import {
   filterTvShowItems,
   getTvShowSearchFeedback,
   nextTvShowEscapeState,
+  resolveTvShowSearch,
   tvShowCategoryScrollDelta,
 } from '../TvShowFeed'
 
@@ -17,11 +18,26 @@ describe('TV Show discovery helpers', () => {
     expect(filterTvShowItems(items, '全部', 'Jcy').map((item) => item.id)).toEqual(['showcase-cloud-palace'])
   })
 
-  it('returns a readable result announcement for every search state', () => {
+  it('preserves submitted exact matches and the official recommendation fallback', () => {
+    const items = HOME_DISCOVERY_CATALOG.showcase
+
+    expect(resolveTvShowSearch(items, '专业影视', '').items).toHaveLength(2)
+    expect(resolveTvShowSearch(items, '专业影视', '尘骸')).toMatchObject({
+      items: [{ id: 'showcase-dust-skeleton' }],
+      usedFallback: false,
+    })
+    expect(resolveTvShowSearch(items, '专业影视', '不存在')).toMatchObject({
+      items,
+      usedFallback: true,
+    })
+  })
+
+  it('returns a readable result announcement for direct and fallback searches', () => {
     expect(getTvShowSearchFeedback({ category: '全部', query: '', resultCount: 6 })).toBe('共 6 个公开作品')
     expect(getTvShowSearchFeedback({ category: '专业影视', query: '', resultCount: 2 })).toBe('专业影视 · 2 个作品')
-    expect(getTvShowSearchFeedback({ category: '全部', query: '不存在', resultCount: 0 })).toBe(
-      '没有匹配“不存在”的作品',
+    expect(getTvShowSearchFeedback({ category: '全部', query: '尘骸', resultCount: 1 })).toBe('搜索“尘骸” · 1 个作品')
+    expect(getTvShowSearchFeedback({ category: '全部', query: '不存在', resultCount: 6, usedFallback: true })).toBe(
+      '未找到“不存在”的精确结果，已为你推荐 6 个作品',
     )
   })
 

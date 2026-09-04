@@ -66,7 +66,7 @@ describe('Audio authoring API examples', () => {
 
   it('publishes Audio state, voice and model capability schemas plus executable examples', () => {
     const document = openApi()
-    expect(document.info.version).toBe('1.12.0-project-recycle-bin')
+    expect(document.info.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/)
     expect(document.components.schemas.NodeExtra.properties.audioAuthoring.$ref).toBe(
       '#/components/schemas/AudioAuthoringState',
     )

@@ -48,9 +48,11 @@ Contract version: 1.12.0-project-recycle-bin
 OpenAPI: 3.1.0
 ```
 
-当前版本保留已有 route 的非版本化 `/api/*` 路径。当前实现只向本地 Next.js mock 发请求；
-真实后端接入时以部署层 base URL 切换，不要求页面组件改路径或直接读取环境变量，也不把
-凭证下沉到组件。
+`Contract version` 是当前 mock API 契约的权威版本标记，并与 `openapi.yaml` 的
+`info.version` 保持一致；采用 SemVer `MAJOR.MINOR.PATCH`，可附带标准 prerelease/build
+标识（例如 `1.12.0-project-recycle-bin`）。版本演进不改变非版本化 `/api/*` 路径。
+
+当前实现只向本地 Next.js mock 发请求；真实后端接入时以部署层 base URL 切换，不要求页面组件改路径或直接读取环境变量，也不把凭证下沉到组件。
 
 ## 传输约定
 

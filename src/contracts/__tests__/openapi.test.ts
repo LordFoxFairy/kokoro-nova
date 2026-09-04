@@ -30,6 +30,8 @@ import {
 } from '@/contracts/materials'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
+
+const CONTRACT_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
 type OpenApiOperation = {
   operationId?: string
   tags?: string[]
@@ -86,6 +88,13 @@ function sourcePairs(): string[] {
 
 function openApiDocument(): OpenApiDocument {
   return JSON.parse(readFileSync(path.join(process.cwd(), 'docs/api/openapi.yaml'), 'utf8')) as OpenApiDocument
+}
+
+function documentedContractVersion(): string {
+  const readme = readFileSync(path.join(process.cwd(), 'docs/api/README.md'), 'utf8')
+  const match = readme.match(/^Contract version:\s*(\S+)\s*$/m)
+  expect(match, 'docs/api/README.md Contract version').not.toBeNull()
+  return match![1]
 }
 
 function openApiPairs(document: OpenApiDocument): string[] {
@@ -191,10 +200,18 @@ describe('local API manifest and OpenAPI', () => {
     )
   })
 
-  it('versions and exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
+  it('publishes a non-empty SemVer contract version consistent with the API README', () => {
+    const version = openApiDocument().info?.version
+
+    expect(version).toEqual(expect.any(String))
+    expect(version).not.toBe('')
+    expect(version).toMatch(CONTRACT_VERSION_PATTERN)
+    expect(version).toBe(documentedContractVersion())
+  })
+
+  it('exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
     const document = openApiDocument()
 
-    expect(document.info?.version).toBe('1.12.0-project-recycle-bin')
     expect(document.components?.schemas?.WorkflowNode?.properties?.data?.$ref).toBe(
       '#/components/schemas/NodeData',
     )
@@ -256,7 +273,6 @@ describe('local API manifest and OpenAPI', () => {
     const document = openApiDocument()
     const scriptRoutes = LOCAL_API_ROUTES.filter((route) => route.tag === 'Script V2')
 
-    expect(document.info?.version).toBe('1.12.0-project-recycle-bin')
     expect(scriptRoutes).toHaveLength(4)
     expect(scriptRoutes.map((route) => route.operationId)).toEqual([
       'quoteScriptV2',

@@ -86,6 +86,11 @@ export function AudioNodeEditor({
   const [customPause, setCustomPause] = useState('')
   const [customPauseOpen, setCustomPauseOpen] = useState(false)
   const promptRef = useRef<HTMLTextAreaElement>(null)
+  // Toolbar and popover actions move focus away from the textarea before their
+  // click handlers run. Keep the editor selection independently of the DOM so
+  // a focus change (or a controlled-value reconciliation) cannot turn an
+  // insertion into an append.
+  const promptSelectionRef = useRef({ start: prompt.length, end: prompt.length })
 
   const modelId = node.data.modelId ?? 'seed-audio-1'
   const model = MODELS_BY_ID.get(modelId)
@@ -191,14 +196,13 @@ export function AudioNodeEditor({
   }
 
   const addPromptToken = (token: string) => {
-    const textarea = promptRef.current
-    const selectionStart = textarea?.selectionStart ?? prompt.length
-    const selectionEnd = textarea?.selectionEnd ?? selectionStart
+    const { start: selectionStart, end: selectionEnd } = promptSelectionRef.current
     const next = insertAudioToken(prompt, selectionStart, selectionEnd, token)
     setPrompt(next.prompt)
     patchNode({ prompt: next.prompt })
     setPopover(null)
     setCustomPauseOpen(false)
+    promptSelectionRef.current = { start: next.caret, end: next.caret }
     window.requestAnimationFrame(() => {
       promptRef.current?.focus()
       promptRef.current?.setSelectionRange(next.caret, next.caret)
@@ -375,8 +379,27 @@ export function AudioNodeEditor({
                     ? '描述想要的音乐风格、情绪与结构'
                     : '输入要合成的文本'
             }
-            onChange={(event) => setPrompt(event.target.value)}
+            onChange={(event) => {
+              setPrompt(event.target.value)
+              promptSelectionRef.current = {
+                start: event.currentTarget.selectionStart,
+                end: event.currentTarget.selectionEnd,
+              }
+            }}
+            onSelect={(event) => {
+              promptSelectionRef.current = {
+                start: event.currentTarget.selectionStart,
+                end: event.currentTarget.selectionEnd,
+              }
+            }}
             onBlur={() => {
+              const textarea = promptRef.current
+              if (textarea) {
+                promptSelectionRef.current = {
+                  start: textarea.selectionStart,
+                  end: textarea.selectionEnd,
+                }
+              }
               if (prompt !== (node.data.prompt ?? '')) patchNode({ prompt })
             }}
             className="min-h-[118px] w-full resize-none rounded-xl border border-transparent bg-transparent px-2 py-1.5 text-[13px] leading-relaxed text-ink-800 outline-none placeholder:text-ink-400 focus:border-white/10 focus:bg-black/10"

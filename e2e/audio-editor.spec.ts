@@ -319,6 +319,26 @@ test('Minimax inserts exact pause and paralinguistic tokens at the current caret
     .toBe('开场<#0.25#>结束(喘气)<#2.25#>')
 })
 
+test('Minimax keeps a selected prompt range when the token popover takes focus', async ({ page, request }) => {
+  const { editor, canvasId, nodeId } = await openAudioEditor(page, request)
+  expect(nodeId).toBeTruthy()
+  await chooseAudioModel(page, 'minimax-speech-2.8-hd', 'Minimax-speech-2.8-hd')
+
+  const prompt = editor.getByTestId('audio-prompt')
+  await prompt.fill('甲乙丙丁')
+  await prompt.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(1, 3))
+
+  await editor.getByRole('button', { name: '() 语气词' }).click()
+  const cueMenu = page.getByTestId('audio-cue-menu')
+  await expect(cueMenu).toBeVisible()
+  await cueMenu.getByRole('button', { name: '喘气', exact: true }).click()
+
+  await expect(prompt).toHaveValue('甲(喘气)丁')
+  await expect
+    .poll(async () => (await readAudioNode(request, canvasId, nodeId!)).data.prompt)
+    .toBe('甲(喘气)丁')
+})
+
 test('voice library mirrors tabs, first-page rows, pagination, search, filters and favorites', async ({ page, request }) => {
   const { editor, canvasId, nodeId } = await openAudioEditor(page, request)
   expect(nodeId).toBeTruthy()

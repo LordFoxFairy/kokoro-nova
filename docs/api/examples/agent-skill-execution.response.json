@@ -1,0 +1,77 @@
+{
+  "session": {
+    "id": "ses_agent_skill_001",
+    "spaceId": "sp_default",
+    "projectId": "prj_video_demo",
+    "canvasId": "can_video_main",
+    "title": "制作雨夜城市视频",
+    "seq": 8,
+    "createdAt": "2026-09-04T12:00:00.000Z",
+    "updatedAt": "2026-09-04T12:00:08.000Z",
+    "shared": false,
+    "settings": {
+      "generationMode": "manual",
+      "modelId": "gvlm-3.1",
+      "freeTurns": 2
+    }
+  },
+  "messages": [
+    {
+      "id": "msg_agent_skill_plan",
+      "sessionId": "ses_agent_skill_001",
+      "seq": 4,
+      "role": "assistant",
+      "content": "已固定使用 Skill「镜头表转提示词」v1.9.2。确认后我只写入画布结构，不会自动提交生成。",
+      "createdAt": "2026-09-04T12:00:04.000Z",
+      "payload": {
+        "kind": "mutation_proposal",
+        "summary": "已固定使用 Skill「镜头表转提示词」v1.9.2。确定性媒体工作流计划。",
+        "status": "applied",
+        "mutations": [{
+          "op": "setViewport",
+          "viewport": { "x": 0, "y": 0, "zoom": 1 }
+        }]
+      }
+    },
+    {
+      "id": "msg_agent_skill_running",
+      "sessionId": "ses_agent_skill_001",
+      "seq": 6,
+      "role": "tool",
+      "content": "本地媒体执行器运行中。",
+      "createdAt": "2026-09-04T12:00:06.000Z",
+      "payload": {
+        "kind": "tool_call",
+        "tool": "media.generate",
+        "summary": "本地媒体执行器运行中。",
+        "status": "running"
+      }
+    },
+    {
+      "id": "msg_agent_skill_fallback",
+      "sessionId": "ses_agent_skill_001",
+      "seq": 7,
+      "role": "tool",
+      "content": "已保留文本/分镜节点作为可继续编辑的降级工作流。",
+      "createdAt": "2026-09-04T12:00:07.000Z",
+      "payload": {
+        "kind": "tool_call",
+        "tool": "workflow.fallback",
+        "summary": "已保留文本/分镜节点作为可继续编辑的降级工作流。",
+        "status": "ok"
+      }
+    }
+  ],
+  "revision": 2,
+  "document": {
+    "schemaVersion": 1,
+    "nodes": [],
+    "edges": [],
+    "groups": [],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.15.0-skill-authoring` · scope: 45 paths / 79 operations
+> Contract version: `1.16.0-agent-skill-execution` · scope: 45 paths / 79 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -17,7 +17,7 @@ transport 的一一对应。
 | Jobs / Script V2 / compose | 6 / 9 | 已精确 | quote、poll、幂等、终态与 fixture | queue/provider/render adapter |
 | Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
-| Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取和 mock reply | agent gateway |
+| Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
 | Public discovery / publish | 5 / 7 | 已精确 | 首页、showcase 与冻结 public snapshot | discovery/publish service |
 | Account / ledger | 5 / 8 | 已精确 | identity、会话、钱包、偏好、通知与积分投影 | shared account domain + billing/ledger service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |

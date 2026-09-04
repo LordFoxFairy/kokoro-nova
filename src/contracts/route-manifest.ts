@@ -64,10 +64,10 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('PUT', '/api/creation-context', 'Creation Context', 'saveHomeCreationContext', ['首页附件、模型、Skill、参考与模式变更'], ['authenticated-populated']),
   route('POST', '/api/creation-context', 'Creation Context', 'submitHomeCreationContext', ['首页 Agent 发送前冻结上下文'], ['authenticated-populated']),
 
-  route('POST', '/api/agent/sessions/{sessionId}/messages', 'Agent', 'sendAgentMessage', ['Agent 输入框发送消息']),
+  route('POST', '/api/agent/sessions/{sessionId}/messages', 'Agent', 'sendAgentMessage', ['Agent 输入框发送消息并固定已选 Skill']),
   route('PATCH', '/api/agent/sessions/{sessionId}/messages', 'Agent', 'resolveAgentMessage', [
     '回答 ask_human',
-    '确认或拒绝 mutation proposal',
+    '确认或拒绝 mutation proposal，并展示本地运行/失败降级',
   ]),
   route('GET', '/api/agent/sessions/{sessionId}', 'Agent', 'getAgentSession', ['打开 Agent 会话']),
   route('PATCH', '/api/agent/sessions/{sessionId}', 'Agent', 'updateAgentSession', ['修改 Agent 模型、模式或分享状态']),

@@ -10,6 +10,7 @@ import type {
   WorkflowDocument,
   WorkflowNode,
 } from '@/domain/types'
+import { executionToolTrace, fixtureForAgentExecution, planningToolTrace } from '@/mocks/agent'
 import { findCanvas, type WorkspaceState } from './store'
 
 /**
@@ -60,9 +61,17 @@ interface TurnInput {
   context: AgentContextChip[]
 }
 
+export interface AgentToolTrace {
+  tool: string
+  summary: string
+  status: 'running' | 'ok' | 'error'
+}
+
 export interface TurnResult {
   reply: string
   payload?: AgentPayload
+  /** Trace rows are persisted as tool messages before the assistant proposal. */
+  toolCalls?: AgentToolTrace[]
 }
 
 const VIDEO_WORDS = ['视频', '短片', '片段', '影片', '动画', 'video']
@@ -114,18 +123,24 @@ export function planTurn({ state, session, text, context }: TurnInput): TurnResu
     return { reply: '当前会话没有绑定画布，请先在项目中打开一个画布再让我操作节点。' }
   }
 
-  const plan = buildPlan(doc, brief, context)
+  const execution = fixtureForAgentExecution({ text: brief, context })
+  const plan = buildPlan(doc, brief, context, execution.workflowKind)
   if (plan.mutations.length === 0) {
     return {
       reply: '我没有找到需要改动的地方。你可以告诉我想新增哪类节点，或选中画布上的节点再发给我。',
     }
   }
 
+  const skillPrefix = execution.skill
+    ? `已固定使用 Skill「${execution.skill.name}」v${execution.skill.version}。`
+    : ''
+  const summary = `${skillPrefix}${plan.summary}`
   return {
-    reply: plan.summary,
+    reply: summary,
+    toolCalls: planningToolTrace(execution),
     payload: {
       kind: 'mutation_proposal',
-      summary: plan.summary,
+      summary,
       status: 'pending',
       mutations: plan.mutations,
     },
@@ -145,14 +160,19 @@ interface Plan {
  * expect. Selected nodes in `context` are reused as the chain's head instead of
  * creating a duplicate.
  */
-function buildPlan(doc: WorkflowDocument, brief: string, context: AgentContextChip[]): Plan {
+export function buildPlan(
+  doc: WorkflowDocument,
+  brief: string,
+  context: AgentContextChip[],
+  workflowKind: 'text' | 'media' = 'media',
+): Plan {
   const mutations: CanvasMutation[] = []
   const pool: WorkflowNode[] = [...doc.nodes]
 
-  const wantsVideo = mentions(brief, VIDEO_WORDS)
-  const wantsImage = mentions(brief, IMAGE_WORDS)
-  const wantsAudio = mentions(brief, AUDIO_WORDS)
-  const wantsScript = mentions(brief, SCRIPT_WORDS)
+  const wantsVideo = workflowKind === 'media' && mentions(brief, VIDEO_WORDS)
+  const wantsImage = workflowKind === 'media' && mentions(brief, IMAGE_WORDS)
+  const wantsAudio = workflowKind === 'media' && mentions(brief, AUDIO_WORDS)
+  const wantsScript = workflowKind === 'text' || mentions(brief, SCRIPT_WORDS)
 
   // Lay the new chain out to the right of everything that already exists.
   const rightEdge = doc.nodes.reduce((max, n) => Math.max(max, n.position.x + n.size.width), 0)
@@ -197,7 +217,7 @@ function buildPlan(doc: WorkflowDocument, brief: string, context: AgentContextCh
   }
 
   let imageNode: WorkflowNode | null = referencedNodes.find((n) => n.type === 'image') ?? null
-  if (wantsImage || wantsVideo || (!wantsAudio && !wantsScript)) {
+  if (wantsImage || wantsVideo || (workflowKind === 'media' && !wantsAudio && !wantsScript)) {
     if (!imageNode) {
       const node = createNode('image', { x: originX + column * 520, y: originY }, pool)
       node.data.prompt = ''
@@ -229,4 +249,21 @@ function buildPlan(doc: WorkflowDocument, brief: string, context: AgentContextCh
     : `我计划建立 ${edgeCount} 条依赖连线。`
 
   return { summary, mutations }
+}
+
+/**
+ * Convert an approved proposal into local tool trace rows.  The trigger stays
+ * explicit: `[fixture:media-failure]` (or the documented Chinese markers)
+ * leaves the text nodes in place and records a visible fallback instead of
+ * invoking any external model.
+ */
+export function executionTraceForProposal(input: {
+  text: string
+  context: AgentContextChip[]
+  mutations: CanvasMutation[]
+}) {
+  return executionToolTrace({
+    fixture: fixtureForAgentExecution({ text: input.text, context: input.context }),
+    mutations: input.mutations,
+  })
 }

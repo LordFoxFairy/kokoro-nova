@@ -31,6 +31,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) | 风格/特效独立目录、分页 facets、详情和幂等收藏动作 |
 | [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
 | [`skills-authoring.md`](skills-authoring.md) | Skill 草稿、文件树、审核、发布与下架的作者工作流 |
+| [`agent-skill-execution.md`](agent-skill-execution.md) | Agent 固定版本 Skill、确定性计划、确认门、工具轨迹与失败降级 |
 | [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 45 个 path / 79 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) | 项目软删除、30 天保留、恢复、永久删除与画布保留边界 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
@@ -48,7 +49,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.15.0-skill-authoring
+Contract version: 1.16.0-agent-skill-execution
 OpenAPI: 3.1.0
 ```
 
@@ -220,7 +221,7 @@ GET|POST /api/skills/author
 GET|PATCH|POST /api/skills/author/SKILL_ID
 ```
 
-它固定覆盖 `create → draft → 编辑文件树/语义版本 → submit_review → publish → 我的可见 → unpublish`。
+它固定覆盖 `create → draft → 编辑版本化说明/输出类型/可选封面/文件树 → submit_review → publish → 我的可见 → unpublish`。
 仅 `published` 版本投影到 `collection=我的`；发布未通过审核或不完整草稿会给出可行动校验错误。完整字段说明见
 [`skills-authoring.md`](skills-authoring.md)。
 

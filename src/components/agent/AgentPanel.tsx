@@ -7,9 +7,8 @@ import type {
   AgentContextChip,
   AgentMessage,
   AgentSession,
-  WorkflowDocument,
 } from '@/domain/types'
-import { api } from '@/lib/api'
+import { agentApi } from '@/api/agent'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import { Menu, useMenuAnchor, type MenuSection } from '../ui/Menu'
@@ -103,7 +102,7 @@ export function AgentPanel() {
   const ensureSession = useCallback(async (): Promise<AgentSession | null> => {
     if (session) return session
     if (!projectId) return null
-    const created = await api.post<AgentSession>('/api/agent/sessions', { projectId, canvasId })
+    const created = await agentApi.create({ projectId, canvasId })
     setSession(created)
     setSessions((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
     return created
@@ -128,9 +127,7 @@ export function AgentPanel() {
     setSessionsLoading(true)
     setSessionsError(null)
     try {
-      const result = await api.get<{ sessions: AgentSession[] }>(
-        `/api/agent/sessions?projectId=${encodeURIComponent(projectId)}`,
-      )
+      const result = await agentApi.list(projectId)
       setSessions(result.sessions)
     } catch (error) {
       lastOperation.current = null
@@ -199,10 +196,7 @@ export function AgentPanel() {
     try {
       const active = await ensureSession()
       if (!active) throw new Error('当前没有绑定项目或画布')
-      const result = await api.post<{ session: AgentSession; messages: AgentMessage[] }>(
-        `/api/agent/sessions/${active.id}/messages`,
-        { text, context },
-      )
+      const result = await agentApi.send(active.id, { text, context })
       setSession(result.session)
       setMessages((prev) => mergeAgentMessages(prev, result.messages))
       setDraft('')
@@ -230,12 +224,7 @@ export function AgentPanel() {
     setRunState('running')
     setRunError(null)
     try {
-      const result = await api.patch<{
-        session: AgentSession
-        messages: AgentMessage[]
-        revision?: number
-        document?: WorkflowDocument
-      }>(`/api/agent/sessions/${session.id}/messages`, { messageId, action, answer })
+      const result = await agentApi.resolve(session.id, { messageId, action, answer })
 
       setSession(result.session)
       setMessages((prev) => mergeAgentMessages(prev, result.messages))
@@ -272,7 +261,7 @@ export function AgentPanel() {
     try {
       const active = await ensureSession()
       if (!active) throw new Error('当前没有绑定项目或画布')
-      const updated = await api.patch<AgentSession>(`/api/agent/sessions/${active.id}`, patch)
+      const updated = await agentApi.update(active.id, patch)
       setSession(updated)
       setSessions((prev) => [updated, ...prev.filter((item) => item.id !== updated.id)])
     } catch (error) {
@@ -367,7 +356,7 @@ export function AgentPanel() {
           onClick={async () => {
             if (!session) return
             try {
-              await api.patch(`/api/agent/sessions/${session.id}`, { shared: true })
+              await agentApi.update(session.id, { shared: true })
               toast('分享链接已复制', 'success')
             } catch (error) {
               const message = error instanceof Error ? error.message : '分享失败'
@@ -413,9 +402,7 @@ export function AgentPanel() {
                   type="button"
                   onClick={async () => {
                     try {
-                      const data = await api.get<{ session: AgentSession; messages: AgentMessage[] }>(
-                        `/api/agent/sessions/${s.id}`,
-                      )
+                      const data = await agentApi.get(s.id)
                       setSession(data.session)
                       setMessages(mergeAgentMessages([], data.messages))
                       setRunState('idle')
@@ -439,7 +426,7 @@ export function AgentPanel() {
                   aria-label="删除会话"
                   onClick={async () => {
                     try {
-                      await api.del(`/api/agent/sessions/${s.id}`)
+                      await agentApi.remove(s.id)
                       setSessions((prev) => prev.filter((x) => x.id !== s.id))
                       if (session?.id === s.id) {
                         setSession(null)
@@ -706,14 +693,16 @@ function MessageBubble({
     const toolStatus = message.payload?.kind === 'tool_call' ? message.payload.status : 'ok'
     return (
       <div
+        data-testid={`agent-tool-${message.payload?.kind === 'tool_call' ? message.payload.tool.replaceAll('.', '-') : 'trace'}`}
         className={cn(
           'flex items-center gap-1.5 text-[11px]',
           toolStatus === 'error' ? 'text-danger' : toolStatus === 'running' ? 'text-running' : 'text-ink-400',
         )}
-        data-testid="agent-tool-status"
+        data-legacy-testid="agent-tool-status"
         data-state={toolStatus}
       >
         <span className={cn('h-1.5 w-1.5 rounded-full', toolStatus === 'error' ? 'bg-danger' : toolStatus === 'running' ? 'bg-running' : 'bg-success')} />
+        <span className="shrink-0 font-mono text-[10px] text-ink-400">{message.payload?.kind === 'tool_call' ? message.payload.tool : 'tool'}</span>
         <span className="min-w-0 flex-1">{message.content}</span>
         <span className="shrink-0">{toolStatus === 'running' ? '运行中' : toolStatus === 'error' ? '失败' : '完成'}</span>
       </div>
@@ -766,7 +755,8 @@ function MessageBubble({
 
       {payload?.kind === 'mutation_proposal' && (
         <div className="rounded-2xl border border-ink-200 p-3" data-testid="mutation-proposal">
-          <div className="mb-2 text-[11px] font-medium text-ink-500">画布改动方案</div>
+          <div className="mb-1 text-[11px] font-medium text-ink-500">画布改动方案</div>
+          <p className="mb-2 text-[11px] leading-relaxed text-ink-600" data-testid="agent-skill-plan">{payload.summary}</p>
           <ul className="space-y-1 text-[12px] text-ink-600">
             {payload.mutations
               .filter((m) => m.op === 'addNode')

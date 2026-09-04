@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.15.0-skill-authoring",
+    "version": "1.16.0-skill-author-form",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -50,7 +50,7 @@
     },
     {
       "name": "Agent",
-      "description": "会话、消息和 mutation proposal"
+      "description": "会话、固定版本 Skill、确定性工具轨迹与 mutation 确认门"
     },
     {
       "name": "Skills",
@@ -95,10 +95,10 @@
         "tags": [
           "Agent"
         ],
-        "summary": "Agent 输入框发送消息",
+        "summary": "固定 Skill 并生成确定性 Agent 计划",
         "operationId": "sendAgentMessage",
         "x-ui-triggers": [
-          "Agent 输入框发送消息"
+          "Agent 输入框发送消息并固定已选 Skill"
         ],
         "x-mock-scenarios": [
           "authenticated-populated"
@@ -114,6 +114,9 @@
                 "examples": {
                   "fixture": {
                     "$ref": "#/components/examples/AgentMessagesResponseExample"
+                  },
+                  "skillExecution": {
+                    "$ref": "#/components/examples/AgentSkillExecutionResponseExample"
                   }
                 }
               }
@@ -171,17 +174,18 @@
               }
             }
           }
-        }
+        },
+        "description": "本地 deterministic runner 生成 text/media mutation proposal 与 skills.resolve、workflow.plan tool trace；不调用真实 LLM。"
       },
       "patch": {
         "tags": [
           "Agent"
         ],
-        "summary": "回答 ask_human",
+        "summary": "回答 Agent 询问或确认确定性工作流",
         "operationId": "resolveAgentMessage",
         "x-ui-triggers": [
           "回答 ask_human",
-          "确认或拒绝 mutation proposal"
+          "确认或拒绝 mutation proposal，并展示本地运行/失败降级"
         ],
         "x-mock-scenarios": [
           "authenticated-populated"
@@ -197,6 +201,9 @@
                 "examples": {
                   "fixture": {
                     "$ref": "#/components/examples/AgentMessagesResponseExample"
+                  },
+                  "skillExecution": {
+                    "$ref": "#/components/examples/AgentSkillExecutionResponseExample"
                   }
                 }
               }
@@ -254,7 +261,8 @@
               }
             }
           }
-        }
+        },
+        "description": "apply 通过 canonical mutation reducer 写入画布；媒体失败 marker 只产生本地 fallback trace，不创建远程任务或消费积分。"
       }
     },
     "/api/agent/sessions/{sessionId}": {
@@ -5284,10 +5292,10 @@
         "x-mock-scenarios": [
           "authenticated-populated"
         ],
-        "summary": "保存作者元数据或文件树",
+        "summary": "保存版本化作者表单或文件树",
         "operationId": "updateAuthoredSkill",
         "x-ui-triggers": [
-          "作者工作台保存元数据或文件树"
+          "作者工作台保存名称、说明、输出类型、可选封面或文件树"
         ],
         "parameters": [
           {
@@ -11345,7 +11353,7 @@
           },
           "revision": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 0
           },
           "document": {
             "$ref": "#/components/schemas/WorkflowDocument"
@@ -12287,6 +12295,43 @@
           },
           "favourite": {
             "type": "boolean"
+          },
+          "usageScenarios": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "个人作者 Skill 的已审核使用场景。"
+          },
+          "howToUse": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "个人作者 Skill 的已审核使用方法。"
+          },
+          "outputContent": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "个人作者 Skill 的已审核输出内容。"
+          },
+          "outputTypes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio",
+                "text"
+              ]
+            }
+          },
+          "cover": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512,
+            "description": "可选封面；使用站内路径或 HTTP(S) 地址。"
           }
         },
         "additionalProperties": false
@@ -14162,6 +14207,10 @@
               "name",
               "summary",
               "category",
+              "usage-scenarios",
+              "how-to-use",
+              "output-content",
+              "output-types",
               "skill-file",
               "semantic-version"
             ]
@@ -14217,6 +14266,11 @@
           "name",
           "summary",
           "category",
+          "usageScenarios",
+          "howToUse",
+          "outputContent",
+          "outputTypes",
+          "cover",
           "version",
           "status",
           "review",
@@ -14303,6 +14357,43 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 359
+          },
+          "usageScenarios": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Skill 面向的创作阶段和问题。"
+          },
+          "howToUse": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "作者给调用者的输入和调用说明。"
+          },
+          "outputContent": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "调用后可交付的结构化产物。"
+          },
+          "outputTypes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio",
+                "text"
+              ]
+            }
+          },
+          "cover": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512,
+            "description": "可选封面；使用站内路径或 HTTP(S) 地址。"
           }
         },
         "additionalProperties": false
@@ -14394,6 +14485,40 @@
             "items": {
               "type": "string"
             }
+          },
+          "usageScenarios": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "howToUse": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "outputContent": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "outputTypes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio",
+                "text"
+              ]
+            }
+          },
+          "cover": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512,
+            "description": "可选封面；使用站内路径或 HTTP(S) 地址。"
           }
         },
         "additionalProperties": false
@@ -15117,6 +15242,10 @@
       },
       "ResetScenarioResponseExample": {
         "externalValue": "./examples/reset.response.json"
+      },
+      "AgentSkillExecutionResponseExample": {
+        "summary": "固定版本 Skill 的媒体失败降级 tool trace",
+        "externalValue": "./examples/agent-skill-execution.response.json"
       }
     }
   },

@@ -451,3 +451,986 @@ export function updateScriptV2Row(
   })
   return changed ? { ...state, rows } : state
 }
+
+/* -------------------------------------------------------------------------- */
+/* Import and migration                                                       */
+/* -------------------------------------------------------------------------- */
+
+const SCRIPT_V2_FIXTURE_TIMESTAMP = '2026-09-03T00:00:00.000Z'
+const MAX_SCRIPT_ROWS = 500
+const MAX_SCRIPT_ASSETS_PER_ROLE = 500
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+function text(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return fallback
+}
+
+function positiveInteger(value: unknown, fallback: number): number {
+  const parsed = finiteNumber(value, fallback)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, MAX_SCRIPT_ROWS).filter((entry): entry is string => typeof entry === 'string')
+}
+
+function isShotSize(value: unknown): value is ScriptV2ShotSize {
+  return typeof value === 'string' && (SCRIPT_V2_SHOT_SIZES as readonly string[]).includes(value)
+}
+
+function promptState(value: unknown, prompt: string): ScriptV2PromptState {
+  const allowed: ScriptV2PromptState[] = [
+    'none',
+    'synced',
+    'stale',
+    'generating',
+    'user_edited',
+    'user_edited_stale',
+  ]
+  return typeof value === 'string' && allowed.includes(value as ScriptV2PromptState)
+    ? (value as ScriptV2PromptState)
+    : initialPromptState(prompt)
+}
+
+function entityRefs(value: unknown): ScriptV2EntityRef[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const seen = new Set<string>()
+  const refs = value.slice(0, MAX_SCRIPT_ASSETS_PER_ROLE).flatMap((entry) => {
+    if (!isPlainRecord(entry)) return []
+    const refText = text(entry.text).trim()
+    const assetId = text(entry.assetId ?? entry.asset_id).trim()
+    if (!refText || !assetId || seen.has(assetId)) return []
+    seen.add(assetId)
+    return [{ text: refText, assetId }]
+  })
+  return refs.length ? refs : undefined
+}
+
+function dialogueLines(value: unknown): ScriptV2DialogueLine[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const lines = value.slice(0, MAX_SCRIPT_ROWS).flatMap((entry) => {
+    if (!isPlainRecord(entry)) return []
+    const content = text(entry.text).trim()
+    if (!content) return []
+    const kind: ScriptV2DialogueLine['kind'] =
+      entry.kind === 'voiceover' || entry.kind === 'speech' ? entry.kind : undefined
+    const characterRef = optionalText(entry.characterRef ?? entry.character_ref)
+    return [
+      {
+        text: content,
+        ...(characterRef ? { characterRef } : {}),
+        ...(kind ? { kind } : {}),
+        ...(entityRefs(entry.entityRefs ?? entry.entity_refs)
+          ? { entityRefs: entityRefs(entry.entityRefs ?? entry.entity_refs) }
+          : {}),
+      },
+    ]
+  })
+  return lines.length ? lines : undefined
+}
+
+function characterRefs(value: unknown): ScriptV2CharacterRef[] {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, MAX_SCRIPT_ASSETS_PER_ROLE).flatMap((entry) => {
+    if (!isPlainRecord(entry)) return []
+    return [
+      {
+        characterName: text(entry.characterName ?? entry.character_name),
+        characterAssetId: text(entry.characterAssetId ?? entry.character_asset_id),
+        characterDescription: text(entry.characterDescription ?? entry.character_description),
+        characterImageUrl: text(entry.characterImageUrl ?? entry.character_image_url),
+      },
+    ]
+  })
+}
+
+function mediaVersions(value: unknown): ScriptV2MediaVersion[] {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, MAX_SCRIPT_ROWS).flatMap((entry) => {
+    if (!isPlainRecord(entry)) return []
+    const id = text(entry.id).trim()
+    const url = text(entry.url).trim()
+    if (!id || !url) return []
+    return [
+      {
+        id,
+        url,
+        ...(optionalText(entry.thumbnailUrl) ? { thumbnailUrl: text(entry.thumbnailUrl) } : {}),
+        createdAt: text(entry.createdAt, SCRIPT_V2_FIXTURE_TIMESTAMP),
+      },
+    ]
+  })
+}
+
+function colorLabel(value: unknown): ScriptV2ColorLabel {
+  return value === 'red' || value === 'yellow' || value === 'green' || value === 'blue' || value === 'gray'
+    ? value
+    : null
+}
+
+function normalizeRow(
+  value: unknown,
+  seed: string,
+  index: number,
+  usedIds: Set<string>,
+): ScriptV2Row {
+  const raw = isPlainRecord(value) ? value : {}
+  const requestedId = text(raw.id ?? raw.shot_id).trim()
+  const id = requestedId && !usedIds.has(requestedId)
+    ? requestedId
+    : `shot_${fnv1a(`${seed}:repair:${index + 1}`)}`
+  usedIds.add(id)
+  const rawCinematics = isPlainRecord(raw.cinematics) ? raw.cinematics : null
+  const candidateShotSize = raw.shotSize ?? raw.shot_size ?? rawCinematics?.shotSize ?? rawCinematics?.shot_size
+  const shotSize = isShotSize(candidateShotSize) ? candidateShotSize : '中景'
+  const imageGenerationPrompt = text(
+    raw.imageGenerationPrompt ?? raw.image_generation_prompt ?? raw.final_image_prompt,
+  )
+  const videoMotionPrompt = text(raw.videoMotionPrompt ?? raw.video_motion_prompt ?? raw.final_video_prompt)
+  const partial: ScriptV2RowPatch = {
+    durationSeconds: finiteNumber(raw.durationSeconds ?? raw.duration_seconds ?? raw.duration, 5),
+    plotDescription: text(raw.plotDescription ?? raw.plot_description ?? raw.visual_description ?? raw.content),
+    plotDescriptionEntityRefs: entityRefs(raw.plotDescriptionEntityRefs ?? raw.plot_description_entity_refs),
+    characters: characterRefs(raw.characters),
+    ...(isPlainRecord(raw.videoReference ?? raw.video_reference)
+      ? {
+          videoReference: {
+            startTime: finiteNumber(
+              (raw.videoReference as Record<string, unknown> | undefined)?.startTime ??
+                (raw.video_reference as Record<string, unknown> | undefined)?.start_time,
+              0,
+            ),
+            endTime: finiteNumber(
+              (raw.videoReference as Record<string, unknown> | undefined)?.endTime ??
+                (raw.video_reference as Record<string, unknown> | undefined)?.end_time,
+              0,
+            ),
+            referenceFrameImage: text(
+              (raw.videoReference as Record<string, unknown> | undefined)?.referenceFrameImage ??
+                (raw.video_reference as Record<string, unknown> | undefined)?.reference_frame_image,
+            ),
+          },
+        }
+      : {}),
+    ...(rawCinematics
+      ? {
+          cinematics: {
+            ...(isShotSize(rawCinematics.shotSize ?? rawCinematics.shot_size)
+              ? { shotSize: (rawCinematics.shotSize ?? rawCinematics.shot_size) as ScriptV2ShotSize }
+              : {}),
+            ...(optionalText(rawCinematics.cameraMovement ?? rawCinematics.camera_movement)
+              ? { cameraMovement: text(rawCinematics.cameraMovement ?? rawCinematics.camera_movement) }
+              : {}),
+            ...(optionalText(rawCinematics.lighting)
+              ? { lighting: text(rawCinematics.lighting) }
+              : {}),
+          },
+        }
+      : {}),
+    shotSize,
+    emotion: text(raw.emotion),
+    sceneAssetIds: stringList(raw.sceneAssetIds ?? raw.scene_asset_ids),
+    propTags: text(raw.propTags ?? raw.prop_tags),
+    propAssetIds: stringList(raw.propAssetIds ?? raw.prop_asset_ids),
+    lightingAndAtmosphere: text(raw.lightingAndAtmosphere ?? raw.lighting_and_atmosphere),
+    audioEffects: text(raw.audioEffects ?? raw.audio_effects ?? raw.audio_music),
+    dialogue: text(raw.dialogue ?? raw.audio_voice),
+    dialogueLines: dialogueLines(raw.dialogueLines ?? raw.dialogue_lines),
+    voiceover: optionalText(raw.voiceover),
+    bgm: optionalText(raw.bgm),
+    sfx: optionalText(raw.sfx),
+    imageGenerationPrompt,
+    videoMotionPrompt,
+    finalImagePromptEntityRefs: entityRefs(
+      raw.finalImagePromptEntityRefs ?? raw.final_image_prompt_entity_refs,
+    ),
+    finalVideoPromptEntityRefs: entityRefs(
+      raw.finalVideoPromptEntityRefs ?? raw.final_video_prompt_entity_refs,
+    ),
+    imageToVideoMotionPrompt: text(
+      raw.imageToVideoMotionPrompt ?? raw.image_to_video_motion_prompt,
+      videoMotionPrompt,
+    ),
+    userEditedImageToVideoMotionPrompt: optionalText(
+      raw.userEditedImageToVideoMotionPrompt ?? raw.user_edited_image_to_video_motion_prompt,
+    ),
+    imageVersions: mediaVersions(raw.imageVersions),
+    videoVersions: mediaVersions(raw.videoVersions),
+    colorLabel: colorLabel(raw.colorLabel),
+    imagePromptState: promptState(raw.imagePromptState, imageGenerationPrompt),
+    videoPromptState: promptState(raw.videoPromptState, videoMotionPrompt),
+  }
+  const row = createRow(seed, index + 1, index + 1, partial)
+  return {
+    ...row,
+    id,
+    hiddenUuid: text(raw.hiddenUuid).trim() || `hidden_${fnv1a(`${seed}:hidden:${index + 1}`)}`,
+    textHash: scriptV2TextFingerprint({ ...row, id }),
+    payloadHash: scriptV2PayloadFingerprint({ ...row, id }),
+  }
+}
+
+function assetRole(value: unknown, fallback: ScriptV2AssetRole): ScriptV2AssetRole {
+  return value === 'character' || value === 'scene' || value === 'prop' ? value : fallback
+}
+
+function assetSource(value: unknown): ScriptV2AssetSource {
+  return value === 'canvas' || value === 'upload' || value === 'library' ? value : 'ai'
+}
+
+function assetStatus(value: unknown, hasImage: boolean): ScriptV2AssetStatus {
+  return value === 'pending' || value === 'generating' || value === 'ready' || value === 'failed' || value === 'lost'
+    ? value
+    : hasImage
+      ? 'ready'
+      : 'pending'
+}
+
+function normalizeAsset(
+  value: unknown,
+  role: ScriptV2AssetRole,
+  seed: string,
+  index: number,
+): ScriptV2Asset | null {
+  if (!isPlainRecord(value)) return null
+  const name = text(value.name).trim()
+  const id = text(value.id).trim() || `asset_${fnv1a(`${seed}:${role}:${index + 1}`)}`
+  if (!name && !id) return null
+  const thumbnailUrl = optionalText(value.thumbnailUrl ?? value.image_url ?? value.referenceUrl)
+  const linkedNodeId = optionalText(value.linkedNodeId ?? value.linked_node_id ?? value.node_id)
+  const sourceImageRef = optionalText(value.sourceImageRef ?? value.source_image_ref)
+  return {
+    id,
+    role: assetRole(value.role ?? value.kind, role),
+    name,
+    description: text(value.description ?? value.desc),
+    source: assetSource(value.source),
+    status: assetStatus(value.status, Boolean(thumbnailUrl || linkedNodeId)),
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    ...(linkedNodeId ? { linkedNodeId } : {}),
+    ...(sourceImageRef ? { sourceImageRef } : {}),
+    ...(typeof value.isPrimary === 'boolean' || typeof value.is_primary === 'boolean'
+      ? { isPrimary: Boolean(value.isPrimary ?? value.is_primary) }
+      : {}),
+    ...(optionalText(value.error) ? { error: text(value.error) } : {}),
+    createdAt: text(value.createdAt, SCRIPT_V2_FIXTURE_TIMESTAMP),
+    updatedAt: text(value.updatedAt, SCRIPT_V2_FIXTURE_TIMESTAMP),
+  }
+}
+
+function normalizeAssetBucket(
+  value: unknown,
+  role: ScriptV2AssetRole,
+  seed: string,
+): ScriptV2Asset[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .slice(0, MAX_SCRIPT_ASSETS_PER_ROLE)
+    .flatMap((entry, index) => normalizeAsset(entry, role, seed, index) ?? [])
+}
+
+function normalizeAssets(value: unknown, seed: string): ScriptV2Assets {
+  const raw = isPlainRecord(value) ? value : {}
+  return {
+    characters: normalizeAssetBucket(raw.characters, 'character', seed),
+    scenes: normalizeAssetBucket(raw.scenes, 'scene', seed),
+    props: normalizeAssetBucket(raw.props, 'prop', seed),
+  }
+}
+
+function normalizeEntry(value: unknown): ScriptV2Entry | null {
+  return value === 'screenplay' || value === 'character' || value === 'manual' ? value : null
+}
+
+function normalizeStage(value: unknown): ScriptV2Stage {
+  return value === 'assets' || value === 'prompts' ? value : 'shots'
+}
+
+function normalizeCanonicalState(raw: Record<string, unknown>, fallbackSeed: string): ScriptV2State {
+  const seed = text(raw.identitySeed).trim() || fallbackSeed
+  const usedIds = new Set<string>()
+  const rows = (Array.isArray(raw.rows) ? raw.rows : [])
+    .slice(0, MAX_SCRIPT_ROWS)
+    .map((row, index) => normalizeRow(row, seed, index, usedIds))
+  const generatorRaw = isPlainRecord(raw.generator) ? raw.generator : {}
+  const promptComposerRaw = isPlainRecord(raw.promptComposer) ? raw.promptComposer : {}
+  const defaults = defaultScriptV2State(seed)
+  return {
+    ...defaults,
+    identitySeed: seed,
+    nextRowOrdinal: Math.max(rows.length + 1, positiveInteger(raw.nextRowOrdinal, rows.length + 1)),
+    nextAssetOrdinal: Math.max(1, positiveInteger(raw.nextAssetOrdinal, 1)),
+    entry: normalizeEntry(raw.entry),
+    activeStage: normalizeStage(raw.activeStage),
+    title: text(raw.title),
+    originalStoryText: text(raw.originalStoryText),
+    styleDescription: raw.styleDescription === null ? null : optionalText(raw.styleDescription) ?? null,
+    rows,
+    assets: normalizeAssets(raw.assets, seed),
+    generator: {
+      modelId: text(generatorRaw.modelId, 'gvlm-3.1') || 'gvlm-3.1',
+      prompt: text(generatorRaw.prompt),
+      translating: typeof generatorRaw.translating === 'boolean' ? generatorRaw.translating : true,
+      referenceIds: stringList(generatorRaw.referenceIds),
+      status:
+        generatorRaw.status === 'generating' || generatorRaw.status === 'failed'
+          ? generatorRaw.status
+          : 'idle',
+      error: typeof generatorRaw.error === 'string' ? generatorRaw.error : null,
+    },
+    promptComposer: {
+      singleMode: promptComposerRaw.singleMode === 'auto' ? 'auto' : 'smart',
+      batchMode: promptComposerRaw.batchMode === 'auto' ? 'auto' : 'smart',
+      modelId: text(promptComposerRaw.modelId, 'gvlm-3.1') || 'gvlm-3.1',
+    },
+    promptBatchRuns: [],
+  }
+}
+
+function migrateLegacyDraft(raw: Record<string, unknown>, seed: string): ScriptV2State {
+  const draft = isPlainRecord(raw.draft) ? raw.draft : raw
+  const flatAssets = Array.isArray(draft.assets) ? draft.assets : []
+  const buckets: Record<'characters' | 'scenes' | 'props', unknown[]> = {
+    characters: [],
+    scenes: [],
+    props: [],
+  }
+  for (const asset of flatAssets) {
+    if (!isPlainRecord(asset)) continue
+    const role = assetRole(asset.kind, 'character')
+    buckets[role === 'character' ? 'characters' : role === 'scene' ? 'scenes' : 'props'].push(asset)
+  }
+  const assets = normalizeAssets(buckets, seed)
+  const byId = new Map(
+    [...assets.characters, ...assets.scenes, ...assets.props].map((asset) => [asset.id, asset]),
+  )
+  const legacyRows = Array.isArray(draft.shots) ? draft.shots : Array.isArray(raw.shots) ? raw.shots : []
+  const migratedRows = legacyRows.slice(0, MAX_SCRIPT_ROWS).map((entry, index) => {
+    const shot = isPlainRecord(entry) ? entry : {}
+    const refs = stringList(shot.assetRefs)
+    const referenced = refs.flatMap((id) => byId.get(id) ?? [])
+    return {
+      id: text(shot.id).trim() || undefined,
+      hiddenUuid: text(shot.hiddenUuid).trim() || undefined,
+      shot_number: positiveInteger(shot.index, index + 1),
+      duration_seconds: finiteNumber(shot.durationSeconds, 5),
+      plot_description: text(shot.description),
+      characters: referenced
+        .filter((asset) => asset.role === 'character')
+        .map((asset) => ({
+          character_name: asset.name,
+          character_asset_id: asset.id,
+          character_description: asset.description,
+          character_image_url: asset.thumbnailUrl ?? '',
+        })),
+      cinematics: {
+        shot_size: isShotSize(shot.shotSize) ? shot.shotSize : '中景',
+        ...(optionalText(shot.cameraMove) ? { camera_movement: text(shot.cameraMove) } : {}),
+      },
+      shot_size: isShotSize(shot.shotSize) ? shot.shotSize : '中景',
+      scene_asset_ids: referenced.filter((asset) => asset.role === 'scene').map((asset) => asset.id),
+      prop_asset_ids: referenced.filter((asset) => asset.role === 'prop').map((asset) => asset.id),
+      dialogue: text(shot.dialogue),
+      audio_effects: text(shot.sfx),
+      image_generation_prompt: text(shot.finalPrompt),
+      video_motion_prompt: '',
+    }
+  })
+  const title = text(draft.logline)
+  return normalizeCanonicalState(
+    {
+      version: 1,
+      identitySeed: seed,
+      nextRowOrdinal: migratedRows.length + 1,
+      nextAssetOrdinal: flatAssets.length + 1,
+      entry: draft.entry,
+      activeStage: migratedRows.length ? 'shots' : 'shots',
+      title,
+      originalStoryText: title,
+      rows: migratedRows,
+      assets,
+    },
+    seed,
+  )
+}
+
+export function readScriptV2State(
+  extra: Record<string, unknown> | undefined,
+  seed = 'script-v2',
+): ScriptV2State {
+  if (!isPlainRecord(extra)) return defaultScriptV2State(seed)
+  if (isPlainRecord(extra.scriptV2) && extra.scriptV2.version === 1) {
+    return normalizeCanonicalState(extra.scriptV2, seed)
+  }
+  if (isPlainRecord(extra.draft) || Array.isArray(extra.shots)) return migrateLegacyDraft(extra, seed)
+  return defaultScriptV2State(seed)
+}
+
+/* -------------------------------------------------------------------------- */
+/* Official protocol adapter                                                  */
+/* -------------------------------------------------------------------------- */
+
+export class ScriptV2DomainError extends Error {
+  constructor(
+    public readonly code: 'RECOMPUTE_LIMIT' | 'INVALID_RESULT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ScriptV2DomainError'
+  }
+}
+
+function providerModelId(modelId: string): string {
+  if (modelId === 'gvlm-3.1-flash') return 'aurora-3-flash'
+  if (modelId === 'cvlm-5.5') return 'claude-3-5-sonnet'
+  return 'aurora-3-prime'
+}
+
+export interface OfficialScriptNodeData {
+  type: 'script-v2'
+  title: string
+  name: string
+  rows: ScriptV2Row[]
+  viewMode: 'table'
+  action: 'script_generate'
+  generatorType: 'default'
+  assets: ScriptV2Assets
+  params: {
+    prompt: string
+    model: string
+    count: 1
+    scene: 'script-generate-v2'
+    textList: string[]
+    imageList: string[]
+    videoList: string[]
+    audioList: string[]
+  }
+  activeViewId: 'default'
+  originalStoryText?: string
+  styleDescription?: string | null
+}
+
+export function serializeOfficialScriptNode(state: ScriptV2State): OfficialScriptNodeData {
+  return {
+    type: 'script-v2',
+    title: state.title,
+    name: state.title || '脚本',
+    rows: state.rows.map((row) => ({
+      ...row,
+      characters: row.characters.map((character) => ({ ...character })),
+      sceneAssetIds: [...row.sceneAssetIds],
+      propAssetIds: [...row.propAssetIds],
+      imageVersions: row.imageVersions.map((version) => ({ ...version })),
+      videoVersions: row.videoVersions.map((version) => ({ ...version })),
+    })),
+    viewMode: 'table',
+    action: 'script_generate',
+    generatorType: 'default',
+    assets: {
+      characters: state.assets.characters.map((asset) => ({ ...asset })),
+      scenes: state.assets.scenes.map((asset) => ({ ...asset })),
+      props: state.assets.props.map((asset) => ({ ...asset })),
+    },
+    params: {
+      prompt: state.generator.prompt || state.originalStoryText,
+      model: providerModelId(state.generator.modelId),
+      count: 1,
+      scene: 'script-generate-v2',
+      textList: [],
+      imageList: [],
+      videoList: [],
+      audioList: [],
+    },
+    activeViewId: 'default',
+    ...(state.originalStoryText ? { originalStoryText: state.originalStoryText } : {}),
+    ...(state.styleDescription !== null ? { styleDescription: state.styleDescription } : {}),
+  }
+}
+
+export interface ScriptV2IncomingMedia {
+  textList: string[]
+  imageList: Array<{ nodeId: string; url: string; label?: string }>
+  videoList: string[]
+  audioList: string[]
+}
+
+export interface OfficialScriptGenerationEnvelope {
+  params: {
+    prompt: string
+    model: string
+    count: 1
+    scene: 'script-generate-v2'
+    scenePayload?: {
+      source_images: Array<{ ref_id: string; node_id: string; url: string; display_name?: string }>
+    }
+    textList: string[]
+    imageList: string[]
+    videoList: string[]
+    audioList: string[]
+  }
+  provider: 'aurora'
+  model: string
+  taskType: 'text'
+  metadata: { node_id: string; project_id: string }
+}
+
+export function buildOfficialScriptGenerationEnvelope(input: {
+  state: ScriptV2State
+  nodeId: string
+  projectId: string
+  incoming: ScriptV2IncomingMedia
+}): OfficialScriptGenerationEnvelope {
+  const model = providerModelId(input.state.generator.modelId)
+  const sourceImages = input.incoming.imageList.map((image, index) => ({
+    ref_id: `src_img_${index + 1}`,
+    node_id: image.nodeId,
+    url: image.url,
+    ...(image.label ? { display_name: image.label } : {}),
+  }))
+  return {
+    params: {
+      prompt: input.state.generator.prompt || input.state.originalStoryText,
+      model,
+      count: 1,
+      scene: 'script-generate-v2',
+      ...(sourceImages.length ? { scenePayload: { source_images: sourceImages } } : {}),
+      textList: [...input.incoming.textList],
+      imageList: input.incoming.imageList.map((image) => image.url),
+      videoList: [...input.incoming.videoList],
+      audioList: [...input.incoming.audioList],
+    },
+    provider: 'aurora',
+    model,
+    taskType: 'text',
+    metadata: { node_id: input.nodeId, project_id: input.projectId },
+  }
+}
+
+export interface OfficialSerializedShot {
+  shot_id: string
+  shot_number: number
+  duration_seconds: number
+  plot_description: string
+  shot_size: ScriptV2ShotSize
+  plot_description_entity_refs?: Array<{ text: string; asset_id: string }>
+  dialogue_lines?: Array<{
+    character_ref?: string
+    kind?: 'voiceover' | 'speech'
+    text: string
+    entity_refs?: Array<{ text: string; asset_id: string }>
+  }>
+  cinematics?: { shot_size?: ScriptV2ShotSize; camera_movement?: string; lighting?: string }
+  scene_asset_ids?: string[]
+  prop_asset_ids?: string[]
+  lighting_and_atmosphere?: string
+  audio_effects?: string
+  final_image_prompt_entity_refs?: Array<{ text: string; asset_id: string }>
+  final_video_prompt_entity_refs?: Array<{ text: string; asset_id: string }>
+  legacy_emotion_hint?: string
+}
+
+function officialRefs(refs: ScriptV2EntityRef[] | undefined) {
+  return refs?.length ? refs.map((ref) => ({ text: ref.text, asset_id: ref.assetId })) : undefined
+}
+
+function stripSpokenMentionMarkers(value: string, refs: ScriptV2EntityRef[] | undefined): string {
+  let result = value
+  for (const ref of refs ?? []) {
+    result = result.replaceAll(`@${ref.text}`, '')
+    result = result.replaceAll(`＠${ref.text}`, '')
+  }
+  return result.trim()
+}
+
+function serializeOfficialShot(row: ScriptV2Row): OfficialSerializedShot {
+  const cinematics = row.cinematics
+    ? {
+        ...(row.cinematics.shotSize ? { shot_size: row.cinematics.shotSize } : {}),
+        ...(row.cinematics.cameraMovement ? { camera_movement: row.cinematics.cameraMovement } : {}),
+        ...(row.cinematics.lighting ? { lighting: row.cinematics.lighting } : {}),
+      }
+    : undefined
+  return {
+    shot_id: row.id,
+    shot_number: row.shotNumber,
+    duration_seconds: row.durationSeconds,
+    plot_description: row.plotDescription,
+    shot_size: row.shotSize,
+    ...(officialRefs(row.plotDescriptionEntityRefs)
+      ? { plot_description_entity_refs: officialRefs(row.plotDescriptionEntityRefs) }
+      : {}),
+    ...(row.dialogueLines?.length
+      ? {
+          dialogue_lines: row.dialogueLines.map((line) => ({
+            ...(line.characterRef ? { character_ref: line.characterRef } : {}),
+            ...(line.kind ? { kind: line.kind } : {}),
+            text: stripSpokenMentionMarkers(line.text, line.entityRefs),
+            ...(officialRefs(line.entityRefs) ? { entity_refs: officialRefs(line.entityRefs) } : {}),
+          })),
+        }
+      : {}),
+    ...(cinematics && Object.keys(cinematics).length ? { cinematics } : {}),
+    ...(row.sceneAssetIds.length ? { scene_asset_ids: [...row.sceneAssetIds] } : {}),
+    ...(row.propAssetIds.length ? { prop_asset_ids: [...row.propAssetIds] } : {}),
+    ...(row.lightingAndAtmosphere
+      ? { lighting_and_atmosphere: row.lightingAndAtmosphere }
+      : {}),
+    ...(row.audioEffects ? { audio_effects: row.audioEffects } : {}),
+    ...(officialRefs(row.finalImagePromptEntityRefs)
+      ? { final_image_prompt_entity_refs: officialRefs(row.finalImagePromptEntityRefs) }
+      : {}),
+    ...(officialRefs(row.finalVideoPromptEntityRefs)
+      ? { final_video_prompt_entity_refs: officialRefs(row.finalVideoPromptEntityRefs) }
+      : {}),
+    ...(row.emotion.trim() ? { legacy_emotion_hint: row.emotion } : {}),
+  }
+}
+
+export interface OfficialPromptRecomputeScenePayload {
+  shots: OfficialSerializedShot[]
+  context_shots?: OfficialSerializedShot[]
+  assets?: {
+    characters: Array<Pick<ScriptV2Asset, 'id' | 'role' | 'name' | 'description' | 'thumbnailUrl'>>
+    scenes: Array<Pick<ScriptV2Asset, 'id' | 'role' | 'name' | 'description' | 'thumbnailUrl'>>
+    props: Array<Pick<ScriptV2Asset, 'id' | 'role' | 'name' | 'description' | 'thumbnailUrl'>>
+  }
+  story_context?: { original_story_text: string }
+  meta?: { visual_style: string }
+}
+
+export interface OfficialPromptRecomputeEnvelope {
+  params: {
+    prompt: ''
+    model: string
+    count: 1
+    scene: 'script-recompute-prompts-v2'
+    scenePayload: OfficialPromptRecomputeScenePayload
+    textList: []
+    imageList: []
+    imageLabelList: []
+    videoList: []
+    audioList: []
+  }
+  provider: 'aurora'
+  model: string
+  taskType: 'text'
+  metadata: { node_id: string; project_id: string }
+}
+
+function officialAssets(state: ScriptV2State): OfficialPromptRecomputeScenePayload['assets'] | undefined {
+  const project = (assets: ScriptV2Asset[]) =>
+    assets
+      .filter((asset) => asset.status !== 'lost' && asset.name.trim())
+      .map((asset) => ({
+        id: asset.id,
+        role: asset.role,
+        name: asset.name,
+        description: asset.description,
+        ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
+      }))
+  const assets = {
+    characters: project(state.assets.characters),
+    scenes: project(state.assets.scenes),
+    props: project(state.assets.props),
+  }
+  return assets.characters.length || assets.scenes.length || assets.props.length ? assets : undefined
+}
+
+export function buildOfficialPromptRecomputeEnvelope(input: {
+  state: ScriptV2State
+  rowIds: string[]
+  nodeId: string
+  projectId: string
+}): OfficialPromptRecomputeEnvelope {
+  const targetIds = new Set(input.rowIds)
+  const rows = input.state.rows.filter((row) => targetIds.has(row.id))
+  if (rows.length > SCRIPT_V2_RECOMPUTE_MAX_SHOTS) {
+    throw new ScriptV2DomainError(
+      'RECOMPUTE_LIMIT',
+      `提示词重算单批最多 ${SCRIPT_V2_RECOMPUTE_MAX_SHOTS} 个镜头，当前为 ${rows.length}`,
+    )
+  }
+  if (!rows.length) {
+    throw new ScriptV2DomainError('INVALID_RESULT', '提示词重算至少需要一个有效镜头')
+  }
+  const context = input.state.rows
+    .filter((row) => !targetIds.has(row.id))
+    .slice(0, SCRIPT_V2_CONTEXT_MAX_SHOTS)
+  const model = providerModelId(input.state.promptComposer.modelId)
+  const scenePayload: OfficialPromptRecomputeScenePayload = {
+    shots: rows.map(serializeOfficialShot),
+    ...(context.length ? { context_shots: context.map(serializeOfficialShot) } : {}),
+    ...(officialAssets(input.state) ? { assets: officialAssets(input.state) } : {}),
+    ...(input.state.originalStoryText
+      ? { story_context: { original_story_text: input.state.originalStoryText } }
+      : {}),
+    ...(input.state.styleDescription
+      ? { meta: { visual_style: input.state.styleDescription } }
+      : {}),
+  }
+  return {
+    params: {
+      prompt: '',
+      model,
+      count: 1,
+      scene: 'script-recompute-prompts-v2',
+      scenePayload,
+      textList: [],
+      imageList: [],
+      imageLabelList: [],
+      videoList: [],
+      audioList: [],
+    },
+    provider: 'aurora',
+    model,
+    taskType: 'text',
+    metadata: { node_id: input.nodeId, project_id: input.projectId },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Official task result parsing                                               */
+/* -------------------------------------------------------------------------- */
+
+export interface ScriptV2GenerateResult {
+  operation: 'generate-full'
+  title: string
+  rows: ScriptV2Row[]
+  assets: ScriptV2Assets
+  styleDescription?: string
+  shotColumns?: unknown[]
+}
+
+export interface ScriptV2RecognizeAssetsResult {
+  operation: 'recognize-assets-only'
+  assets: ScriptV2Assets
+}
+
+export interface ScriptV2RecomputedShot {
+  shotId: string
+  imageGenerationPrompt: string
+  videoMotionPrompt: string
+  finalImagePromptEntityRefs?: ScriptV2EntityRef[]
+  finalVideoPromptEntityRefs?: ScriptV2EntityRef[]
+}
+
+export interface ScriptV2RecomputeResult {
+  operation: 'recompute-prompts'
+  shots: ScriptV2RecomputedShot[]
+}
+
+export type ScriptV2TaskResult =
+  | ScriptV2GenerateResult
+  | ScriptV2RecognizeAssetsResult
+  | ScriptV2RecomputeResult
+
+function parseResultObject(payload: string): { inner: Record<string, unknown>; columns?: unknown[] } {
+  let outer: unknown
+  try {
+    outer = JSON.parse(payload)
+  } catch (error) {
+    throw new ScriptV2DomainError(
+      'INVALID_RESULT',
+      `脚本任务结果不是有效 JSON：${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+  if (!isPlainRecord(outer)) throw new ScriptV2DomainError('INVALID_RESULT', '脚本任务结果必须是对象')
+  if (Array.isArray(outer.texts)) {
+    if (typeof outer.texts[0] !== 'string') {
+      throw new ScriptV2DomainError('INVALID_RESULT', '脚本任务结果 texts 为空')
+    }
+    try {
+      const inner = JSON.parse(outer.texts[0]) as unknown
+      if (!isPlainRecord(inner)) throw new Error('inner result must be an object')
+      return { inner, ...(Array.isArray(outer.columns) ? { columns: outer.columns } : {}) }
+    } catch (error) {
+      throw new ScriptV2DomainError(
+        'INVALID_RESULT',
+        `脚本任务内部结果不是有效 JSON：${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+  return { inner: outer, ...(Array.isArray(outer.columns) ? { columns: outer.columns } : {}) }
+}
+
+function assetsFromOfficial(value: unknown, seed: string): ScriptV2Assets {
+  return normalizeAssets(value, seed)
+}
+
+export function parseOfficialScriptResult(
+  payload: string,
+  options: { operation: ScriptV2TaskResult['operation']; seed?: string },
+): ScriptV2TaskResult {
+  const seed = options.seed ?? 'script-result'
+  const { inner, columns } = parseResultObject(payload)
+  const assets = assetsFromOfficial(inner.assets, seed)
+
+  if (options.operation === 'recognize-assets-only') {
+    return { operation: 'recognize-assets-only', assets }
+  }
+
+  if (!Array.isArray(inner.shots) || inner.shots.length === 0) {
+    throw new ScriptV2DomainError('INVALID_RESULT', '脚本任务结果 shots 为空或格式不合法')
+  }
+
+  if (options.operation === 'recompute-prompts') {
+    const shots = inner.shots.flatMap((entry) => {
+      if (!isPlainRecord(entry)) return []
+      const shotId = text(entry.shot_id).trim()
+      const imageGenerationPrompt = text(entry.image_generation_prompt ?? entry.final_image_prompt).trim()
+      const videoMotionPrompt = text(entry.video_motion_prompt ?? entry.final_video_prompt).trim()
+      if (!shotId || !imageGenerationPrompt || !videoMotionPrompt) return []
+      return [
+        {
+          shotId,
+          imageGenerationPrompt,
+          videoMotionPrompt,
+          ...(entityRefs(entry.final_image_prompt_entity_refs)
+            ? { finalImagePromptEntityRefs: entityRefs(entry.final_image_prompt_entity_refs) }
+            : {}),
+          ...(entityRefs(entry.final_video_prompt_entity_refs)
+            ? { finalVideoPromptEntityRefs: entityRefs(entry.final_video_prompt_entity_refs) }
+            : {}),
+        },
+      ]
+    })
+    if (!shots.length) throw new ScriptV2DomainError('INVALID_RESULT', '提示词重算结果没有可写回镜头')
+    return { operation: 'recompute-prompts', shots }
+  }
+
+  const assetNameToId = new Map(
+    [...assets.characters, ...assets.scenes, ...assets.props]
+      .filter((asset) => asset.name)
+      .map((asset) => [asset.name, asset.id]),
+  )
+  const usedIds = new Set<string>()
+  const rows = inner.shots.slice(0, MAX_SCRIPT_ROWS).map((entry, index) => {
+    const enriched = isPlainRecord(entry) && Array.isArray(entry.characters)
+      ? {
+          ...entry,
+          characters: entry.characters.map((character) => {
+            if (!isPlainRecord(character)) return character
+            const name = text(character.character_name).trim()
+            return {
+              ...character,
+              character_asset_id: text(character.character_asset_id) || assetNameToId.get(name) || '',
+            }
+          }),
+        }
+      : entry
+    return normalizeRow(enriched, seed, index, usedIds)
+  })
+  const meta = isPlainRecord(inner.meta) ? inner.meta : {}
+  return {
+    operation: 'generate-full',
+    title: text(meta.title ?? inner.title),
+    rows,
+    assets,
+    ...(optionalText(meta.visual_style) ? { styleDescription: text(meta.visual_style) } : {}),
+    ...(columns ? { shotColumns: columns } : {}),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Prompt operation concurrency                                               */
+/* -------------------------------------------------------------------------- */
+
+function allAssets(assets: ScriptV2Assets): ScriptV2Asset[] {
+  return [...assets.characters, ...assets.scenes, ...assets.props]
+}
+
+export function scriptV2PromptInputFingerprint(
+  row: ScriptV2Row,
+  track: ScriptV2PromptTrack,
+  assets: ScriptV2Assets,
+  styleDescription: string | null,
+): string {
+  const referencedIds = new Set([
+    ...row.characters.map((character) => character.characterAssetId),
+    ...row.sceneAssetIds,
+    ...row.propAssetIds,
+    ...(row.plotDescriptionEntityRefs ?? []).map((ref) => ref.assetId),
+  ])
+  return fingerprint(`script-v2-prompt-${track}-v1`, {
+    textHash: scriptV2TextFingerprint(row),
+    payloadHash: scriptV2PayloadFingerprint(row),
+    styleDescription: styleDescription ?? '',
+    assets: allAssets(assets)
+      .filter((asset) => referencedIds.has(asset.id))
+      .map((asset) => ({
+        id: asset.id,
+        name: asset.name,
+        description: asset.description,
+        thumbnailUrl: asset.thumbnailUrl ?? '',
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  })
+}
+
+export function resolveScriptV2PromptWriteback(input: {
+  state: ScriptV2State
+  result: ScriptV2RecomputeResult
+  requestContexts: ScriptV2PromptRequestContext[]
+  latestOperationIds: Record<string, string | undefined>
+}): ScriptV2State {
+  const contexts = new Map(
+    input.requestContexts.map((context) => [`${context.shotId}:${context.track}`, context]),
+  )
+  const results = new Map(input.result.shots.map((shot) => [shot.shotId, shot]))
+  let changed = false
+  const rows = input.state.rows.map((row) => {
+    const result = results.get(row.id)
+    if (!result) return row
+    let next = row
+    for (const track of ['image', 'video'] as const) {
+      const key = `${row.id}:${track}`
+      const context = contexts.get(key)
+      if (!context || input.latestOperationIds[key] !== context.operationId) continue
+      const currentFingerprint = scriptV2PromptInputFingerprint(
+        row,
+        track,
+        input.state.assets,
+        input.state.styleDescription,
+      )
+      const state: ScriptV2PromptState =
+        currentFingerprint === context.requestInputFingerprint ? 'synced' : 'stale'
+      if (track === 'image') {
+        next = {
+          ...next,
+          imageGenerationPrompt: result.imageGenerationPrompt,
+          finalImagePromptEntityRefs: result.finalImagePromptEntityRefs,
+          imagePromptState: state,
+        }
+      } else {
+        next = {
+          ...next,
+          videoMotionPrompt: result.videoMotionPrompt,
+          finalVideoPromptEntityRefs: result.finalVideoPromptEntityRefs,
+          videoPromptState: state,
+        }
+      }
+      changed = true
+    }
+    return next
+  })
+  return changed ? { ...input.state, rows } : input.state
+}

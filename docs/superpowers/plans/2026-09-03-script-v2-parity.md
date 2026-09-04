@@ -133,7 +133,7 @@ Run: `pnpm vitest run src/domain/__tests__/script-v2.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 1**
+- [x] **Step 7: Commit Task 1**
 
 ```bash
 git add src/domain/script-v2.ts src/domain/__tests__/script-v2.test.ts src/components/script/script-model.ts
@@ -154,35 +154,35 @@ git commit -m "feat: define canonical script v2 state"
 - Produces: `parseOfficialScriptResult(payload, options?): ScriptV2TaskResult`.
 - Produces: `resolveScriptV2PromptWriteback(input): ScriptV2State`.
 
-- [ ] **Step 1: Add a failing migration test using the current `ScriptDraft` shape**
+- [x] **Step 1: Add a failing migration test using the current `ScriptDraft` shape**
 
 Assert that `description → plotDescription`, `index → shotNumber`, `sfx → audioEffects`, `cameraMove → cinematics.cameraMovement`, `finalPrompt → imageGenerationPrompt`, flat assets → role buckets, and detected `assetRefs` survive migration.
 
-- [ ] **Step 2: Add failing malformed-import tests**
+- [x] **Step 2: Add failing malformed-import tests**
 
 Feed non-object state, invalid duration, unknown shot size, duplicate row ids, malformed refs and unknown prompt states. Assert safe defaults, 5–15 clamping, stable replacement ids and no thrown exception.
 
-- [ ] **Step 3: Implement strict structural readers without JSON stringify casts**
+- [x] **Step 3: Implement strict structural readers without JSON stringify casts**
 
 The reader must preserve recognized fields, discard prototype-bearing objects, cap rows at 500, cap each asset bucket at 500 and derive missing fingerprints after normalization.
 
-- [ ] **Step 4: Add failing official serialization tests**
+- [x] **Step 4: Add failing official serialization tests**
 
 Assert exact snake_case names, optional field elision, spoken-text marker stripping, normalized entity refs, `script-generate-v2`, `script-recompute-prompts-v2`, `source_images` and `context_shots.slice(0, 100)`.
 
-- [ ] **Step 5: Implement official envelope builders with a hard 20-shot check**
+- [x] **Step 5: Implement official envelope builders with a hard 20-shot check**
 
 `buildOfficialPromptRecomputeEnvelope` must throw `ScriptV2DomainError('RECOMPUTE_LIMIT', ...)` for 21 targets and include assets/story context/visual style only when meaningful.
 
-- [ ] **Step 6: Add failing direct/outer result parser and stale writeback tests**
+- [x] **Step 6: Add failing direct/outer result parser and stale writeback tests**
 
 Cover direct JSON, `{ texts: ['{"shots":...}'], columns: [...] }`, assets-only result, missing prompt result, operation mismatch, fingerprint mismatch and a valid dual-track writeback.
 
-- [ ] **Step 7: Implement parser and conflict-safe writeback**
+- [x] **Step 7: Implement parser and conflict-safe writeback**
 
 No late response may replace `user_edited` text. A matching operation with a changed input fingerprint writes the returned text but marks only that track `stale`.
 
-- [ ] **Step 8: Run and commit**
+- [x] **Step 8: Run and commit**
 
 Run: `pnpm vitest run src/domain/__tests__/script-v2.test.ts`
 

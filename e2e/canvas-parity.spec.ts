@@ -1,18 +1,7 @@
-import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+import { createProjectAndOpenCanvas, openCanvasFixture, selectCanvasScenario } from './helpers/canvas-fixtures'
 
 type RectExpectation = Partial<Record<'x' | 'y' | 'width' | 'height' | 'right' | 'bottom' | 'centerX', number>>
-
-async function selectScenario(request: APIRequestContext, scenarioId: 'authenticated-empty' | 'authenticated-populated') {
-  const response = await request.post('/api/dev/scenario', { data: { scenarioId } })
-  expect(response.ok()).toBe(true)
-}
-
-async function createEmptyProject(page: Page) {
-  await page.goto('/project')
-  await page.getByTestId('start-create').click()
-  await page.waitForURL(/\/canvas\?projectId=/)
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
-}
 
 async function expectRect(locator: Locator, expected: RectExpectation, tolerance = 2) {
   await expect(locator).toBeVisible({ timeout: 5_000 })
@@ -60,8 +49,8 @@ async function expectVisualBaseline(page: Page, name: string) {
 }
 
 test('empty workflow uses the current dark 1440×900 editor shell', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   const editor = page.locator('[data-app-shell="editor"]')
   await expect(editor).toBeVisible()
@@ -106,8 +95,8 @@ test('empty workflow uses the current dark 1440×900 editor shell', async ({ pag
 })
 
 test('project identity can be renamed inline without leaving the canvas', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   const projectName = page.getByTestId('project-name')
   await expect(projectName).toHaveText('未命名项目 1')
@@ -128,8 +117,8 @@ test('project identity can be renamed inline without leaving the canvas', async 
 })
 
 test('canvas viewport survives a reload as local view state', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   const sharedDocumentWrites: string[] = []
   page.on('request', (request) => {
@@ -151,8 +140,8 @@ test('canvas viewport survives a reload as local view state', async ({ page, req
 })
 
 test('node context actions and empty-canvas creation provide keyboard-readable feedback', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   await page.mouse.dblclick(720, 200)
   await expect(page.locator('[data-node-type="text"]')).toHaveCount(1)
@@ -170,9 +159,8 @@ test('node context actions and empty-canvas creation provide keyboard-readable f
 })
 
 test('Shift-click keeps a readable multi-node selection in the controlled graph', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-populated')
-  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await selectCanvasScenario(request, 'authenticated-populated')
+  await openCanvasFixture(page, request)
 
   const first = page.getByTestId('node-node_text_01')
   const second = page.getByTestId('node-node_image_01')
@@ -185,8 +173,8 @@ test('Shift-click keeps a readable multi-node selection in the controlled graph'
 })
 
 test('add menu exposes the current product taxonomy and dismisses back to its trigger', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   const trigger = page.getByTestId('add-node-button')
   await trigger.click()
@@ -223,8 +211,8 @@ test('add menu exposes the current product taxonomy and dismisses back to its tr
 })
 
 test('首帧图生视频 starter creates a direct image-to-video workflow', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   await page.getByTestId('starter-preset-first-frame-video').click({ timeout: 5_000 })
   await expect(page.locator('[data-node-type="image"]')).toHaveCount(1)
@@ -234,8 +222,8 @@ test('首帧图生视频 starter creates a direct image-to-video workflow', asyn
 })
 
 test('音频生视频 starter creates a direct audio-to-video workflow', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   await page.getByTestId('starter-preset-audio-video').click({ timeout: 5_000 })
   await expect(page.locator('[data-node-type="audio"]')).toHaveCount(1)
@@ -245,9 +233,8 @@ test('音频生视频 starter creates a direct audio-to-video workflow', async (
 })
 
 test('populated workflow uses minimal media nodes, bezier edges and hover handles', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-populated')
-  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await selectCanvasScenario(request, 'authenticated-populated')
+  await openCanvasFixture(page, request)
 
   await expect(page.locator('[data-node-type]')).toHaveCount(4)
   await expect(page.locator('.react-flow__edge')).toHaveCount(3)
@@ -286,9 +273,8 @@ test('populated workflow uses minimal media nodes, bezier edges and hover handle
 })
 
 test('workflow edges support focusable selection and keyboard deletion', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-populated')
-  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await selectCanvasScenario(request, 'authenticated-populated')
+  await openCanvasFixture(page, request)
 
   const edge = page.locator('.react-flow__edge').first()
   await expect(edge).toHaveAttribute('aria-label', /连线/)
@@ -308,9 +294,8 @@ test('workflow edges support focusable selection and keyboard deletion', async (
 })
 
 test('storyboard preserves the document while matching default, expanded and Agent layouts', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-populated')
-  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await selectCanvasScenario(request, 'authenticated-populated')
+  await openCanvasFixture(page, request)
 
   const before = await request.get('/api/canvases/can_video_main').then((response) => response.json())
   await page.getByTestId('view-storyboard').click()
@@ -369,9 +354,8 @@ test('storyboard preserves the document while matching default, expanded and Age
 })
 
 test('storyboard card actions locate the source node and create a workflow copy', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-populated')
-  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await selectCanvasScenario(request, 'authenticated-populated')
+  await openCanvasFixture(page, request)
 
   await page.getByTestId('view-storyboard').click()
   const card = page.getByTestId('storyboard-card-node_image_01').first()
@@ -396,9 +380,8 @@ test('storyboard card actions locate the source node and create a workflow copy'
 })
 
 test('storyboard can return to the source workflow node from the card menu', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-populated')
-  await page.goto('/canvas?projectId=prj_video_demo&canvasId=can_video_main')
-  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+  await selectCanvasScenario(request, 'authenticated-populated')
+  await openCanvasFixture(page, request)
 
   await page.getByTestId('view-storyboard').click()
   await page.getByTestId('storyboard-card-node_video_01').first().click()
@@ -412,8 +395,8 @@ test('storyboard can return to the source workflow node from the card menu', asy
 })
 
 test('Agent asset management keeps the dedicated empty surface free of personal browse controls', async ({ page, request }) => {
-  await selectScenario(request, 'authenticated-empty')
-  await createEmptyProject(page)
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
 
   await page.getByTestId('asset-sidebar-toggle').click()
   const sidebar = page.getByTestId('asset-sidebar')

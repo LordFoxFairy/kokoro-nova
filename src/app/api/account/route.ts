@@ -1,8 +1,8 @@
 import { AccountProfileResponseSchema } from "@/contracts/account";
 import { ACCOUNT_PROFILE_FIXTURE } from "@/mocks/account";
-import { SCENARIO_CATALOG } from "@/mocks/scenarios/catalog";
 import { handle } from "@/server/http";
-import { activeScenarioId, DEFAULT_SPACE_ID, readState } from "@/server/store";
+import { readLocalIdentity } from "@/server/identity";
+import { DEFAULT_SPACE_ID, readState } from "@/server/store";
 
 export const dynamic = "force-dynamic";
 
@@ -13,20 +13,25 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   return handle(async () => {
-    const [state, scenarioId] = await Promise.all([
+    const [state, localIdentity] = await Promise.all([
       readState(),
-      activeScenarioId(),
+      readLocalIdentity(),
     ]);
-    const authenticated =
-      SCENARIO_CATALOG[scenarioId].viewer === "authenticated";
+    const authenticated = localIdentity.session.status === "authenticated";
     const availableCredits = authenticated
       ? (state.balances[DEFAULT_SPACE_ID] ?? 0)
       : 0;
     const commonCredits = authenticated ? Math.min(20, availableCredits) : 0;
     const profile = {
       ...ACCOUNT_PROFILE_FIXTURE,
-      identity: authenticated
-        ? ACCOUNT_PROFILE_FIXTURE.identity
+      identity: localIdentity.identity
+        ? {
+            displayName: localIdentity.identity.displayName,
+            maskedAccount: localIdentity.identity.maskedAccount,
+            uuidMasked: localIdentity.identity.uuidMasked,
+            accessKeyLabel: localIdentity.identity.accessKey.label,
+            avatarInitial: localIdentity.identity.avatarInitial,
+          }
         : {
             ...ACCOUNT_PROFILE_FIXTURE.identity,
             displayName: "公开浏览者",

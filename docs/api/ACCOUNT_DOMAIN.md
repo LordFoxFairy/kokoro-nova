@@ -21,8 +21,8 @@ projection 提供，避免账户导航或会员展示改写积分事实源。
 
 ## 确定性边界
 
-- 常规登录 fixture 的账号、会员、通知和存储值固定；钱包余额读取当前 scenario 的 ledger tail。
-- 匿名 fixture 会返回脱敏的公开浏览者身份、0 积分和空通知集合。
+- `GET /api/account` 读取持久化的本地会话状态：本地退出后返回公开浏览者身份、0 积分和空通知；本地登录后返回固定的脱敏身份。scenario 不决定登录状态。
+- 会员、通知和存储值固定；已登录钱包余额读取当前 scenario 的 ledger tail。
 - 偏好保存到当前浏览器的 `libtv.account.theme`、`libtv.account.watermark` 和
   `libtv.account.recommendations`，没有写入真实凭据或远端账户。
 - Access Key 只展示入口和脱敏占位，不读取 Cookie、Token 或真实密钥。

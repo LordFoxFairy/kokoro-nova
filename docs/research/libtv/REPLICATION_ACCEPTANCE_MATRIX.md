@@ -23,7 +23,7 @@
 | Project | 全部项目、搜索、文件夹、回收站、项目卡菜单与空态 | `ProjectListPage`、项目/文件夹 API；`e2e/home-project.spec.ts`；两张项目基线 | `PARTIAL`（管理核心 `VERIFIED_LOCAL`） | `/account` 被当作登录落点但实际是积分账本；文件夹封面/移动/副本完整 E2E 和公开权限边界仍缺 |
 | Canvas / Workflow | 独立全屏 chrome、画布切换、节点/连线、工具箱、资产、生成状态、协作 | `CanvasWorkspace`、`WorkflowCanvas`、`BottomToolbar`；`e2e/canvas-parity.spec.ts`、`e2e/kokoro-nova-parity.spec.ts` | `VERIFIED_LOCAL`（编辑核心） | 官网真实长任务、取消/失败/重试、协同冲突和动态模型权限仍未观察；本地生成仍是 deterministic mock |
 | Storyboard | 同一文档的文本/音频/图片/视频投影、筛选/展开、详情、定位/副本、剪辑入口 | `projectStoryboard()`、`StoryboardView`、`MediaDetailDrawer`、`ClipEditor`；`e2e/canvas-parity.spec.ts` | `VERIFIED_LOCAL`（投影核心） | 官网有效输入、导出/失败/取消和媒体持久化边界未确认；需继续证明切换不产生第二份文档 |
-| Skills | 创作输入、Skill/收藏/我的、分类/搜索、卡片、详情、示例轮播、原图、添加/使用 | `SkillGallery`、`SkillDetail`、版本化 `SKILL_CATALOGUE`；`e2e/skills-parity.spec.ts`；三张 local 基线 | `PARTIAL` | 官网实际入口是 `/skill`，local 为 `/skills`；composer 的附件/选择 Skill/参考按钮只有视觉占位；作者创建/版本/审核/发布未实现 |
+| Skills | 创作输入、Skill/收藏/我的、分类/搜索、卡片、详情、示例轮播、原图、添加/使用 | `SkillGallery`、`SkillDetail`、`SkillMarketComposer`、版本化 `SKILL_CATALOGUE`；`e2e/skills-parity.spec.ts`；四张 local 基线 | `PARTIAL`（创作入口 `VERIFIED_LOCAL`） | 官网实际入口是 `/skill`，local 为 `/skills`；作者创建/版本/审核/发布未实现 |
 | TV Show | 首页内容流、分类/搜索、作品详情、播放器、相邻作品、只读制作过程、复制登录门 | `ShowcaseGallery`、`ShowcaseDetailView`、`PublicCanvasView`；`e2e/public-discovery.spec.ts`；catalog/detail/player 基线 | `PARTIAL`（公共闭环已可演示） | 首页与目录需共用发现 projection；分页/加载失败/真实媒体变体/登录后复制归属/互动反馈未完成；官网稳定详情 URL 未公开确认 |
 | Account | 头像菜单、身份/UUID/Access key、会员/积分/存储、主题、水印、通知、个人中心、账本 | 官网头像菜单与账户截图；local `AccountPage`、`LedgerView`、`src/components/account/__tests__/account-surfaces.test.ts` | `PARTIAL` | local 只覆盖积分账本，不是官网账户菜单；身份、主题、通知、水印、团队、资产、订阅与发票入口缺失 |
 
@@ -78,7 +78,7 @@
 | K-02 | 卡片包含封面、类型、稳定 slash 名、简介、作者、使用量、收藏 | [Skill 页面 README](pages/skills/README.md) | `SkillCard`、`SKILL_CATALOGUE`、`SkillGridCard` | `VERIFIED_LOCAL`（冻结目录） |
 | K-03 | 收藏/取消收藏、分类/搜索、空态与错误/刷新反馈 | [收藏与空态截图](pages/skills/screenshots/skill-market-authenticated-favorites-empty.png) | `setSkillFavourite`、request state、retry；`skill-surfaces.test.ts`、`skills-parity.spec.ts` | `VERIFIED_LOCAL`（local contract） |
 | K-04 | 详情元数据、四图轮播、原图层、分享、添加到 composer、立即使用登录门 | [详情与轮播](pages/skills/README.md) | `SkillDetail`；`skills-detail-carousel-dark-1440x900.png`、`skills-detail-lightbox-dark-1440x900.png`；`skills-parity.spec.ts` | `VERIFIED_LOCAL`（local interaction） |
-| K-05 | composer 的附件/选择 Skill/参考/生成模式按钮打开真实上下文层 | [官网 Skill composer](pages/skills/README.md) | `SkillGallery` 当前仅让提交进入登录门，三个入口无打开动作 | `PENDING` |
+| K-05 | composer 的附件/选择 Skill/参考/生成模式按钮打开真实上下文层 | [官网 Skill composer](pages/skills/README.md) | `SkillMarketComposer` + `GET /api/skills?composer=…` 的 typed local fixture；`skills-parity.spec.ts` 覆盖可访问 drawer、匿名门、empty/error/retry | `VERIFIED_LOCAL` |
 | K-06 | 我的 Skill、作者创建、编辑、版本、审核、发布和失效 | [作者表单截图](pages/skills/screenshots/skill-author-create-editor-fields-and-file-tree.png) | 目录只保留 `personal` 查询类型，没有作者页 route | `PENDING` |
 
 ### V — TV Show

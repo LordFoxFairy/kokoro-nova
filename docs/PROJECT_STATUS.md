@@ -76,6 +76,9 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
   projection；公开 fixture 仅在对应快照从未写入 workspace 时兜底，已下架/撤销的本地快照保持 `404`，
   不会被目录 fixture 重新暴露。13 个 route/contract/component 测试与 4 条隔离 Playwright 公开发现
   旅程通过；GitHub Actions run `33903356191` 已通过 typecheck、lint、全量测试和 production build；
+- `229ca51` / `706835c`：首页与 Skill 市场的创作输入均补齐可访问的本地上下文选择；后者含附件、
+  参考、固定 Skill 版本与生成模式 drawer，以及 local empty/error fixture。主仓隔离 `1440×900`
+  Playwright 已验证 Skill 市场、详情、上下文选择和恢复状态 4/4 通过；
 - 当前主仓库已重新验证 typecheck、lint、完整 Vitest（75 files / 780 tests）、production build，
   并对项目管理与账户在隔离 1440×900 服务中复跑浏览器旅程；用户已有 `.gitignore` 始终不修改、不暂存。
 

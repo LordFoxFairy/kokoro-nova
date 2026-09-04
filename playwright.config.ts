@@ -1,7 +1,36 @@
+import { execFileSync } from "node:child_process";
+import os from "node:os";
 import { defineConfig, devices } from "@playwright/test";
-import { resolveE2ERunnerPlan } from "./e2e/helpers/runner-config";
+import {
+  isolatedServerEnvironment,
+  resolveE2ERunnerPlan,
+} from "./e2e/helpers/runner-config";
 
 const runner = resolveE2ERunnerPlan();
+const inheritedServerEnv = Object.fromEntries(
+  Object.entries(process.env).filter(
+    (entry): entry is [string, string] => entry[1] !== undefined,
+  ),
+);
+const isolatedServerEnv =
+  runner.mode === "isolated"
+    ? isolatedServerEnvironment(runner, os.tmpdir())
+    : undefined;
+
+// Playwright checks the configured URL before it launches `webServer`. Reclaim
+// our recorded orphan synchronously first, so that check never mistakes :3210
+// for a reusable service. This helper refuses all unmarked listeners.
+if (runner.mode === "isolated" && process.env.E2E_ISOLATED_RECLAIMED !== "1") {
+  execFileSync(process.execPath, ["e2e/helpers/isolated-server.ts", "--reclaim"], {
+    cwd: runner.workspaceDir,
+    env: { ...inheritedServerEnv, ...isolatedServerEnv },
+    stdio: "inherit",
+  });
+  // Playwright evaluates the config again in worker processes. Carry this
+  // parent-only preflight result forward so workers never tear down the server
+  // that the parent just launched.
+  process.env.E2E_ISOLATED_RECLAIMED = "1";
+}
 
 /**
  * E2E has a dedicated default server at :3210 with independent Next output and
@@ -17,21 +46,17 @@ const webServer =
         reuseExistingServer: true,
         timeout: 120_000,
       }
-    : runner.startsServer
+    : runner.mode === "isolated"
       ? {
-          command: `pnpm exec next dev --turbopack -p ${runner.port}`,
+          command: "node e2e/helpers/isolated-server.ts",
           url: runner.baseURL,
-          // A stale process may carry another DATA_DIR. Explicit opt-in is safer
-          // than silently reusing it and running against a different fixture.
-          reuseExistingServer: process.env.E2E_REUSE_SERVER === "1",
+          // The launcher reclaims only a recorded runner-owned orphan. An
+          // unmarked listener fails instead of being reused or terminated.
+          reuseExistingServer: false,
           timeout: 120_000,
           env: {
-            ...process.env,
-            DATA_DIR: runner.serverDataDir,
-            // startsServer is only true for the isolated plan, but retain a
-            // concrete fallback so Playwright's string-only env contract is
-            // preserved under TypeScript narrowing.
-            NEXT_DIST_DIR: runner.nextDistDirEnv ?? ".next-e2e",
+            ...inheritedServerEnv,
+            ...isolatedServerEnv,
           },
         }
       : undefined;

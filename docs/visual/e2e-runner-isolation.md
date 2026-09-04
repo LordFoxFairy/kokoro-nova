@@ -30,3 +30,15 @@ nextDistDir=<本地 runner 时的 Next 输出目录>
 外部服务模式要求提供 `E2E_BASE_URL`；这个地址为 `:3200` 时会被拒绝，因此 runner 不会探测、
 复用或 reset 交互预览。若调用方知道外部服务的数据目录，应同时提供
 `E2E_SERVER_DATA_DIR`，使失败 trace 能对应到实际 fixture 文件。
+
+## `:3210` 孤儿恢复
+
+默认 isolated 模式在 OS 临时目录维护按 workspace SHA-256 和端口隔离的 control marker；marker
+记录 runner 启动的进程组。每次 `pnpm e2e` 在 Playwright 的端口探测之前只处理该 marker：
+
+1. marker 对应的 listener 或同一进程组仍在 `:3210` 时，输出 `reclaiming runner-owned orphan`，
+   停止该进程组并等待端口释放；
+2. `:3210` 有 listener 但没有匹配 marker 时，立即报出 listener pid，既不复用也不终止它；
+3. Playwright 结束时启动器收到信号会停止自己启动的进程组并删除 marker。
+
+因此 `:3200` 从不在恢复检查的端口集合中，`E2E_REUSE_SERVER` 也不会改变这一规则。

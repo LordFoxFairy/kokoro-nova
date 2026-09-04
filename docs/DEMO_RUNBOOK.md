@@ -123,6 +123,9 @@ E2E_NEXT_DIST_DIR=.next-e2e-3246 \
 pnpm e2e
 ```
 
-`E2E_REUSE_SERVER=1` 只用于明确复用同一隔离端口的排障；默认不复用，以免读取另一个
-`DATA_DIR` 的残留服务。`PROD_URL` 与 `E2E_BASE_URL` 互斥：前者继续走 production smoke，
-且不会请求开发 fixture endpoint。
+默认 runner 从不复用 `:3210`。在 Playwright 检查 webServer URL 前，启动器会读取 OS 临时目录
+中按 workspace 与端口命名的 owner marker：marker 指向的旧 runner 进程组会被停止并输出
+`reclaiming runner-owned orphan`；没有 marker 的监听者会以 pid 诊断失败，既不会复用也不会终止。
+启动器收到 Playwright 的结束信号时会停止自己启动的进程组并移除 marker。整个流程不探测、停止或
+复用 `:3200`；`E2E_REUSE_SERVER` 不参与 runner 行为。`PROD_URL` 与 `E2E_BASE_URL` 互斥：
+前者继续走 production smoke，且不会请求开发 fixture endpoint。

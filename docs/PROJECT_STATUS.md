@@ -61,7 +61,9 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
   在隔离 `DATA_DIR` 下 2/2 通过；
 - `c24bd12` / `bfb69c0`：按 2026-09-04 官网首页证据补齐 TV Show 左右分类轨与不可用作品的
   disabled 创作过程动作，并在 768px 隔离浏览器中验证；
-- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（71 files / 756 tests）、production build、
+- `a21c8d0`：新增首页与项目页的隔离 `1440×900` 像素快照；fixture、字体与图片加载完成后
+  才对比，不会触碰演示中的 `:3200` 或 `.data`。
+- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（71 files / 757 tests）、production build、
   demo smoke 与 production E2E；用户已有 `.gitignore` 始终不修改、不暂存。
 
 主控职责：检查跨 surface 契约、在主仓库复跑验证、把官网新观察转为本地 fixture/API docs

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { agentRunStateLabel, mergeAgentMessages, shouldSubmitAgentKey } from '../AgentPanel'
+import { agentGenerationModeHint, agentRunStateLabel, mergeAgentMessages, shouldSubmitAgentKey } from '../AgentPanel'
 import type { AgentMessage } from '@/domain/types'
 
 const message = (id: string, seq: number, content: string): AgentMessage => ({
@@ -25,6 +25,12 @@ describe('agent panel interaction helpers', () => {
       message('b', 3, 'b'),
       message('c', 4, 'c'),
     ])
+  })
+
+  it('explains the distinct manual and automatic workflow mutation behaviour', () => {
+    expect(agentGenerationModeHint('manual')).toContain('确认')
+    expect(agentGenerationModeHint('auto')).toContain('安全')
+    expect(agentGenerationModeHint('auto')).toContain('自动应用')
   })
 
   it('labels run states for the status indicator', () => {

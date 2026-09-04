@@ -4,14 +4,56 @@ import {
   SendAgentMessageRequestSchema,
 } from '@/contracts/agent'
 import { applyMutations } from '@/domain/mutations'
-import type { CanvasMutation } from '@/domain/types'
-import { appendMessage, deriveTitle, executionTraceForProposal, planTurn } from '@/server/agent'
+import type { AgentMessage, AgentSession, CanvasMutation } from '@/domain/types'
+import { appendMessage, autoApplyToolTrace, canAutoApplyProposal, deriveTitle, executionTraceForProposal, planTurn } from '@/server/agent'
 import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { findCanvas, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ sessionId: string }> }
+
+function applyProposal(input: {
+  state: Parameters<typeof appendMessage>[0]
+  session: AgentSession
+  message: AgentMessage
+  text: string
+  context: NonNullable<AgentMessage['context']>
+  automatic: boolean
+}) {
+  const { state, session, message, text, context, automatic } = input
+  if (message.payload?.kind !== 'mutation_proposal') throw new HttpError(400, '消息不是工作流改动方案')
+
+  const canvas = session.canvasId ? findCanvas(state, session.canvasId) : undefined
+  if (!canvas) throw new HttpError(400, '会话没有绑定画布')
+  const mutations = message.payload.mutations as CanvasMutation[]
+  canvas.document = applyMutations(canvas.document, mutations)
+  canvas.revision += 1
+  canvas.updatedAt = new Date().toISOString()
+  message.payload = { ...message.payload, status: 'applied' }
+
+  const trace = executionTraceForProposal({ text, context, mutations })
+  const autoTrace = automatic ? [autoApplyToolTrace(mutations)] : []
+  const toolMessages = [...autoTrace, ...trace.traces].map((item) =>
+    appendMessage(state, session, {
+      role: 'tool',
+      content: item.summary,
+      payload: { kind: 'tool_call', ...item },
+    }),
+  )
+  const note = appendMessage(state, session, {
+    role: 'assistant',
+    content: automatic
+      ? `自动模式已应用符合本地安全规则的工作流改动。${trace.note}`
+      : trace.note,
+  })
+  return AgentMessagesResponseSchema.parse({
+    session,
+    messages: [message, ...toolMessages, note],
+    revision: canvas.revision,
+    document: canvas.document,
+  })
+}
 
 /** Send a user turn and persist deterministic Skill/tool plan traces before the confirm gate. */
 export async function POST(request: Request, { params }: Params) {
@@ -46,6 +88,26 @@ export async function POST(request: Request, { params }: Params) {
         content: turn.reply,
         payload: turn.payload,
       })
+
+      if (
+        session.settings.generationMode === 'auto'
+        && assistantMessage.payload?.kind === 'mutation_proposal'
+        && assistantMessage.payload.status === 'pending'
+        && canAutoApplyProposal(assistantMessage.payload.mutations as CanvasMutation[])
+      ) {
+        const applied = applyProposal({
+          state,
+          session,
+          message: assistantMessage,
+          text: body.text,
+          context: body.context ?? [],
+          automatic: true,
+        })
+        return AgentMessagesResponseSchema.parse({
+          ...applied,
+          messages: [userMessage, ...toolMessages, ...applied.messages],
+        })
+      }
 
       return AgentMessagesResponseSchema.parse({ session, messages: [userMessage, ...toolMessages, assistantMessage] })
     })
@@ -98,35 +160,16 @@ export async function PATCH(request: Request, { params }: Params) {
           return AgentMessagesResponseSchema.parse({ session, messages: [message, note] })
         }
 
-        const canvas = session.canvasId ? findCanvas(state, session.canvasId) : undefined
-        if (!canvas) throw new HttpError(400, '会话没有绑定画布')
-        const mutations = message.payload.mutations as CanvasMutation[]
-        canvas.document = applyMutations(canvas.document, mutations)
-        canvas.revision += 1
-        canvas.updatedAt = new Date().toISOString()
-        message.payload = { ...message.payload, status: 'applied' }
-
         const source = state.messages
           .filter((item) => item.sessionId === sessionId && item.role === 'user' && item.seq < message.seq)
           .at(-1)
-        const trace = executionTraceForProposal({
+        return applyProposal({
+          state,
+          session,
+          message,
           text: source?.content ?? '',
           context: source?.context ?? [],
-          mutations,
-        })
-        const toolMessages = trace.traces.map((item) =>
-          appendMessage(state, session, {
-            role: 'tool',
-            content: item.summary,
-            payload: { kind: 'tool_call', ...item },
-          }),
-        )
-        const note = appendMessage(state, session, { role: 'assistant', content: trace.note })
-        return AgentMessagesResponseSchema.parse({
-          session,
-          messages: [message, ...toolMessages, note],
-          revision: canvas.revision,
-          document: canvas.document,
+          automatic: false,
         })
       }
 

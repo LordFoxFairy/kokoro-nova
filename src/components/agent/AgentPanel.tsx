@@ -39,6 +39,12 @@ export function agentRunStateLabel(state: AgentRunState): string {
   return '就绪'
 }
 
+export function agentGenerationModeHint(mode: AgentSession['settings']['generationMode']): string {
+  return mode === 'auto'
+    ? '自动：仅自动应用安全的本地新增方案；失败会保留可编辑降级工作流。'
+    : '手动：每次画布改动都需确认后才会写入。'
+}
+
 export function shouldSubmitAgentKey(input: { key: string; shiftKey?: boolean }): boolean {
   return input.key === 'Enter' && !input.shiftKey
 }
@@ -64,8 +70,8 @@ type AgentOperation =
  * Protocol rules made visible in the UI:
  *  - canvas selection becomes a locatable context chip, it does not silently
  *    stuff the prompt;
- *  - a mutation proposal is never auto-applied in 手动 mode — it renders a
- *    confirm card with 应用 / 取消;
+ *  - 手动 mode renders 应用 / 取消 before any workflow mutation; 自动 mode only
+ *    applies a bounded additive local proposal and reports its trace;
  *  - running out of free turns produces an explicit gate rather than an error.
  */
 export function AgentPanel() {
@@ -456,7 +462,7 @@ export function AgentPanel() {
           <EmptyState
             icon={<IconSparkle size={26} />}
             title="描述你想创作的内容"
-            description="我会先确认目标，再提出画布改动方案，确认后才写入。"
+            description={agentGenerationModeHint(session?.settings.generationMode ?? 'manual')}
           />
         ) : (
           messages.map((message) => (
@@ -525,6 +531,9 @@ export function AgentPanel() {
           className="w-full resize-none rounded-xl border border-ink-200 p-2.5 text-[13px] leading-relaxed outline-none transition-colors placeholder:text-ink-300 focus:border-accent"
         />
         <div className="mt-1 text-[10px] text-ink-300">Enter 发送 · Shift+Enter 换行 · Esc 收起面板</div>
+        <div data-testid="agent-generation-mode-feedback" className="mt-1 text-[10px] text-ink-400">
+          {agentGenerationModeHint(session?.settings.generationMode ?? 'manual')}
+        </div>
 
         <div className="mt-2 flex items-center gap-1">
           <IconButton label="附件" onClick={() => toast('请从画布或资产库选择素材', 'info')}>

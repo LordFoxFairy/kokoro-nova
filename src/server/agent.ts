@@ -26,6 +26,8 @@ import { findCanvas, type WorkspaceState } from './store'
  *  - the agent never writes the workflow directly; it proposes mutations that
  *    the Canvas mutation endpoint applies;
  *  - in 手动 mode a generation is only ever *proposed*;
+ *  - 自动 mode can apply only a bounded, additive local proposal; all other
+ *    proposals remain behind the same explicit confirmation gate;
  *  - free turns are metered and exhausting them yields a membership gate.
  */
 
@@ -65,6 +67,30 @@ export interface AgentToolTrace {
   tool: string
   summary: string
   status: 'running' | 'ok' | 'error'
+}
+
+/**
+ * Auto mode is deliberately narrower than the general canvas mutation API.
+ * It may append a small local graph, but never remove, rewrite, regroup or
+ * reposition existing workflow state. The limit also keeps the fixture's
+ * one-turn application bounded and reviewable.
+ */
+export const MAX_AUTO_MUTATIONS = 32
+
+export function canAutoApplyProposal(mutations: CanvasMutation[]): boolean {
+  return mutations.length > 0
+    && mutations.length <= MAX_AUTO_MUTATIONS
+    && mutations.every((mutation) => mutation.op === 'addNode' || mutation.op === 'addEdge')
+}
+
+export function autoApplyToolTrace(mutations: CanvasMutation[]): AgentToolTrace {
+  const nodes = mutations.filter((mutation) => mutation.op === 'addNode').length
+  const edges = mutations.filter((mutation) => mutation.op === 'addEdge').length
+  return {
+    tool: 'workflow.auto_apply',
+    status: 'ok',
+    summary: `自动模式通过本地安全规则，已应用 ${nodes} 个节点和 ${edges} 条连线。`,
+  }
 }
 
 export interface TurnResult {

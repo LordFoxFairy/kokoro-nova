@@ -50,7 +50,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.16.0-skill-author-form
+Contract version: 1.17.0-skill-author-form
 OpenAPI: 3.1.0
 ```
 

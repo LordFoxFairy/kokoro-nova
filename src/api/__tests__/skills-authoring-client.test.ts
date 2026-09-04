@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 
 const record = {
   id: 'skill-local-001', name: '镜头节奏助手', summary: '将镜头表整理为节奏明确的短片执行单。', category: '叙事分镜', version: '0.1.0', status: 'draft',
+  usageScenarios: '用于脚本已经确定后的镜头节奏规划。', howToUse: '输入镜头表与目标时长后调用此 Skill。', outputContent: '返回镜头节奏表、转场建议和执行检查项。', outputTypes: ['text', 'video'], cover: '/fixtures/libtv/skills/example-01.svg',
   review: { status: 'not_requested', checkedAt: null, checks: [] }, files: [{ path: 'SKILL.md', language: 'markdown', content: '# Skill' }], tags: [],
   createdAt: '2026-09-04T12:00:00.000Z', updatedAt: '2026-09-04T12:00:00.000Z', publishedAt: null, author: '本地创作者', hue: 204,
 }

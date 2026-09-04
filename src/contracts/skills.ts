@@ -14,6 +14,9 @@ export const SkillCollectionSchema = z.enum(['全部', '收藏', '我的'])
 
 const SkillOriginSchema = z.enum(['official', 'community', 'personal'])
 const StableIdSchema = z.string().trim().min(1).max(200)
+/** The media kinds exposed by the observed local Skill author form. */
+export const SkillOutputTypeSchema = z.enum(['image', 'video', 'audio', 'text'])
+export const SkillCoverSchema = z.string().trim().max(512).refine((value) => value.startsWith('/') || /^https?:\/\//.test(value), '封面必须是站内路径或 HTTP(S) 地址')
 
 export const SkillSpecSectionSchema = z
   .object({
@@ -35,6 +38,12 @@ export const SkillCardSchema = z
     hue: z.number().int().min(0).max(359),
     usageCount: z.number().int().nonnegative(),
     tags: z.array(z.string()),
+    /** Personal authoring rows carry their reviewed author-form fields into 我的. */
+    usageScenarios: z.string().max(1_000).optional(),
+    howToUse: z.string().max(1_000).optional(),
+    outputContent: z.string().max(1_000).optional(),
+    outputTypes: z.array(SkillOutputTypeSchema).min(1).max(4).optional(),
+    cover: SkillCoverSchema.nullable().optional(),
     examples: z.array(z.string()),
     executableSpec: z.array(SkillSpecSectionSchema),
     favourite: z.boolean(),
@@ -154,7 +163,7 @@ export const SkillAuthorReviewSchema = z.object({
   status: SkillReviewStatusSchema,
   checkedAt: z.string().datetime().nullable(),
   checks: z.array(z.object({
-    id: z.enum(['name', 'summary', 'category', 'skill-file', 'semantic-version']),
+    id: z.enum(['name', 'summary', 'category', 'usage-scenarios', 'how-to-use', 'output-content', 'output-types', 'skill-file', 'semantic-version']),
     label: z.string(),
     passed: z.boolean(),
     message: z.string(),
@@ -166,6 +175,12 @@ export const AuthoredSkillSchema = z.object({
   name: z.string().max(80),
   summary: z.string().max(280),
   category: SkillCategorySchema.exclude(['全部']),
+  usageScenarios: z.string().max(1_000),
+  howToUse: z.string().max(1_000),
+  outputContent: z.string().max(1_000),
+  /** Drafts may be empty; review enforces at least one before publishing. */
+  outputTypes: z.array(SkillOutputTypeSchema).max(4),
+  cover: SkillCoverSchema.nullable(),
   version: SemanticVersionSchema,
   status: SkillAuthorStatusSchema,
   review: SkillAuthorReviewSchema,
@@ -188,6 +203,11 @@ export const UpdateAuthoredSkillRequestSchema = z.object({
   name: z.string().max(80).optional(),
   summary: z.string().max(280).optional(),
   category: SkillCategorySchema.exclude(['全部']).optional(),
+  usageScenarios: z.string().max(1_000).optional(),
+  howToUse: z.string().max(1_000).optional(),
+  outputContent: z.string().max(1_000).optional(),
+  outputTypes: z.array(SkillOutputTypeSchema).max(4).optional(),
+  cover: SkillCoverSchema.nullable().optional(),
   version: SemanticVersionSchema.optional(),
   files: z.array(SkillAuthorFileSchema).min(1).optional(),
   tags: z.array(z.string().min(1).max(24)).max(8).optional(),

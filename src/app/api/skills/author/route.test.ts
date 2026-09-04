@@ -16,6 +16,7 @@ describe.sequential('Skill authoring collection route', () => {
     expect(created.status).toBe(200)
     const body = CreateAuthoredSkillResponseSchema.parse(await created.json())
     expect(body.skill).toMatchObject({ id: 'skill-local-001', name: '镜头节奏助手', version: '0.1.0', status: 'draft' })
+    expect(body.skill).toMatchObject({ usageScenarios: '', howToUse: '', outputContent: '', outputTypes: [], cover: null })
     expect(body.skill.files.map((file) => file.path)).toEqual(['SKILL.md', 'references.json'])
   })
 })

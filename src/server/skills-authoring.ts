@@ -12,13 +12,27 @@ type AuthoringCarrier = WorkspaceState & { authoredSkills?: AuthoredSkill[] }
 
 function authored(state: WorkspaceState): AuthoredSkill[] {
   const value = (state as AuthoringCarrier).authoredSkills
-  return Array.isArray(value) ? value : EMPTY_AUTHORED_SKILLS
+  return Array.isArray(value) ? value.map(normalizeAuthoredSkill) : EMPTY_AUTHORED_SKILLS
 }
 
 function editable(state: WorkspaceState): AuthoredSkill[] {
   const carrier = state as AuthoringCarrier
   if (!Array.isArray(carrier.authoredSkills)) carrier.authoredSkills = []
+  carrier.authoredSkills = carrier.authoredSkills.map(normalizeAuthoredSkill)
   return carrier.authoredSkills
+}
+
+/** Fill new author-form fields on read so old deterministic drafts remain editable. */
+function normalizeAuthoredSkill(skill: AuthoredSkill): AuthoredSkill {
+  const legacy = skill as AuthoredSkill & Partial<Pick<AuthoredSkill, 'usageScenarios' | 'howToUse' | 'outputContent' | 'outputTypes' | 'cover'>>
+  return {
+    ...skill,
+    usageScenarios: legacy.usageScenarios ?? '',
+    howToUse: legacy.howToUse ?? '',
+    outputContent: legacy.outputContent ?? '',
+    outputTypes: legacy.outputTypes ?? [],
+    cover: legacy.cover ?? null,
+  }
 }
 
 function authoredId(index: number) {
@@ -33,14 +47,19 @@ function cloneFiles(files: SkillAuthorFile[]): SkillAuthorFile[] {
   return files.map((file) => ({ ...file }))
 }
 
-function reviewFor(skill: Pick<AuthoredSkill, 'name' | 'summary' | 'category' | 'version' | 'files'>, checkedAt: string | null): SkillAuthorReview {
+function reviewFor(skill: Pick<AuthoredSkill, 'name' | 'summary' | 'category' | 'usageScenarios' | 'howToUse' | 'outputContent' | 'outputTypes' | 'version' | 'files'>, checkedAt: string | null): SkillAuthorReview {
   const semantic = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(skill.version)
   const mainFile = skill.files.find((file) => file.path === 'SKILL.md')
   const mainHasBody = Boolean(mainFile?.content.trim())
+  const hasMeaningfulText = (value: string) => value.trim().length >= 8
   const checks: SkillAuthorReview['checks'] = [
     { id: 'name', label: '名称', passed: skill.name.trim().length >= 2, message: '名称至少需要 2 个字符。' },
     { id: 'summary', label: '简介', passed: skill.summary.trim().length >= 12, message: '简介至少需要 12 个字符。' },
     { id: 'category', label: '分类', passed: Boolean(skill.category), message: '请选择一个 Skill 分类。' },
+    { id: 'usage-scenarios', label: '使用场景', passed: hasMeaningfulText(skill.usageScenarios), message: '请补充至少 8 个字符的使用场景。' },
+    { id: 'how-to-use', label: '如何使用', passed: hasMeaningfulText(skill.howToUse), message: '请补充至少 8 个字符的使用方法。' },
+    { id: 'output-content', label: '输出内容', passed: hasMeaningfulText(skill.outputContent), message: '请补充至少 8 个字符的输出内容。' },
+    { id: 'output-types', label: '输出类型', passed: skill.outputTypes.length > 0, message: '请至少选择一种输出类型。' },
     { id: 'skill-file', label: 'SKILL.md', passed: mainHasBody, message: '请补充根目录 SKILL.md 的执行规范。' },
     { id: 'semantic-version', label: '语义版本', passed: semantic, message: '版本必须符合 MAJOR.MINOR.PATCH。' },
   ]
@@ -76,6 +95,11 @@ export async function createAuthoredSkill(name?: string): Promise<AuthoredSkill>
       name: name?.trim() || '未命名 Skill',
       summary: '',
       category: '叙事分镜',
+      usageScenarios: '',
+      howToUse: '',
+      outputContent: '',
+      outputTypes: [],
+      cover: null,
       version: '0.1.0',
       status: 'draft',
       review: { status: 'not_requested', checkedAt: null, checks: [] },
@@ -102,6 +126,7 @@ export async function updateAuthoredSkill(skillId: string, patch: UpdateAuthored
       ...patch,
       files: patch.files ? cloneFiles(patch.files) : current.files,
       tags: patch.tags ? [...patch.tags] : current.tags,
+      outputTypes: patch.outputTypes ? [...patch.outputTypes] : current.outputTypes,
       status: current.status === 'unpublished' ? 'unpublished' : 'draft',
       review: { status: 'not_requested', checkedAt: null, checks: [] },
       updatedAt: timestamp(index + 10 + current.files.length),
@@ -159,8 +184,19 @@ export async function publishedAuthorSkillCards() {
     hue: skill.hue,
     usageCount: 0,
     tags: skill.tags,
-    examples: ['在创作器中加载固定版本执行规范。'],
-    executableSpec: [{ heading: 'SKILL.md', body: skill.files.find((file) => file.path === 'SKILL.md')?.content || '暂无内容' }],
+    usageScenarios: skill.usageScenarios,
+    howToUse: skill.howToUse,
+    outputContent: skill.outputContent,
+    outputTypes: skill.outputTypes,
+    cover: skill.cover,
+    examples: [skill.howToUse],
+    executableSpec: [
+      { heading: '使用场景', body: skill.usageScenarios },
+      { heading: '如何使用', body: skill.howToUse },
+      { heading: '输出内容', body: skill.outputContent },
+      { heading: '输出类型', body: skill.outputTypes.join('、') },
+      { heading: 'SKILL.md', body: skill.files.find((file) => file.path === 'SKILL.md')?.content || '暂无内容' },
+    ],
     favourite: false,
   }))
 }

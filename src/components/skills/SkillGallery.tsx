@@ -242,13 +242,19 @@ function RetryButton({ loading, onClick, testId }: { loading: boolean; onClick: 
 
 function SkillGridCard({ skill, mediaIndex, busy, onToggleFavourite }: { skill: SkillCard; mediaIndex: number; busy: boolean; onToggleFavourite: () => void }) {
   const media = getSkillMedia(skill)[mediaIndex % 4]
+  // The immutable catalogue predates author-managed covers. Keep that domain
+  // model small while allowing the typed API projection to render reviewed
+  // personal Skill covers and output media.
+  const authored = skill as SkillCard & { cover?: string | null; outputTypes?: Array<'image' | 'video' | 'audio' | 'text'> }
+  const cover = authored.cover ?? media.src
+  const outputLabel = authored.outputTypes?.[0] ? outputTypeLabel(authored.outputTypes[0]) : skill.category === '叙事分镜' ? '图片' : 'Skill'
   return (
     <article className="group relative min-w-0" data-testid={`skill-card-${skill.id}`}>
       <Link href={`/skills/${skill.id}`} className="flex min-h-[128px] gap-3 rounded-2xl border border-white/[0.1] bg-[#1c1c1c] p-3 transition-colors hover:border-white/[0.2] hover:bg-[#232323] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60c9ef]">
         <span className="relative h-[102px] w-[166px] shrink-0 overflow-hidden rounded-xl bg-[#292929] ring-1 ring-white/[0.06] sm:w-[182px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={media.src} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]" />
-          <span className="absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white/80">{skill.category === '叙事分镜' ? '图片' : 'Skill'}</span>
+          <img src={cover} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]" />
+          <span className="absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white/80">{outputLabel}</span>
         </span>
         <span className="flex min-w-0 flex-1 flex-col py-0.5">
           <span className="truncate pr-6 text-[14px] font-medium text-white/90">{skill.name}</span>
@@ -260,6 +266,10 @@ function SkillGridCard({ skill, mediaIndex, busy, onToggleFavourite }: { skill: 
       <button type="button" disabled={busy} aria-busy={busy} data-testid={`skill-favourite-${skill.id}`} aria-pressed={skill.favourite} aria-label={skill.favourite ? `取消收藏 ${skill.name}` : `收藏 ${skill.name}`} title={skill.favourite ? '取消收藏' : '收藏'} onClick={onToggleFavourite} className={cn('absolute right-[196px] top-[17px] rounded-full p-1.5 transition-colors sm:right-[210px]', skill.favourite ? 'text-[#ffd36f]' : 'text-white/55 hover:bg-white/10 hover:text-white', busy && 'cursor-wait opacity-70', 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#60c9ef]')}><IconSkill size={16} fill={skill.favourite ? 'currentColor' : 'none'} /></button>
     </article>
   )
+}
+
+function outputTypeLabel(type: 'image' | 'video' | 'audio' | 'text') {
+  return ({ image: '图片', video: '视频', audio: '音频', text: '文本' })[type]
 }
 
 function CollectionEmptyState({ collection, filtered, onClear }: { collection: SkillCollection; filtered: boolean; onClear: () => void }) {

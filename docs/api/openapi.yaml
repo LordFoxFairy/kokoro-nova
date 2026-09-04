@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.16.0-skill-author-form",
+    "version": "1.17.0-skill-author-form",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -14514,7 +14514,6 @@
           },
           "outputTypes": {
             "type": "array",
-            "minItems": 1,
             "maxItems": 4,
             "items": {
               "type": "string",
@@ -14639,7 +14638,6 @@
           },
           "outputTypes": {
             "type": "array",
-            "minItems": 1,
             "maxItems": 4,
             "items": {
               "type": "string",

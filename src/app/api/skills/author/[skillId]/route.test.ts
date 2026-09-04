@@ -22,6 +22,11 @@ describe.sequential('Skill authoring detail lifecycle route', () => {
       name: '镜头节奏助手',
       summary: '将镜头表整理为节奏明确、可执行的短片创作任务。',
       category: '叙事分镜',
+      usageScenarios: '适用于脚本定稿后需要明确镜头节奏的短片创作。',
+      howToUse: '输入镜头表与目标时长，调用后确认镜头节奏。',
+      outputContent: '返回镜头节奏表、转场建议与可执行镜头清单。',
+      outputTypes: ['image', 'video', 'text'],
+      cover: '/fixtures/libtv/skills/example-01.svg',
       version: '1.2.0',
       tags: ['节奏', '镜头'],
       files: [
@@ -35,7 +40,7 @@ describe.sequential('Skill authoring detail lifecycle route', () => {
     const reviewed = await POST(request('POST', { action: 'submit_review' }), params)
     expect(AuthorSkillActionResponseSchema.parse(await reviewed.json()).skill).toMatchObject({ status: 'in_review', review: { status: 'approved' } })
     const published = await POST(request('POST', { action: 'publish' }), params)
-    expect(AuthorSkillActionResponseSchema.parse(await published.json()).skill).toMatchObject({ status: 'published', version: '1.2.0' })
+    expect(AuthorSkillActionResponseSchema.parse(await published.json()).skill).toMatchObject({ status: 'published', version: '1.2.0', outputTypes: ['image', 'video', 'text'], cover: '/fixtures/libtv/skills/example-01.svg' })
     const unpublished = await POST(request('POST', { action: 'unpublish' }), params)
     expect(AuthorSkillActionResponseSchema.parse(await unpublished.json()).skill.status).toBe('unpublished')
 

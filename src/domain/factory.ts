@@ -2,6 +2,7 @@ import { ids } from './ids'
 import { audioExecutionOutput, defaultAudioAuthoringState } from './audio-authoring'
 import { DEFAULT_MODEL } from './models'
 import { NODE_META, type NodeType } from './nodes'
+import { defaultScriptV2State } from './script-v2'
 import { defaultTextAuthoringState } from './text-authoring'
 import {
   WORKFLOW_SCHEMA_VERSION,
@@ -27,7 +28,7 @@ export const NODE_SIZE: Record<NodeType, { width: number; height: number }> = {
   assetLibrary: { width: 280, height: 260 },
 }
 
-function defaultData(type: NodeType): NodeData {
+function defaultData(type: NodeType, nodeId: string): NodeData {
   switch (type) {
     case 'image':
     case 'director':
@@ -92,7 +93,7 @@ function defaultData(type: NodeType): NodeData {
         references: [],
         artifacts: [],
         jobId: null,
-        extra: { phase: 'entry', entry: null, shots: [], assets: { characters: [], scenes: [], props: [] } },
+        extra: { scriptV2: defaultScriptV2State(nodeId) },
       }
     case 'scriptLegacy':
       return {
@@ -136,8 +137,9 @@ export function createNode(
   overrides: Partial<WorkflowNode> = {},
 ): WorkflowNode {
   const now = new Date().toISOString()
+  const id = overrides.id ?? ids.node()
   return {
-    id: ids.node(),
+    id,
     type,
     name: nextNodeName(type, existing),
     position,
@@ -146,7 +148,7 @@ export function createNode(
     keyElement: false,
     createdAt: now,
     updatedAt: now,
-    data: defaultData(type),
+    data: defaultData(type, id),
     ...overrides,
   }
 }

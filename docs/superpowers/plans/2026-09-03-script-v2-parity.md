@@ -264,35 +264,35 @@ git commit -m "feat: add script v2 runtime contracts"
 - Produces: `createScriptV2BatchMutations(document, sourceNodeId, state, kind): ScriptV2BatchBuildResult`.
 - Consumes: `createNode`, `createEdge`, `createGroup` and canonical Script V2 state.
 
-- [ ] **Step 1: Write failing deterministic generation tests**
+- [x] **Step 1: Write failing deterministic generation tests**
 
 The same story + idempotency seed must return byte-equal four-shot output; a different seed may change ids but not vocabulary or invariants. Every row must have 5–15 second duration and both prompts.
 
-- [ ] **Step 2: Implement four-beat local generation and asset recognition**
+- [x] **Step 2: Implement four-beat local generation and asset recognition**
 
 Use fixed Establish/Entrance/Turn/Resolve templates populated from normalized user text. Asset recognition preserves explicit `@name` mentions and stable first-appearance order.
 
-- [ ] **Step 3: Add failing prompt-quality and recompute batching tests**
+- [x] **Step 3: Add failing prompt-quality and recompute batching tests**
 
 Assert each image prompt contains at least eight visual terms and 200–400 non-whitespace characters; each video prompt is at least 350 non-whitespace characters with at least three motion verbs and one temporal connector.
 
-- [ ] **Step 4: Implement deterministic dual-track prompt generation**
+- [x] **Step 4: Implement deterministic dual-track prompt generation**
 
 Use source row fields and assets only; do not introduce remote facts. Return entity references that pass the local whitelist.
 
-- [ ] **Step 5: Add failing batch graph topology tests**
+- [x] **Step 5: Add failing batch graph topology tests**
 
 For two shots, image mode must create one storyboard group, two Image nodes and two Script → Image edges. Video mode must create one normal group, two Video nodes, two edges, inherited durations and image/video track-specific prompts.
 
-- [ ] **Step 6: Implement atomic batch mutation builder**
+- [x] **Step 6: Implement atomic batch mutation builder**
 
 Use exact group names `分镜图生成器组` and `批量视频生成器组`; return `mutations`, `createdNodeIds`, `groupId` and `blockedReason`.
 
-- [ ] **Step 7: Initialize Script nodes with `defaultScriptV2State(node.id)`**
+- [x] **Step 7: Initialize Script nodes with `defaultScriptV2State(node.id)`**
 
 Remove new writes of `{ phase, entry, shots, assets }` from `src/domain/factory.ts`.
 
-- [ ] **Step 8: Run and commit**
+- [x] **Step 8: Run and commit**
 
 Run: `pnpm vitest run src/domain/__tests__/script-v2-mock.test.ts src/domain/__tests__/script-v2.test.ts`
 

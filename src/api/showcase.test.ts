@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { findShowcaseFixtureSnapshot } from '@/mocks/showcase'
-import { buildShowcaseCloneMutations, toggleShowcaseFavourite } from './showcase'
+import {
+  buildShowcaseCloneMutations,
+  getShowcaseSessionMode,
+  toggleShowcaseFavourite,
+} from './showcase'
 
 describe('showcase clone workflow', () => {
   it('replays a frozen public snapshot through the canonical canvas mutation path', () => {
@@ -22,5 +26,20 @@ describe('showcase clone workflow', () => {
       'showcase-dust-skeleton',
     ])
     expect(toggleShowcaseFavourite(['pub_city_night_01'], 'pub_city_night_01')).toEqual([])
+  })
+
+  it('projects the Account session before showcase mutations distinguish visitor modes', () => {
+    expect(getShowcaseSessionMode({ loading: true, profile: null, error: null })).toBe('loading')
+    expect(getShowcaseSessionMode({
+      loading: false,
+      profile: { identity: { maskedAccount: '未登录' } } as never,
+      error: null,
+    })).toBe('anonymous')
+    expect(getShowcaseSessionMode({
+      loading: false,
+      profile: { identity: { maskedAccount: '188****2606' } } as never,
+      error: null,
+    })).toBe('authenticated')
+    expect(getShowcaseSessionMode({ loading: false, profile: null, error: '本地会话不可用' })).toBe('unavailable')
   })
 })

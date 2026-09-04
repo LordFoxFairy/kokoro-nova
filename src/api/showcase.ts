@@ -27,6 +27,27 @@ export function isShowcaseAuthenticated(profile: AccountProfileResponse): boolea
   return profile.identity.maskedAccount !== '未登录'
 }
 
+/**
+ * The public surfaces use the Account endpoint as their one local session
+ * projection. Mutations consult this settled projection synchronously so an
+ * anonymous click opens its gate instead of first attempting a write.
+ */
+export type ShowcaseSessionMode = 'loading' | 'anonymous' | 'authenticated' | 'unavailable'
+
+export function getShowcaseSessionMode({
+  loading,
+  profile,
+  error,
+}: {
+  loading: boolean
+  profile: AccountProfileResponse | null
+  error: string | null
+}): ShowcaseSessionMode {
+  if (loading) return 'loading'
+  if (error || !profile) return 'unavailable'
+  return isShowcaseAuthenticated(profile) ? 'authenticated' : 'anonymous'
+}
+
 export function toggleShowcaseFavourite(ids: readonly string[], snapshotId: string): string[] {
   return ids.includes(snapshotId) ? ids.filter((id) => id !== snapshotId) : [...ids, snapshotId]
 }

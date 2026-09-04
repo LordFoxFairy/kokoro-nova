@@ -27,6 +27,33 @@ test('authenticated viewer can favourite a public work and copy its frozen proce
   await expect(page.getByTestId('showcase-clone-open-project')).toHaveAttribute('href', /\/canvas\?projectId=/)
 })
 
+test('anonymous visitor is gated before favourite or clone mutations', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'anonymous' } })
+  expect(selected.ok()).toBe(true)
+  const reset = await request.post('/api/dev/reset')
+  expect(reset.ok()).toBe(true)
+
+  let cloneRequests = 0
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().includes('/clone')) cloneRequests += 1
+  })
+
+  await page.goto('/showcase/pub_city_night_01')
+  const favourite = page.getByTestId('showcase-like')
+  await expect(favourite).toHaveAttribute('aria-busy', 'false')
+  await favourite.click()
+  await expect(page.getByTestId('showcase-like-gate')).toBeVisible()
+  await expect(favourite).toHaveAttribute('aria-pressed', 'false')
+
+  await page.keyboard.press('Escape')
+  await page.getByTestId('showcase-process').click()
+  const clone = page.getByTestId('clone-project')
+  await expect(clone).toHaveAttribute('aria-busy', 'false')
+  await clone.click()
+  await expect(page.getByTestId('clone-gate')).toBeVisible()
+  expect(cloneRequests).toBe(0)
+})
+
 test.describe('Showcase 1440×900 状态和可访问性交互基准', () => {
   test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })
 

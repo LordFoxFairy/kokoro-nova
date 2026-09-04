@@ -10,7 +10,6 @@ import type {
 export type { ShowcaseQuality } from '@/contracts/showcase'
 import { client } from '@/lib/api'
 import {
-  isShowcaseAuthenticated,
   SHOWCASE_FAVOURITES_STORAGE_KEY,
   toggleShowcaseFavourite,
 } from '@/api/showcase'
@@ -29,6 +28,7 @@ import {
   IconWorkflow,
 } from '../icons'
 import { PublicCanvasView } from './PublicCanvasView'
+import { useShowcaseSession } from './useShowcaseSession'
 
 export type ShowcaseDetailState = 'loading' | 'refreshing' | 'ready' | 'stale-error' | 'error'
 
@@ -75,6 +75,7 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
   const [favouriteIds, setFavouriteIds] = useState<string[]>([])
   const [favouriteBusy, setFavouriteBusy] = useState(false)
   const [favouriteFeedback, setFavouriteFeedback] = useState<string | null>(null)
+  const sessionMode = useShowcaseSession()
 
   useEffect(() => {
     try {
@@ -111,16 +112,19 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
   const requestState = getShowcaseDetailState({ loading, hasDetail: Boolean(detail), error })
   const favourited = detail ? favouriteIds.includes(detail.entry.snapshotId) : false
 
-  const toggleFavourite = async () => {
+  const toggleFavourite = () => {
     if (!detail || favouriteBusy) return
+    if (sessionMode === 'anonymous') {
+      setLikeGateOpen(true)
+      return
+    }
+    if (sessionMode !== 'authenticated') {
+      setFavouriteFeedback(sessionMode === 'loading' ? '正在确认登录状态' : '收藏状态暂时无法更新')
+      return
+    }
     setFavouriteBusy(true)
     setFavouriteFeedback(null)
     try {
-      const profile = await client.account.get()
-      if (!isShowcaseAuthenticated(profile)) {
-        setLikeGateOpen(true)
-        return
-      }
       const next = toggleShowcaseFavourite(favouriteIds, detail.entry.snapshotId)
       setFavouriteIds(next)
       try {
@@ -241,8 +245,9 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
                 data-testid="showcase-like"
                 aria-label={favourited ? '取消收藏作品' : '收藏作品'}
                 aria-pressed={favourited}
-                aria-busy={favouriteBusy}
-                onClick={() => void toggleFavourite()}
+                aria-busy={favouriteBusy || sessionMode === 'loading'}
+                disabled={sessionMode === 'loading'}
+                onClick={toggleFavourite}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-black/48 text-[21px] text-white/90 ring-1 ring-white/12 backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 {favourited ? '♥' : '♡'}

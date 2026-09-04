@@ -8,8 +8,7 @@ import type { PublishedSnapshot } from '@/domain/publish'
 import { projectStoryboard, type StoryboardCard } from '@/domain/storyboard'
 import type { WorkflowDocument, WorkflowNode } from '@/domain/types'
 import { ApiError, api } from '@/lib/api'
-import { cloneShowcaseSnapshot, isShowcaseAuthenticated } from '@/api/showcase'
-import { client } from '@/lib/api'
+import { cloneShowcaseSnapshot } from '@/api/showcase'
 import { cn } from '@/lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { EmptyState, SegmentedControl, Spinner } from '../ui/controls'
@@ -25,6 +24,7 @@ import {
   IconVideo,
   IconWorkflow,
 } from '../icons'
+import { useShowcaseSession } from './useShowcaseSession'
 
 type PublicView = 'workflow' | 'storyboard'
 
@@ -67,6 +67,7 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
   const [cloneError, setCloneError] = useState<string | null>(null)
   const [cloneResult, setCloneResult] = useState<{ projectId: string; canvasId: string } | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
+  const sessionMode = useShowcaseSession()
 
   useEffect(() => {
     let cancelled = false
@@ -94,16 +95,18 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
   const retry = () => setReloadToken((token) => token + 1)
   const requestState = getPublicSnapshotState({ loading, hasSnapshot: Boolean(snapshot), error })
 
-  const openClone = async () => {
+  const openClone = () => {
     if (!snapshot || loading) return
     setCloneError(null)
-    try {
-      const profile = await client.account.get()
-      if (isShowcaseAuthenticated(profile)) setCloneConfirmOpen(true)
-      else setCloneGateOpen(true)
-    } catch {
-      setCloneError('暂时无法确认登录状态，请稍后重试')
+    if (sessionMode === 'anonymous') {
+      setCloneGateOpen(true)
+      return
     }
+    if (sessionMode === 'authenticated') {
+      setCloneConfirmOpen(true)
+      return
+    }
+    setCloneError('暂时无法确认登录状态，请稍后重试')
   }
 
   const confirmClone = async () => {
@@ -115,6 +118,11 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
       setCloneConfirmOpen(false)
       setCloneResult({ projectId: copy.project.id, canvasId: copy.canvas.id })
     } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        setCloneConfirmOpen(false)
+        setCloneGateOpen(true)
+        return
+      }
       setCloneError(cause instanceof Error ? cause.message : '复制项目失败，请稍后重试')
     } finally {
       setCloneBusy(false)
@@ -192,9 +200,9 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
           data-testid="clone-project"
           title={snapshot ? '复制作品到我的项目' : '作品加载完成后才能复制项目'}
           aria-label={snapshot ? '复制作品到我的项目' : '作品加载完成后才能复制项目'}
-          onClick={() => void openClone()}
-          disabled={!snapshot || loading}
-          aria-busy={loading}
+          onClick={openClone}
+          disabled={!snapshot || loading || sessionMode === 'loading'}
+          aria-busy={loading || sessionMode === 'loading'}
           className="flex shrink-0 items-center gap-1.5 rounded-xl bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <IconCopy size={14} /> 复制项目

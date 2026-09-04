@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { ComposeResponseSchema } from '@/contracts/compose'
+import { ComposeTaskResponseSchema, type ComposeTask } from '@/contracts/compose'
 import {
   appendAudioTrack,
   appendClip,
@@ -90,6 +90,7 @@ const TIMELINE_HEIGHT = 255
 const PLAYHEAD_STEP_SECONDS = 0.1
 const PLAYHEAD_PAGE_STEP_SECONDS = 1
 const DEFAULT_SOURCE_ASPECT_RATIO = '16 / 9'
+const COMPOSE_TASK_STORAGE_KEY = 'libtv.compose.active-task'
 
 const TRANSITION_UI: Record<CompositeTransitionId, { label: string; accent: string }> = {
   fade: { label: '淡入淡出', accent: 'from-amber-300/80 via-slate-500/70 to-cyan-800/80' },
@@ -329,6 +330,7 @@ export function ClipEditor({
   const [trimPreview, setTrimPreview] = useState<TrimPreview | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [rendering, setRendering] = useState(false)
+  const [composeTask, setComposeTask] = useState<ComposeTask | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [failure, setFailure] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -439,12 +441,63 @@ export function ClipEditor({
       : { tone: 'error', message: `${direction === 'undo' ? '撤销' : '重做'}失败，时间线未改变。` })
   }, [redo, redoLabel, undo, undoLabel])
 
+  const observeComposeTask = useCallback(async (initial: ComposeTask): Promise<ComposeTask> => {
+    let current = initial
+    while (current.status === 'queued' || current.status === 'rendering') {
+      if (!aliveRef.current) return current
+      await new Promise((resolve) => window.setTimeout(resolve, 300))
+      current = ComposeTaskResponseSchema.parse(
+        await api.get<unknown>(`/api/compose/${encodeURIComponent(current.id)}`),
+      ).task
+      if (aliveRef.current) {
+        setComposeTask(current)
+        setRendering(current.status === 'queued' || current.status === 'rendering')
+      }
+    }
+
+    if (!aliveRef.current) return current
+    setRendering(false)
+    setNotes(current.notes)
+    if (current.status === 'succeeded') {
+      setSuccess('合成完成，预览和导出结果已准备好')
+    } else if (current.status === 'failed') {
+      setFailure(current.failure ?? '合成失败')
+    } else if (current.status === 'cancelled') {
+      setSuccess('已取消合成，时间线保持不变。')
+    }
+    return current
+  }, [])
+
   useEffect(() => {
     aliveRef.current = true
     return () => {
       aliveRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const taskId = window.localStorage.getItem(COMPOSE_TASK_STORAGE_KEY)
+    if (!taskId) return
+    void (async () => {
+      try {
+        const task = ComposeTaskResponseSchema.parse(
+          await api.get<unknown>(`/api/compose/${encodeURIComponent(taskId)}`),
+        ).task
+        if (!aliveRef.current) return
+        setComposeTask(task)
+        setRendering(task.status === 'queued' || task.status === 'rendering')
+        setFailure(task.status === 'failed' ? task.failure : null)
+        setSuccess(task.status === 'succeeded'
+          ? '合成完成，预览和导出结果已准备好'
+          : task.status === 'cancelled' ? '已取消合成，时间线保持不变。' : null)
+        setNotes(task.notes)
+        if (task.status === 'queued' || task.status === 'rendering') await observeComposeTask(task)
+      } catch {
+        window.localStorage.removeItem(COMPOSE_TASK_STORAGE_KEY)
+      }
+    })()
+  }, [observeComposeTask, open])
 
   useEffect(() => {
     const viewport = trackViewportRef.current
@@ -716,12 +769,15 @@ export function ClipEditor({
     const started = Date.now()
     const timer = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 250)
     try {
-      const response = ComposeResponseSchema.parse(await api.post<unknown>('/api/compose', toComposeRequest(timeline)))
-      if (aliveRef.current) {
-        setNotes(response.notes)
-        setSuccess('合成完成，预览和导出结果已准备好')
-      }
-      return response
+      const task = ComposeTaskResponseSchema.parse(
+        await api.post<unknown>('/api/compose', toComposeRequest(timeline)),
+      ).task
+      window.localStorage.setItem(COMPOSE_TASK_STORAGE_KEY, task.id)
+      if (aliveRef.current) setComposeTask(task)
+      const terminal = await observeComposeTask(task)
+      if (terminal.status === 'succeeded' && terminal.artifact) return terminal
+      if (terminal.status === 'failed') toast(terminal.failure ?? '合成失败', 'error')
+      return null
     } catch (error) {
       const message = error instanceof Error ? error.message : '合成失败'
       if (aliveRef.current) setFailure(message)
@@ -733,11 +789,44 @@ export function ClipEditor({
     }
   }
 
+  const cancelCompose = async () => {
+    if (!composeTask || (composeTask.status !== 'queued' && composeTask.status !== 'rendering')) return
+    const task = ComposeTaskResponseSchema.parse(
+      await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'cancel' }),
+    ).task
+    if (!aliveRef.current) return
+    setComposeTask(task)
+    setRendering(false)
+    setFailure(null)
+    setSuccess('已取消合成，时间线保持不变。')
+  }
+
+  const retryCompose = async () => {
+    if (!composeTask || composeTask.status !== 'failed' || rendering) return
+    setFailure(null)
+    setSuccess(null)
+    setRendering(true)
+    try {
+      const task = ComposeTaskResponseSchema.parse(
+        await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'retry' }),
+      ).task
+      setComposeTask(task)
+      await observeComposeTask(task)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '重试失败'
+      setFailure(message)
+      toast(message, 'error')
+    } finally {
+      if (aliveRef.current) setRendering(false)
+    }
+  }
+
   const exportLocal = async () => {
     setExportOpen(false)
     const response = await compose()
     if (!response) return
     const link = window.document.createElement('a')
+    if (!response.artifact) return
     link.href = response.artifact.url
     link.download = '合成视频-' + response.artifact.id.slice(-6) + '.mp4'
     window.document.body.appendChild(link)
@@ -750,11 +839,13 @@ export function ClipEditor({
     setExportOpen(false)
     const response = await compose()
     if (!response) return
-    if (onExported) onExported(response.artifact)
+    const artifact = response.artifact
+    if (!artifact) return
+    if (onExported) onExported(artifact)
     else {
       const saved = await commitWith((document) => {
         const node = createNode('video', nextFreeSpot(document.nodes), document.nodes, { name: '合成视频' })
-        node.data.artifacts = [response.artifact]
+        node.data.artifacts = [artifact]
         return [{ op: 'addNode', node }]
       }, '导出合成视频到画布')
       if (!saved) return
@@ -787,8 +878,13 @@ export function ClipEditor({
           <div className="ml-auto flex items-center gap-2">
             {rendering && (
               <span data-testid="compose-progress" className="flex items-center gap-1 text-[11px] text-ink-500">
-                <Spinner size={12} /> 正在合成 {elapsed.toFixed(0)}s
+                <Spinner size={12} /> {composeTask?.status === 'queued' ? '等待合成' : `正在合成 ${elapsed.toFixed(0)}s`}
               </span>
+            )}
+            {rendering && (
+              <button type="button" data-testid="compose-cancel" onClick={() => void cancelCompose()} className="text-[11px] text-ink-600 hover:text-ink-900">
+                取消
+              </button>
             )}
             <div className="flex items-center gap-1 border-r border-ink-100 pr-2">
               <ToolButton
@@ -961,7 +1057,12 @@ export function ClipEditor({
           <TimelineFeedbackNotice feedback={timelineFeedback} />
           {failure && (
             <Notice testId="compose-error" danger className={timelineFeedback ? 'top-14' : undefined}>
-              {failure}
+              <span>{failure}</span>
+              {composeTask?.status === 'failed' && (
+                <button type="button" data-testid="compose-retry" onClick={() => void retryCompose()} className="ml-2 underline">
+                  重试
+                </button>
+              )}
             </Notice>
           )}
           {success && !failure && (

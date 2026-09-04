@@ -113,3 +113,37 @@ describe('video compose contract', () => {
     expect(ComposeRequestSchema.safeParse(value).success).toBe(false)
   })
 })
+
+describe('video compose lifecycle contract', () => {
+  it('models queued work and terminal outcomes without exposing an artifact before success', async () => {
+    const { ComposeTaskResponseSchema } = await import('@/contracts/compose')
+
+    expect(ComposeTaskResponseSchema.parse({
+      task: {
+        id: 'compose_task_fixture',
+        status: 'queued',
+        artifact: null,
+        assetId: null,
+        subtitleMode: null,
+        notes: [],
+        failure: null,
+        createdAt: '2026-09-04T00:00:00.000Z',
+        updatedAt: '2026-09-04T00:00:00.000Z',
+      },
+    }).task.status).toBe('queued')
+
+    expect(() => ComposeTaskResponseSchema.parse({
+      task: {
+        id: 'compose_task_fixture',
+        status: 'cancelled',
+        artifact: { id: 'art_should_not_exist' },
+        assetId: 'asset_should_not_exist',
+        subtitleMode: 'none',
+        notes: [],
+        failure: null,
+        createdAt: '2026-09-04T00:00:00.000Z',
+        updatedAt: '2026-09-04T00:00:00.000Z',
+      },
+    })).toThrow()
+  })
+})

@@ -82,5 +82,50 @@ export const ComposeResponseSchema = z
   })
   .strict()
 
+
+/** Persisted local compositor work. Artifacts exist only for one succeeded task. */
+export const ComposeTaskStatusSchema = z.enum(['queued', 'rendering', 'succeeded', 'failed', 'cancelled'])
+
+export const ComposeTaskSchema = z
+  .object({
+    id: z.string().min(1),
+    status: ComposeTaskStatusSchema,
+    artifact: ArtifactSchema.extend({ kind: z.literal('video') }).nullable(),
+    assetId: z.string().min(1).nullable(),
+    subtitleMode: z.enum(['burned', 'muxed', 'none']).nullable(),
+    notes: z.array(z.string()),
+    failure: z.string().min(1).nullable(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict()
+  .superRefine((task, context) => {
+    const hasArtifact = task.artifact !== null || task.assetId !== null || task.subtitleMode !== null
+    if (task.status === 'succeeded') {
+      if (!task.artifact || !task.assetId || !task.subtitleMode) {
+        context.addIssue({ code: 'custom', path: ['artifact'], message: '成功任务必须包含成片' })
+      }
+      if (task.failure !== null) {
+        context.addIssue({ code: 'custom', path: ['failure'], message: '成功任务不能包含失败原因' })
+      }
+      return
+    }
+    if (hasArtifact) {
+      context.addIssue({ code: 'custom', path: ['artifact'], message: '非成功任务不能包含成片' })
+    }
+    if (task.status === 'failed' && task.failure === null) {
+      context.addIssue({ code: 'custom', path: ['failure'], message: '失败任务必须包含失败原因' })
+    }
+    if (task.status !== 'failed' && task.failure !== null) {
+      context.addIssue({ code: 'custom', path: ['failure'], message: '只有失败任务可以包含失败原因' })
+    }
+  })
+
+export const ComposeTaskResponseSchema = z.object({ task: ComposeTaskSchema }).strict()
+export const ComposeTaskActionSchema = z.object({ action: z.enum(['cancel', 'retry']) }).strict()
+
 export type ComposeRequest = z.infer<typeof ComposeRequestSchema>
 export type ComposeContractResponse = z.infer<typeof ComposeResponseSchema>
+export type ComposeTask = z.infer<typeof ComposeTaskSchema>
+export type ComposeTaskResponse = z.infer<typeof ComposeTaskResponseSchema>
+export type ComposeTaskAction = z.infer<typeof ComposeTaskActionSchema>

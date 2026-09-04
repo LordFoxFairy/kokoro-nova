@@ -1,7 +1,10 @@
 import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { MEDIA_DIR } from './store'
+import { DATA_DIR, DEFAULT_SPACE_ID, MEDIA_DIR, withState, withWorkspaceLock } from './store'
+import { ids, newId } from '@/domain/ids'
+import type { Asset } from '@/domain/types'
+import type { ComposeTask } from '@/contracts/compose'
 import { MEDIA_PUBLIC_PREFIX } from './generation/runner'
 
 /**
@@ -1086,4 +1089,260 @@ function lastMeaningfulLine(stderr: string): string {
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
   return lines[lines.length - 1] ?? '编码器未给出原因'
+}
+
+/* ------------------------------------------------------------------ *
+ * Persistent local compose task lifecycle
+ * ------------------------------------------------------------------ */
+
+export type ComposeTaskStatus = ComposeTask['status']
+
+interface StoredComposeTask extends ComposeTask {
+  spec: TimelineSpec
+  /** Prevents duplicate asset commits when route graphs observe one task. */
+  committing?: boolean
+}
+
+type ComposeRenderer = (
+  spec: TimelineSpec,
+  outputDir: string,
+  options: ComposeOptions,
+) => Promise<ComposeResult>
+
+const COMPOSE_TASK_FILE = path.join(DATA_DIR, 'compose-tasks.json')
+const COMPOSITE_ROOT = 'composites'
+const COMPOSE_MODEL_ID = 'local-compose'
+let composeRendererForTests: ComposeRenderer | null = null
+
+function publicTask(task: StoredComposeTask): ComposeTask {
+  const { spec: _spec, committing: _committing, ...publicValue } = task
+  return publicValue
+}
+
+async function readComposeTasksUnlocked(): Promise<StoredComposeTask[]> {
+  await fs.mkdir(DATA_DIR, { recursive: true })
+  try {
+    const parsed = JSON.parse(await fs.readFile(COMPOSE_TASK_FILE, 'utf8')) as unknown
+    return Array.isArray(parsed) ? parsed as StoredComposeTask[] : []
+  } catch {
+    return []
+  }
+}
+
+async function writeComposeTasksUnlocked(tasks: StoredComposeTask[]) {
+  await fs.mkdir(DATA_DIR, { recursive: true })
+  const temporary = `${COMPOSE_TASK_FILE}.${process.pid}.tmp`
+  await fs.writeFile(temporary, JSON.stringify(tasks, null, 2), 'utf8')
+  await fs.rename(temporary, COMPOSE_TASK_FILE)
+}
+
+async function mutateComposeTask<T>(
+  taskId: string,
+  mutate: (task: StoredComposeTask) => T | Promise<T>,
+): Promise<T | null> {
+  return withWorkspaceLock(async () => {
+    const tasks = await readComposeTasksUnlocked()
+    const task = tasks.find((item) => item.id === taskId)
+    if (!task) return null
+    const result = await mutate(task)
+    await writeComposeTasksUnlocked(tasks)
+    return result
+  })
+}
+
+function queueComposeTask(taskId: string) {
+  queueMicrotask(() => {
+    void runComposeTask(taskId)
+  })
+}
+
+export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask> {
+  const now = new Date().toISOString()
+  const task: StoredComposeTask = {
+    id: newId('compose_task'),
+    status: 'queued',
+    artifact: null,
+    assetId: null,
+    subtitleMode: null,
+    notes: [],
+    failure: null,
+    createdAt: now,
+    updatedAt: now,
+    spec: structuredClone(spec),
+  }
+  await withWorkspaceLock(async () => {
+    const tasks = await readComposeTasksUnlocked()
+    tasks.push(task)
+    await writeComposeTasksUnlocked(tasks)
+  })
+  queueComposeTask(task.id)
+  return publicTask(task)
+}
+
+export async function getComposeTask(taskId: string): Promise<ComposeTask | null> {
+  const task = await mutateComposeTask(taskId, (current) => publicTask(current))
+  if (task?.status === 'queued') queueComposeTask(task.id)
+  return task
+}
+
+export async function cancelComposeTask(taskId: string): Promise<ComposeTask | null> {
+  const cancelled = await mutateComposeTask(taskId, (task) => {
+    if (task.status === 'queued' || task.status === 'rendering') {
+      task.status = 'cancelled'
+      task.updatedAt = new Date().toISOString()
+      task.failure = null
+      task.notes = []
+    }
+    return publicTask(task)
+  })
+  return cancelled
+}
+
+export async function retryComposeTask(taskId: string): Promise<ComposeTask | null> {
+  const retried = await mutateComposeTask(taskId, (task) => {
+    if (task.status !== 'failed') return publicTask(task)
+    task.status = 'queued'
+    task.artifact = null
+    task.assetId = null
+    task.subtitleMode = null
+    task.notes = []
+    task.failure = null
+    task.committing = false
+    task.updatedAt = new Date().toISOString()
+    return publicTask(task)
+  })
+  if (retried?.status === 'queued') queueComposeTask(retried.id)
+  return retried
+}
+
+async function removeTaskArtifact(assetId: string | null, outputDir: string) {
+  if (assetId) {
+    await withState((state) => {
+      state.assets = state.assets.filter((asset) => asset.id !== assetId)
+    })
+  }
+  await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+}
+
+async function runComposeTask(taskId: string) {
+  const task = await mutateComposeTask(taskId, (current) => {
+    if (current.status !== 'queued') return null
+    current.status = 'rendering'
+    current.updatedAt = new Date().toISOString()
+    return structuredClone(current)
+  })
+  if (!task) return
+
+  const outputDir = path.join(MEDIA_DIR, COMPOSITE_ROOT, task.id)
+  const renderer = composeRendererForTests ?? composeTimeline
+  let result: ComposeResult
+  try {
+    result = await renderer(task.spec, outputDir, { timeoutMs: 90_000 })
+  } catch (error) {
+    result = {
+      ok: false,
+      code: 'render_failed',
+      reason: `合成失败：${error instanceof Error ? error.message : '本地渲染器异常'}`,
+    }
+  }
+
+  const afterRender = await getComposeTask(taskId)
+  if (!afterRender || afterRender.status === 'cancelled') {
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+    return
+  }
+
+  if (!result.ok) {
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+    await mutateComposeTask(taskId, (current) => {
+      if (current.status === 'rendering') {
+        current.status = 'failed'
+        current.failure = result.reason
+        current.updatedAt = new Date().toISOString()
+      }
+      return publicTask(current)
+    })
+    return
+  }
+
+  const now = new Date().toISOString()
+  const artifactId = ids.artifact()
+  const assetId = ids.asset()
+  const publicPrefix = `${MEDIA_PUBLIC_PREFIX}/${COMPOSITE_ROOT}/${task.id}`
+  const artifact: NonNullable<ComposeTask['artifact']> = {
+    id: artifactId,
+    jobId: task.id,
+    kind: 'video',
+    url: `${publicPrefix}/${path.basename(result.outputPath)}`,
+    thumbnailUrl: result.posterPath ? `${publicPrefix}/${path.basename(result.posterPath)}` : null,
+    width: result.width,
+    height: result.height,
+    durationSeconds: result.durationSeconds,
+    createdAt: now,
+    modelId: COMPOSE_MODEL_ID,
+    assetId,
+  }
+  const asset: Asset = {
+    id: assetId,
+    spaceId: DEFAULT_SPACE_ID,
+    namespace: 'personal',
+    kind: 'video',
+    name: `合成视频 ${now.slice(11, 19)}`,
+    url: artifact.url,
+    thumbnailUrl: artifact.thumbnailUrl,
+    width: artifact.width,
+    height: artifact.height,
+    durationSeconds: artifact.durationSeconds,
+    byteSize: result.byteSize,
+    tags: [],
+    folderId: null,
+    state: 'committed',
+    createdAt: now,
+    sourceArtifactId: artifactId,
+  }
+
+  const claimed = await mutateComposeTask(taskId, (current) => {
+    if (current.status !== 'rendering' || current.committing) return false
+    current.committing = true
+    current.updatedAt = now
+    return true
+  })
+  if (!claimed) {
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+    return
+  }
+
+  await withState((state) => {
+    if (!state.assets.some((existing) => existing.id === assetId)) state.assets.push(asset)
+  })
+
+  const finalTask = await mutateComposeTask(taskId, (current) => {
+    if (current.status === 'cancelled') return publicTask(current)
+    if (current.status !== 'rendering') return publicTask(current)
+    current.status = 'succeeded'
+    current.artifact = artifact
+    current.assetId = assetId
+    current.subtitleMode = result.subtitleMode
+    current.notes = result.notes
+    current.failure = null
+    current.committing = false
+    current.updatedAt = new Date().toISOString()
+    return publicTask(current)
+  })
+
+  if (finalTask?.status !== 'succeeded') {
+    await removeTaskArtifact(assetId, outputDir)
+  }
+}
+
+/** Test seam for lifecycle transitions; production always uses local ffmpeg. */
+export function __setComposeRendererForTests(renderer: ComposeRenderer | null) {
+  composeRendererForTests = renderer
+}
+
+export async function __resetComposeTasksForTests() {
+  await withWorkspaceLock(async () => {
+    await fs.rm(COMPOSE_TASK_FILE, { force: true })
+  })
+  composeRendererForTests = null
 }

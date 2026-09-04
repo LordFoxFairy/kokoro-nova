@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
-import { ComposeResponseSchema } from '@/contracts/compose'
+import { ComposeTaskResponseSchema } from '@/contracts/compose'
 
 type RectExpectation = Partial<Record<'x' | 'y' | 'width' | 'height' | 'right' | 'bottom', number>>
 
@@ -311,28 +311,46 @@ test('export sends the normalized persisted timeline contract and adds the resul
     .click()
 
   let body: unknown = null
+  const task = {
+    id: 'compose_task_e2e',
+    status: 'queued',
+    artifact: null,
+    assetId: null,
+    subtitleMode: null,
+    notes: [],
+    failure: null,
+    createdAt: '2026-09-03T12:00:00.000Z',
+    updatedAt: '2026-09-03T12:00:00.000Z',
+  }
   await page.route('**/api/compose', async (route) => {
     body = route.request().postDataJSON()
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task }) })
+  })
+  await page.route('**/api/compose/compose_task_e2e', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        artifact: {
-          id: 'art_composite_e2e',
-          jobId: 'compose',
-          kind: 'video',
-          url: '/api/media/composites/e2e/composite.mp4',
-          thumbnailUrl: '/fixtures/libtv/media/city-night-poster.webp',
-          width: 1280,
-          height: 720,
-          durationSeconds: 15,
-          createdAt: '2026-09-03T12:00:00.000Z',
-          modelId: 'local-compose',
+        task: {
+          ...task,
+          status: 'succeeded',
+          artifact: {
+            id: 'art_composite_e2e',
+            jobId: 'compose_task_e2e',
+            kind: 'video',
+            url: '/api/media/composites/e2e/composite.mp4',
+            thumbnailUrl: '/fixtures/libtv/media/city-night-poster.webp',
+            width: 1280,
+            height: 720,
+            durationSeconds: 15,
+            createdAt: '2026-09-03T12:00:00.000Z',
+            modelId: 'local-compose',
+            assetId: 'asset_composite_e2e',
+          },
           assetId: 'asset_composite_e2e',
+          subtitleMode: 'none',
+          updatedAt: '2026-09-03T12:00:01.000Z',
         },
-        assetId: 'asset_composite_e2e',
-        subtitleMode: 'none',
-        notes: [],
       }),
     })
   })
@@ -391,13 +409,83 @@ test('compose route renders the seeded local fixture into a readable MP4 artifac
   })
 
   if (!response.ok()) throw new Error(await response.text())
-  const result = ComposeResponseSchema.parse(await response.json())
-  expect(result.artifact.durationSeconds).toBeGreaterThan(0.45)
-  expect(result.artifact.durationSeconds).toBeLessThan(0.8)
-  expect(['burned', 'muxed']).toContain(result.subtitleMode)
+  const queued = ComposeTaskResponseSchema.parse(await response.json()).task
+  expect(queued.status).toBe('queued')
+  await expect.poll(async () => {
+    const current = await request.get(`/api/compose/${queued.id}`)
+    if (!current.ok()) throw new Error(await current.text())
+    return ComposeTaskResponseSchema.parse(await current.json()).task
+  }, { timeout: 120_000 }).toMatchObject({ status: 'succeeded' })
+  // Poll once more for a typed artifact response after the matcher has observed the terminal state.
+  const completed = ComposeTaskResponseSchema.parse(
+    await (await request.get(`/api/compose/${queued.id}`)).json(),
+  ).task
+  expect(completed.artifact?.durationSeconds).toBeGreaterThan(0.45)
+  expect(completed.artifact?.durationSeconds).toBeLessThan(0.8)
+  expect(['burned', 'muxed']).toContain(completed.subtitleMode)
+  if (!completed.artifact) throw new Error('compose task succeeded without an artifact')
 
-  const media = await request.get(result.artifact.url)
+  const media = await request.get(completed.artifact.url)
   expect(media.ok()).toBe(true)
   expect(media.headers()['content-type']).toBe('video/mp4')
   expect((await media.body()).byteLength).toBeGreaterThan(1_000)
+})
+
+test('refresh restores a failed compose task and retries it without changing the timeline', async ({ page, request }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('libtv.compose.active-task', 'compose_task_refresh')
+  })
+
+  const baseTask = {
+    id: 'compose_task_refresh',
+    artifact: null,
+    assetId: null,
+    subtitleMode: null,
+    notes: [],
+    createdAt: '2026-09-03T12:00:00.000Z',
+    updatedAt: '2026-09-03T12:00:00.000Z',
+  }
+  let retried = false
+  await page.route('**/api/compose/compose_task_refresh', async (route) => {
+    if (route.request().method() === 'POST') {
+      retried = true
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task: { ...baseTask, status: 'queued', failure: null } }),
+      })
+      return
+    }
+    const task = retried
+      ? {
+          ...baseTask,
+          status: 'succeeded',
+          failure: null,
+          assetId: 'asset_refresh',
+          subtitleMode: 'none',
+          updatedAt: '2026-09-03T12:00:01.000Z',
+          artifact: {
+            id: 'art_refresh',
+            jobId: 'compose_task_refresh',
+            kind: 'video',
+            url: '/api/media/composites/refresh/composite.mp4',
+            thumbnailUrl: null,
+            width: 1280,
+            height: 720,
+            durationSeconds: 1,
+            createdAt: '2026-09-03T12:00:01.000Z',
+            modelId: 'local-compose',
+            assetId: 'asset_refresh',
+          },
+        }
+      : { ...baseTask, status: 'failed', failure: '本地 fixture 渲染失败' }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task }) })
+  })
+
+  await openCompositor(page, request)
+  await expect(page.getByTestId('compose-error')).toContainText('本地 fixture 渲染失败')
+  await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(0)
+  await page.getByTestId('compose-retry').click()
+  await expect(page.getByTestId('compose-success')).toContainText('合成完成')
+  await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(0)
 })

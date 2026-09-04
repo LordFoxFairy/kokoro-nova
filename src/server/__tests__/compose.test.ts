@@ -505,3 +505,67 @@ describeRender('composeTimeline (real ffmpeg render)', () => {
     60_000,
   )
 })
+
+async function waitForComposeTask(
+  taskId: string,
+  status: 'rendering' | 'succeeded' | 'failed' | 'cancelled',
+) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const task = await compose.getComposeTask(taskId)
+    if (task?.status === status) return task
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+  throw new Error(`compose task ${taskId} did not reach ${status}`)
+}
+
+describe('compose task lifecycle', () => {
+  it('persists queued work, permits failed retries, and never publishes an artifact after cancellation', async () => {
+    let behavior: 'success' | 'failure' | 'block' = 'success'
+    let unblock: (() => void) | null = null
+    const { readState } = await import('@/server/store')
+
+    compose.__setComposeRendererForTests(async (_spec, outputDir) => {
+      if (behavior === 'failure') return { ok: false, code: 'render_failed', reason: 'fixture render failure' }
+      if (behavior === 'block') await new Promise<void>((resolve) => { unblock = resolve })
+      const outputPath = path.join(outputDir, 'composite.mp4')
+      await fs.mkdir(outputDir, { recursive: true })
+      await fs.writeFile(outputPath, 'fixture-mp4')
+      return {
+        ok: true,
+        outputPath,
+        posterPath: null,
+        durationSeconds: 1,
+        width: 320,
+        height: 180,
+        byteSize: 11,
+        subtitleMode: 'none',
+        notes: [],
+      }
+    })
+
+    const succeeded = await compose.startComposeTask({ clips: [clip()], subtitles: [] })
+    expect(succeeded.status).toBe('queued')
+    const success = await waitForComposeTask(succeeded.id, 'succeeded')
+    expect(success.artifact).not.toBeNull()
+    expect((await readState()).assets.filter((asset) => asset.sourceArtifactId === success.artifact?.id)).toHaveLength(1)
+
+    behavior = 'block'
+    const cancelled = await compose.startComposeTask({ clips: [clip()], subtitles: [] })
+    await waitForComposeTask(cancelled.id, 'rendering')
+    await compose.cancelComposeTask(cancelled.id)
+    const release = () => unblock
+    release()?.()
+    const terminalCancel = await waitForComposeTask(cancelled.id, 'cancelled')
+    expect(terminalCancel.artifact).toBeNull()
+    expect((await readState()).assets.filter((asset) => asset.name.startsWith('合成视频'))).toHaveLength(1)
+
+    behavior = 'failure'
+    const retryable = await compose.startComposeTask({ clips: [clip()], subtitles: [] })
+    await waitForComposeTask(retryable.id, 'failed')
+    behavior = 'success'
+    expect((await compose.retryComposeTask(retryable.id))?.status).toBe('queued')
+    const retried = await waitForComposeTask(retryable.id, 'succeeded')
+    expect((await readState()).assets.filter((asset) => asset.sourceArtifactId === retried.artifact?.id)).toHaveLength(1)
+    compose.__setComposeRendererForTests(null)
+  })
+})

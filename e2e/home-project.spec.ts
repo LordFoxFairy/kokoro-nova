@@ -165,30 +165,30 @@ test('home reproduces the campaign, creation, recent, Agent and TV Show hierarch
 
   await expect(page.getByRole('heading', { name: 'TV Show' })).toBeVisible()
   await expect(page.getByRole('button', { name: '全部', exact: true })).toBeVisible()
-  await expect(page.getByTestId('home-showcase-card')).toHaveCount(6)
+  await expect(page.getByTestId('home-showcase-card')).toHaveCount(7)
   const coverUrls = await page
     .getByTestId('home-showcase-card')
     .locator('img')
     .evaluateAll((images) => images.map((image) => image.getAttribute('src')))
-  expect(coverUrls.every((url) => url?.startsWith('/fixtures/libtv/showcase/'))).toBe(true)
+  expect(coverUrls.every((url) => url?.startsWith('/fixtures/libtv/'))).toBe(true)
 
   await page.screenshot({ path: 'docs/screenshots/libtv-home-local-1440x900.png', scale: 'css' })
 
   await page.getByRole('button', { name: '专业影视', exact: true }).click()
-  await expect(page.getByTestId('home-showcase-card')).toHaveCount(2)
+  await expect(page.getByTestId('home-showcase-card')).toHaveCount(3)
   await page.getByRole('textbox', { name: '搜索 TV Show' }).fill('尘骸')
-  await expect(page.getByTestId('home-showcase-card')).toHaveCount(2)
+  await expect(page.getByTestId('home-showcase-card')).toHaveCount(3)
   await page.getByTestId('tv-show-submit-search').click()
   await expect(page.getByTestId('home-showcase-card')).toHaveCount(1)
   await expect(page.getByTestId('tv-show-category-rail')).toHaveCount(0)
   await page.getByRole('textbox', { name: '搜索 TV Show' }).fill('不存在')
   await page.getByTestId('tv-show-submit-search').click()
-  await expect(page.getByTestId('home-showcase-card')).toHaveCount(6)
+  await expect(page.getByTestId('home-showcase-card')).toHaveCount(7)
   await expect(page.getByTestId('tv-show-search-feedback')).toContainText('已为你推荐')
   await page.getByTestId('tv-show-clear-search').click()
   await expect(page.getByTestId('tv-show-category-rail')).toBeVisible()
   await page.getByRole('button', { name: '全部', exact: true }).click()
-  await expect(page.getByRole('button', { name: '查看创作过程' })).toHaveCount(6)
+  await expect(page.getByRole('button', { name: '查看创作过程' })).toHaveCount(7)
 })
 
 test('home Agent composer selects context and creates only from a valid draft', async ({ page }) => {

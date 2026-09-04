@@ -5,6 +5,7 @@ import {
 } from '@/contracts/publish'
 import { handle } from '@/server/http'
 import { findViewableSnapshot, revokeSnapshot } from '@/server/publish'
+import { findShowcaseFixtureSnapshot } from '@/mocks/showcase'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,12 @@ type Params = { params: Promise<{ snapshotId: string }> }
 export async function GET(_request: Request, { params }: Params) {
   return handle(async () => {
     const { snapshotId } = await params
-    return GetPublishedSnapshotResponseSchema.parse({ snapshot: await findViewableSnapshot(snapshotId) })
+    const snapshot = await findViewableSnapshot(snapshotId).catch((error: unknown) => {
+      const fixture = findShowcaseFixtureSnapshot(snapshotId)
+      if (fixture) return fixture
+      throw error
+    })
+    return GetPublishedSnapshotResponseSchema.parse({ snapshot })
   })
 }
 

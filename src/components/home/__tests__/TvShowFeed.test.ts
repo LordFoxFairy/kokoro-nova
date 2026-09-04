@@ -13,7 +13,7 @@ describe('TV Show discovery helpers', () => {
   it('filters the local catalogue by category and title or author', () => {
     const items = HOME_DISCOVERY_CATALOG.showcase
 
-    expect(filterTvShowItems(items, '专业影视', '')).toHaveLength(2)
+    expect(filterTvShowItems(items, '专业影视', '')).toHaveLength(3)
     expect(filterTvShowItems(items, '全部', '尘骸').map((item) => item.id)).toEqual(['showcase-dust-skeleton'])
     expect(filterTvShowItems(items, '全部', 'Jcy').map((item) => item.id)).toEqual(['showcase-cloud-palace'])
   })
@@ -21,7 +21,7 @@ describe('TV Show discovery helpers', () => {
   it('preserves submitted exact matches and the official recommendation fallback', () => {
     const items = HOME_DISCOVERY_CATALOG.showcase
 
-    expect(resolveTvShowSearch(items, '专业影视', '').items).toHaveLength(2)
+    expect(resolveTvShowSearch(items, '专业影视', '').items).toHaveLength(3)
     expect(resolveTvShowSearch(items, '专业影视', '尘骸')).toMatchObject({
       items: [{ id: 'showcase-dust-skeleton' }],
       usedFallback: false,

@@ -11,6 +11,28 @@ test.beforeEach(async ({ request }) => {
   expect(reset.ok()).toBe(true)
 })
 
+test('home TV Show cards trace to the same ids and gate anonymous creation', async ({ page, request }) => {
+  const projection = await request.get('/api/showcase')
+  expect(projection.ok()).toBe(true)
+  const ids = (await projection.json()).entries.map((entry: { id: string }) => entry.id)
+
+  await page.goto('/')
+  await expect(page.getByTestId('home-public-entry')).toBeVisible()
+  await expect(page.getByTestId('home-showcase-card')).toHaveCount(ids.length)
+  expect(await page.getByTestId('tv-show-card-link').evaluateAll((links) => links.map((link) => new URL(link.href).pathname))).toEqual(
+    ids.map((id: string) => `/showcase/${id}`),
+  )
+
+  await page.getByTestId('home-blank-canvas').click()
+  await expect(page.getByTestId('home-login-dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('home-login-dialog')).toHaveCount(0)
+
+  await page.getByTestId('home-composer').fill('匿名浏览不应直接创建项目')
+  await page.getByTestId('home-agent-send').click()
+  await expect(page.getByTestId('home-login-dialog')).toBeVisible()
+})
+
 test('TV Show catalog keeps category and search discovery states visible', async ({ page }) => {
   await page.goto('/showcase')
 
@@ -96,4 +118,31 @@ test('TV Show detail, player and read-only process preserve the public work cont
   await expect(page.getByTestId('showcase-like-gate')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('showcase-like-gate')).toHaveCount(0)
+})
+
+test('TV Show catalogue exposes empty, error and retry states', async ({ page }) => {
+  let attempts = 0
+  await page.route('**/api/showcase', async (route) => {
+    attempts += 1
+    if (attempts === 1) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'fixture discovery unavailable' }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ entries: [] }),
+    })
+  })
+
+  await page.goto('/showcase')
+  await expect(page.getByText('公开作品暂时加载失败')).toBeVisible()
+  await expect(page.getByTestId('showcase-retry')).toBeEnabled()
+  await page.getByTestId('showcase-retry').click()
+  await expect(page.getByText('暂无公开作品')).toBeVisible()
+  expect(attempts).toBe(2)
 })

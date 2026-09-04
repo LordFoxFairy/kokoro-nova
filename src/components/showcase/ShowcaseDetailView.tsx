@@ -281,7 +281,28 @@ function RelatedRail({ entries, currentId }: { entries: ShowcaseEntryProjection[
               entry.id === currentId ? 'ring-2 ring-white/90' : 'opacity-75 transition-opacity hover:opacity-100',
             )}
           >
-            <div className="aspect-[16/7] overflow-hidden">
+            {entry.id === currentId ? (
+              <div className="aspect-[16/7] overflow-hidden">
+                <RelatedCardContent entry={entry} />
+              </div>
+            ) : (
+              <Link href={`/showcase/${entry.snapshotId}`} aria-label={`打开 ${entry.title}`} className="block aspect-[16/7] overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                <RelatedCardContent entry={entry} />
+              </Link>
+            )}
+            {entry.id === currentId && <span className="absolute right-2 top-2 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium text-black">正在查看</span>}
+          </div>
+        ))}
+      </div>
+      <button type="button" aria-label="上一组作品" className="absolute -left-8 bottom-7 hidden text-white/70 hover:text-white sm:block"><IconChevronLeft size={17} /></button>
+      <button type="button" aria-label="下一组作品" className="absolute -right-8 bottom-7 hidden text-white/70 hover:text-white sm:block"><IconChevronRight size={17} /></button>
+    </section>
+  )
+}
+
+function RelatedCardContent({ entry }: { entry: ShowcaseEntryProjection }) {
+  return (
+    <div className="relative h-full w-full">
               {entry.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={entry.coverUrl} alt={entry.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -290,14 +311,7 @@ function RelatedRail({ entries, currentId }: { entries: ShowcaseEntryProjection[
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
               <div className="absolute inset-x-2 bottom-2 truncate text-[10px] text-white/88">{entry.title}</div>
-            </div>
-            {entry.id === currentId && <span className="absolute right-2 top-2 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium text-black">正在查看</span>}
-          </div>
-        ))}
-      </div>
-      <button type="button" aria-label="上一组作品" className="absolute -left-8 bottom-7 hidden text-white/70 hover:text-white sm:block"><IconChevronLeft size={17} /></button>
-      <button type="button" aria-label="下一组作品" className="absolute -right-8 bottom-7 hidden text-white/70 hover:text-white sm:block"><IconChevronRight size={17} /></button>
-    </section>
+    </div>
   )
 }
 

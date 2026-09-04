@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { ShowcaseCategorySchema, ShowcaseEntryProjectionBaseSchema } from './showcase'
+
 const IsoTimestampSchema = z.string().datetime()
 
 /**
@@ -44,16 +46,26 @@ export const HomeFeaturedSkillSchema = z.object({
   coverUrl: LocalFixtureUrlSchema,
 })
 
-export const HomeShowcaseItemSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  author: z.string(),
-  authorTier: z.string().nullable(),
-  coverUrl: LocalFixtureUrlSchema,
-  likeCount: z.number().int().nonnegative(),
-  processAvailable: z.boolean(),
-  category: z.string(),
+/**
+ * Home only renders a compact card, but its identity and discovery metadata
+ * must remain the same projection served by /api/showcase.
+ */
+export const HomeShowcaseItemSchema = ShowcaseEntryProjectionBaseSchema.pick({
+  id: true,
+  snapshotId: true,
+  title: true,
+  author: true,
+  authorTier: true,
+  coverUrl: true,
+  likeCount: true,
+  processAvailable: true,
+  category: true,
 })
+  .extend({ coverUrl: LocalFixtureUrlSchema })
+  .refine((entry) => entry.id === entry.snapshotId, {
+    message: '公开发现 id 必须与 snapshotId 一致',
+    path: ['snapshotId'],
+  })
 
 export const HomeDiscoveryResponseSchema = z.object({
   campaign: HomeCampaignSchema,
@@ -62,8 +74,9 @@ export const HomeDiscoveryResponseSchema = z.object({
   recentProjects: z.array(HomeRecentProjectSchema),
   featuredSkills: z.array(HomeFeaturedSkillSchema),
   showcase: z.array(HomeShowcaseItemSchema),
-  showcaseCategories: z.array(z.string()),
+  showcaseCategories: z.array(ShowcaseCategorySchema),
 })
 
 export type HomeDiscoveryResponse = z.infer<typeof HomeDiscoveryResponseSchema>
 export type HomeDiscoveryCatalog = Omit<HomeDiscoveryResponse, 'account' | 'recentProjects'>
+export type HomeShowcaseItem = z.infer<typeof HomeShowcaseItemSchema>

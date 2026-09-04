@@ -24,9 +24,10 @@ export const ShowcaseMediaSchema = z.object({
   originalQualityLabel: z.string().min(1),
 })
 
-export const ShowcaseEntryProjectionSchema = z.object({
-  id: z.string().min(1),
-  snapshotId: z.string().min(1),
+export const ShowcaseEntryProjectionBaseSchema = z.object({
+  /** `id` is the public discovery key and is intentionally equal to snapshotId. */
+  id: z.string().trim().min(1),
+  snapshotId: z.string().trim().min(1),
   title: z.string(),
   summary: z.string(),
   coverUrl: z.string().nullable(),
@@ -43,6 +44,12 @@ export const ShowcaseEntryProjectionSchema = z.object({
   processAvailable: z.boolean(),
   media: ShowcaseMediaSchema,
 })
+
+export const ShowcaseEntryProjectionSchema = ShowcaseEntryProjectionBaseSchema
+  .refine((entry) => entry.id === entry.snapshotId, {
+    message: '公开发现 id 必须与 snapshotId 一致',
+    path: ['snapshotId'],
+  })
 
 export const ShowcaseDetailResponseSchema = z.object({
   entry: ShowcaseEntryProjectionSchema,

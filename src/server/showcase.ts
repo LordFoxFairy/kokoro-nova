@@ -1,7 +1,8 @@
 import type { ShowcaseDetailResponse, ShowcaseEntryProjection, ShowcaseMedia } from '@/contracts/showcase'
 import type { Artifact } from '@/domain/types'
+import { HttpError } from './http'
 import { findViewableSnapshot as findSnapshotRecord, listPublishedSnapshots } from './publish'
-import { SHOWCASE_RELATED_FIXTURES } from '@/mocks/showcase'
+import { SHOWCASE_DISCOVERY_CATALOG, findShowcaseFixtureSnapshot } from '@/mocks/showcase'
 import type { PublishedSnapshot, SnapshotSummary } from '@/domain/publish'
 
 function firstVideo(snapshot: PublishedSnapshot | SnapshotSummary): Artifact | null {
@@ -26,14 +27,27 @@ function mediaFor(snapshot: PublishedSnapshot | SnapshotSummary): ShowcaseMedia 
 }
 
 function entryFor(snapshot: PublishedSnapshot | SnapshotSummary): ShowcaseEntryProjection {
+  const fixture = SHOWCASE_DISCOVERY_CATALOG.find((entry) => entry.snapshotId === snapshot.id)
   const media = mediaFor(snapshot)
   const mediaCount = 'mediaCount' in snapshot ? snapshot.mediaCount : snapshot.document.nodes.filter((node) => (node.data.artifacts ?? []).length > 0).length
+  if (fixture) {
+    return {
+      ...fixture,
+      title: snapshot.title,
+      summary: snapshot.summary,
+      coverUrl: snapshot.coverUrl ?? fixture.coverUrl,
+      publishedAt: snapshot.publishedAt,
+      nodeCount: 'nodeCount' in snapshot ? snapshot.nodeCount : snapshot.document.nodes.length,
+      mediaCount,
+      media: media.url ? media : fixture.media,
+    }
+  }
   return {
     id: snapshot.id,
     snapshotId: snapshot.id,
     title: snapshot.title,
     summary: snapshot.summary,
-    coverUrl: snapshot.coverUrl,
+    coverUrl: snapshot.coverUrl ?? '/fixtures/libtv/media/city-night-poster.webp',
     publishedAt: snapshot.publishedAt,
     nodeCount: 'nodeCount' in snapshot ? snapshot.nodeCount : snapshot.document.nodes.length,
     mediaCount,
@@ -51,14 +65,19 @@ function entryFor(snapshot: PublishedSnapshot | SnapshotSummary): ShowcaseEntryP
 
 export async function listShowcaseEntries(): Promise<ShowcaseEntryProjection[]> {
   const snapshots = await listPublishedSnapshots()
-  return Promise.all(snapshots.map(async (summary) => entryFor(await findSnapshotRecord(summary.id))))
+  const publishedIds = new Set(snapshots.map((summary) => summary.id))
+  const publishedEntries = await Promise.all(snapshots.map(async (summary) => entryFor(await findSnapshotRecord(summary.id))))
+  const fixtureEntries = SHOWCASE_DISCOVERY_CATALOG.filter((entry) => !publishedIds.has(entry.snapshotId))
+  return [...publishedEntries, ...fixtureEntries].sort((left, right) => right.publishedAt.localeCompare(left.publishedAt))
 }
 
 export async function findShowcaseDetail(snapshotId: string): Promise<ShowcaseDetailResponse> {
-  const snapshot = await findSnapshotRecord(snapshotId)
+  const snapshot = await findSnapshotRecord(snapshotId).catch(() => findShowcaseFixtureSnapshot(snapshotId))
+  if (!snapshot) throw new HttpError(404, '作品不存在或已下架')
   const entry = entryFor(snapshot)
+  const related = await listShowcaseEntries()
   return {
     entry,
-    related: [entry, ...SHOWCASE_RELATED_FIXTURES.filter((fixture) => fixture.id !== entry.id)],
+    related: [entry, ...related.filter((fixture) => fixture.id !== entry.id)],
   }
 }

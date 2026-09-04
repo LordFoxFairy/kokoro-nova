@@ -4,28 +4,19 @@ import { useMemo, useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { SnapshotSummary } from '@/domain/publish'
 import type { ShowcaseEntryProjection } from '@/contracts/showcase'
+import { SHOWCASE_CATEGORIES } from '@/mocks/showcase'
 import { ApiError, client } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { EmptyState, Spinner } from '../ui/controls'
 import { IconChevronRight, IconClose, IconImage, IconLayers, IconPlay, IconRefresh, IconSearch } from '../icons'
 import { LibTvLogo } from '../shell/LibTvLogo'
 
-/** Categories observed on the public TV Show discovery surface. */
-export const SHOWCASE_CATEGORIES = [
-  '全部',
-  'AI 漫剧精卫计划',
-  '广告导演请就位',
-  '精选画布',
-  '专业影视',
-  '短剧漫剧',
-  '商业广告',
-  '动漫游戏',
-  '教育生活',
-  'TV 工具箱',
-] as const
+/** Preserve the gallery's historical import while sourcing categories centrally. */
+export { SHOWCASE_CATEGORIES }
 
 export type ShowcaseEntry = {
   id: string
+  snapshotId?: string
   title: string
   summary: string
   coverUrl: string | null
@@ -51,6 +42,7 @@ export type ShowcaseEntry = {
 export function toShowcaseEntry(snapshot: SnapshotSummary): ShowcaseEntry {
   return {
     id: snapshot.id,
+    snapshotId: snapshot.id,
     title: snapshot.title,
     summary: snapshot.summary,
     coverUrl: snapshot.coverUrl,

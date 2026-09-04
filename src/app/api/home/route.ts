@@ -1,6 +1,7 @@
 import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
 import { SCENARIO_CATALOG } from '@/mocks/scenarios/catalog'
 import { handle } from '@/server/http'
+import { listShowcaseEntries } from '@/server/showcase'
 import { activeScenarioId, DEFAULT_SPACE_ID, readState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,21 @@ export async function GET() {
       .slice(0, 3)
       .map(({ id, name, coverUrl, updatedAt }) => ({ id, name, coverUrl, updatedAt }))
 
+    const showcaseEntries = await listShowcaseEntries()
+
     return {
       ...HOME_DISCOVERY_CATALOG,
+      showcase: showcaseEntries.map(({ id, snapshotId, title, author, authorTier, coverUrl, likeCount, processAvailable, category }) => ({
+        id,
+        snapshotId,
+        title,
+        author,
+        authorTier,
+        coverUrl,
+        likeCount,
+        processAvailable,
+        category,
+      })),
       account: {
         credits: authenticated ? (state.balances[DEFAULT_SPACE_ID] ?? 0) : 0,
         unreadCount: authenticated ? 1 : 0,

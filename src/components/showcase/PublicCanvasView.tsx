@@ -8,6 +8,8 @@ import type { PublishedSnapshot } from '@/domain/publish'
 import { projectStoryboard, type StoryboardCard } from '@/domain/storyboard'
 import type { WorkflowDocument, WorkflowNode } from '@/domain/types'
 import { ApiError, api } from '@/lib/api'
+import { cloneShowcaseSnapshot, isShowcaseAuthenticated } from '@/api/showcase'
+import { client } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { EmptyState, SegmentedControl, Spinner } from '../ui/controls'
@@ -60,6 +62,10 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<PublicView>('workflow')
   const [cloneGateOpen, setCloneGateOpen] = useState(false)
+  const [cloneConfirmOpen, setCloneConfirmOpen] = useState(false)
+  const [cloneBusy, setCloneBusy] = useState(false)
+  const [cloneError, setCloneError] = useState<string | null>(null)
+  const [cloneResult, setCloneResult] = useState<{ projectId: string; canvasId: string } | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
@@ -87,6 +93,33 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
 
   const retry = () => setReloadToken((token) => token + 1)
   const requestState = getPublicSnapshotState({ loading, hasSnapshot: Boolean(snapshot), error })
+
+  const openClone = async () => {
+    if (!snapshot || loading) return
+    setCloneError(null)
+    try {
+      const profile = await client.account.get()
+      if (isShowcaseAuthenticated(profile)) setCloneConfirmOpen(true)
+      else setCloneGateOpen(true)
+    } catch {
+      setCloneError('暂时无法确认登录状态，请稍后重试')
+    }
+  }
+
+  const confirmClone = async () => {
+    if (!snapshot || cloneBusy) return
+    setCloneBusy(true)
+    setCloneError(null)
+    try {
+      const copy = await cloneShowcaseSnapshot(snapshot)
+      setCloneConfirmOpen(false)
+      setCloneResult({ projectId: copy.project.id, canvasId: copy.canvas.id })
+    } catch (cause) {
+      setCloneError(cause instanceof Error ? cause.message : '复制项目失败，请稍后重试')
+    } finally {
+      setCloneBusy(false)
+    }
+  }
 
   return (
     <div className="flex h-screen flex-col bg-canvas" data-testid="public-canvas-view" aria-busy={loading}>
@@ -157,9 +190,9 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
         <button
           type="button"
           data-testid="clone-project"
-          title={snapshot ? '复制项目需要先登录' : '作品加载完成后才能复制项目'}
-          aria-label={snapshot ? '复制项目，需要先登录' : '作品加载完成后才能复制项目'}
-          onClick={() => setCloneGateOpen(true)}
+          title={snapshot ? '复制作品到我的项目' : '作品加载完成后才能复制项目'}
+          aria-label={snapshot ? '复制作品到我的项目' : '作品加载完成后才能复制项目'}
+          onClick={() => void openClone()}
           disabled={!snapshot || loading}
           aria-busy={loading}
           className="flex shrink-0 items-center gap-1.5 rounded-xl bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -245,6 +278,57 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
           <p>复制会在你自己的空间里创建一份私有副本，因此需要一个账号来承载它——当前站点还没有接入登录，暂时无法复制。</p>
           <p className="text-ink-600">浏览不受影响：这份作品的工作流与故事板都可以完整查看。</p>
         </div>
+      </Dialog>
+
+      <Dialog
+        open={cloneConfirmOpen}
+        onClose={() => !cloneBusy && setCloneConfirmOpen(false)}
+        title="复制公开作品"
+        testId="showcase-clone-dialog"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setCloneConfirmOpen(false)}
+              disabled={cloneBusy}
+              className="rounded-lg border border-ink-200 px-3.5 py-2 text-[13px] font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              data-testid="showcase-clone-confirm"
+              onClick={() => void confirmClone()}
+              disabled={cloneBusy}
+              className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85 disabled:opacity-50"
+            >
+              {cloneBusy ? '正在复制…' : '复制到我的项目'}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-ink-600">将创建一个新的私有项目，并通过标准画布 mutation 复制当前公开快照的节点、连线、分组和视图；原作品不会被修改。</p>
+        {cloneError && <p className="mt-3 text-[12px] text-danger" role="alert">{cloneError}</p>}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(cloneResult)}
+        onClose={() => setCloneResult(null)}
+        title="已复制到我的项目"
+        testId="showcase-clone-success"
+        footer={
+          cloneResult ? (
+            <Link
+              data-testid="showcase-clone-open-project"
+              href={`/canvas?projectId=${encodeURIComponent(cloneResult.projectId)}&canvasId=${encodeURIComponent(cloneResult.canvasId)}`}
+              className="inline-flex rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85"
+            >
+              打开副本
+            </Link>
+          ) : null
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-ink-600">副本已创建完成。后续编辑和生成只会发生在你的新项目中。</p>
       </Dialog>
     </div>
   )

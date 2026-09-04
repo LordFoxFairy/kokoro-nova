@@ -3114,6 +3114,7 @@
           "Showcase"
         ],
         "summary": "TV Show 作品详情、播放器和相邻作品带",
+        "description": "匿名可读的公开详情 projection。收藏先读取 /api/account，登录态仅写入浏览器本地偏好；复制作品时客户端用对应的冻结快照调用 POST /api/projects 和 POST /api/canvases/{canvasId}，不修改这份公开快照。",
         "operationId": "getShowcaseDetail",
         "x-ui-triggers": [
           "TV Show 作品详情、播放器和相邻作品带"
@@ -3173,6 +3174,7 @@
           "Showcase"
         ],
         "summary": "TV Show 目录发现 projection",
+        "description": "匿名可读的确定性公开目录。分类与关键词筛选属于前端展示状态；未命中关键词时客户端保留当前分类推荐，不向服务端写入搜索或收藏状态。",
         "operationId": "listShowcaseEntries",
         "x-ui-triggers": [
           "TV Show 目录发现 projection"

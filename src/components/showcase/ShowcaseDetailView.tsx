@@ -9,6 +9,11 @@ import type {
 } from '@/contracts/showcase'
 export type { ShowcaseQuality } from '@/contracts/showcase'
 import { client } from '@/lib/api'
+import {
+  isShowcaseAuthenticated,
+  SHOWCASE_FAVOURITES_STORAGE_KEY,
+  toggleShowcaseFavourite,
+} from '@/api/showcase'
 import { cn } from '@/lib/cn'
 import { Spinner } from '../ui/controls'
 import {
@@ -67,6 +72,21 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
   const [processOpen, setProcessOpen] = useState(false)
   const [likeGateOpen, setLikeGateOpen] = useState(false)
   const [shareLabel, setShareLabel] = useState('分享')
+  const [favouriteIds, setFavouriteIds] = useState<string[]>([])
+  const [favouriteBusy, setFavouriteBusy] = useState(false)
+  const [favouriteFeedback, setFavouriteFeedback] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(SHOWCASE_FAVOURITES_STORAGE_KEY)
+      if (!stored) return
+      const parsed: unknown = JSON.parse(stored)
+      if (Array.isArray(parsed) && parsed.every((id) => typeof id === 'string')) setFavouriteIds(parsed)
+    } catch {
+      // Storage is a convenience cache for the frontend-only mock, never a
+      // requirement for reading a public work.
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -89,6 +109,32 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
   }, [snapshotId, reloadToken])
 
   const requestState = getShowcaseDetailState({ loading, hasDetail: Boolean(detail), error })
+  const favourited = detail ? favouriteIds.includes(detail.entry.snapshotId) : false
+
+  const toggleFavourite = async () => {
+    if (!detail || favouriteBusy) return
+    setFavouriteBusy(true)
+    setFavouriteFeedback(null)
+    try {
+      const profile = await client.account.get()
+      if (!isShowcaseAuthenticated(profile)) {
+        setLikeGateOpen(true)
+        return
+      }
+      const next = toggleShowcaseFavourite(favouriteIds, detail.entry.snapshotId)
+      setFavouriteIds(next)
+      try {
+        window.localStorage.setItem(SHOWCASE_FAVOURITES_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // The in-memory mock state is still usable when browser storage is unavailable.
+      }
+      setFavouriteFeedback(next.includes(detail.entry.snapshotId) ? '已收藏到我的喜欢' : '已取消收藏')
+    } catch {
+      setFavouriteFeedback('收藏状态暂时无法更新')
+    } finally {
+      setFavouriteBusy(false)
+    }
+  }
 
   if (loading && !detail) {
     return (
@@ -193,11 +239,13 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
               <button
                 type="button"
                 data-testid="showcase-like"
-                aria-label="喜欢作品，需要先登录"
-                onClick={() => setLikeGateOpen(true)}
+                aria-label={favourited ? '取消收藏作品' : '收藏作品'}
+                aria-pressed={favourited}
+                aria-busy={favouriteBusy}
+                onClick={() => void toggleFavourite()}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-black/48 text-[21px] text-white/90 ring-1 ring-white/12 backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                ♡
+                {favourited ? '♥' : '♡'}
               </button>
               <button
                 type="button"
@@ -215,6 +263,7 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
               </button>
             </div>
             <div className="text-[11px] text-white/42">{detail.entry.likeCount.toLocaleString('zh-CN')} 人喜欢 · {detail.entry.category}</div>
+            {favouriteFeedback && <div data-testid="showcase-favourite-feedback" className="text-[11px] text-white/64" role="status">{favouriteFeedback}</div>}
           </div>
         </div>
 

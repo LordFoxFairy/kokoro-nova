@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { waitForStableVisuals } from './helpers/visual-stability'
 
 /**
  * End-to-end coverage of the primary path:
@@ -6,6 +7,16 @@ import { expect, test, type Page } from '@playwright/test'
  */
 
 const SHOTS = process.env.VISUAL_ARTIFACTS_DIR ?? "test-results/documentation"
+
+async function expectVisualBaseline(page: Page, name: string) {
+  await waitForStableVisuals(page)
+  await expect(page).toHaveScreenshot(name, {
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+    maxDiffPixelRatio: 0.0001,
+  })
+}
 
 // The workspace store is file-backed and survives between runs, so without a
 // reset each run inherits the previous run's projects and folders.
@@ -358,6 +369,7 @@ test('导演台 studio renders its viewports in a real browser', async ({ page }
   // real layout pass, which is exactly what a browser run is here to prove.
   await expect(studio.locator('svg').first()).toBeVisible()
   expect(await studio.locator('svg').count()).toBeGreaterThan(1)
+  await expectVisualBaseline(page, 'director-studio-dark-1440x900.png')
   await page.screenshot({ path: `${SHOTS}/director-studio.png` })
 })
 

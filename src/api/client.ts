@@ -1,5 +1,6 @@
 import type { z, ZodType } from 'zod'
 
+import { AccountProfileResponseSchema } from '@/contracts/account'
 import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import { LedgerViewProjectionSchema } from '@/contracts/ledger'
 import { ModelCatalogResponseSchema } from '@/contracts/models'
@@ -155,6 +156,9 @@ export function createApiClient(transport: JsonTransport = fetch) {
   }
 
   return {
+    account: {
+      get: () => requestTyped(AccountProfileResponseSchema, '/api/account'),
+    },
     home: {
       get: () => requestTyped(HomeDiscoveryResponseSchema, '/api/home'),
     },

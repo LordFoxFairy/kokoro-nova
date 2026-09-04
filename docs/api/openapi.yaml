@@ -71,6 +71,10 @@
     {
       "name": "Script V2",
       "description": "三阶段脚本、资产与双轨提示词的 frontend-only local mock；不调用真实 LibTV 后端。"
+    },
+    {
+      "name": "Account",
+      "description": "共享身份、钱包、偏好与通知"
     }
   ],
   "paths": {
@@ -4161,6 +4165,45 @@
         },
         "description": "取消或重试 Script V2 本地任务\n\n仅用于 frontend-only local mock；不会发送真实 LibTV 凭证或调用远端后端。"
       }
+    },
+    "/api/account": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "共享账户身份、钱包与偏好",
+        "operationId": "getAccountProfile",
+        "x-ui-triggers": [
+          "打开账户身份、钱包与偏好"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "确定性的账户共享域投影",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountProfileResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5964,14 +6007,36 @@
           "media"
         ],
         "properties": {
-          "id": { "type": "string" },
-          "snapshotId": { "type": "string" },
-          "title": { "type": "string" },
-          "summary": { "type": "string" },
-          "coverUrl": { "type": ["string", "null"] },
-          "publishedAt": { "type": "string", "format": "date-time" },
-          "nodeCount": { "type": "integer", "minimum": 0 },
-          "mediaCount": { "type": "integer", "minimum": 0 },
+          "id": {
+            "type": "string"
+          },
+          "snapshotId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nodeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mediaCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "category": {
             "type": "string",
             "enum": [
@@ -5986,36 +6051,71 @@
               "TV 工具箱"
             ]
           },
-          "author": { "type": "string" },
-          "authorTier": { "type": ["string", "null"] },
-          "authorAvatarUrl": { "type": ["string", "null"] },
-          "likeCount": { "type": "integer", "minimum": 0 },
-          "viewCount": { "type": "integer", "minimum": 0 },
-          "hasAiContent": { "type": "boolean" },
-          "processAvailable": { "type": "boolean" },
-          "media": { "$ref": "#/components/schemas/ShowcaseMedia" }
+          "author": {
+            "type": "string"
+          },
+          "authorTier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authorAvatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "likeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "viewCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasAiContent": {
+            "type": "boolean"
+          },
+          "processAvailable": {
+            "type": "boolean"
+          },
+          "media": {
+            "$ref": "#/components/schemas/ShowcaseMedia"
+          }
         },
         "additionalProperties": false
       },
       "ShowcaseListResponse": {
         "type": "object",
-        "required": ["entries"],
+        "required": [
+          "entries"
+        ],
         "properties": {
           "entries": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ShowcaseEntryProjection" }
+            "items": {
+              "$ref": "#/components/schemas/ShowcaseEntryProjection"
+            }
           }
         },
         "additionalProperties": false
       },
       "ShowcaseDetailResponse": {
         "type": "object",
-        "required": ["entry", "related"],
+        "required": [
+          "entry",
+          "related"
+        ],
         "properties": {
-          "entry": { "$ref": "#/components/schemas/ShowcaseEntryProjection" },
+          "entry": {
+            "$ref": "#/components/schemas/ShowcaseEntryProjection"
+          },
           "related": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ShowcaseEntryProjection" }
+            "items": {
+              "$ref": "#/components/schemas/ShowcaseEntryProjection"
+            }
           }
         },
         "additionalProperties": false
@@ -11046,6 +11146,206 @@
         "properties": {
           "skill": {
             "$ref": "#/components/schemas/SkillCard"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountIdentity": {
+        "type": "object",
+        "required": [
+          "displayName",
+          "maskedAccount",
+          "uuidMasked",
+          "accessKeyLabel",
+          "avatarInitial"
+        ],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "maskedAccount": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "uuidMasked": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "accessKeyLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "avatarInitial": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountMembership": {
+        "type": "object",
+        "required": [
+          "label",
+          "status",
+          "benefit",
+          "daysRemaining"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "trial",
+              "expired"
+            ]
+          },
+          "benefit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "daysRemaining": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountWallet": {
+        "type": "object",
+        "required": [
+          "availableCredits",
+          "commonCredits",
+          "libTvCredits",
+          "storageUsedGb",
+          "storageTotalGb"
+        ],
+        "properties": {
+          "availableCredits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "commonCredits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "libTvCredits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "storageUsedGb": {
+            "type": "number",
+            "minimum": 0
+          },
+          "storageTotalGb": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountPreferences": {
+        "type": "object",
+        "required": [
+          "theme",
+          "aiWatermark",
+          "recommendations"
+        ],
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark"
+            ]
+          },
+          "aiWatermark": {
+            "type": "boolean"
+          },
+          "recommendations": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountNotification": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "body",
+          "createdAt",
+          "unread"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unread": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountProfileResponse": {
+        "type": "object",
+        "required": [
+          "identity",
+          "membership",
+          "wallet",
+          "preferences",
+          "notifications",
+          "unreadCount"
+        ],
+        "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/AccountIdentity"
+          },
+          "membership": {
+            "$ref": "#/components/schemas/AccountMembership"
+          },
+          "wallet": {
+            "$ref": "#/components/schemas/AccountWallet"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/AccountPreferences"
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountNotification"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false

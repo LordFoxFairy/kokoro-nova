@@ -36,7 +36,7 @@ React / Zustand
 | Agent | 首页/画布面板 | 创建会话、发送消息、ask-human、确认 mutation proposal | `listAgentSessions`, `createAgentSession`, `getAgentSession`, `sendAgentMessage`, `resolveAgentMessage`, `updateAgentSession`, `deleteAgentSession` | streaming/mock reply、pending proposal | agent gateway |
 | Skills | `/skills`, `/skills/SKILL_ID` | 浏览、搜索、查看详情、收藏 | `listSkills`, `getSkill`, `toggleSkillFavorite` | anonymous/authenticated | skill catalog |
 | TV Show / Showcase | `/showcase`, `/showcase/SNAPSHOT_ID` | 浏览、搜索、详情沉浸背景、播放器、相邻作品、只读制作过程、发布/撤下 | `listShowcaseEntries`, `getShowcaseDetail`, `listPublishedSnapshots`, `getPublishedSnapshot`, `publishCanvas`, `revokePublishedSnapshot` | public snapshot、媒体读取、登录门 | showcase discovery projection + snapshot/publish service |
-| 账户 | `/account` | 查看积分、账本、会员入口 | `listLedgerEntries` | balance、reserve、settle、release | billing/ledger service |
+| 账户 | `/account` | 查看身份、钱包、账本、会员、通知、偏好和 CLI 入口 | `getAccountProfile`, `listLedgerEntries` | identity、wallet、preferences、notifications、balance、reserve、settle、release | shared account domain + billing/ledger service |
 
 ## 3. 关键请求链路
 

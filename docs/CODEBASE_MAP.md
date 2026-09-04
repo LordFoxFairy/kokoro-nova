@@ -16,7 +16,7 @@ This map is the compact entry point for parallel research and implementation wor
 | Script workflow | canvas modal | `src/components/script/ScriptWizard.tsx` | `script-model.ts` |
 | Skills | `/skills`, `/skills/[skillId]` | `src/components/skills/*` | `src/server/skills.ts` |
 | Public showcase | `/showcase`, `/showcase/[snapshotId]` | `src/components/showcase/*` | `src/server/publish.ts` |
-| Account ledger | `/account` | `src/components/account/*` | `src/server/ledger-view.ts` |
+| Account ledger | `/account` | `src/components/account/*` | `src/contracts/account.ts`, `src/mocks/account.ts`, `src/server/ledger-view.ts`, `src/app/api/account/route.ts` |
 
 ## Layers and ownership
 

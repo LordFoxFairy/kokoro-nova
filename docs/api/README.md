@@ -22,6 +22,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`AUDIO_AUTHORING_STATE.md`](AUDIO_AUTHORING_STATE.md) | Audio 六模型、TTS 标记、音色库/克隆、参考与生成契约 |
 | [`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md) | Text 四模型、富文本文档、三个启动 Workflow、编译与内联产物契约 |
 | [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md) | Script V2 状态、四个 operation、批量/幂等/stale writeback 与后端 handoff |
+| [`src/contracts/account.ts`](../../src/contracts/account.ts) | `GET /api/account` 的共享账户身份、钱包、会员、偏好和通知投影 |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
@@ -153,6 +154,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | Agent | `createAgentSession`, `sendAgentMessage`, `resolveAgentMessage` |
 | Skill | `listSkills`, `getSkill`, `toggleSkillFavorite` |
 | TV Show | `listPublishedSnapshots`, `getPublishedSnapshot`, `publishCanvas` |
+| 账户身份/偏好 | `getAccountProfile` |
 | 账户积分 | `listLedgerEntries` |
 
 完整触发动作位于每个 OpenAPI operation 的 `x-ui-triggers`，可重放状态位于

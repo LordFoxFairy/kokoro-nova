@@ -15,6 +15,7 @@ export type LocalApiTag =
   | 'Skills'
   | 'Publish'
   | 'Showcase'
+  | 'Account'
   | 'Ledger'
   | 'Presence'
   | 'Script V2'
@@ -121,6 +122,11 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-populated',
     'video-awaiting-confirmation',
     'video-awaiting-valid-confirmation',
+  ]),
+  route('GET', '/api/account', 'Account', 'getAccountProfile', ['打开账户身份、钱包与偏好'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
   ]),
   route('GET', '/api/ledger', 'Ledger', 'listLedgerEntries', ['账户积分余额与明细'], [
     'authenticated-populated',

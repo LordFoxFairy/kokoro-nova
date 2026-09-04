@@ -19,6 +19,11 @@
    [`visual/video-model-editor-comparison.md`](visual/video-model-editor-comparison.md)。
 8. 公开 TV Show、Skill、账户三条发现路径的当前实现缺口与收敛顺序见
    [`visual/2026-09-04-public-discovery-fidelity-audit.md`](visual/2026-09-04-public-discovery-fidelity-audit.md)。
+9. 当前 `main` 的七个复刻 surface 统一验收门见
+   [`REPLICATION_ACCEPTANCE_MATRIX.md`](REPLICATION_ACCEPTANCE_MATRIX.md)；逐页差距、优先级和
+   `1440×900` 截图配对分别见 [`PAGE_GAP_CHECKLIST.md`](PAGE_GAP_CHECKLIST.md)、
+   [`PRIORITIZED_PARITY_BACKLOG.md`](PRIORITIZED_PARITY_BACKLOG.md) 和
+   [`SCREENSHOT_INDEX.md`](SCREENSHOT_INDEX.md)。
 
 完整覆盖状态统一查看 [FEATURE_MATRIX.md](FEATURE_MATRIX.md)，不要仅凭页面有截图就判断能力已完成。
 
@@ -31,7 +36,8 @@
 | 账户与全局菜单 | [pages/account/](pages/account/) | 已采集登录核心态 | 菜单、通知、主题、水印、个人中心、CLI 和共享账户域 |
 | Skill 广场与详情 | [pages/skills/](pages/skills/) | 进行中 | 收藏、四图轮播、原图、源码、13 节规范及作者表单 |
 | Agent 会话 | [pages/agent/](pages/agent/) | 进行中 | 三条真实会话、`ask_human`、额度门、分享、上下文、设置与 [CLI/Skill 完整归档](pages/agent/CLI_SKILL_ARCHIVE.md) |
-| 项目与无限画布 | [pages/canvas/](pages/canvas/) | 进行中 | 项目文件夹、故事板、媒体工具、Agent 上下文、协作跟随与跨浏览器编辑驱逐 |
+| Project 与无限画布 | [pages/canvas/](pages/canvas/) | 进行中 | 项目文件夹、项目卡管理、独立 Canvas chrome、媒体工具、Agent 上下文、协作跟随与跨浏览器编辑驱逐 |
+| Storyboard 投影 | [pages/canvas/](pages/canvas/) | 进行中 | 同一 workflow document 的动态列、筛选/展开、详情、剪辑入口与 Agent 联动 |
 | TV Show | [pages/showcase/](pages/showcase/) | 已采集核心态 | 分类、搜索/推荐回退、详情、只读工作流/故事板、复制登录门槛 |
 | 模型与资产 | [pages/models-assets/](pages/models-assets/) | 进行中 | 模型选择、上传、生成历史、角色和跨产品共享资产页 |
 | 会员、积分与账单 | [pages/billing/](pages/billing/) | 已采集查询核心态 | 方案、充值、余额顺序、三类账本、订阅/订单与 FAQ；真实支付/结算待补 |

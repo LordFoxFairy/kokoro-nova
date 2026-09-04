@@ -21,7 +21,11 @@ test.describe('Skill authoring lifecycle', () => {
     await expect(studio.getByTestId('skill-author-status')).toContainText('审核通过，待发布')
     await studio.getByTestId('skill-author-publish').click()
     await expect(studio.getByTestId('skill-author-status')).toContainText('已发布')
-    await studio.getByRole('button', { name: '关闭' }).first().click()
+    // Dialog has both a backdrop and titlebar close affordance. Escape matches
+    // the documented product shortcut and avoids coupling this journey to their
+    // DOM order.
+    await page.keyboard.press('Escape')
+    await expect(studio).toBeHidden()
     await expect(page.getByTestId('skill-card-skill-local-001')).toContainText('镜头节奏助手')
 
     await page.getByTestId('skill-author-open').click()

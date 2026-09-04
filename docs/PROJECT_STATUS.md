@@ -63,8 +63,14 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
   disabled 创作过程动作，并在 768px 隔离浏览器中验证；
 - `a21c8d0`：新增首页与项目页的隔离 `1440×900` 像素快照；fixture、字体与图片加载完成后
   才对比，不会触碰演示中的 `:3200` 或 `.data`。
-- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（71 files / 757 tests）、production build、
-  demo smoke 与 production E2E；用户已有 `.gitignore` 始终不修改、不暂存。
+- `1e1c744` / `8886886`：落地视频时间线拖拽裁切和公开发现、发布、Skill、工作流的
+  typed local API / OpenAPI 对齐；
+- `a472e01`：将 Skill 市场和详情媒体轮播对齐为深色发现面，并通过隔离 Playwright；
+- `5e0b382` / `86ada28`：补齐 TV Show 详情、播放器、公开制作过程、登录门和键盘播放控制；
+- `28bef6d`：故事板卡片可定位源节点或在工作流中创建副本，隔离 Playwright 2/2 通过；
+- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（74 files / 778 tests）、production build，
+  并对 Skills、TV Show、Storyboard 在隔离 1440×900 服务中复跑浏览器旅程；用户已有 `.gitignore`
+  始终不修改、不暂存。
 
 主控职责：检查跨 surface 契约、在主仓库复跑验证、把官网新观察转为本地 fixture/API docs
 约束，并只在有明确证据时更新 parity 结论。

@@ -224,6 +224,12 @@ async function main() {
     `[e2e-server] started runner-owned isolated server pid=${record.pid} port=:${runtime.port} controlFile=${runtime.controlFile}.`,
   );
 
+  // A detached child has no referenced IPC handle, so a launcher with only
+  // signal callbacks would otherwise exit immediately. Keep the webServer
+  // command alive: Playwright can then terminate it normally and this process
+  // can clean up the isolated process group. The marker remains the fallback
+  // for a hard-killed parent.
+  const keepAlive = setInterval(() => undefined, 60_000);
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
@@ -231,6 +237,7 @@ async function main() {
     log(`[e2e-server] ${signal}; stopping runner-owned pid=${record.pid}.`);
     await terminateProcessGroup(record);
     await removeControlFile(runtime.controlFile);
+    clearInterval(keepAlive);
     process.exit(0);
   };
 
@@ -240,6 +247,7 @@ async function main() {
 
   child.once("exit", (code, signal) => {
     void removeControlFile(runtime.controlFile).finally(() => {
+      clearInterval(keepAlive);
       if (!shuttingDown) {
         process.exitCode = code ?? (signal ? 1 : 0);
       }

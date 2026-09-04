@@ -7,11 +7,15 @@ import {
 } from "./e2e/helpers/runner-config";
 
 const runner = resolveE2ERunnerPlan();
-const inheritedServerEnv = Object.fromEntries(
-  Object.entries(process.env).filter(
-    (entry): entry is [string, string] => entry[1] !== undefined,
+const serverNodeEnv = (process.env.NODE_ENV ?? "test") as NodeJS.ProcessEnv["NODE_ENV"];
+const inheritedServerEnv: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
   ),
-);
+  NODE_ENV: serverNodeEnv,
+};
 const isolatedServerEnv =
   runner.mode === "isolated"
     ? isolatedServerEnvironment(runner, os.tmpdir())
@@ -23,7 +27,11 @@ const isolatedServerEnv =
 if (runner.mode === "isolated" && process.env.E2E_ISOLATED_RECLAIMED !== "1") {
   execFileSync(process.execPath, ["e2e/helpers/isolated-server.ts", "--reclaim"], {
     cwd: runner.workspaceDir,
-    env: { ...inheritedServerEnv, ...isolatedServerEnv },
+    env: {
+      ...inheritedServerEnv,
+      ...isolatedServerEnv,
+      NODE_ENV: serverNodeEnv,
+    },
     stdio: "inherit",
   });
   // Playwright evaluates the config again in worker processes. Carry this

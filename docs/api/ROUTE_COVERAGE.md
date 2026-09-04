@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.12.0-project-recycle-bin` · scope: 39 paths / 65 operations
+> Contract version: `1.15.0-skill-authoring` · scope: 45 paths / 79 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -13,18 +13,19 @@ transport 的一一对应。
 | 范围 | path / operation | OpenAPI schema | 确定性 mock 约定 | 后端接手边界 |
 |---|---:|---|---|---|
 | Project / Folder / Recycle Bin | 6 / 12 | 已精确 | 空账户、默认命名、软删除 30 天保留、恢复与永久删除确认 | project/folder repository |
-| Canvas / workflow | 2 / 6 | 已精确 | revision、冲突与当前 document | document store + optimistic lock |
-| Jobs / Script V2 / compose | 6 / 10 | 已精确 | quote、poll、幂等、终态与 fixture | queue/provider/render adapter |
-| Asset / media / preview | 6 / 9 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
-| Catalogue | 4 / 6 | 已精确 | models/skills/materials 的本地 catalogue | registry/catalogue service |
+| Canvas / workflow / Creation Context | 3 / 8 | 已精确 | revision、冲突、当前 document 与首页发送前上下文冻结 | document store + optimistic lock + context store |
+| Jobs / Script V2 / compose | 6 / 9 | 已精确 | quote、poll、幂等、终态与 fixture | queue/provider/render adapter |
+| Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
+| Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取和 mock reply | agent gateway |
-| Public discovery / account | 7 / 10 | 已精确 | public snapshot 与账号投影 | discovery/publish/account services |
+| Public discovery / publish | 5 / 7 | 已精确 | 首页、showcase 与冻结 public snapshot | discovery/publish service |
+| Account / ledger | 5 / 8 | 已精确 | identity、会话、钱包、偏好、通知与积分投影 | shared account domain + billing/ledger service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |
 
 ### 本轮补齐项
 
-此前 `POST /api/folders`、项目写操作、Presence 和 `POST /api/dev/reset` 使用了泛型成功体或
+本轮新增的账号、首页上下文和 Skill 作者 operation 也已纳入同一审计；此前 `POST /api/folders`、项目写操作、Presence 和 `POST /api/dev/reset` 使用了泛型成功体或
 缺失 schema。现在契约明确为：
 
 - 创建项目返回 `CreateProjectResponse { project, canvas }`；创建项目文件夹与重命名返回 `Folder`；
@@ -32,7 +33,9 @@ transport 的一一对应。
 - 更新/复制项目返回 `Project`；删除返回 `{ deleted, recycled: true }`，不删除画布；`GET /api/recycle-bin` 返回保留期限，恢复保留原画布，永久删除才走级联清理；复制没有 request body；
 - Presence 的 `GET` 是 `text/event-stream`，不是 JSON polling；`POST` 接受严格 heartbeat，返回
   `{ ok: true, participant }`；
-- scenario/reset 的成功体有可读本地样本；`reset` 的 schema 不再是悬空 `$ref`。
+- scenario/reset 的成功体有可读本地样本；`reset` 的 schema 不再是悬空 `$ref`；
+- `Creation Context` 用同一路径的 GET / PUT / POST 表示恢复、保存和发送前冻结，Skill 作者流用独立 `/api/skills/author` 路径表达草稿、审核、发布和下架；
+- identity、preferences、notifications、account 与 ledger 保持独立读取/写入 operation，避免账户菜单把会话、偏好和账本折叠为一个无类型聚合。
 
 ## 查询、空态、分页和 fixture 约定
 
@@ -95,5 +98,5 @@ SSE 首帧为 `snapshot`，后续为 `join`、`move` 或 `leave`；每 20 秒有
 2. 先在 transport adapter 归一化真实 provider envelope；页面只消费本仓的资源 schema。
 3. 保留空数组、分页终止、fixture 仅开发可用、revision 与 idempotency 的明确语义。
 4. 让 SSE/实时层有独立部署和观测；不能把 cursor heartbeat 误当成画布 mutation。
-5. 替换完成后保留并通过 `pnpm vitest run src/contracts/__tests__/openapi.test.ts`、`pnpm typecheck` 和
+5. 替换完成后保留并通过 `node scripts/verify-api-contract.mjs`、`pnpm vitest run src/contracts/__tests__/openapi.test.ts`、`pnpm typecheck` 和
    `pnpm lint`；新增 route 必须同时新增 manifest、OpenAPI、样本及 UI trigger。

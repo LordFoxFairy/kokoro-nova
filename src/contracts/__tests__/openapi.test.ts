@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -208,6 +209,17 @@ describe('local API manifest and OpenAPI', () => {
     expect(version).not.toBe('')
     expect(version).toMatch(CONTRACT_VERSION_PATTERN)
     expect(version).toBe(documentedContractVersion())
+  })
+
+  it('keeps the standalone documentation audit executable', () => {
+    const output = execFileSync(process.execPath, ['scripts/verify-api-contract.mjs'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+    })
+
+    expect(output.trim()).toBe(
+      `API contract verified: ${Object.keys(openApiDocument().paths ?? {}).length} paths / ${openApiPairs(openApiDocument()).length} operations / ${documentedContractVersion()}`,
+    )
   })
 
   it('exposes the persisted Video, Image, Audio and Text authoring metadata shapes', () => {
@@ -552,7 +564,9 @@ describe('local API manifest and OpenAPI', () => {
       if (example.externalValue) {
         const examplePath = path.resolve(process.cwd(), 'docs/api', example.externalValue)
         expect(examplePath, `${name} externalValue`).toMatch(/docs\/api\/examples\//)
-        expect(readFileSync(examplePath, 'utf8').length, `${name} readable`).toBeGreaterThan(0)
+        const contents = readFileSync(examplePath, 'utf8')
+        expect(contents.length, `${name} readable`).toBeGreaterThan(0)
+        expect(() => JSON.parse(contents), `${name} valid JSON`).not.toThrow()
       } else {
         expect(example.value, `${name} inline value`).toBeDefined()
       }

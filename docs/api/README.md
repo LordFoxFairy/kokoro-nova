@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；37 个 path、62 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；45 个 path、79 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`jobs-lifecycle.md`](jobs-lifecycle.md) | 可重放 Job fixture、停止/重试/刷新恢复和一次性账本结算 |
@@ -29,7 +29,9 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
 | [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) | 风格/特效独立目录、分页 facets、详情和幂等收藏动作 |
-| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 39 个 path / 65 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
+| [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
+| [`skills-authoring.md`](skills-authoring.md) | Skill 草稿、文件树、审核、发布与下架的作者工作流 |
+| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 45 个 path / 79 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) | 项目软删除、30 天保留、恢复、永久删除与画布保留边界 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
@@ -143,7 +145,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 
 | UI 流程 | 主要 operation |
 |---|---|
-| 首页发现/最近项目 | `getHomeDiscovery` |
+| 首页发现/最近项目 | `getHomeDiscovery`, `getHomeCreationContext`, `saveHomeCreationContext`, `submitHomeCreationContext` |
 | 全部项目与回收站 | `listProjects`, `createProject`, `listRecycleBin`, `restoreRecycledProject`, `permanentlyDeleteRecycledProject` |
 | 文件夹 | `createFolder`, `renameFolder`, `deleteFolder` |
 | 打开项目和多画布 | `getProject`, `getCanvas`, `createCanvas`, `renameCanvas`, `deleteCanvas` |
@@ -160,7 +162,7 @@ curl -s -X POST http://localhost:3200/api/dev/reset
 | 视频剪辑导出 | `composeVideo`, `readLocalMedia` |
 | 素材管理 | `listAssets`, `uploadAsset`, `registerArtifactAsAsset`, `updateAsset` |
 | Agent | `createAgentSession`, `sendAgentMessage`, `resolveAgentMessage` |
-| Skill | `listSkills`, `getSkill`, `toggleSkillFavorite` |
+| Skill | `listSkills`, `getSkill`, `toggleSkillFavorite`, `listAuthoredSkills`, `createAuthoredSkill`, `getAuthoredSkill`, `updateAuthoredSkill`, `transitionAuthoredSkill` |
 | TV Show | `listPublishedSnapshots`, `getPublishedSnapshot`, `publishCanvas` |
 | 账户中心身份/偏好 | `getAccountProfile` |
 | 头像菜单身份/会话/偏好/通知 | `getLocalIdentity`, `updateLocalSession`, `getLocalPreferences`, `updateLocalPreferences`, `getNotificationSummary`, `markNotificationsRead` |
@@ -366,10 +368,11 @@ type Page<T> = {
 ## 契约一致性测试
 
 ```bash
+node scripts/verify-api-contract.mjs
 pnpm vitest run src/contracts/__tests__/openapi.test.ts
 ```
 
-测试会扫描 `src/app/api/**/route.ts`，并要求源码导出的 method/path 与
+前一条命令独立校验 route source / manifest / OpenAPI、权威版本、文档统计和已链接 JSON 样本；测试会扫描 `src/app/api/**/route.ts`，并要求源码导出的 method/path 与
 `LOCAL_API_ROUTES`、`openapi.yaml` 完全相同；还会检查 operationId 唯一、UI 触发动作和
 mock scenario 非空。新增 route 时三个来源必须在同一提交更新。
 

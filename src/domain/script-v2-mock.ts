@@ -5,6 +5,7 @@ import {
   appendScriptV2Row,
   defaultScriptV2State,
   ScriptV2DomainError,
+  scriptV2BatchBlockedReason,
   type ScriptV2Asset,
   type ScriptV2AssetGenerationSettings,
   type ScriptV2Assets,
@@ -494,17 +495,8 @@ export function createScriptV2BatchMutations(
 ): ScriptV2BatchBuildResult {
   const source = document.nodes.find((node) => node.id === sourceNodeId)
   if (!source || source.type !== 'script') return blocked('脚本节点不存在')
-  if (!state.rows.length) return blocked('请先添加至少一个镜头')
-  const missing = state.rows.filter((row) =>
-    kind === 'image' ? !row.imageGenerationPrompt.trim() : !row.videoMotionPrompt.trim(),
-  )
-  if (missing.length) {
-    return blocked(
-      kind === 'image'
-        ? `有 ${missing.length} 个镜头缺少分镜图提示词`
-        : `有 ${missing.length} 个镜头缺少视频运动提示词`,
-    )
-  }
+  const reason = scriptV2BatchBlockedReason(state, kind)
+  if (reason) return blocked(reason)
 
   const usedNodeIds = new Set(document.nodes.map((node) => node.id))
   const usedEdgeIds = new Set(document.edges.map((edge) => edge.id))

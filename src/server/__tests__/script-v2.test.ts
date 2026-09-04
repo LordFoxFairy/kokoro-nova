@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import persistedState from '../../../docs/api/examples/script-v2-state.json'
 import type { CreateScriptV2RunRequest, ScriptV2QuoteRequest } from '@/contracts/script-v2'
@@ -100,6 +100,21 @@ describe('Script V2 deterministic quotes', () => {
 })
 
 describe('Script V2 run repository', () => {
+  it('keeps active runs across a development module-graph reload', async () => {
+    vi.resetModules()
+    const firstModule = await import('@/server/script-v2')
+    firstModule.__resetScriptV2Runs()
+    const created = firstModule.createScriptV2Run(generateRequest('script_hmr_survival'))
+
+    vi.resetModules()
+    const reloadedModule = await import('@/server/script-v2')
+    expect(reloadedModule.getScriptV2Run(created.id)).toMatchObject({
+      id: created.id,
+      status: 'running',
+      progress: 48,
+    })
+  })
+
   it('progresses queued → running → succeeded on deterministic polls', () => {
     const created = createScriptV2Run(generateRequest())
     const replay = createScriptV2Run(generateRequest())

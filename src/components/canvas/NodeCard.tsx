@@ -30,6 +30,8 @@ import { VideoNodeEditor } from './VideoNodeEditor'
 import { ImageNodeEditor } from './ImageNodeEditor'
 import { AudioNodeEditor } from './AudioNodeEditor'
 import { TextDocumentPreview, TextNodeEditor } from './TextNodeEditor'
+import { ScriptV2NodeEditor } from '../script/ScriptV2NodeEditor'
+import type { ScriptV2State } from '@/domain/script-v2'
 
 export interface NodeCardData extends Record<string, unknown> {
   node: WorkflowNode
@@ -48,6 +50,10 @@ export interface NodeCardData extends Record<string, unknown> {
   onLocateNode: (nodeId: string) => void
   onOpenImageStyle: (nodeId: string) => void
   onApplyImageTool: (sourceNodeId: string, request: ImageTransformRequest) => void
+  onOpenNode: (nodeId: string | null) => void
+  onOpenScriptWorkspace: (nodeId: string) => void
+  onScriptStateChange: (nodeId: string, state: ScriptV2State, label?: string) => void | Promise<void>
+  onMaterializeScriptBatch: (nodeId: string, kind: 'image' | 'video') => void | Promise<void>
   canvasSelection: {
     kind: 'reference' | 'element'
     targetNodeId: string
@@ -93,6 +99,10 @@ function NodeCardImpl({ data, selected }: NodeProps) {
     onLocateNode,
     onOpenImageStyle,
     onApplyImageTool,
+    onOpenNode,
+    onOpenScriptWorkspace,
+    onScriptStateChange,
+    onMaterializeScriptBatch,
     canvasSelection,
     open,
   } = data as NodeCardData
@@ -222,18 +232,30 @@ function NodeCardImpl({ data, selected }: NodeProps) {
         <Handle type="source" position={Position.Right} className="connectionindicator" />
 
         <div className={cn('flex h-full flex-col', isGeneratedMedia ? 'p-0' : 'p-3')}>
-          <NodeBody
-            node={node}
-            artifact={artifact}
-            running={running}
-            job={job}
-            compactMedia={isGeneratedMedia}
-            onSetIntent={onSetIntent}
-          />
+          {node.type === 'script' ? (
+            <ScriptV2NodeEditor
+              node={node}
+              open={open}
+              onOpenGenerator={() => onOpenNode(node.id)}
+              onCloseGenerator={() => onOpenNode(null)}
+              onOpenWorkspace={() => onOpenScriptWorkspace(node.id)}
+              onStateChange={(state, label) => onScriptStateChange(node.id, state, label)}
+              onMaterializeBatch={(kind) => onMaterializeScriptBatch(node.id, kind)}
+            />
+          ) : (
+            <NodeBody
+              node={node}
+              artifact={artifact}
+              running={running}
+              job={job}
+              compactMedia={isGeneratedMedia}
+              onSetIntent={onSetIntent}
+            />
+          )}
         </div>
 
         {/* Status footer: cost + run control, or progress while running. */}
-        {meta.produces && !isManualText && (
+        {meta.produces && !isManualText && node.type !== 'script' && (
           <div
             className={cn(
               'flex items-center gap-2 px-3 py-2',
@@ -534,7 +556,6 @@ function NodeBody({
       )
     }
 
-    case 'script':
     case 'scriptLegacy': {
       const shots = (node.data.extra?.shots as unknown[] | undefined) ?? []
       return (

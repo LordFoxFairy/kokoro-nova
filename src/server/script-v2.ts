@@ -22,8 +22,24 @@ const QUOTE_TTL_MS = 5 * 60 * 1_000
 const PRICE_VERSION = 'script-v2-local-1' as const
 const RECOMPUTE_BATCH_SIZE = 20
 
-const runs = new Map<string, ScriptV2Run>()
-const runIdsByIdempotencyKey = new Map<string, string>()
+interface ScriptV2RunRepository {
+  runs: Map<string, ScriptV2Run>
+  runIdsByIdempotencyKey: Map<string, string>
+}
+
+const scriptV2Global = globalThis as typeof globalThis & {
+  __libtvScriptV2RunRepository?: ScriptV2RunRepository
+}
+const repository = scriptV2Global.__libtvScriptV2RunRepository ?? {
+  runs: new Map<string, ScriptV2Run>(),
+  runIdsByIdempotencyKey: new Map<string, string>(),
+}
+scriptV2Global.__libtvScriptV2RunRepository = repository
+
+// Route handlers are compiled as separate module graphs in development. The
+// process-global fixture keeps POST /runs and GET /runs/:id on one repository
+// and also survives a hot reload between those two requests.
+const { runs, runIdsByIdempotencyKey } = repository
 
 function fnv1a(value: string): string {
   let hash = 0x811c9dc5

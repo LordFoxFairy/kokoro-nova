@@ -14,11 +14,69 @@ import {
   removeScriptV2Row,
   resolveScriptV2PromptWriteback,
   scriptV2PromptInputFingerprint,
+  scriptV2BatchBlockedReason,
+  scriptV2StateToCsv,
   serializeOfficialScriptNode,
   updateScriptV2Row,
 } from '@/domain/script-v2'
 
 describe('Script V2 canonical state', () => {
+  it('exposes one shared batch gate for empty prompts and unfinished video assets', () => {
+    let state = defaultScriptV2State('batch-gate')
+    expect(scriptV2BatchBlockedReason(state, 'image')).toBe('请先添加至少一个镜头')
+    expect(scriptV2BatchBlockedReason(state, 'video')).toBe('请先添加至少一个镜头')
+
+    state = appendScriptV2Row(state, {
+      imageGenerationPrompt: '完整的分镜图提示词',
+      videoMotionPrompt: '完整的视频运动提示词',
+    })
+    expect(scriptV2BatchBlockedReason(state, 'image')).toBeNull()
+    expect(scriptV2BatchBlockedReason(state, 'video')).toBeNull()
+
+    state = {
+      ...state,
+      assets: {
+        ...state.assets,
+        characters: [
+          {
+            id: 'asset_pending',
+            role: 'character',
+            name: '林默',
+            description: '黑色风衣',
+            source: 'ai',
+            status: 'pending',
+            createdAt: '2026-09-04T00:00:00.000Z',
+            updatedAt: '2026-09-04T00:00:00.000Z',
+          },
+        ],
+      },
+    }
+    expect(scriptV2BatchBlockedReason(state, 'image')).toBeNull()
+    expect(scriptV2BatchBlockedReason(state, 'video')).toBe('有 1 个资产尚未准备完成')
+
+    state = updateScriptV2Row(state, state.rows[0].id, { imageGenerationPrompt: '' })
+    expect(scriptV2BatchBlockedReason(state, 'image')).toBe('有 1 个镜头缺少分镜图提示词')
+  })
+
+  it('exports a UTF-8 BOM CSV with every field safely quoted', () => {
+    let state = defaultScriptV2State('csv')
+    state = appendScriptV2Row(state, {
+      plotDescription: '他说“开始”,\n然后转身',
+      shotSize: '近景',
+      durationSeconds: 7,
+      dialogue: '“好”',
+      imageGenerationPrompt: '霓虹, 雨夜',
+      videoMotionPrompt: '镜头推进\n人物转身',
+    })
+
+    const csv = scriptV2StateToCsv(state)
+    expect(csv.charCodeAt(0)).toBe(0xfeff)
+    expect(csv).toContain('"镜头编号","时长（秒）","景别"')
+    expect(csv).toContain('"他说“开始”,\n然后转身"')
+    expect(csv).toContain('"霓虹, 雨夜"')
+    expect(csv).toContain('"镜头推进\n人物转身"')
+  })
+
   it('freezes the observed shot-size vocabulary and default workspace state', () => {
     expect(SCRIPT_V2_SHOT_SIZES).toEqual([
       '大远景',

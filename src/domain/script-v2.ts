@@ -452,6 +452,70 @@ export function updateScriptV2Row(
   return changed ? { ...state, rows } : state
 }
 
+export function scriptV2BatchBlockedReason(
+  state: ScriptV2State,
+  kind: 'image' | 'video',
+): string | null {
+  if (state.rows.length === 0) return '请先添加至少一个镜头'
+  const missingPrompts = state.rows.filter((row) =>
+    kind === 'image' ? !row.imageGenerationPrompt.trim() : !row.videoMotionPrompt.trim(),
+  ).length
+  if (missingPrompts > 0) {
+    return kind === 'image'
+      ? `有 ${missingPrompts} 个镜头缺少分镜图提示词`
+      : `有 ${missingPrompts} 个镜头缺少视频运动提示词`
+  }
+  if (kind === 'video') {
+    const unfinishedAssets = [
+      ...state.assets.characters,
+      ...state.assets.scenes,
+      ...state.assets.props,
+    ].filter((asset) => asset.status !== 'ready').length
+    if (unfinishedAssets > 0) return `有 ${unfinishedAssets} 个资产尚未准备完成`
+  }
+  return null
+}
+
+const SCRIPT_V2_CSV_HEADERS = [
+  '镜头编号',
+  '时长（秒）',
+  '景别',
+  '剧情描述',
+  '角色',
+  '场景资产',
+  '道具标签',
+  '灯光与氛围',
+  '音效',
+  '对白',
+  '分镜图提示词',
+  '视频运动提示词',
+] as const
+
+function quoteCsvField(value: string | number): string {
+  return `"${String(value).replaceAll('"', '""')}"`
+}
+
+/** Spreadsheet-safe Script V2 export: UTF-8 BOM, CRLF rows and quoted cells. */
+export function scriptV2StateToCsv(state: ScriptV2State): string {
+  const rows = state.rows.map((row) => [
+    row.shotNumber,
+    row.durationSeconds,
+    row.shotSize,
+    row.plotDescription,
+    row.characters.map((character) => character.characterName).join('、'),
+    row.sceneAssetIds.join('、'),
+    row.propTags,
+    row.lightingAndAtmosphere,
+    row.audioEffects,
+    row.dialogue,
+    row.imageGenerationPrompt,
+    row.videoMotionPrompt,
+  ])
+  return `\uFEFF${[SCRIPT_V2_CSV_HEADERS, ...rows]
+    .map((row) => row.map(quoteCsvField).join(','))
+    .join('\r\n')}`
+}
+
 /* -------------------------------------------------------------------------- */
 /* Import and migration                                                       */
 /* -------------------------------------------------------------------------- */

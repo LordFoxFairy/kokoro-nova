@@ -193,7 +193,15 @@ describe('Script V2 batch graph materialization', () => {
   })
 
   it('creates a normal Video group with motion prompts and inherited durations', () => {
-    const state = generatedState()
+    const generated = generatedState()
+    const state = {
+      ...generated,
+      assets: {
+        characters: generated.assets.characters.map((asset) => ({ ...asset, status: 'ready' as const })),
+        scenes: generated.assets.scenes.map((asset) => ({ ...asset, status: 'ready' as const })),
+        props: generated.assets.props.map((asset) => ({ ...asset, status: 'ready' as const })),
+      },
+    }
     const document = withScriptNode(state)
     const result = createScriptV2BatchMutations(document, 'node_script_fixture', state, 'video')
     const after = applyMutations(document, result.mutations)

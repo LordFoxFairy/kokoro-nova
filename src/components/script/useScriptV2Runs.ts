@@ -246,6 +246,13 @@ export function createScriptV2RunController(
           styleDescription: run.result.styleDescription ?? null,
           rows: run.result.rows,
           assets: run.result.assets,
+          generator: {
+            ...state.generator,
+            modelId: input.modelId,
+            prompt: input.storyText,
+            status: 'idle',
+            error: null,
+          },
           nextRowOrdinal: run.result.rows.length + 1,
           nextAssetOrdinal:
             run.result.assets.characters.length +
@@ -554,7 +561,25 @@ export function useScriptV2Runs(options: UseScriptV2RunsOptions) {
     [options.canvasId, options.nodeId],
   )
 
-  useEffect(() => () => controller.dispose(), [controller])
+  const activeControllerRef = useRef(controller)
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    const previous = activeControllerRef.current
+    activeControllerRef.current = controller
+    if (previous !== controller) previous.dispose()
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      // React development Strict Mode performs setup → cleanup → setup for
+      // effects. Deferring the irreversible dispose lets that second setup
+      // keep this controller alive, while a real unmount still cleans it up.
+      queueMicrotask(() => {
+        if (!mountedRef.current && activeControllerRef.current === controller) {
+          controller.dispose()
+        }
+      })
+    }
+  }, [controller])
 
   return {
     activeRun,

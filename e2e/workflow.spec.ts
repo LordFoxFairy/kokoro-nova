@@ -361,21 +361,24 @@ test('导演台 studio renders its viewports in a real browser', async ({ page }
   await page.screenshot({ path: `${SHOTS}/director-studio.png` })
 })
 
-test('脚本 V2 wizard renders its shot table in a real browser', async ({ page }) => {
+test('脚本 V2 opens its canonical workspace in a real browser', async ({ page }) => {
   await createProject(page)
   await page.getByTestId('add-node-button').click()
   await page.getByRole('menuitem', { name: '脚本', exact: true }).hover()
   const persisted = waitForCanvasMutation(page)
   await page.getByRole('menuitem', { name: '脚本 V2', exact: true }).click()
   await persisted
-  await page.locator('[data-node-type="script"]').first().dblclick()
-  await page.getByTestId('open-studio').click()
+  const node = page.locator('[data-node-type="script"]').first()
+  const manualState = waitForCanvasMutation(page)
+  await node.getByRole('button', { name: '自己编写分镜脚本', exact: true }).click()
+  await manualState
 
-  const wizard = page.locator('[role="dialog"]').last()
-  await expect(wizard).toBeVisible()
+  const workspace = page.getByTestId('script-v2-workspace')
+  await expect(workspace).toBeVisible()
   await expect(page.getByText('Runtime TypeError')).toHaveCount(0)
-  await expect(wizard).toContainText('确认镜头')
-  await page.screenshot({ path: `${SHOTS}/script-wizard.png` })
+  await expect(workspace).toContainText('确认镜头')
+  await expect(workspace).toContainText('镜头 1')
+  await page.screenshot({ path: `${SHOTS}/script-v2-workspace.png` })
 })
 
 test('asset library opens from the add-resource menu', async ({ page }) => {

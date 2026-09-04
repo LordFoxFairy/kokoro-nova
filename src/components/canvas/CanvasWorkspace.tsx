@@ -31,7 +31,9 @@ import { AgentPanel } from '../agent/AgentPanel'
 import { AssetLibraryPanel } from '../assets/AssetLibraryPanel'
 import { DirectorStudio, type CapturedShot, type DirectorScene } from '../director/DirectorStudio'
 import { ScriptWizard } from '../script/ScriptWizard'
+import { ScriptV2Workspace } from '../script/ScriptV2Workspace'
 import type { ScriptDraft } from '../script/script-model'
+import { readScriptV2State } from '@/domain/script-v2'
 import { StoryboardView } from '../storyboard/StoryboardView'
 import { Menu } from '../ui/Menu'
 import { Spinner } from '../ui/controls'
@@ -720,6 +722,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
               onLocateNode={locateNode}
               onOpenImageStyle={openImageStyle}
               onApplyImageTool={(sourceNodeId, request) => void applyImageTool(sourceNodeId, request)}
+              onOpenScriptWorkspace={setStudioNodeId}
             />
             {!selectionMode && <PresenceLayer canvasId={canvasId ?? null} />}
             {!selectionMode && (
@@ -739,7 +742,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           <StoryboardView />
         )}
 
-        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && inspectedNode.type !== 'audio' && inspectedNode.type !== 'text' && (
+        {viewMode === 'workflow' && inspectedNode && inspectedNode.type !== 'video' && inspectedNode.type !== 'image' && inspectedNode.type !== 'audio' && inspectedNode.type !== 'text' && inspectedNode.type !== 'script' && (
           <NodeInspector
             node={inspectedNode}
             job={inspectedJob}
@@ -789,7 +792,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       />
 
       <ScriptWizard
-        open={studioNode?.type === 'script' || studioNode?.type === 'scriptLegacy'}
+        open={studioNode?.type === 'scriptLegacy'}
         onClose={() => setStudioNodeId(null)}
         initialDraft={studioNode?.data.extra?.draft as ScriptDraft | undefined}
         onApply={(draft, action) => {
@@ -804,6 +807,13 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
           // through the confirm gate for each generation.
           void batchFromShots(studioNode.id, draft, action === 'batch-video' ? 'video' : 'image')
         }}
+      />
+
+      <ScriptV2Workspace
+        open={studioNode?.type === 'script'}
+        nodeName={studioNode?.name ?? '脚本 V2'}
+        state={studioNode?.type === 'script' ? readScriptV2State(studioNode.data.extra, studioNode.id) : null}
+        onClose={() => setStudioNodeId(null)}
       />
 
       <AssetLibraryPanel

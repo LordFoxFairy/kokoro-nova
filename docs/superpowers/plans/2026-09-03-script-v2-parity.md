@@ -405,7 +405,7 @@ git commit -m "feat: add typed script v2 client orchestration"
 - Produces: `ScriptV2NodeEditorProps { node, open, onOpenWorkspace, onStateChange, onMaterializeBatch }`.
 - Consumes: canonical reader, typed run hook and canvas callbacks.
 
-- [ ] **Step 1: Add failing Playwright test for three empty entry paths**
+- [x] **Step 1: Add failing Playwright test for three empty entry paths**
 
 Create a Script V2 node and assert exact text/order:
 
@@ -417,29 +417,29 @@ await expect(node.getByRole('button')).toHaveText([
 ])
 ```
 
-- [ ] **Step 2: Implement V2 card independently from `scriptLegacy`**
+- [x] **Step 2: Implement V2 card independently from `scriptLegacy`**
 
 Empty card shows three entries. Resource card shows completed first-stage check, numbered remaining stages, shot count and `打开脚本节点 →`.
 
-- [ ] **Step 3: Add failing attached-generator/model-catalog tests**
+- [x] **Step 3: Add failing attached-generator/model-catalog tests**
 
 Assert 660px counter-scaled panel at 25%, 50% and 100% canvas zoom; placeholder; model order; latency labels; translate toggle; quote 6; disabled submit on blank prompt; layered Escape.
 
-- [ ] **Step 4: Implement generator and model catalog**
+- [x] **Step 4: Implement generator and model catalog**
 
 Use only Script-capable text entries (`gvlm-3.1`, `cvlm-5.5`, `gvlm-3.1-flash`). Submit via local Script run, persist returned state, then render resource mode.
 
-- [ ] **Step 5: Implement the three entry transitions**
+- [x] **Step 5: Implement the three entry transitions**
 
 - screenplay opens attached generator;
 - character opens generator with a character section and then persists a role asset;
 - manual creates one blank 5s medium shot and opens the workspace immediately.
 
-- [ ] **Step 6: Add and implement resource toolbar tests**
+- [x] **Step 6: Add and implement resource toolbar tests**
 
 Assert visible actions `重新生成`, `批量生成分镜`, `批量生视频`, `下载`; disabled reasons follow domain gating; CSV uses UTF-8 BOM and quoted fields.
 
-- [ ] **Step 7: Run focused browser tests and commit**
+- [x] **Step 7: Run focused browser tests and commit**
 
 Run: `pnpm e2e e2e/script-v2.spec.ts --grep "node|generator" --reporter=line`
 

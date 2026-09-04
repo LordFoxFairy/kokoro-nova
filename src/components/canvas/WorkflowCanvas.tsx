@@ -22,6 +22,8 @@ import { videoReferenceCandidates } from '@/domain/video-references'
 import { createTextStarterMutations } from '@/domain/text-workflows'
 import type { TextStarterIntent } from '@/domain/text-authoring'
 import type { CanvasMutation, NodeType, WorkflowNode } from '@/domain/types'
+import { createScriptV2BatchMutations } from '@/domain/script-v2-mock'
+import type { ScriptV2State } from '@/domain/script-v2'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
 import { NodeCard, type NodeCardData } from './NodeCard'
@@ -54,6 +56,7 @@ interface WorkflowCanvasProps {
   onLocateNode: (nodeId: string) => void
   onOpenImageStyle: (nodeId: string) => void
   onApplyImageTool: (sourceNodeId: string, request: ImageTransformRequest) => void
+  onOpenScriptWorkspace: (nodeId: string) => void
 }
 
 function CanvasInner({
@@ -71,6 +74,7 @@ function CanvasInner({
   onLocateNode,
   onOpenImageStyle,
   onApplyImageTool,
+  onOpenScriptWorkspace,
 }: WorkflowCanvasProps) {
   const document = useEditor((s) => s.document)
   const jobs = useEditor((s) => s.jobs)
@@ -188,6 +192,71 @@ function CanvasInner({
     [commitWith, flow, onOpenNode, select],
   )
 
+  const handleScriptStateChange = useCallback(
+    async (nodeId: string, state: ScriptV2State, label = '编辑脚本节点') => {
+      await commitWith((current) => {
+        const node = current.nodes.find((candidate) => candidate.id === nodeId)
+        if (!node || node.type !== 'script') return []
+        return [
+          {
+            op: 'updateNode' as const,
+            nodeId,
+            patch: {
+              data: {
+                ...node.data,
+                prompt: state.originalStoryText,
+                modelId: state.generator.modelId,
+                extra: { ...node.data.extra, scriptV2: state },
+              },
+            },
+          },
+        ]
+      }, label)
+    },
+    [commitWith],
+  )
+
+  const handleMaterializeScriptBatch = useCallback(
+    async (nodeId: string, kind: 'image' | 'video') => {
+      let createdNodeIds: string[] = []
+      let blockedReason: string | null = null
+      const ok = await commitWith((current) => {
+        const source = current.nodes.find((candidate) => candidate.id === nodeId)
+        if (!source || source.type !== 'script') return []
+        const state = source.data.extra?.scriptV2 as ScriptV2State | undefined
+        if (!state) return []
+        const result = createScriptV2BatchMutations(current, nodeId, state, kind)
+        createdNodeIds = result.createdNodeIds
+        blockedReason = result.blockedReason
+        return result.mutations
+      }, kind === 'image' ? '批量生成分镜' : '批量生视频')
+      if (blockedReason) {
+        toast(blockedReason, 'error')
+        return
+      }
+      if (!ok || createdNodeIds.length === 0) return
+      onOpenNode(null)
+      select(createdNodeIds)
+      window.requestAnimationFrame(() => {
+        flow.fitView({ nodes: createdNodeIds.map((id) => ({ id })), duration: 400, padding: 0.24 })
+      })
+    },
+    [commitWith, flow, onOpenNode, select, toast],
+  )
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || openNodeId || selectionMode) return
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[role="dialog"], [role="menu"], input, textarea, [contenteditable="true"]')) return
+      if (useEditor.getState().selection.length === 0) return
+      select([])
+      setSelectedGroupId(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [openNodeId, select, selectionMode])
+
   const nodes: FlowNode[] = useMemo(
     () =>
       document.nodes.map((node) => ({
@@ -213,6 +282,10 @@ function CanvasInner({
           onLocateNode,
           onOpenImageStyle,
           onApplyImageTool,
+          onOpenNode,
+          onOpenScriptWorkspace,
+          onScriptStateChange: handleScriptStateChange,
+          onMaterializeScriptBatch: handleMaterializeScriptBatch,
           canvasSelection: selectionMode
             ? node.id === selectionMode.targetNodeId
               ? {
@@ -265,6 +338,10 @@ function CanvasInner({
       onLocateNode,
       onOpenImageStyle,
       onApplyImageTool,
+      onOpenNode,
+      onOpenScriptWorkspace,
+      handleScriptStateChange,
+      handleMaterializeScriptBatch,
       selectionMode,
       referenceCandidateByNode,
       openNodeId,

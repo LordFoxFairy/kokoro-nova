@@ -68,6 +68,7 @@ Dockerfile 只提供部署默认值，启动方可以通过 `-e` 或平台的 en
 | `HOSTNAME` | `0.0.0.0` | 容器内监听地址 |
 | `NEXT_TELEMETRY_DISABLED` | `1` | 关闭构建 / 运行时遥测 |
 | `NEXT_DIST_DIR` | `.next-prod` | 镜像内已构建的 Next.js 输出目录；通常保持默认值 |
+| `DATA_DIR` | `/app/.data` | 文件型 mock workspace 的绝对目录；变更时须将同一路径挂载为持久 volume，并保证容器用户可写。 |
 
 例如部署平台把外部端口设为 `8080` 时，只需要映射并覆盖 `PORT`：
 

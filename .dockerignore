@@ -6,7 +6,10 @@
 .playwright-cli
 .next
 .next-prod
+.next-*
 .data
+.data-*
+.demo-data
 coverage
 dist
 build

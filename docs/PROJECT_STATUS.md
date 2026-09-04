@@ -129,8 +129,10 @@ pnpm demo:smoke
 ```bash
 pnpm install
 pnpm demo
-# 浏览器打开 http://localhost:3200
+# 浏览器打开 http://localhost:3300
 ```
+
+`pnpm dev` 才使用 `http://localhost:3200`；`pnpm demo` 固定使用隔离端口与数据目录，避免与开发服务冲突。
 
 需要隔离的自动冒烟时使用：
 

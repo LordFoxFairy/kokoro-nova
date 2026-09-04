@@ -709,7 +709,7 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
   它们错了是直接对着真钱错。
 - **路由层没有集成测试。** HTTP 行为（含 409）只在 Playwright 用例里被间接覆盖。
 - `tsconfig.json` 的 `exclude` 里有 `e2e`，所以 `pnpm typecheck` **不检查** Playwright 用例；`vitest.config.ts` 也不在 tsconfig 的排除列表里，它会被类型检查覆盖。
-- 没有 CI 配置、没有 Dockerfile、没有 `.env.example`（目前也确实不需要任何环境变量——接入真实 provider 后需要新增）。
+- 已有 GitHub Actions、Dockerfile 与容器运行文档：`main`/PR 会执行 typecheck、lint、单测和生产构建，`v*` tag 会发布 GHCR 镜像。当前仍不需要 `.env.example`；接入真实 provider 时需新增受控的 provider 配置与密钥注入说明。
 - 没有结构化日志、没有 tracing、没有指标。
 - 没有速率限制；`POST /api/jobs` 每次调用都会新建一个 job，HTTP 层没有幂等键。
 - `src/server/store.ts` 导出的 `resetStore()` / `invalidateCache()` / `balanceOf()` 目前没有任何调用方。

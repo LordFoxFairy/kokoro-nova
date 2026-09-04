@@ -147,13 +147,17 @@ test('Image references and style application persist graph dependencies', async 
   const market = page.getByTestId('material-panel')
   await expect(market).toBeVisible()
   await expect(market).toContainText('风格广场')
+  // The panel header renders before its deterministic catalogue response.
+  // Capture the populated state rather than the transient 0-result spinner.
+  await expect(market.getByTestId('material-loading')).toHaveCount(0)
+  await expect(market.getByTestId('material-style-cine-teal')).toBeVisible()
   await expectVisualBaseline(page, 'image-style-market-dark-1440x900.png')
   await page.screenshot({
     path: `${SHOTS}/image-style-market-dark-1440x900.png`,
     scale: 'css',
     animations: 'disabled',
   })
-  await market.getByTestId('material-style-cine-teal').click()
+  await market.getByTestId('material-apply-style-cine-teal').click()
 
   await expect
     .poll(async () => {

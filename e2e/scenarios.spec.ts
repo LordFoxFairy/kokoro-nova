@@ -54,3 +54,14 @@ test('expired editor session asks for a refresh', async ({ page, request }) => {
   await page.goto(PROJECT_URL)
   await expect(page.getByRole('status')).toContainText('会话已过期，请刷新页面')
 })
+
+test('compliance blocking remains a distinct storyboard recovery state', async ({ page, request }) => {
+  await openVideoScenario(page, request, 'video-compliance-blocked')
+  await page.getByTestId('view-storyboard').click()
+  await expect(page.getByTestId('storyboard-status-node_video_01')).toContainText('合规阻断')
+
+  await page.getByTestId('storyboard-card-node_video_01').click()
+  const detail = page.getByTestId('media-detail')
+  await expect(detail.getByTestId('detail-regeneration-compliance')).toContainText('未通过合规检查')
+  await expect(detail.getByTestId('detail-regenerate')).toContainText('修改后重试')
+})

@@ -10,7 +10,7 @@
 
 已有隔离浏览器证据覆盖桌面基线、项目/画布加载错误、空态、有内容态，以及视频任务的等待确认、排队、运行、成功、失败、取消和合规阻断。响应式跟进中记录的两个已修复问题仍成立：窄屏主工具栏的独立 `translate` 已清除，活动倒计时胶囊已禁止收缩换行。
 
-仍需保留为遗留项：等待确认 fixture 的报价相对当前日期已过期；合规阻断在 Storyboard 仍投影为通用 `failed` 状态；`768×700` 的 Storyboard 视频列操作需要横向滚动后才完整可见，媒体详情抽屉尚缺完整窄屏焦点验收。
+仍需保留为遗留项：等待确认 fixture 的报价相对当前日期已过期；`768×700` 的 Storyboard 视频列操作需要横向滚动后才完整可见，媒体详情抽屉尚缺完整窄屏焦点验收。
 
 ## 状态矩阵
 
@@ -30,7 +30,7 @@
 | succeeded | `video-succeeded` | `生成完成`、本地产物预览 | 同左 | 同左；媒体可见 | 不显示 retry/cancel；保留生成入口 | 通过（既有证据） |
 | failed | `video-failed` | `生成失败`、`重试` | 同左 | 同左 | 错误文案与 retry 同时可见且 enabled | 通过（只读断言） |
 | cancelled | `video-cancelled` | `已取消`、`重新生成` | 同左 | 同左 | 取消结果不覆盖原产物；重新生成入口可用 | 通过（只读断言） |
-| compliance | `video-compliance-blocked` → Workflow / Storyboard | Workflow 合规错误；Storyboard `合规阻断` | 同左 | 同左；视频列可能需横向滚动 | Workflow retry、Storyboard 查看并重试提示 | 文案通过；语义独立性待修复 |
+| compliance | `video-compliance-blocked` → Workflow / Storyboard | Workflow 合规错误；Storyboard `合规阻断` | 同左 | 同左；视频列可能需横向滚动 | Workflow retry、Storyboard 显示独立合规提示与“修改后重试” | 通过（独立状态及抽屉恢复路径已覆盖） |
 
 ## 响应式基线
 

@@ -485,7 +485,7 @@ function StoryboardJobStatus({
   const state = regenerationStatusForJob(job)
   if (state === 'ready' || state === 'succeeded') return null
 
-  const tone = state === 'in_flight' ? 'text-running' : state === 'failed' ? 'text-danger' : 'text-ink-500'
+  const tone = state === 'in_flight' ? 'text-running' : state === 'failed' ? 'text-danger' : state === 'compliance_blocked' ? 'text-amber-700' : 'text-ink-500'
   return (
     <div
       data-testid={`storyboard-status-${card.nodeId}`}
@@ -494,7 +494,8 @@ function StoryboardJobStatus({
     >
       {state === 'in_flight' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-running" />}
       {state === 'failed' && <span className="h-1.5 w-1.5 rounded-full bg-danger" />}
-      {state !== 'in_flight' && state !== 'failed' && <span className="h-1.5 w-1.5 rounded-full bg-ink-300" />}
+      {state === 'compliance_blocked' && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+      {state !== 'in_flight' && state !== 'failed' && state !== 'compliance_blocked' && <span className="h-1.5 w-1.5 rounded-full bg-ink-300" />}
       <span>{generationStatusLabel(job.status)}</span>
       {state === 'in_flight' && <span className="tabular-nums">{job.progress}%</span>}
       {(job.status === 'failed' || job.status === 'compliance_blocked') && <span className="ml-auto">点击查看并重试</span>}

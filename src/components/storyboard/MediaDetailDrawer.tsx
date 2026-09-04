@@ -74,6 +74,7 @@ export type RegenerationStatus =
   | 'succeeded'
   | 'failed'
   | 'cancelled'
+  | 'compliance_blocked'
 
 const GENERATION_STATUS_LABELS: Record<JobStatus, string> = {
   awaiting_confirmation: '等待确认',
@@ -109,6 +110,7 @@ export function regenerationStatusForJob(job: GenerationJob | null): Regeneratio
   if (job.status === 'queued' || job.status === 'running') return 'in_flight'
   if (job.status === 'succeeded') return 'succeeded'
   if (job.status === 'cancelled') return 'cancelled'
+  if (job.status === 'compliance_blocked') return 'compliance_blocked'
   return 'failed'
 }
 
@@ -1200,14 +1202,21 @@ function RegenerationFooter({
         </div>
       )}
 
-      {statusError && status !== 'failed' && action === null && (
+      {status === 'compliance_blocked' && (
+        <div data-testid="detail-regeneration-compliance" className="flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/8 px-3 py-2.5 text-[11px] text-amber-700">
+          <IconWarning size={14} className="mt-px shrink-0" />
+          <span>{statusError ?? '该内容未通过合规检查，请调整提示词或参考元素后重试。'}</span>
+        </div>
+      )}
+
+      {statusError && status !== 'failed' && status !== 'compliance_blocked' && action === null && (
         <div data-testid="detail-regeneration-error" className="flex items-start gap-2 rounded-xl border border-danger/20 bg-danger/6 px-3 py-2.5 text-[11px] text-danger">
           <IconWarning size={14} className="mt-px shrink-0" />
           <span>{statusError}</span>
         </div>
       )}
 
-      {(status === 'ready' || status === 'succeeded' || status === 'failed' || status === 'cancelled') && (
+      {(status === 'ready' || status === 'succeeded' || status === 'failed' || status === 'cancelled' || status === 'compliance_blocked') && (
         <button
           type="button"
           data-testid="detail-regenerate"
@@ -1215,8 +1224,8 @@ function RegenerationFooter({
           onClick={onCreate}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink-900 py-2.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60"
         >
-          {busy ? <Spinner size={13} /> : status === 'failed' || status === 'cancelled' ? <IconRefresh size={13} /> : null}
-          {action === 'saving' ? '保存配置…' : action === 'creating' ? '提交中…' : status === 'failed' || status === 'cancelled' ? '重试再生成' : '重新生成'}
+          {busy ? <Spinner size={13} /> : status === 'failed' || status === 'cancelled' || status === 'compliance_blocked' ? <IconRefresh size={13} /> : null}
+          {action === 'saving' ? '保存配置…' : action === 'creating' ? '提交中…' : status === 'failed' || status === 'cancelled' ? '重试再生成' : status === 'compliance_blocked' ? '修改后重试' : '重新生成'}
           <span className="flex items-center gap-0.5 text-ink-300">
             <IconCredit size={12} />
             {cost}

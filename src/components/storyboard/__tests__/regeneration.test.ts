@@ -51,7 +51,7 @@ describe('storyboard regeneration helpers', () => {
     expect(regenerationStatusForJob(job('node_video_01', 'job_3', 'succeeded', '2026-09-04T10:00:00.000Z'))).toBe('succeeded')
     expect(regenerationStatusForJob(job('node_video_01', 'job_4', 'failed', '2026-09-04T10:00:00.000Z'))).toBe('failed')
     expect(regenerationStatusForJob(job('node_video_01', 'job_5', 'cancelled', '2026-09-04T10:00:00.000Z'))).toBe('cancelled')
-    expect(regenerationStatusForJob(job('node_video_01', 'job_6', 'compliance_blocked', '2026-09-04T10:00:00.000Z'))).toBe('failed')
+    expect(regenerationStatusForJob(job('node_video_01', 'job_6', 'compliance_blocked', '2026-09-04T10:00:00.000Z'))).toBe('compliance_blocked')
 
     expect(generationStatusLabel('awaiting_confirmation')).toBe('等待确认')
     expect(generationStatusLabel('queued')).toBe('排队中')

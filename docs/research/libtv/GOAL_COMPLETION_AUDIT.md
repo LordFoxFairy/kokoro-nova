@@ -8,7 +8,7 @@
 - 官网登录态只读观察：[`pages/canvas/2026-09-04-live-project-readonly.md`](pages/canvas/2026-09-04-live-project-readonly.md)，含 2026-09-05 Script V2 阶段面板复核。
 - 可公开/登录 surface、视觉与交互矩阵：[`REPLICATION_ACCEPTANCE_MATRIX.md`](REPLICATION_ACCEPTANCE_MATRIX.md)。
 - Mock API 的 route/OpenAPI 审计：[`../../api/API_AUDIT.md`](../../api/API_AUDIT.md)。
-- 当前主分支验证基线：GitHub Actions `33958820346`（`b36ea683`）成功；本地 `pnpm lint`、`pnpm typecheck`、121 个 Vitest 文件/946 个测试，以及 21 个隔离核心 Playwright 用例（含 Script V2 三阶段、durability 与 Script V2→Storyboard handoff）在 `2026-09-05` 已运行通过。最新提交的 GitHub CI 仍以 Actions 状态为准。
+- 当前主分支验证基线：GitHub Actions `33958820346`（`b36ea683`）成功；本地 `pnpm lint`、`pnpm typecheck`、121 个 Vitest 文件/946 个测试，以及 25 个隔离核心 Playwright 用例（含 Script V2 三阶段、durability、entry/focus、asset recovery、Storyboard 与 video-editor handoff）在 `2026-09-05` 已运行通过。最新提交的 GitHub CI 仍以 Actions 状态为准。
 
 ## 需求逐项判定
 

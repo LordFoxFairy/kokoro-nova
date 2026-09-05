@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | 官网 Script V2 可见结构 | 三阶段、十列表格、局部 `ESC` 关闭、镜头排序提示、`重新生成 / 批量生成分镜 / 批量生视频 / 下载` 工具栏及前置不足时的 disabled 投影。 | 已有可复刻的布局和基本 gate 事实；未观察到官网真实请求、成功结果、失败恢复或计费语义。 |
 | 本地 Script V2 深度旅程 | `e2e/script-v2.spec.ts` 覆盖三入口、编辑/排序、资产、提示词、批量操作、局部失败、图/视频 materialize、撤销和刷新；该文件每例重置 fixture。 | 本地能力广度高，且存在丰富的 deterministic fixture 证明。 |
-| CI 核心门 | `pnpm e2e:ci` 纳入 `script-v2-core`、`script-v2-durability-core` 与 `script-v2-storyboard-core`：三阶段/十列表头/gate、镜头编辑 reload、取消不落半成品、单次 materialize、Storyboard 投影及 source 定位。 | 已覆盖最关键的 local-only Script V2 主链；并非全部深度交互或视觉一比一放行。 |
+| CI 核心门 | `pnpm e2e:ci` 纳入 Script V2 core、durability、entry/focus、recovery、Storyboard 与 video-editor handoff：三阶段/十列表头/gate、三入口/Escape、镜头编辑 reload、asset retry、取消不落半成品、单次 materialize、Storyboard 投影/source 定位，以及视频进入剪辑后失败/取消不污染 origin。 | 已覆盖关键的 local-only Script V2 主链；并非全部深度交互或视觉一比一放行。 |
 | Canvas 主路径 | `canvas-parity`、`workflow`、`presence-concurrency`、`video-compositor`、`compositor-reliability` 等专项测试覆盖画布、投影、协作和剪辑行为；新 core 还覆盖 Script V2→Storyboard 组合链。 | 这些专项包含大量强证据，但大部分 canvas 视觉/交互仍不在 `e2e:ci`。 |
 | 视觉证据 | 1440×900 Script V2、canvas、storyboard 等基线已提交；`toHaveScreenshot` 使用稳定等待及严格 diff。 | 基线可做人工/本地回归依据；当前 CI 没有固定平台的 visual job，不能把现有 CI 绿色解释为视觉一比一。 |
 
@@ -24,14 +24,14 @@
 | ID | 验收对象 | 当前证据 | 缺口 / 风险 | 优先级 | 可交付验收条件 |
 | --- | --- | --- | --- | --- | --- |
 | CV-S0 | 官网事实与 local-only 状态的边界 | Script V2 AX contract 已只读、脱敏地记录初始可见结构。 | 官网“完成态”、真实异步、扣费、权限、下载格式和失败文案仍未证实；local 成功 E2E 易被误读为官网事实。 | P0 | 每条新增官网观察都标注观察方法、状态前置、直接可见控件和未知项；local fixture 说明与官网事实分表保存。 |
-| CV-S1 | Script V2 核心交互门覆盖度 | `script-v2-core`、`script-v2-durability-core` 已纳入 CI；后者覆盖编辑 reload、asset gate、取消和单次 materialize；详细 spec 有 21 个专项例。 | 三入口顺序、ESC 层级、镜头排序、asset/prompt 的失败→retry 仍未进入 `e2e:ci`。 | P0 | 将其余语义最强、无截图依赖的例拆入稳定 core 分组，补齐三个入口、局部关闭与焦点、排序和一次失败恢复。 |
+| CV-S1 | Script V2 核心交互门覆盖度 | core、durability、entry/focus、recovery 均已纳入 CI，覆盖三入口顺序、分层 Escape、编辑 reload、asset gate/失败→retry、取消和单次 materialize；详细 spec 有 21 个专项例。 | 镜头排序、prompt track failure→retry 与跨 overlay 的完整 Tab/focus table 仍未进入 `e2e:ci`。 | P1 | 将其余语义最强、无截图依赖的例拆入稳定 core 分组，补齐排序、prompt failure→retry 和焦点矩阵。 |
 | CV-S2 | Script V2 完整阶段状态机 | 本地覆盖确认镜头、准备资产、合成提示词和批量 gate。 | 核心门只检查可跳转，未检查“阶段计数与 row/asset/prompt 状态同步”；错误状态、重试和前进/回退的禁止条件缺少同一端到端断言。 | P0 | 为单一 fixture 流程断言阶段计数、disabled/enabled 原因、asset/prompt 失败→重试、成功后 batch video gate 与 reload 后状态一致。 |
 | CV-S3 | 原子 materialize 与重复提交防护 | 详细 spec 验证图/视频节点拓扑、一次 undo 与 reload。 | 未见同一 run 的 double-click/replay、网络超时后重进、部分成功后二次提交等幂等性验收；易出现重复节点或重复扣本地 ledger。 | P0 | 每种 materialize 至少有：重复触发只生成一组、取消不写 graph、失败不产生半拓扑、刷新后重试不重复；同时断言 document revision/节点 ID/账本 mock projection。 |
 | CV-C1 | Canvas 到 Storyboard 的端到端主链 | `script-v2-storyboard-core` 已在 CI 执行“新项目 → Script V2 → 单镜头图 materialize → Storyboard → 返回 source”，并断言共享 `WorkflowDocument`、无额外 revision、source metadata/edge/group 与定位选中。 | 视频产物到 storyboard/clip editor 的链路另列 CV-C5；不把图片主链的通过外推为全部媒体类型。 | 已覆盖 | 持续保持该确定性旅程在核心 browser 分组中运行，且不依赖真实媒体。 |
 | CV-C2 | Canvas 键盘、焦点与层级恢复 | 专项覆盖部分 Escape、Delete、快捷键、可聚焦 edge；Script V2 覆盖 generator 的分层 Escape。 | 关键 overlay 的关闭后焦点回归、Tab 顺序、未保存草稿策略、selection 不应被局部面板改变，尚未形成跨 canvas 的明确矩阵。 | P1 | 对 add menu、Script generator/catalog/workspace、prompt detail、batch dialog、Storyboard detail、Clip editor 各记录 trigger、Escape、关闭后 focus、selection 和 persisted draft 预期。 |
 | CV-C3 | 多客户端与编辑冲突 | presence 专项验证 lease、follow、release 后接管。 | 未覆盖 Script V2 打开/编辑期间 revision conflict、远端写入后的草稿冲突提示、重连时工作区状态恢复。 | P1 | 使用两个隔离 context：A 编辑 Script row，B 造成 revision 变化；验证本地草稿不静默覆盖、冲突可定位、刷新/重试结果可预测。 |
 | CV-C4 | Canvas / Script V2 视觉发布门 | 现有 1440×900 snapshot 和严格 ratio。 | GitHub Ubuntu CI 不运行固定平台 visual suite；Darwin 基线不能直接作为 Ubuntu 通过条件。 | P1 | 确定唯一截图平台与字体/浏览器版本；建立隔离 `e2e:visual` job，至少覆盖 empty canvas、add menu、Script V2 三阶段、Storyboard、一个 failure/gate state，并上传 actual/diff/trace。 |
-| CV-C5 | 复杂素材与剪辑的脚本链路 | video compositor 已有空态、有效媒体、编辑、导出、取消/重试等专项。 | Script V2 生成视频节点与剪辑入口之间缺少明确回归链；结果资产的 source metadata、时间线入口和失败重试可能漂移。 | P1 | 从 Script V2 materialized video 进入 storyboard/detail/clip editor，验证 source metadata、默认 timeline 规则、取消或失败不污染脚本节点。 |
+| CV-C5 | 复杂素材与剪辑的脚本链路 | `script-v2-video-editor-core` 已覆盖 Script V2 视频节点→本地视频 fixture→Storyboard detail→剪辑器，并断言 source metadata、时间线来源与合成失败/取消不污染 origin；video compositor 另有空态、有效媒体、编辑、导出、取消/重试专项。 | 仍未覆盖视频 materialize 的重复提交、部分成功或刷新重进等 CV-S3 原子性变体。 | 已覆盖主链 | 保持该 local-only handoff 在 core 中运行，并将重复/部分成功留给 CV-S3。 |
 | CV-C6 | Fixture 隔离与可诊断性 | Script V2 detailed spec 有 `beforeEach` scenario/reset；Playwright 默认单 worker、隔离服务。 | 核心与视觉分组扩展后，缺少每组 state reset、端口、数据目录、失败 artifact 的显式审计清单。 | P1 | 每个新增 spec 说明 scenario/reset、唯一 `DATA_DIR`、是否可并行；CI 失败统一保留 trace/report/服务日志，且不触碰 :3200 的演示服务。 |
 | CV-C7 | 官网观察覆盖深度 | 现有截图/只读记录覆盖初始 Script V2 和 canvas 很多静态/可见状态。 | 官网当前版本的有效 Script V2 完成态、Text/Script 目录、Clip Editor 深度编辑仍缺合法只读证据；不应以猜测补齐。 | P2 | 仅在用户明确允许的已登录会话中做最小只读观察；每次先定义观察问题和停止条件，输出脱敏 AX/截图索引，不执行生成、下载、上传、发布或删除。 |
 

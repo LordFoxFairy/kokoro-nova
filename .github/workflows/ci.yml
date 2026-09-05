@@ -58,7 +58,7 @@ jobs:
         run: pnpm build
 
   publish:
-    name: Publish public GHCR image
+    name: Publish GHCR image
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: verify
     runs-on: ubuntu-latest

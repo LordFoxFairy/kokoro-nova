@@ -123,6 +123,10 @@ Wan 3.0 和 Minimax H3 Max 等当前组合；这进一步验证卡片与营销�
 卡片索引证据，以及本地 `/showcase` 不应被误认为官网真实 URL 的边界，见
 [2026-09-05-public-home-readonly.md](2026-09-05-public-home-readonly.md)。
 
+同日的补充登录态只读观察确认了当前左侧导航、双创建入口、六张快捷能力卡、最近项目卡片区、
+Agent 空输入禁用状态和 TV Show 搜索入口的分区层级；未触发任意写操作或推断 API，见
+[2026-09-05-public-home-continued-readonly.md](2026-09-05-public-home-continued-readonly.md)。
+
 ## 2026-09-03 当前官网复核
 
 在已有登录会话中刷新官网首页，当前版本仍保持“快速创作入口 -> 最近项目 ->

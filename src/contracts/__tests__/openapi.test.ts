@@ -301,6 +301,16 @@ describe('local API manifest and OpenAPI', () => {
         'X-Content-Type-Options': expect.any(Object),
       }),
     })
+
+    for (const previewPath of ['/api/preview/character', '/api/preview/stitch']) {
+      expect(operationAt(document, 'GET', previewPath).responses?.['200']).toMatchObject({
+        headers: expect.objectContaining({
+          'Cache-Control': expect.objectContaining({
+            schema: expect.objectContaining({ example: 'public, max-age=86400' }),
+          }),
+        }),
+      })
+    }
   })
 
   it('keeps the standalone documentation audit executable', () => {

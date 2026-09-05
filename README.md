@@ -54,8 +54,8 @@ pnpm lint
 pnpm test
 pnpm test:watch
 
-# 端到端测试；playwright.config.ts 的 webServer 设了 reuseExistingServer，
-# 已经有 3200 在跑就直接复用，不会再起一个
+# 端到端测试；Playwright 独占 3210/.data-e2e/.next-e2e，
+# 不复用、探测或停止交互开发的 3200
 pnpm e2e
 pnpm e2e:ui
 
@@ -72,8 +72,9 @@ pnpm build && pnpm start   # start 同样是 3200
 ### Docker / GHCR
 
 仓库已配置 GitHub Actions 容器发布：推送 `v*` tag 且类型检查、Lint、测试和生产构建全部
-通过后，会自动将公开镜像发布到
+通过后，会自动将 GHCR 镜像发布到
 [`ghcr.io/lordfoxfairy/kokoro-nova`](https://github.com/LordFoxFairy/kokoro-nova/pkgs/container/kokoro-nova)。
+首次发布后，需在 GitHub Package settings 确认该包为 Public，才可作为公开镜像匿名拉取。
 完整的 tag、版本和本地运行说明见 [`docs/CONTAINER.md`](docs/CONTAINER.md)。
 
 ```bash
@@ -152,7 +153,7 @@ src/
 e2e/                           Playwright 用例
 docs/                          本文档、ARCHITECTURE.md、HANDOFF.md
 vitest.config.ts               单测配置；include 限定 src/**/*.test.ts
-playwright.config.ts           e2e 配置；1440×900 基准视口，复用 3200 端口
+playwright.config.ts           e2e 配置；1440×900 基准视口，独占 3210 端口
 ```
 
 ## 依赖边界

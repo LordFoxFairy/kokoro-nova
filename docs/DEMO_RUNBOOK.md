@@ -59,7 +59,8 @@ Docker build，也不触发真实生成服务。
 需要手工恢复演示 fixture 时：
 
 ```bash
-curl -sS -X POST http://localhost:3300/api/dev/reset
+# 默认 3300；若已覆盖 DEMO_PORT / PORT，替换为实际监听端口。
+curl -sS -X POST "http://localhost:${DEMO_PORT:-${PORT:-3300}}/api/dev/reset"
 ```
 
 演示结束后按 `Ctrl-C`；临时目录可以删除：

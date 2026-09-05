@@ -2923,6 +2923,12 @@
         "responses": {
           "200": {
             "description": "本地 SVG 角色参考预览",
+            "headers": {
+              "Cache-Control": {
+                "description": "本地确定性 preview 的缓存时间。",
+                "schema": { "type": "string", "example": "public, max-age=86400" }
+              }
+            },
             "content": {
               "image/svg+xml": {
                 "schema": {
@@ -2974,6 +2980,12 @@
         "responses": {
           "200": {
             "description": "本地 SVG Storyboard 拼接预览",
+            "headers": {
+              "Cache-Control": {
+                "description": "本地确定性 preview 的缓存时间。",
+                "schema": { "type": "string", "example": "public, max-age=86400" }
+              }
+            },
             "content": {
               "image/svg+xml": {
                 "schema": {

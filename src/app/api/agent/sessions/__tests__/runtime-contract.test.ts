@@ -29,7 +29,9 @@ async function createEmptySession() {
 async function expectErrorEnvelope(response: Response, status: number, code: string) {
   expect(response.status).toBe(status)
   expect(response.headers.get('content-type')).toContain('application/json')
-  return LocalErrorEnvelopeSchema.parse(await response.json())
+  const body = LocalErrorEnvelopeSchema.parse(await response.json())
+  expect(body.error.code).toBe(code)
+  return body
 }
 
 describe.sequential('RT-03 agent runtime error-envelope contracts', () => {

@@ -21,6 +21,7 @@
 - `openapi.yaml` 为 compose task 增加 queued、rendering、failed、cancelled 的可执行 external examples；与现有 succeeded 示例一起覆盖完整终态投影。
 - `resetStore()` 轮换 workspace generation、清理 compose task/成片目录；进行中的旧 renderer 在提交 Asset 前校验 generation，避免 scenario 切换后向新 fixture 写入旧产物；`src/app/api/compose/route.test.ts` 新增 reset race 回归测试。
 - `ComposeRequest.scope` 与 task transition/query scope 已进入 Zod/OpenAPI；有作用域的 task 读取、取消、重试必须匹配创建时的 project/canvas，route smoke 覆盖跨 canvas `404`。
+- `GET/POST /api/projects` collection route 新增 runtime smoke：验证已认证列表的稳定 schema/order、认证空集合、匿名 `401`、缺少 `folderId` 的 `400 ErrorResponse`，以及 malformed JSON 的 `400`。
 
 上述闭环降低了 API-AUD-06/API-AUD-07 的 Video/Assets 缺口，但不改变“尚未覆盖全部 92 个 operation 的运行时矩阵”这一结论。
 

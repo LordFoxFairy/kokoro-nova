@@ -364,7 +364,7 @@ function AuthenticatedMenu({
         </div>
         <div className="mt-1 grid grid-cols-2 gap-1">
           <MenuAction href="/account?tab=credentials" onClick={onNavigate}>Access key <span className="ml-auto font-mono text-[10px] text-ink-400">{identity.accessKey.maskedValue}</span></MenuAction>
-          <MenuAction href="/account?tab=overview" onClick={onNavigate}>创建团队 <span className="ml-auto text-ink-400">›</span></MenuAction>
+          <MenuAction href="/account?tab=team" onClick={onNavigate}>团队与共享资产 <span className="ml-auto text-ink-400">›</span></MenuAction>
         </div>
       </MenuGroup>
 

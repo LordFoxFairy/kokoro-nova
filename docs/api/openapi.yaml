@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.20.0-folder-and-upload-handoff",
+    "version": "1.21.0-team-shared-assets",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -677,6 +677,16 @@
               }
             }
           },
+          "409": {
+            "description": "资产当前生命周期不允许该动作",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "410": {
             "description": "资产已删除",
             "content": {
@@ -689,16 +699,6 @@
           },
           "500": {
             "description": "本地状态写入失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "资产当前生命周期不允许该动作",
             "content": {
               "application/json": {
                 "schema": {
@@ -6192,6 +6192,98 @@
           }
         },
         "x-authorization": "workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/team": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取本地团队 projection",
+        "description": "只读 local fixture。state=ready|empty|permission-denied 显式区分团队可用、未加入和登录门；不返回成员真实联系方式或凭据。",
+        "operationId": "getLocalTeam",
+        "x-ui-triggers": [
+          "账户中心团队与共享资产页"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "确定性的本地团队投影",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/shared-assets": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取本地共享资产 projection",
+        "description": "只读 local fixture。只含 fixture-relative 缩略图路径与调用者可见的权限摘要；不复用个人资产上传、编辑或删除生命周期。",
+        "operationId": "getLocalSharedAssets",
+        "x-ui-triggers": [
+          "账户中心团队共享资产列表"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "确定性的本地共享资产投影",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedAssetsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
         "security": [
           {
             "bearerAuth": []
@@ -15763,6 +15855,226 @@
           }
         },
         "additionalProperties": false
+      },
+      "TeamProjectionState": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "empty",
+          "permission-denied"
+        ]
+      },
+      "TeamRole": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "admin",
+          "member"
+        ]
+      },
+      "TeamMember": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "avatarInitial",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "avatarInitial": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2
+          },
+          "role": {
+            "$ref": "#/components/schemas/TeamRole"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeamWorkspace": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role",
+          "seatCount",
+          "seatLimit",
+          "sharedAssetCount",
+          "members"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "role": {
+            "$ref": "#/components/schemas/TeamRole"
+          },
+          "seatCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "seatLimit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sharedAssetCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "members": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/TeamMember"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeamResponse": {
+        "type": "object",
+        "required": [
+          "state",
+          "message",
+          "team"
+        ],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TeamProjectionState"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "team": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TeamWorkspace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "state=ready 时 team 非空；empty 或 permission-denied 时 team 为 null。"
+      },
+      "SharedAssetPermission": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "edit",
+          "comment",
+          "view"
+        ]
+      },
+      "SharedAssetKind": {
+        "type": "string",
+        "enum": [
+          "image",
+          "video",
+          "audio"
+        ]
+      },
+      "SharedAsset": {
+        "type": "object",
+        "required": [
+          "id",
+          "teamId",
+          "name",
+          "kind",
+          "thumbnailUrl",
+          "ownerDisplayName",
+          "permission",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "teamId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SharedAssetKind"
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "当前仅本地 fixture-relative 路径。"
+          },
+          "ownerDisplayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "permission": {
+            "$ref": "#/components/schemas/SharedAssetPermission"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SharedAssetsResponse": {
+        "type": "object",
+        "required": [
+          "state",
+          "message",
+          "assets"
+        ],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/TeamProjectionState"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "assets": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/SharedAsset"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "state 不为 ready 时 assets 必须为空数组。"
       }
     },
     "examples": {

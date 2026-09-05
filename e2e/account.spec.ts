@@ -134,3 +134,46 @@ test("account purchase and subscription actions report their deterministic local
   await page.getByRole("button", { name: "查看购买记录" }).click();
   await expect(page.getByTestId("account-action-feedback")).toContainText("暂无本地购买记录或可开具发票");
 });
+
+test('account team workspace projects loading, shared assets and retryable error states', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-populated' } });
+  expect(selected.ok()).toBe(true);
+  const reset = await request.post('/api/dev/reset');
+  expect(reset.ok()).toBe(true);
+  const signIn = await request.post('/api/identity', { data: { action: 'signIn', returnTo: '/' } });
+  expect(signIn.ok()).toBe(true);
+
+  await page.route(/\/api\/team$/, async (route) => {
+    const response = await route.fetch();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.fulfill({ response });
+  });
+  await page.goto('/account?tab=team');
+  await expect(page.getByRole('status', { name: '正在加载团队与共享资产' })).toBeVisible();
+  await expect(page.getByTestId('account-team-ready')).toContainText('Kokoro 创作组');
+  await page.unroute(/\/api\/team$/);
+  await expect(page.getByTestId('account-shared-assets')).toContainText('雨夜城市分镜参考');
+  await expect(page.getByTestId('account-shared-assets')).toContainText('可编辑');
+  await expect(page.getByTestId('account-shared-assets')).toContainText('仅查看');
+
+  await page.route(/\/api\/shared-assets$/, async (route) => {
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: '共享资产服务暂时不可用' }) });
+  });
+  await page.getByTestId('account-team-reload').click();
+  await expect(page.getByRole('alert').filter({ hasText: '团队与共享资产暂时不可用' })).toBeVisible();
+  await page.unroute(/\/api\/shared-assets$/);
+  await page.getByRole('button', { name: '重试团队与资产' }).click();
+  await expect(page.getByTestId('account-shared-assets')).toBeVisible();
+});
+
+test('account team workspace distinguishes empty membership from the local permission gate', async ({ page, request }) => {
+  await page.goto('/account?tab=team');
+  await expect(page.getByTestId('account-team-empty')).toContainText('尚未加入团队');
+  await expect(page.getByTestId('account-shared-assets')).toContainText('暂无共享资产');
+
+  const signedOut = await request.post('/api/identity', { data: { action: 'signOut', returnTo: '/account?tab=team' } });
+  expect(signedOut.ok()).toBe(true);
+  await page.getByTestId('account-team-reload').click();
+  await expect(page.getByTestId('account-team-permission')).toContainText('需要登录后查看团队');
+  await expect(page.getByTestId('account-shared-assets')).toHaveCount(0);
+});

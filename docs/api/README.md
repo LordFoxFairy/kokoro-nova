@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；47 个 path、82 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；49 个 path、84 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/authenticated/owner/workspace 语义与后端授权交接边界 |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
@@ -54,7 +54,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.20.0-folder-and-upload-handoff
+Contract version: 1.21.0-team-shared-assets
 OpenAPI: 3.1.0
 ```
 

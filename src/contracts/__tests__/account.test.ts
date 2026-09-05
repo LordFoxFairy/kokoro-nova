@@ -56,12 +56,13 @@ describe("account domain contract", () => {
 
   it("keeps account navigation keyboard movement cyclic and query-compatible", () => {
     expect(moveAccountSection("overview", "ArrowDown")).toBe("wallet");
-    expect(moveAccountSection("overview", "ArrowUp")).toBe("credentials");
+    expect(moveAccountSection("overview", "ArrowUp")).toBe("team");
     expect(moveAccountSection("wallet", "Home")).toBe("overview");
-    expect(moveAccountSection("wallet", "End")).toBe("credentials");
+    expect(moveAccountSection("wallet", "End")).toBe("team");
     expect(moveAccountSection("wallet", "Enter")).toBeNull();
     expect(sectionFromQuery("store")).toBe("wallet");
     expect(sectionFromQuery("membership")).toBe("membership");
+    expect(sectionFromQuery("team")).toBe("team");
     expect(sectionFromQuery("unknown")).toBe(ACCOUNT_SECTIONS[0].id);
   });
 });

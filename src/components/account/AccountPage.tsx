@@ -14,6 +14,7 @@ import { useSearchParams } from "next/navigation";
 import type { AccountProfileResponse } from "@/contracts/account";
 import type { NotificationsResponse } from "@/contracts/notifications";
 import type { PreferencesResponse } from "@/contracts/preferences";
+import type { SharedAssetsResponse, TeamResponse } from "@/contracts/team";
 import { modelsFor, type ModelMedia } from "@/domain/models";
 import { client } from "@/api/client";
 import { api } from "@/lib/api";
@@ -53,6 +54,21 @@ export type AccountRequestState =
   | "ready"
   | "error"
   | "stale-error";
+
+export type TeamSurfaceRequestState = "loading" | "ready" | "error" | "stale-error";
+
+export function getTeamSurfaceRequestState({
+  loading,
+  hasData,
+  error,
+}: {
+  loading: boolean;
+  hasData: boolean;
+  error: string | null;
+}): TeamSurfaceRequestState {
+  if (error) return hasData ? "stale-error" : "error";
+  return loading ? "loading" : "ready";
+}
 
 export function getAccountRequestState({
   loading,
@@ -126,6 +142,11 @@ export function AccountPage() {
   const [reloadToken, setReloadToken] = useState(0);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [team, setTeam] = useState<TeamResponse | null>(null);
+  const [sharedAssets, setSharedAssets] = useState<SharedAssetsResponse | null>(null);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamReloadToken, setTeamReloadToken] = useState(0);
   const navRefs = useRef<
     Partial<Record<(typeof ACCOUNT_SECTIONS)[number]["id"], HTMLButtonElement>>
   >({});
@@ -169,12 +190,38 @@ export function AccountPage() {
     };
   }, [limit, reloadToken]);
 
+  useEffect(() => {
+    if (section !== "team") return;
+    let cancelled = false;
+    setTeamLoading(true);
+    setTeamError(null);
+    void Promise.all([client.team.get(), client.team.getSharedAssets()])
+      .then(([nextTeam, nextSharedAssets]) => {
+        if (cancelled) return;
+        setTeam(nextTeam);
+        setSharedAssets(nextSharedAssets);
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setTeamError(
+          cause instanceof Error ? cause.message : "团队与共享资产暂时不可用",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setTeamLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [section, teamReloadToken]);
+
   const requestState = getAccountRequestState({
     loading,
     hasData: Boolean(profile && ledger),
     error: loadError,
   });
   const retry = () => setReloadToken((token) => token + 1);
+  const retryTeam = () => setTeamReloadToken((token) => token + 1);
   const theme = profile?.preferences.theme ?? "dark";
   const accountVars = theme === "dark" ? DARK_ACCOUNT_VARS : LIGHT_ACCOUNT_VARS;
   const selected =
@@ -503,6 +550,15 @@ export function AccountPage() {
                     onAction={setActionFeedback}
                   />
                 )}
+                {section === "team" && (
+                  <TeamAndSharedAssetsSection
+                    team={team}
+                    sharedAssets={sharedAssets}
+                    loading={teamLoading}
+                    error={teamError}
+                    onRetry={retryTeam}
+                  />
+                )}
               </div>
             </>
           ) : (
@@ -612,6 +668,7 @@ function iconForSection(section: (typeof ACCOUNT_SECTIONS)[number]["id"]) {
   if (section === "membership") return IconSparkle;
   if (section === "notifications") return IconHistory;
   if (section === "preferences") return IconGrid;
+  if (section === "team") return IconCharacter;
   return IconKey;
 }
 
@@ -833,6 +890,12 @@ function Overview({
             title="CLI & Skill"
             description="本地创作工具与凭据"
             onClick={() => onOpenSection("credentials")}
+          />
+          <QuickLink
+            icon={<IconCharacter size={16} />}
+            title="团队与共享资产"
+            description="成员、席位与共享素材"
+            onClick={() => onOpenSection("team")}
           />
         </div>
       </section>
@@ -1421,5 +1484,177 @@ function CostGuide() {
         <li>· 同一次生成重试或回调重复到达都只记一笔，不会重复扣费。</li>
       </ul>
     </section>
+  );
+}
+
+function TeamAndSharedAssetsSection({
+  team,
+  sharedAssets,
+  loading,
+  error,
+  onRetry,
+}: {
+  team: TeamResponse | null;
+  sharedAssets: SharedAssetsResponse | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  const requestState = getTeamSurfaceRequestState({
+    loading,
+    hasData: Boolean(team && sharedAssets),
+    error,
+  });
+
+  if (requestState === "loading" && !team && !sharedAssets) {
+    return (
+      <div
+        className="rounded-2xl border border-ink-100 bg-surface p-6 text-center text-[13px] text-ink-500"
+        role="status"
+        aria-label="正在加载团队与共享资产"
+      >
+        正在加载团队与共享资产…
+      </div>
+    );
+  }
+
+  if (requestState === "error" || !team || !sharedAssets) {
+    return (
+      <EmptyState
+        icon={<IconCharacter size={30} />}
+        title="团队与共享资产暂时不可用"
+        description={error ?? "当前没有可读取的团队数据。"}
+        action={<TeamRetryButton onRetry={onRetry} loading={loading} />}
+      />
+    );
+  }
+
+  const permissionDenied =
+    team.state === "permission-denied" ||
+    sharedAssets.state === "permission-denied";
+  const empty = team.state === "empty" && sharedAssets.state === "empty";
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      {error && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/20 bg-danger/10 px-3.5 py-2.5 text-[12px] text-danger"
+        >
+          <span>团队与共享资产暂时不可用：{error}</span>
+          <TeamRetryButton onRetry={onRetry} loading={loading} />
+        </div>
+      )}
+      {permissionDenied ? (
+        <section
+          data-testid="account-team-permission"
+          className="rounded-2xl border border-ink-100 bg-surface p-6"
+        >
+          <h2 className="text-[15px] font-semibold text-ink-900">需要登录后查看团队</h2>
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-600">{team.message}</p>
+        </section>
+      ) : empty ? (
+        <section
+          data-testid="account-team-empty"
+          className="rounded-2xl border border-ink-100 bg-surface p-6"
+        >
+          <h2 className="text-[15px] font-semibold text-ink-900">尚未加入团队</h2>
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-600">{team.message}</p>
+          <button
+            type="button"
+            className="mt-4 rounded-lg border border-ink-200 px-3 py-2 text-[12px] text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            onClick={() => undefined}
+          >
+            创建团队（本地样本）
+          </button>
+        </section>
+      ) : (
+        <section
+          data-testid="account-team-ready"
+          className="rounded-2xl border border-ink-100 bg-surface p-5"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <IconCharacter size={17} className="text-accent-ink" />
+                <h2 className="text-[16px] font-semibold text-ink-900">{team.team?.name}</h2>
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed text-ink-600">{team.message}</p>
+            </div>
+            <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] text-accent-ink">
+              {team.team?.role === "owner" ? "所有者" : team.team?.role}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <MiniStat label="成员" value={team.team?.seatCount ?? 0} />
+            <MiniStat label="可用席位" value={Math.max(0, (team.team?.seatLimit ?? 0) - (team.team?.seatCount ?? 0))} />
+            <MiniStat label="共享资产" value={team.team?.sharedAssetCount ?? 0} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {team.team?.members.map((member) => (
+              <span key={member.id} className="rounded-full bg-ink-50 px-2.5 py-1 text-[11px] text-ink-600">
+                {member.avatarInitial} · {member.displayName} · {member.role === "owner" ? "所有者" : member.role === "admin" ? "管理员" : "成员"}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!permissionDenied && (
+        <section
+          data-testid="account-shared-assets"
+          className="rounded-2xl border border-ink-100 bg-surface p-5"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[14px] font-medium text-ink-900">共享资产</h2>
+              <p className="mt-1 text-[12px] text-ink-500">{sharedAssets.message}</p>
+            </div>
+            <button
+              type="button"
+              data-testid="account-team-reload"
+              onClick={onRetry}
+              disabled={loading}
+              className="rounded-lg border border-ink-200 px-2.5 py-1.5 text-[11px] text-ink-700 hover:bg-ink-50 disabled:cursor-wait disabled:text-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {loading ? "刷新中" : "刷新资产"}
+            </button>
+          </div>
+          {sharedAssets.assets.length === 0 ? (
+            <p className="mt-4 rounded-xl bg-ink-50 px-3 py-4 text-[12px] text-ink-500">暂无共享资产。</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-ink-100 rounded-xl border border-ink-100">
+              {sharedAssets.assets.map((asset) => (
+                <li key={asset.id} className="flex items-center gap-3 px-3 py-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-50 text-[12px] text-accent-ink">
+                    {asset.kind === "image" ? <IconImage size={15} /> : asset.kind === "video" ? <IconVideo size={15} /> : <IconAudio size={15} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-medium text-ink-900">{asset.name}</span>
+                    <span className="mt-0.5 block text-[11px] text-ink-500">{asset.ownerDisplayName} · {formatDate(asset.updatedAt)}</span>
+                  </span>
+                  <span className="rounded-full bg-ink-50 px-2 py-1 text-[10px] text-ink-600">
+                    {asset.permission === "edit" ? "可编辑" : asset.permission === "view" ? "仅查看" : asset.permission === "comment" ? "可评论" : "所有者"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+function TeamRetryButton({ onRetry, loading }: { onRetry: () => void; loading: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onRetry}
+      disabled={loading}
+      className="rounded-lg bg-surface px-3 py-1.5 text-[12px] font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/10 disabled:cursor-wait disabled:text-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+    >
+      {loading ? "重试中…" : "重试团队与资产"}
+    </button>
   );
 }

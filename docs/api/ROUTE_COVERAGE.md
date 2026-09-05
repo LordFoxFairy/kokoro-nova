@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.20.0-folder-and-upload-handoff` · scope: 47 paths / 82 operations
+> Contract version: `1.21.0-team-shared-assets` · scope: 49 paths / 84 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -19,7 +19,7 @@ transport 的一一对应。
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
 | Public discovery / publish | 6 / 8 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
-| Account / ledger | 5 / 8 | 已精确 | identity、会话、钱包、偏好、通知与积分投影 | shared account domain + billing/ledger service |
+| Account / ledger / team | 7 / 10 | 已精确 | identity、会话、钱包、偏好、通知、团队与共享资产 projection | shared account domain + billing/ledger/team service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |
 
@@ -36,6 +36,7 @@ transport 的一一对应。
 - scenario/reset 的成功体有可读本地样本；`reset` 的 schema 不再是悬空 `$ref`；
 - `Creation Context` 用同一路径的 GET / PUT / POST 表示恢复、保存和发送前冻结，Skill 作者流用独立 `/api/skills/author` 路径表达草稿、审核、发布和下架；
 - identity、preferences、notifications、account 与 ledger 保持独立读取/写入 operation，避免账户菜单把会话、偏好和账本折叠为一个无类型聚合。
+- `GET /api/team` 与 `GET /api/shared-assets` 以 `ready|empty|permission-denied` 显式投影团队和共享素材；它们是只读、scenario 驱动的 local fixture，不读取真实成员或远端素材。
 - `PATCH /api/folders/{folderId}` 同时承载项目文件夹重命名和封面更新；请求体是至少包含一个字段的 `UpdateFolderRequest`，不再错误复用只允许 `name` 的 `RenameRequest`。
 - 上传边界单独记录在 [`ASSET_INGESTION.md`](ASSET_INGESTION.md)：`multipart/form-data` 的 `files[]`、50 MiB/文件、50 文件/请求、可选 `uploadToken` 取消票据、逐文件 `rejected` 与资产文件夹归属都必须由后端保留。
 
@@ -58,6 +59,7 @@ transport 的一一对应。
 | `GET /api/jobs` | `canvasId?` | `{ jobs: [] }` | scenario 固定进度/终态 | queue 恢复同一 job id / status 语义 |
 | `GET /api/agent/sessions/{id}` | `afterSeq=0` | 没有新增消息时 `messages: []` | 无随机生成 | gateway 以 cursor 提供同一增量语义 |
 | `GET /api/ledger` | `limit=1..200` | `entries: []` 和 totals/counts | scenario 驱动账本 | billing service 保留整数积分和排序 |
+| `GET /api/team`, `GET /api/shared-assets` | 无请求参数 | `state=empty` 或 `assets: []` | anonymous 返回 `permission-denied`，登录空账户返回 `empty` | membership/ACL + asset index 保留 state 与 permission union |
 | `GET /api/presence/{canvasId}` | subscriber query：`participantId`, `name`, `color`, `x/y/zoom?` | 首帧 `snapshot` 可含空 participants | `400` 形状错误；`429` 房间上限 | SSE 可改 WebSocket，但需 adapter 保留事件 union |
 | `POST /api/dev/scenario`, `/reset` | scenarioId / 无 body | 不适用 | production 恒为 `403` | production 服务不得暴露这两个 route |
 
@@ -67,7 +69,7 @@ UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所�
 
 ## 后端授权与错误交接
 
-47 个 path、82 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
+49 个 path、84 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
 13 个 public 读取明确为 `security: []`，其余 69 个 operation 使用 `bearerAuth`。后端以
 [`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
 和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。

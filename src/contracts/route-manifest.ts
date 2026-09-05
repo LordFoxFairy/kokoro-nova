@@ -154,6 +154,16 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-empty',
     'authenticated-populated',
   ]),
+  route('GET', '/api/team', 'Account', 'getLocalTeam', ['账户中心团队与共享资产页'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('GET', '/api/shared-assets', 'Account', 'getLocalSharedAssets', ['账户中心团队共享资产列表'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
   route('GET', '/api/identity', 'Account', 'getLocalIdentity', ['首页或画布头像菜单打开'], [
     'anonymous',
     'authenticated-empty',

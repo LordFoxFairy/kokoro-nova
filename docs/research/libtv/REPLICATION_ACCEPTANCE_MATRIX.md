@@ -96,10 +96,10 @@
 
 | ID | 验收项 | 官网证据 | local 实现 / 测试 | 状态 |
 | --- | --- | --- | --- | --- |
-| A-01 | 头像菜单中的身份、脱敏 UUID、Access key、团队、会员、积分和存储摘要 | [账户菜单](pages/account/screenshots/profile-menu-authenticated-overview.png) | `LocalIdentityMenu`、`/api/identity`、`AccountPage` 的 identity/membership/wallet projection；route tests、`e2e/account-identity.spec.ts` 及菜单视觉基线 | `PARTIAL`：脱敏身份、Access key 标签、会员/积分/存储与键盘菜单均已验证；团队域仍未建模 |
+| A-01 | 头像菜单中的身份、脱敏 UUID、Access key、团队、会员、积分和存储摘要 | [账户菜单](pages/account/screenshots/profile-menu-authenticated-overview.png) | `LocalIdentityMenu`、`/api/identity`、`AccountPage` 的 identity/membership/wallet/team projection；`GET /api/team`、`GET /api/shared-assets`、route/contract tests 与 `e2e/account-identity.spec.ts`、`e2e/account.spec.ts` | `VERIFIED_LOCAL`：脱敏身份、Access key 标签、会员/积分/存储、键盘菜单，以及团队成员/席位与共享资产权限 projection 都由确定性 fixture 验证 |
 | A-02 | 余额池、消耗顺序、冻结/结算/返还和可解释明细 | [积分账本证据](pages/billing/README.md) | `LedgerView`、`projectLedger`、`/api/ledger`；account unit tests | `VERIFIED_LOCAL`（领域投影） |
 | A-03 | 主题切换、AI 水印设置、通知中心和个人中心跳转 | [暗色菜单](pages/account/screenshots/profile-menu-dark-mode.png)、[水印规则](pages/account/screenshots/ai-watermark-removal-rules-and-toggle.png)、[通知](pages/account/README.md) | `LocalIdentityMenu`、`PreferencesSection`、`NotificationsSection`；`/api/preferences`、`/api/notifications`、Zod/route tests、`e2e/account*.spec.ts` 与深浅菜单视觉基线 | `VERIFIED_LOCAL`：theme、水印、已读与个人中心跳转均在 local API + 浏览器旅程中闭环 |
-| A-04 | 共享资产、订阅/开发票、模型超市、团队与 Access key 生命周期 | [账户外部域](pages/account/README.md) | `MembershipSection`、`CredentialsSection` 与 `AccountMembershipSchema`；`e2e/account.spec.ts` 验证本地充值/订阅/发票反馈；身份接口只暴露脱敏 Access key 标签，不暴露/轮换真实凭据 | `PARTIAL`：会员/CLI&Skill 与确定性购买反馈可演示；共享资产、团队、真实订阅/发票流及 Access key 生命周期仍未建模 |
+| A-04 | 共享资产、订阅/开发票、模型超市、团队与 Access key 生命周期 | [账户外部域](pages/account/README.md) | `TeamResponseSchema`、`SharedAssetsResponseSchema`、`TeamAndSharedAssetsSection`、`GET /api/team`、`GET /api/shared-assets`、[`TEAM_AND_SHARED_ASSETS.md`](../../../api/TEAM_AND_SHARED_ASSETS.md)；`e2e/account.spec.ts` 覆盖 loading/ready/error retry，route tests 覆盖 empty/permission | `PARTIAL`：共享资产和团队已按 local typed projection 闭环；真实订阅/发票、模型超市、邀请/成员写入和 Access key 轮换仍留给后端命令域 |
 | A-05 | 账本初次加载、刷新、陈旧数据保留和重试 | 官网账本状态未完整公开；local 需求由产品契约定义 | `getAccountRequestState`、`account-surfaces.test.ts` | `VERIFIED_LOCAL`（local failure state） |
 
 ## 统一放行门

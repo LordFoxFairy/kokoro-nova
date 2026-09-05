@@ -9,6 +9,7 @@ export const AccountSectionIdSchema = z.enum([
   "notifications",
   "preferences",
   "credentials",
+  "team",
 ]);
 
 export const AccountIdentitySchema = z

@@ -1,6 +1,7 @@
 import type { z, ZodType } from 'zod'
 
 import { AccountProfileResponseSchema } from '@/contracts/account'
+import { SharedAssetsResponseSchema, TeamResponseSchema } from '@/contracts/team'
 import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import { LedgerViewProjectionSchema } from '@/contracts/ledger'
 import { ModelCatalogResponseSchema } from '@/contracts/models'
@@ -190,6 +191,10 @@ export function createApiClient(transport: JsonTransport = fetch, options: ApiCl
   return {
     account: {
       get: () => requestTyped(AccountProfileResponseSchema, '/api/account'),
+    },
+    team: {
+      get: () => requestTyped(TeamResponseSchema, '/api/team'),
+      getSharedAssets: () => requestTyped(SharedAssetsResponseSchema, '/api/shared-assets'),
     },
     home: {
       get: () => requestTyped(HomeDiscoveryResponseSchema, '/api/home'),

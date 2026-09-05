@@ -11,6 +11,7 @@ export const ACCOUNT_SECTIONS: {
   { id: "notifications", label: "通知中心", shortLabel: "通知" },
   { id: "preferences", label: "偏好设置", shortLabel: "偏好" },
   { id: "credentials", label: "CLI & Skill", shortLabel: "CLI" },
+  { id: "team", label: "团队与共享资产", shortLabel: "团队" },
 ];
 
 const QUERY_ALIASES: Record<string, AccountSectionId> = {
@@ -22,6 +23,9 @@ const QUERY_ALIASES: Record<string, AccountSectionId> = {
   preferences: "preferences",
   cli: "credentials",
   credentials: "credentials",
+  team: "team",
+  teams: "team",
+  sharedAssets: "team",
 };
 
 export function sectionFromQuery(

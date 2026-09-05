@@ -47,6 +47,7 @@ test('home identity menu exposes redacted account groups with keyboard dismissal
   await expect(menu).toContainText('存储空间')
   await expect(menu).toContainText('订阅与开发票')
   await expect(menu).toContainText('CLI & Skill')
+  await expect(menu).toContainText('团队与共享资产')
   await expect(menu).toContainText('通知')
   await expectVisualBaseline(page, 'account-identity-menu-dark-1440x900.png')
 

@@ -2,6 +2,8 @@
 
 此域是纯前端可重复 fixture，持久化在当前 local workspace；`POST /api/dev/reset` 会清空作者草稿。它不调用 LibTV 后端，也不含真实凭据。
 
+作者工作台的官网同构入口是 `GET /skill/create`；`GET /skills/create` 保留为 Kokoro Nova 既有链接的兼容入口。两个路径原地渲染同一个本地工作台，不重定向，也不改变 API 契约。
+
 ## 生命周期
 
 ```text

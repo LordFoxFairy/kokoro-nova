@@ -36,8 +36,15 @@ function errorCopy(cause: unknown) {
  * Local-only authoring drawer. The persisted model is deliberately independent
  * from the public catalogue: only a successful publish projects into “我的”.
  */
-export function SkillAuthorStudio({ onPublished }: { onPublished: () => void }) {
-  const [open, setOpen] = useState(false)
+export function SkillAuthorStudio({
+  onPublished,
+  initiallyOpen = false,
+}: {
+  onPublished: () => void
+  /** Direct authoring routes open the same deterministic workspace in place. */
+  initiallyOpen?: boolean
+}) {
+  const [open, setOpen] = useState(initiallyOpen)
   const [rows, setRows] = useState<AuthoredSkill[]>([])
   const [selected, setSelected] = useState<AuthoredSkill | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)

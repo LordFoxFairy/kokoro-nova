@@ -79,7 +79,7 @@
 | K-03 | 收藏/取消收藏、分类/搜索、空态与错误/刷新反馈 | [收藏与空态截图](pages/skills/screenshots/skill-market-authenticated-favorites-empty.png) | `setSkillFavourite`、request state、retry；`skill-surfaces.test.ts`、`skills-parity.spec.ts` | `VERIFIED_LOCAL`（local contract） |
 | K-04 | 详情元数据、四图轮播、原图层、分享、添加到 composer、立即使用登录门 | [详情与轮播](pages/skills/README.md) | `SkillDetail`；`skills-detail-carousel-dark-1440x900.png`、`skills-detail-lightbox-dark-1440x900.png`；`skills-parity.spec.ts` | `VERIFIED_LOCAL`（local interaction） |
 | K-05 | composer 的附件/选择 Skill/参考/生成模式按钮打开真实上下文层 | [官网 Skill composer](pages/skills/README.md) | `SkillMarketComposer` + `GET /api/skills?composer=…` 的 typed local fixture；`skills-parity.spec.ts` 覆盖可访问 drawer、匿名门、empty/error/retry | `VERIFIED_LOCAL` |
-| K-06 | 我的 Skill、作者创建、编辑、版本、审核、发布和失效 | [作者表单截图](pages/skills/screenshots/skill-author-create-editor-fields-and-file-tree.png) | 目录只保留 `personal` 查询类型，没有作者页 route | `PENDING` |
+| K-06 | 我的 Skill、作者创建、编辑、版本、审核、发布和失效 | [作者表单截图](pages/skills/screenshots/skill-author-create-editor-fields-and-file-tree.png) | `SkillAuthorPage` 在官网同构 `/skill/create` 与兼容 `/skills/create` 原地渲染；`SkillAuthorStudio`、`/api/skills/author/**`、Zod contracts、本地 fixture 状态机与 published→“我的”投影；`skills-authoring.spec.ts` 覆盖创建、编辑、版本 `1.4.0 → 1.5.0`、审核、发布、下架与兼容路径 | `VERIFIED_LOCAL`（deterministic local lifecycle） |
 
 ### V — TV Show
 

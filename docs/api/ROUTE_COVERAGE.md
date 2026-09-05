@@ -61,6 +61,7 @@ transport 的一一对应。
 | `GET /api/models` | `media`, `q` | 空 catalogue 是合法 200 | 无随机失败 fixture | provider registry 替换 catalogue |
 | `GET /api/skills` | `category`, `collection`, `q`, `composer`, `fixture` | `fixture=empty` 返回空 `items/skills` | `fixture=error` 返回 `503` | catalogue 与 composer context 分离替换 |
 | `GET /api/showcase` | `category`, `q`, `offset`, `limit`, `fixture` | `fixture=empty` 返回 `{ entries: [], page.total: 0 }` | `fixture=error` 返回 `503`；无精确命中以 `page.searchFallback=true` 返回当前分类推荐 | discovery service 需保留分页/回退语义 |
+| `GET/POST /api/showcase/{snapshotId}/engagement` | GET 无 body；POST `{ action: like\|unlike\|share }` | GET 返回 viewer-local `{ liked: false, shareCount: 0 }` | GET 匿名可读；POST 匿名 `401`、非法 action `400`、未知或下架作品 `404`；重复 like 保持同一状态，share 每次递增 | engagement store 保留 viewer-local 写入，禁止修改冻结 snapshot/document/media |
 | `POST /api/publish/{snapshotId}/clone` | 无 body；登录态必需 | 不适用 | `401` 表示匿名登录门，`404` 表示快照不可见 | transaction 创建独立 project/canvas 与 deep-cloned document |
 | `GET /api/materials` | `kind`, `scope`, facets、`offset`, `limit`, `fixture` | `fixture=empty` 的 `page.total=0` | `fixture=error` 返回 `503`；`nextOffset=null` 终止分页 | catalogue 返回同一 page/facet 形状 |
 | `GET /api/jobs` | `canvasId?` | `{ jobs: [] }` | scenario 固定进度/终态 | queue 恢复同一 job id / status 语义 |

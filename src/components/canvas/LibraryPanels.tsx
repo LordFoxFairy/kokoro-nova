@@ -768,10 +768,43 @@ export function HistoryPanel({
   const jobs = useEditor((s) => s.jobs)
   const [scope, setScope] = useState<HistoryScope>('canvas')
   const [sort, setSort] = useState<HistorySort>('newest')
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedArtifactIds, setSelectedArtifactIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [batching, setBatching] = useState(false)
 
   const artifacts = useMemo(() => {
     return projectHistoryArtifacts(jobs, { scope, sort })
   }, [jobs, scope, sort])
+  const selectedArtifacts = artifacts.filter((artifact) =>
+    selectedArtifactIds.has(artifact.id),
+  )
+
+  const toggleBatchMode = () => {
+    setBatchMode((current) => !current)
+    setSelectedArtifactIds(new Set())
+  }
+
+  const toggleArtifactSelection = (artifactId: string) => {
+    setSelectedArtifactIds((current) => {
+      const next = new Set(current)
+      if (next.has(artifactId)) next.delete(artifactId)
+      else next.add(artifactId)
+      return next
+    })
+  }
+
+  const insertSelected = async () => {
+    if (selectedArtifacts.length === 0 || batching) return
+    setBatching(true)
+    try {
+      for (const artifact of selectedArtifacts) await onInsert(artifact)
+      onClose()
+    } finally {
+      setBatching(false)
+    }
+  }
 
   return (
     <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="history-panel">
@@ -790,14 +823,40 @@ export function HistoryPanel({
             ]}
           />
         </div>
-        <button
-          type="button"
-          data-testid="history-sort-toggle"
-          onClick={() => setSort(sort === 'newest' ? 'oldest' : 'newest')}
-          className="rounded-lg bg-ink-100 px-2.5 py-1.5 text-[12px] text-ink-600"
-        >
-          {sort === 'newest' ? '最新在前' : '最早在前'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="history-batch-mode"
+            aria-pressed={batchMode}
+            onClick={toggleBatchMode}
+            className={cn(
+              'rounded-lg px-2.5 py-1.5 text-[12px] transition-colors',
+              batchMode
+                ? 'bg-accent-soft text-accent-ink'
+                : 'bg-ink-100 text-ink-600 hover:text-ink-900',
+            )}
+          >
+            {batchMode ? '退出批量' : '批量操作'}
+          </button>
+          {batchMode && (
+            <button
+              type="button"
+              disabled={selectedArtifacts.length === 0 || batching}
+              onClick={() => void insertSelected()}
+              className="rounded-lg bg-ink-900 px-2.5 py-1.5 text-[12px] text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {batching ? '添加中…' : `添加所选 (${selectedArtifacts.length})`}
+            </button>
+          )}
+          <button
+            type="button"
+            data-testid="history-sort-toggle"
+            onClick={() => setSort(sort === 'newest' ? 'oldest' : 'newest')}
+            className="rounded-lg bg-ink-100 px-2.5 py-1.5 text-[12px] text-ink-600"
+          >
+            {sort === 'newest' ? '最新在前' : '最早在前'}
+          </button>
+        </div>
       </div>
 
       <div className="thin-scrollbar max-h-[56vh] overflow-y-auto p-6">
@@ -814,11 +873,21 @@ export function HistoryPanel({
                 key={artifact.id}
                 type="button"
                 data-testid={`history-artifact-${artifact.id}`}
+                aria-pressed={batchMode ? selectedArtifactIds.has(artifact.id) : undefined}
                 onClick={() => {
-                  onInsert(artifact)
+                  if (batchMode) {
+                    toggleArtifactSelection(artifact.id)
+                    return
+                  }
+                  void onInsert(artifact)
                   onClose()
                 }}
-                className="overflow-hidden rounded-xl text-left ring-1 ring-ink-100 transition-shadow hover:shadow-[var(--shadow-float)]"
+                className={cn(
+                  'overflow-hidden rounded-xl text-left ring-1 transition-shadow hover:shadow-[var(--shadow-float)]',
+                  batchMode && selectedArtifactIds.has(artifact.id)
+                    ? 'ring-2 ring-accent'
+                    : 'ring-ink-100',
+                )}
               >
                 {artifact.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element

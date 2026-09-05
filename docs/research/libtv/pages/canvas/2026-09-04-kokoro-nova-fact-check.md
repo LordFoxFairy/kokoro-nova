@@ -19,7 +19,7 @@
 
 ### P0：首屏与共享文档边界
 
-- [~] **P0-CANVAS-01：History 查询态补齐。** `HistoryPanel` 已增加 `scope = canvas | image | video | audio`、确定性新旧排序及“批量操作 → 添加所选”的顺序写入；`projectHistoryArtifacts()` 只投影可插入的 image/video/audio artifact，不写入 `WorkflowDocument`，并有 `library-panels` 单测与 `e2e/history-panel.spec.ts` 桌面旅程。仍需补评级筛选；空集合必须继续显示全部控件。
+- [~] **P0-CANVAS-01：History 查询态补齐。** `HistoryPanel` 已增加 `scope = canvas | image | video | audio`、确定性新旧排序及“批量操作 → 添加所选”的顺序写入；`projectHistoryArtifacts()` 只投影可插入的 image/video/audio artifact，不写入 `WorkflowDocument`，并有 `library-panels` 单测、`e2e/history-panel.spec.ts` 桌面旅程与 `1440×900` 视觉基线。仍需补评级筛选；空集合必须继续显示全部控件。
 - [ ] **P0-CANVAS-02：混合节点回归门。** 固定含 text/image/video/audio/script 的 scenario，断言 Workflow → Storyboard → reload 后 node/edge/revision 不变；Script V2 和媒体卡都可回到源节点。现有 `kokoro-nova-parity` 只覆盖新建 video/script 的窄拓扑，需要混合 fixture 作为独立最小切片。
 - [ ] **P0-VIDEO-01：视频生成状态与成本门统一。** 每种媒体至少有 awaiting confirmation、queued、running、succeeded、failed、cancelled；停止/重试/刷新保持同一 job，ledger 只出现一条 reserve + settle/release 链。继续保持 deterministic fixture，不做真实付费生成。
 

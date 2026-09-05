@@ -7,7 +7,7 @@
 
 ## 1. 审计结论
 
-仓库当前有 **56** 张已跟踪的 `*-darwin.png` 像素基线，全部由 fixture 驱动的 1440×900 状态产生。它们证明 macOS/Darwin 上的局部视觉契约已经存在；它们**不**构成 Ubuntu GitHub Actions 的可比较 release baseline，因为仓库没有任何批准的 `*-linux.png` 文件。GitHub Actions 已启用 macOS-14 的 visual regression lane，并在 `ci.yml` 中以独立端口、数据目录和 Next 输出目录运行；Linux canonical baseline 仍未引导。
+仓库当前有 **57** 张已跟踪的 `*-darwin.png` 像素基线，全部由 fixture 驱动的 1440×900 状态产生。它们证明 macOS/Darwin 上的局部视觉契约已经存在；它们**不**构成 Ubuntu GitHub Actions 的可比较 release baseline，因为仓库没有任何批准的 `*-linux.png` 文件。GitHub Actions 已启用 macOS-14 的 visual regression lane，并在 `ci.yml` 中以独立端口、数据目录和 Next 输出目录运行；Linux canonical baseline 仍未引导。
 
 `playwright.config.ts` 的默认 desktop viewport 为 1440×900、`locale: zh-CN`，但默认 `deviceScaleFactor` 是 2；大部分 visual spec 另行设为 1，少数仅继承默认。Canonical Linux 引导前必须把每个纳入 gate 的 spec 的 viewport、scale、browser 版本和字体解析结果记录到 artifact，不能把“同为 1440×900”当作相同像素平台。
 
@@ -59,6 +59,7 @@
 | Video compositor | transition controls / `video-compositor-transition` | `video-compositor.spec.ts` | 已提交 | 未引导 |
 | Video compositor | subtitle controls / `video-compositor-subtitle` | `video-compositor.spec.ts` | 已提交 | 未引导 |
 | Video compositor | populated timeline / `video-compositor-timeline` | `video-compositor.spec.ts` | 已提交 | 未引导 |
+| Video compositor | seeded mixed-media timeline / `video-clip-editor-seeded-mixed-media` | `video-clip-editor-visual.spec.ts` | 已提交 | 未引导 |
 | Video compositor | trim controls / `video-compositor-trim` | `video-compositor.spec.ts` | 已提交 | 未引导 |
 | Account | identity menu / `account-identity-menu-dark` | `account-identity.spec.ts` | 已提交 | 未引导 |
 | Account | light preferences menu / `account-identity-menu-light-preferences` | `account-identity.spec.ts` | 已提交 | 未引导 |
@@ -80,7 +81,7 @@
 
 | 阻塞项 | 当前可核查证据 | 交付前必须完成的动作 |
 | --- | --- | --- |
-| Snapshot platform suffix | `git ls-files 'e2e/*snapshots/*.png'` 返回 56 个 `-darwin.png`，没有 `-linux.png`。 | 固定 Linux contract 后只生成/评审同名 `-linux.png`；不可重命名或覆盖 Darwin 基线。 |
+| Snapshot platform suffix | `git ls-files 'e2e/*snapshots/*.png'` 返回 57 个 `-darwin.png`，没有 `-linux.png`。 | 固定 Linux contract 后只生成/评审同名 `-linux.png`；不可重命名或覆盖 Darwin 基线。 |
 | OS/browser reproducibility | CI 是 `ubuntu-latest`，现有 CI 通过 `playwright install --with-deps chromium` 获取浏览器。 | 以 immutable Playwright Linux image digest 锁定 Chromium 与系统库，记录 Playwright/Chromium version。 |
 | Font reproducibility | CSS 使用 system fallback；仓库没有提交 `.woff/.woff2/.ttf/.otf`。 | 镜像安装并锁定 CJK/emoji/Latin 字体包；归档 `fc-match`、`fc-list` 与 CSS fallback 解析结果。 |
 | Scale consistency | 全局 config `deviceScaleFactor: 2`；常见 visual spec 用 `test.use(... deviceScaleFactor: 1)`，未纳入 gate 的 spec 不能从名称推断 scale。 | 每个 canonical spec 统一并显式申明 `deviceScaleFactor: 1`、`scale: 'css'` 或记录有意例外；引导/比较命令必须相同。 |
@@ -148,11 +149,11 @@
 
 visual baseline delivery 可宣布进入 required gate 的最低证据为：
 
-- 56 个 Darwin baseline 的清单、来源 spec 和不跨平台使用的限制均保持可追溯；
+- 57 个 Darwin baseline 的清单、来源 spec 和不跨平台使用的限制均保持可追溯；
 - macOS-14 visual lane 使用独立服务并由 `verify`、browser interaction 和 visual regression job 共同保护发布条件；
 - 首批 selected spec 有人工审批的 Linux counterparts，并在同一 immutable image digest、同字体 manifest 下连续三次无 diff；
 - visual CI 每次归档上述 failure diagnostics；
 - `publish` 仅在 `verify`、core E2E 与 visual-regression 均通过后执行；
-- Video/Clip 表列出的 P0 状态至少各有一个 approved 1440×900 screenshot contract，不能以单纯 core E2E 替代视觉证据；当前 seeded mixed-media journey 已有功能证据，但其独立音轨/最终预览仍待像素基线。
+- Video/Clip 表列出的 P0 状态至少各有一个 approved 1440×900 screenshot contract，不能以单纯 core E2E 替代视觉证据；seeded mixed-media timeline 已有独立 Darwin 像素基线，local export success、失败态和 Linux canonical baseline 仍是后续证据。
 
-在满足这些标准前，当前 54 张 Darwin baseline 与 browser core E2E 均是有效的局部证据，不足以支持“Linux visual release gate 已交付”的结论。
+在满足这些标准前，当前 57 张 Darwin baseline 与 browser core E2E 均是有效的局部证据，不足以支持“Linux visual release gate 已交付”的结论。

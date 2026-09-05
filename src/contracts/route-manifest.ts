@@ -169,7 +169,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-empty',
     'authenticated-populated',
   ]),
-  route('POST', '/api/identity', 'Account', 'updateLocalSession', ['退出登录', '登录并返回'], [
+  route('POST', '/api/identity', 'Account', 'updateLocalSession', ['退出登录', '登录并返回', '首页公开创意登录继续', '项目私有路由登录继续'], [
     'anonymous',
     'authenticated-empty',
     'authenticated-populated',

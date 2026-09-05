@@ -5136,7 +5136,7 @@
         "tags": [
           "Account"
         ],
-        "summary": "读取本地身份与会话回跳",
+        "summary": "读取本地身份、会话回跳与登录 continuation",
         "operationId": "getLocalIdentity",
         "x-ui-triggers": [
           "首页或画布头像菜单打开"
@@ -5159,7 +5159,7 @@
         ],
         "responses": {
           "200": {
-            "description": "脱敏身份与本地会话",
+            "description": "脱敏身份、本地会话和可恢复的 typed continuation",
             "content": {
               "application/json": {
                 "schema": {
@@ -5200,11 +5200,13 @@
         "tags": [
           "Account"
         ],
-        "summary": "切换本地登录会话",
+        "summary": "切换本地登录会话并保存 returnTo continuation",
         "operationId": "updateLocalSession",
         "x-ui-triggers": [
           "退出登录",
-          "登录并返回"
+          "登录并返回",
+          "首页公开创意登录继续",
+          "项目私有路由登录继续"
         ],
         "x-mock-scenarios": [
           "anonymous",
@@ -14371,6 +14373,40 @@
         "pattern": "^/(?!/).*$",
         "description": "仅允许本地相对路径，避免 returnTo 跳转到外站。"
       },
+      "LocalHomeCreativeContinuation": {
+        "type": "object",
+        "required": ["kind", "source", "prompt", "context"],
+        "properties": {
+          "kind": { "const": "home-creative" },
+          "source": { "type": "string", "enum": ["blank-canvas", "creator-tool", "composer"] },
+          "prompt": { "type": "string", "maxLength": 20000 },
+          "context": { "$ref": "#/components/schemas/CreationContext" }
+        },
+        "additionalProperties": false
+      },
+      "LocalProjectRouteContinuation": {
+        "type": "object",
+        "required": ["kind", "route"],
+        "properties": {
+          "kind": { "const": "project-route" },
+          "route": { "type": "string", "pattern": "^/project(?:\\?.*)?$", "description": "保留私有项目列表的站内 route 与 query" }
+        },
+        "additionalProperties": false
+      },
+      "LocalNoContinuation": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": { "kind": { "const": "none" } },
+        "additionalProperties": false
+      },
+      "LocalLoginContinuation": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/LocalNoContinuation" },
+          { "$ref": "#/components/schemas/LocalHomeCreativeContinuation" },
+          { "$ref": "#/components/schemas/LocalProjectRouteContinuation" }
+        ],
+        "description": "returnTo 对应的本地 UI 恢复状态；不包含真实登录凭据。"
+      },
       "LocalIdentityAccessKey": {
         "type": "object",
         "required": [
@@ -14540,7 +14576,8 @@
         "type": "object",
         "required": [
           "status",
-          "returnTo"
+          "returnTo",
+          "continuation"
         ],
         "properties": {
           "status": {
@@ -14552,6 +14589,9 @@
           },
           "returnTo": {
             "$ref": "#/components/schemas/LocalReturnTo"
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/LocalLoginContinuation"
           }
         },
         "additionalProperties": false
@@ -14594,6 +14634,9 @@
           },
           "returnTo": {
             "$ref": "#/components/schemas/LocalReturnTo"
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/LocalLoginContinuation"
           }
         },
         "additionalProperties": false

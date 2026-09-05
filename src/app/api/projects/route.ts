@@ -3,6 +3,7 @@ import { createCanvas } from '@/domain/factory'
 import type { Project } from '@/domain/types'
 import { HttpError, handle } from '@/server/http'
 import { DEFAULT_SPACE_ID, canvasesOfProject, findProjectFolder, isProjectRecycled, readState, withState } from '@/server/store'
+import { requireLocalAuthentication } from '@/server/identity'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ function validFolderId(state: Parameters<typeof findProjectFolder>[0], folderId:
 
 export async function GET() {
   return handle(async () => {
+    await requireLocalAuthentication()
     const state = await readState()
     const projects = state.projects
       .filter((p) => p.spaceId === DEFAULT_SPACE_ID && !isProjectRecycled(p))
@@ -39,6 +41,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const body = (await request.json().catch(() => ({}))) as { name?: string; folderId?: string | null }
     return withState((state) => {
       const now = new Date().toISOString()

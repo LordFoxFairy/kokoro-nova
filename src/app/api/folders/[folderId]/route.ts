@@ -1,6 +1,7 @@
 import { UpdateFolderRequestSchema } from '@/contracts/local'
 import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { deleteProjects, isProjectRecycled, withState } from '@/server/store'
+import { requireLocalAuthentication } from '@/server/identity'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,7 @@ type Params = { params: Promise<{ folderId: string }> }
 
 export async function PATCH(request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { folderId } = await params
     const body = await parseJsonBody(request, UpdateFolderRequestSchema)
     return withState((state) => {
@@ -31,6 +33,7 @@ export async function PATCH(request: Request, { params }: Params) {
  */
 export async function DELETE(request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { folderId } = await params
     const url = new URL(request.url)
     const confirmName = url.searchParams.get('confirmName') ?? ''

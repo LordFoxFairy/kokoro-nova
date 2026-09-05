@@ -54,7 +54,6 @@ export function AuthenticatedShell({ children }: { children: React.ReactNode }) 
   const [home, setHome] = useState<HomeDiscoveryResponse | null>(null)
   const [homeStatus, setHomeStatus] = useState<HomeDiscoveryStatus>('loading')
   const [homeError, setHomeError] = useState<string | null>(null)
-  const [anonymousViewer, setAnonymousViewer] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
   const retry = useCallback(() => setReloadToken((value) => value + 1), [])
@@ -90,27 +89,13 @@ export function AuthenticatedShell({ children }: { children: React.ReactNode }) 
   }, [reloadToken])
 
   useEffect(() => {
-    let active = true
-    setAnonymousViewer(false)
-    void client.scenarios
-      .get()
-      .then(({ scenario }) => {
-        if (active) setAnonymousViewer(scenario.viewer === 'anonymous')
-      })
-      .catch(() => {
-        // The scenario endpoint is development-only; the home response remains
-        // the production fallback when that local probe is unavailable.
-      })
-    return () => {
-      active = false
-    }
-  }, [reloadToken])
+    const reloadIdentityBoundDiscovery = () => setReloadToken((value) => value + 1)
+    window.addEventListener('kokoro:identity-changed', reloadIdentityBoundDiscovery)
+    return () => window.removeEventListener('kokoro:identity-changed', reloadIdentityBoundDiscovery)
+  }, [])
 
-  const publicMode = anonymousViewer || home?.account.membershipLabel === '登录'
-  const discoveryHome =
-    home && anonymousViewer
-      ? { ...home, account: { ...home.account, membershipLabel: '登录' }, recentProjects: [] }
-      : home
+  const publicMode = home?.account.membershipLabel === '登录'
+  const discoveryHome = home
   const discoveryState: HomeDiscoveryState = { status: homeStatus, error: homeError, retry, publicMode }
 
   return (

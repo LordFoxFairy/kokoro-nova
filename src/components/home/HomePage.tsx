@@ -1,14 +1,21 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { client } from '@/api/client'
+import { identityClient } from '@/api/identity'
 import { AuthenticatedShell, useHomeDiscovery, useHomeDiscoveryState } from '@/components/shell/AuthenticatedShell'
 import type { HomeDiscoveryResponse } from '@/contracts/home'
+import { emptyCreationContext } from '@/domain/creation-context'
 import { Dialog } from '@/components/ui/Dialog'
 import { CreatorToolGrid } from './CreatorToolGrid'
-import { buildHomeAgentBrief, HomeAgentComposer, type HomeAgentRequest } from './HomeAgentComposer'
+import {
+  buildHomeAgentBrief,
+  HomeAgentComposer,
+  type HomeAgentRequest,
+  type HomeCreativeContinuation,
+} from './HomeAgentComposer'
 import { RecentProjects } from './RecentProjects'
 import { TvShowFeed } from './TvShowFeed'
 
@@ -58,16 +65,80 @@ function HomeLoadError({ message, onRetry }: { message: string | null; onRetry: 
 
 function HomeSurface() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const home = useHomeDiscovery()
   const { status: homeStatus, error: homeError, retry, publicMode } = useHomeDiscoveryState()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loginPromptOpen, setLoginPromptOpen] = useState(false)
+  const [loginIntent, setLoginIntent] = useState<HomeCreativeContinuation | null>(null)
+  const [loginState, setLoginState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [resumedIntent, setResumedIntent] = useState<HomeCreativeContinuation | null>(null)
+  const [resumeState, setResumeState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [resumeError, setResumeError] = useState<string | null>(null)
 
-  const createAndOpen = async (request?: HomeAgentRequest, preferredName?: string) => {
+  const openLogin = useCallback((intent: HomeCreativeContinuation) => {
+    setLoginIntent(intent)
+    setLoginState('idle')
+    setLoginError(null)
+    setLoginPromptOpen(true)
+  }, [])
+
+  const restoreHomeIntent = useCallback(async () => {
+    setResumeState('loading')
+    setResumeError(null)
+    try {
+      const identity = await identityClient.get('/?resume=home')
+      if (identity.session.status !== 'authenticated' || identity.session.continuation.kind !== 'home-creative') {
+        throw new Error('未找到可恢复的创作上下文，请重新开始创作')
+      }
+      setResumedIntent(identity.session.continuation)
+      setResumeState('ready')
+    } catch (reason) {
+      setResumeState('error')
+      setResumeError(reason instanceof Error ? reason.message : '恢复创作上下文失败，请重试')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (searchParams.get('resume') !== 'home') return
+    void restoreHomeIntent()
+  }, [restoreHomeIntent, searchParams])
+
+  const signInAndContinue = async () => {
+    if (!loginIntent || loginState === 'loading') return
+    setLoginState('loading')
+    setLoginError(null)
+    try {
+      const identity = await identityClient.update({
+        action: 'signIn',
+        returnTo: '/?resume=home',
+        continuation: loginIntent,
+      })
+      window.dispatchEvent(new Event('kokoro:identity-changed'))
+      setLoginPromptOpen(false)
+      router.push(identity.session.returnTo)
+      router.refresh()
+    } catch (reason) {
+      setLoginState('error')
+      setLoginError(reason instanceof Error ? reason.message : '本地登录服务暂时不可用，请重试')
+    }
+  }
+
+  const createAndOpen = async (
+    request?: HomeAgentRequest,
+    preferredName?: string,
+    source: HomeCreativeContinuation['source'] = request ? 'creator-tool' : 'blank-canvas',
+  ) => {
     if (submitting) return
     if (publicMode) {
-      setLoginPromptOpen(true)
+      openLogin({
+        kind: 'home-creative',
+        source,
+        prompt: request?.text ?? '',
+        context: request?.creationContext ?? emptyCreationContext(),
+      })
       return
     }
     setSubmitting(true)
@@ -101,6 +172,7 @@ function HomeSurface() {
         creationRequestId: 'home-tool-intent',
       },
       tool.title,
+      'creator-tool',
     )
   }
 
@@ -126,7 +198,7 @@ function HomeSurface() {
             <span className="truncate">公开浏览中 · 登录后保存并开始创作</span>
             <button
               type="button"
-              onClick={() => setLoginPromptOpen(true)}
+              onClick={() => openLogin({ kind: 'home-creative', source: 'blank-canvas', prompt: '', context: emptyCreationContext() })}
               className="shrink-0 rounded-full bg-white px-2.5 py-1 font-medium text-[#151515] transition-colors hover:bg-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
             >
               登录
@@ -160,7 +232,7 @@ function HomeSurface() {
           </div>
           <button
             type="button"
-            onClick={() => setLoginPromptOpen(true)}
+            onClick={() => openLogin({ kind: 'home-creative', source: 'blank-canvas', prompt: '', context: emptyCreationContext() })}
             className="shrink-0 rounded-lg bg-[#60c9ef] px-3 py-1.5 text-[12px] font-medium text-[#10202a] transition-colors hover:bg-[#72d2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
           >
             登录后开始
@@ -169,14 +241,28 @@ function HomeSurface() {
       )}
 
       <div className="max-[850px]:[&>section]:h-auto max-[850px]:[&>section]:min-h-[150px] max-[850px]:[&>section>div:last-child]:w-full max-[850px]:[&>section>div:last-child]:justify-start max-[850px]:[&>section>div:last-child]:overflow-x-auto max-[850px]:[&>section>div:last-child]:pb-1">
-        <HomeAgentComposer
-          skills={home.featuredSkills}
-          submitting={submitting}
-          publicMode={publicMode}
-          onLoginRequired={() => setLoginPromptOpen(true)}
-          onSubmit={(request) => void createAndOpen(request)}
-        />
-      </div>
+          <HomeAgentComposer
+            skills={home.featuredSkills}
+            submitting={submitting}
+            publicMode={publicMode}
+            resumeIntent={resumedIntent}
+            onLoginRequired={openLogin}
+            onSubmit={(request) => void createAndOpen(request)}
+          />
+        </div>
+
+      {resumeState === 'loading' && (
+        <p data-testid="home-login-resume-loading" role="status" className="mt-3 text-center text-[12px] text-white/52">正在恢复刚才的创作上下文…</p>
+      )}
+      {resumeState === 'error' && (
+        <div data-testid="home-login-resume-error" role="alert" className="mt-3 flex items-center justify-center gap-2 text-center text-[12px] text-[#ff9a9a]">
+          <span>{resumeError}</span>
+          <button type="button" onClick={() => void restoreHomeIntent()} className="rounded border border-[#ff9a9a]/35 px-2 py-1 text-[11px] hover:bg-[#ff9a9a]/10">重试</button>
+        </div>
+      )}
+      {resumeState === 'ready' && resumedIntent && (
+        <p data-testid="home-login-resumed" role="status" className="mt-3 text-center text-[12px] text-[#8bd8a8]">已恢复刚才的创意；确认后即可继续创建项目。</p>
+      )}
 
       {error && <p role="alert" className="mt-3 text-center text-[12px] text-[#ff7d7d]">{error}</p>}
 
@@ -202,15 +288,20 @@ function HomeSurface() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setLoginPromptOpen(false)
-              router.push('/account')
-            }}
+            disabled={loginState === 'loading' || !loginIntent}
+            onClick={() => void signInAndContinue()}
             className="rounded-lg bg-ink-900 px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            前往登录
+            {loginState === 'loading' ? '登录中…' : '登录并继续'}
           </button>
         </div>
+        {loginIntent && <p className="pt-3 text-[11px] text-ink-500">将保留当前创意与已选上下文，并返回首页继续。</p>}
+        {loginState === 'loading' && <p data-testid="home-login-loading" role="status" className="pt-3 text-[12px] text-ink-500">正在建立本地登录会话…</p>}
+        {loginState === 'error' && (
+          <div data-testid="home-login-error" role="alert" className="pt-3 text-[12px] text-danger">
+            {loginError} <button type="button" onClick={() => void signInAndContinue()} className="underline">重试</button>
+          </div>
+        )}
       </Dialog>
     </div>
   )

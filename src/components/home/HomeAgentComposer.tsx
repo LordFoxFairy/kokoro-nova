@@ -20,6 +20,7 @@ import type {
   CreationReference,
   CreationSkill,
 } from "@/contracts/creation-context";
+import type { LocalLoginContinuation } from "@/contracts/identity";
 import type { ModelCatalogResponse } from "@/contracts/models";
 import type { SkillCardContract, SkillListResponse } from "@/contracts/skills";
 import {
@@ -73,6 +74,11 @@ export type HomeAgentRequest = {
   creationRequestId: string;
 };
 
+export type HomeCreativeContinuation = Extract<
+  LocalLoginContinuation,
+  { kind: "home-creative" }
+>;
+
 export type HomeComposerPopover =
   | "attachments"
   | "model"
@@ -111,7 +117,8 @@ type HomeAgentComposerProps = {
   }>;
   submitting?: boolean;
   publicMode?: boolean;
-  onLoginRequired?: () => void;
+  resumeIntent?: HomeCreativeContinuation | null;
+  onLoginRequired?: (intent: HomeCreativeContinuation) => void;
   onSubmit: (request: HomeAgentRequest) => void;
 };
 
@@ -185,12 +192,14 @@ export function HomeAgentComposer({
   skills,
   submitting = false,
   publicMode = false,
+  resumeIntent = null,
   onLoginRequired,
   onSubmit,
 }: HomeAgentComposerProps) {
   const composerRef = useRef<HTMLElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const objectUrlsRef = useRef<string[]>([]);
+  const appliedResumeRef = useRef<string | null>(null);
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
   const [activePopover, setActivePopover] = useState<HomeComposerPopover>(null);
@@ -284,10 +293,15 @@ export function HomeAgentComposer({
 
   const guardPrivateAction = useCallback(() => {
     if (!publicMode) return false;
-    onLoginRequired?.();
+    onLoginRequired?.({
+      kind: "home-creative",
+      source: "composer",
+      prompt: draft.trim(),
+      context: creationContext,
+    });
     setActivePopover(null);
     return true;
-  }, [onLoginRequired, publicMode]);
+  }, [creationContext, draft, onLoginRequired, publicMode]);
 
   const loadAssets = useCallback(async () => {
     setAssetState((current) => ({
@@ -406,6 +420,20 @@ export function HomeAgentComposer({
     setGenerationMode(restored.generationMode);
     setContextHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!contextHydrated || !resumeIntent) return;
+    const key = JSON.stringify(resumeIntent);
+    if (appliedResumeRef.current === key) return;
+    appliedResumeRef.current = key;
+    setDraft(resumeIntent.prompt);
+    setAttachments(resumeIntent.context.attachments);
+    setReferences(resumeIntent.context.references);
+    setSelectedModel(resumeIntent.context.model);
+    setSelectedSkill(resumeIntent.context.skill);
+    setGenerationMode(resumeIntent.context.generationMode);
+    setFocused(true);
+  }, [contextHydrated, resumeIntent]);
 
   useEffect(() => {
     if (!contextHydrated) return;

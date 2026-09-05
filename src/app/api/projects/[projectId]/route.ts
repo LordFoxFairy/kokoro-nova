@@ -3,6 +3,7 @@ import { ids } from '@/domain/ids'
 import { isProjectFixtureCoverUrl } from '@/contracts/project'
 import { HttpError, handle } from '@/server/http'
 import { activeScenarioId, canvasesOfProject, findProject, findProjectFolder, readState, recycleProjects, withState } from '@/server/store'
+import { requireLocalAuthentication } from '@/server/identity'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,7 @@ function validFolderId(
 
 export async function GET(_request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     if ((await activeScenarioId()) === 'session-expired') {
       throw new HttpError(401, '会话已过期，请刷新页面')
     }
@@ -39,6 +41,7 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function PATCH(request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { projectId } = await params
     const body = (await request.json()) as { name?: string; folderId?: string | null; coverUrl?: string | null }
     return withState((state) => {
@@ -64,6 +67,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { projectId } = await params
     return withState((state) => {
       const project = findProject(state, projectId)
@@ -77,6 +81,7 @@ export async function DELETE(_request: Request, { params }: Params) {
 /** 创建副本 — copies the project and every canvas document inside it. */
 export async function PUT(_request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { projectId } = await params
     return withState((state) => {
       const project = findProject(state, projectId)

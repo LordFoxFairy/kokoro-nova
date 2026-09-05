@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { IdentityResponseSchema } from '@/contracts/identity'
+import { emptyCreationContext } from '@/domain/creation-context'
 import { PreferencesResponseSchema } from '@/contracts/preferences'
 import { NotificationsResponseSchema } from '@/contracts/notifications'
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
@@ -61,6 +62,41 @@ describe.sequential('local identity account mock', () => {
     expect(IdentityResponseSchema.parse(await signedOut.json())).toMatchObject({ identity: null, session: { status: 'anonymous', returnTo: '/canvas?projectId=prj_video_demo' } })
     const signedIn = await POST(jsonRequest('http://localhost/api/identity', { action: 'signIn', returnTo: '/canvas?projectId=prj_video_demo' }))
     expect(IdentityResponseSchema.parse(await signedIn.json())).toMatchObject({ identity: { displayName: '微信用户cd385d' }, session: { status: 'authenticated', returnTo: '/canvas?projectId=prj_video_demo' } })
+  })
+
+  it('persists a typed home or project continuation across the local sign-in hand-off', async () => {
+    const homeIntent = {
+      kind: 'home-creative' as const,
+      source: 'composer' as const,
+      prompt: '雨夜城市里的纸飞机短片',
+      context: emptyCreationContext(),
+    }
+    const signedOut = await POST(jsonRequest('http://localhost/api/identity', {
+      action: 'signOut',
+      returnTo: '/?resume=home',
+      continuation: homeIntent,
+    }))
+    expect(IdentityResponseSchema.parse(await signedOut.json())).toMatchObject({
+      session: { status: 'anonymous', returnTo: '/?resume=home', continuation: homeIntent },
+    })
+
+    const signedIn = await POST(jsonRequest('http://localhost/api/identity', { action: 'signIn' }))
+    expect(IdentityResponseSchema.parse(await signedIn.json())).toMatchObject({
+      session: { status: 'authenticated', returnTo: '/?resume=home', continuation: homeIntent },
+    })
+
+    const projectIntent = {
+      kind: 'project-route' as const,
+      route: '/project?folderId=folder_demo',
+    }
+    const projectSignOut = await POST(jsonRequest('http://localhost/api/identity', {
+      action: 'signOut',
+      returnTo: projectIntent.route,
+      continuation: projectIntent,
+    }))
+    expect(IdentityResponseSchema.parse(await projectSignOut.json())).toMatchObject({
+      session: { status: 'anonymous', returnTo: projectIntent.route, continuation: projectIntent },
+    })
   })
 
   it('marks the deterministic two unread notifications as read', async () => {

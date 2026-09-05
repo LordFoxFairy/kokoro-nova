@@ -28,7 +28,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`TEXT_AUTHORING_STATE.md`](TEXT_AUTHORING_STATE.md) | Text 四模型、富文本文档、三个启动 Workflow、编译与内联产物契约 |
 | [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md) | Script V2 状态、四个 operation、批量/幂等/stale writeback 与后端 handoff |
 | [`src/contracts/account.ts`](../../src/contracts/account.ts) | `GET /api/account` 的既有账户中心身份、钱包、会员、偏好和通知投影 |
-| [`account-identity.md`](account-identity.md) | 首页与画布共用的 `LocalIdentity`、会话回跳、主题/水印偏好与通知摘要 contract |
+| [`account-identity.md`](account-identity.md) | 首页与画布共用的 `LocalIdentity`、会话回跳、typed login continuation、主题/水印偏好与通知摘要 contract |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`showcase-directory.md`](showcase-directory.md) | TV Show 目录分页、搜索回退、显式 empty/error fixture 与登录后复制项目契约 |

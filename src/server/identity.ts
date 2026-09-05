@@ -4,8 +4,10 @@ import path from 'node:path'
 
 import {
   IdentityResponseSchema,
+  LocalLoginContinuationSchema,
   LocalReturnToSchema,
   type IdentityResponse,
+  type LocalLoginContinuation,
   type LocalSession,
   type UpdateSessionRequest,
 } from '@/contracts/identity'
@@ -18,6 +20,7 @@ import {
   NotificationSummarySchema,
   type NotificationSummary,
 } from '@/contracts/notifications'
+import { HttpError } from '@/server/http'
 import {
   DEFAULT_LOCAL_PREFERENCES,
   LOCAL_IDENTITY_FIXTURE,
@@ -30,6 +33,8 @@ const IDENTITY_FILE = path.join(DATA_DIR, 'local-identity.json')
 type StoredIdentityState = {
   scenarioId: string
   sessionStatus: LocalSession['status']
+  returnTo: string
+  continuation: LocalLoginContinuation
   preferences: LocalPreferences
   readNotificationIds: string[]
 }
@@ -42,6 +47,8 @@ function defaultStoredState(scenarioId: string): StoredIdentityState {
   return {
     scenarioId,
     sessionStatus: defaultStatus(scenarioId),
+    returnTo: '/',
+    continuation: { kind: 'none' },
     preferences: { ...DEFAULT_LOCAL_PREFERENCES },
     readNotificationIds: [],
   }
@@ -51,11 +58,15 @@ function parseStoredState(value: unknown, scenarioId: string): StoredIdentitySta
   if (!value || typeof value !== 'object') return defaultStoredState(scenarioId)
   const record = value as Partial<StoredIdentityState>
   const preferences = LocalPreferencesSchema.safeParse(record.preferences)
+  const returnTo = LocalReturnToSchema.safeParse(record.returnTo)
+  const continuation = LocalLoginContinuationSchema.safeParse(record.continuation)
   return {
     scenarioId: typeof record.scenarioId === 'string' ? record.scenarioId : scenarioId,
     sessionStatus: record.sessionStatus === 'anonymous' || record.sessionStatus === 'authenticated'
       ? record.sessionStatus
       : defaultStatus(scenarioId),
+    returnTo: returnTo.success ? returnTo.data : '/',
+    continuation: continuation.success ? continuation.data : { kind: 'none' },
     preferences: preferences.success ? preferences.data : { ...DEFAULT_LOCAL_PREFERENCES },
     readNotificationIds: Array.isArray(record.readNotificationIds)
       ? record.readNotificationIds.filter((item): item is string => typeof item === 'string')
@@ -125,7 +136,8 @@ function toIdentityResponse(state: StoredIdentityState, returnTo?: string): Iden
     identity: state.sessionStatus === 'authenticated' ? LOCAL_IDENTITY_FIXTURE : null,
     session: {
       status: state.sessionStatus,
-      returnTo: normaliseReturnTo(returnTo),
+      returnTo: normaliseReturnTo(returnTo ?? state.returnTo),
+      continuation: state.continuation,
     },
   }
   return IdentityResponseSchema.parse(response)
@@ -138,8 +150,20 @@ export async function readLocalIdentity(returnTo?: string): Promise<IdentityResp
 export async function updateLocalSession(input: UpdateSessionRequest): Promise<IdentityResponse> {
   return mutate((state) => {
     state.sessionStatus = input.action === 'signIn' ? 'authenticated' : 'anonymous'
-    return toIdentityResponse(state, input.returnTo)
+    state.returnTo = normaliseReturnTo(input.returnTo ?? state.returnTo)
+    if (input.continuation) state.continuation = LocalLoginContinuationSchema.parse(input.continuation)
+    else if (input.action === 'signOut') state.continuation = { kind: 'none' }
+    return toIdentityResponse(state)
   })
+}
+
+/** Project routes use this same fixture session as the visual login gate. */
+export async function requireLocalAuthentication() {
+  const identity = await readLocalIdentity()
+  if (identity.session.status !== 'authenticated') {
+    throw new HttpError(401, '需要登录后访问私有项目')
+  }
+  return identity
 }
 
 export async function readLocalPreferences(): Promise<LocalPreferences> {

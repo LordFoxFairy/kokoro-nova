@@ -4,6 +4,7 @@ import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
 import { resetStore } from '@/server/store'
 import { POST as createFolder } from '../folders/route'
 import { PATCH as updateFolder } from '../folders/[folderId]/route'
+import { POST as updateLocalSession } from '../identity/route'
 import { POST as restoreProject } from '../recycle-bin/[projectId]/route'
 import { DELETE as recycleProject, PATCH, PUT } from './[projectId]/route'
 import { GET as listProjects, POST as createProject } from './route'
@@ -103,5 +104,16 @@ describe.sequential('project lifecycle persistence', () => {
       { params: Promise.resolve({ folderId: folder.id }) },
     )
     expect(invalid.status).toBe(400)
+  })
+
+  it('rejects private project reads after the local identity session is signed out', async () => {
+    await updateLocalSession(new Request('http://localhost/api/identity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'signOut', returnTo: '/project' }),
+    }))
+    const response = await listProjects()
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: '需要登录后访问私有项目' })
   })
 })

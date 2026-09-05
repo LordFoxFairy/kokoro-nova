@@ -1,5 +1,6 @@
 import { HttpError, handle } from '@/server/http'
 import { deleteProjects, findStoredProject, restoreProject, withState } from '@/server/store'
+import { requireLocalAuthentication } from '@/server/identity'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,7 @@ type Params = { params: Promise<{ projectId: string }> }
 /** Restore a recycled project. Its retained canvases are immediately readable again. */
 export async function POST(_request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { projectId } = await params
     return withState((state) => {
       const restored = restoreProject(state, projectId)
@@ -24,6 +26,7 @@ export async function POST(_request: Request, { params }: Params) {
 /** Irreversibly remove a project and its retained canvases/session history. */
 export async function DELETE(_request: Request, { params }: Params) {
   return handle(async () => {
+    await requireLocalAuthentication()
     const { projectId } = await params
     return withState((state) => {
       const project = findStoredProject(state, projectId)

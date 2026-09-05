@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AuthenticatedShell, useHomeDiscoveryState } from '@/components/shell/AuthenticatedShell'
+import { identityClient } from '@/api/identity'
 import {
   IconCopy,
   IconFolder,
@@ -88,6 +89,8 @@ function errorMessage(reason: unknown, fallback: string) {
 
 function ProjectListSurface() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { status: homeStatus, publicMode } = useHomeDiscoveryState()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [folders, setFolders] = useState<FolderRow[]>([])
@@ -106,6 +109,8 @@ function ProjectListSurface() {
   const [deleteProject, setDeleteProject] = useState<ProjectRow | null>(null)
   const [deleteFolder, setDeleteFolder] = useState<FolderRow | null>(null)
   const [folderConfirmText, setFolderConfirmText] = useState('')
+  const [loginState, setLoginState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [loginError, setLoginError] = useState<string | null>(null)
 
   const menu = useMenuAnchor()
   const loadedRef = useRef(false)
@@ -374,6 +379,26 @@ function ProjectListSurface() {
   const selectedProject = menuTarget?.kind === 'project' ? projects.find((item) => item.id === menuTarget.id) : null
   const selectedFolder = menuTarget?.kind === 'folder' ? folders.find((item) => item.id === menuTarget.id) : null
 
+  const projectReturnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+  const signInAndReturn = async () => {
+    if (loginState === 'loading') return
+    setLoginState('loading')
+    setLoginError(null)
+    try {
+      const identity = await identityClient.update({
+        action: 'signIn',
+        returnTo: projectReturnTo,
+        continuation: { kind: 'project-route', route: projectReturnTo },
+      })
+      window.dispatchEvent(new Event('kokoro:identity-changed'))
+      router.push(identity.session.returnTo)
+      router.refresh()
+    } catch (reason) {
+      setLoginState('error')
+      setLoginError(errorMessage(reason, '本地登录服务暂时不可用，请重试'))
+    }
+  }
+
   if (publicMode) {
     return (
       <div className="min-h-[calc(100vh-106px)] bg-[#111] px-10 py-16 max-[1100px]:px-4">
@@ -383,7 +408,7 @@ function ProjectListSurface() {
           className="mx-auto flex max-w-xl flex-col items-center justify-center gap-3 rounded-2xl border border-white/[0.08] bg-[#171717] px-6 py-16 text-center"
         >
           <IconFolder size={38} className="text-[#60c9ef]/65" />
-          <h1 className="text-[17px] font-semibold text-white/86">登录后管理项目</h1>
+          <h1 className="text-[17px] font-semibold text-white/86">需要登录后访问私有项目</h1>
           <p className="max-w-md text-[13px] leading-relaxed text-white/45">
             项目、文件夹和 Agent 会话属于你的私有工作区。公开内容可以继续浏览，登录后即可创建和编辑项目。
           </p>
@@ -396,12 +421,20 @@ function ProjectListSurface() {
             </Link>
             <button
               type="button"
-              onClick={() => router.push('/account')}
+              disabled={loginState === 'loading'}
+              onClick={() => void signInAndReturn()}
               className="rounded-lg bg-[#60c9ef] px-3.5 py-2 text-[12px] font-medium text-[#10202a] transition-colors hover:bg-[#72d2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60c9ef]"
             >
-              前往登录
+              {loginState === 'loading' ? '登录中…' : '登录并返回'}
             </button>
           </div>
+          {loginState === 'loading' && <p data-testid="project-login-loading" role="status" className="text-[12px] text-white/50">正在建立本地登录会话…</p>}
+          {loginState === 'error' && (
+            <div data-testid="project-login-error" role="alert" className="flex items-center gap-2 text-[12px] text-[#ff9a9a]">
+              <span>{loginError}</span>
+              <button type="button" data-testid="project-login-retry" onClick={() => void signInAndReturn()} className="rounded border border-[#ff9a9a]/35 px-2 py-1 text-[11px] hover:bg-[#ff9a9a]/10">重试</button>
+            </div>
+          )}
         </section>
       </div>
     )

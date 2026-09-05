@@ -1,16 +1,18 @@
 import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
-import { SCENARIO_CATALOG } from '@/mocks/scenarios/catalog'
 import { handle } from '@/server/http'
 import { listShowcaseEntries } from '@/server/showcase'
-import { activeScenarioId, DEFAULT_SPACE_ID, isProjectRecycled, readState } from '@/server/store'
+import { readLocalIdentity } from '@/server/identity'
+import { DEFAULT_SPACE_ID, isProjectRecycled, readState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   return handle(async () => {
-    const [state, scenarioId] = await Promise.all([readState(), activeScenarioId()])
-    const viewer = SCENARIO_CATALOG[scenarioId].viewer
-    const authenticated = viewer !== 'anonymous'
+    const [state, identity] = await Promise.all([readState(), readLocalIdentity()])
+    // The scenario seeds public discovery, while the identity store remains the
+    // sole authority for a local session transition. This lets an anonymous
+    // fixture sign in without changing its deterministic catalogue.
+    const authenticated = identity.session.status === 'authenticated'
     const recentProjects = state.projects
       .filter((project) => project.spaceId === DEFAULT_SPACE_ID && !isProjectRecycled(project))
       .slice()

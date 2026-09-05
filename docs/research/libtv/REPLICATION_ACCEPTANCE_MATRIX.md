@@ -74,7 +74,7 @@
 
 | ID | 验收项 | 官网证据 | local 实现 / 测试 | 状态 |
 | --- | --- | --- | --- | --- |
-| K-01 | Skill 市场首屏含创作输入、Skill/收藏/我的、分类和搜索 | 官方实际入口为 [`/skill`](https://www.liblib.tv/skill)，而非 `/skills` | `SkillGallery`；`docs/screenshots/skills-market-dark-1440x900.png`；`e2e/skills-parity.spec.ts` | `PARTIAL`：local 路径是产品自有 `/skills`，需决定是否保留兼容 alias |
+| K-01 | Skill 市场首屏含创作输入、Skill/收藏/我的、分类和搜索 | 官方实际入口为 [`/skill`](https://www.liblib.tv/skill) | `SkillGallery`；`/skill` 与 `/skill/[skillId]` 原位兼容，保留 `/skills` 路径；`docs/screenshots/skills-market-dark-1440x900.png`；`e2e/skills-parity.spec.ts` | `VERIFIED_LOCAL`（双路径兼容） |
 | K-02 | 卡片包含封面、类型、稳定 slash 名、简介、作者、使用量、收藏 | [Skill 页面 README](pages/skills/README.md) | `SkillCard`、`SKILL_CATALOGUE`、`SkillGridCard` | `VERIFIED_LOCAL`（冻结目录） |
 | K-03 | 收藏/取消收藏、分类/搜索、空态与错误/刷新反馈 | [收藏与空态截图](pages/skills/screenshots/skill-market-authenticated-favorites-empty.png) | `setSkillFavourite`、request state、retry；`skill-surfaces.test.ts`、`skills-parity.spec.ts` | `VERIFIED_LOCAL`（local contract） |
 | K-04 | 详情元数据、四图轮播、原图层、分享、添加到 composer、立即使用登录门 | [详情与轮播](pages/skills/README.md) | `SkillDetail`；`skills-detail-carousel-dark-1440x900.png`、`skills-detail-lightbox-dark-1440x900.png`；`skills-parity.spec.ts` | `VERIFIED_LOCAL`（local interaction） |

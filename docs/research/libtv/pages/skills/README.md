@@ -1,6 +1,6 @@
 # Skill 广场与详情
 
-路径：`/skill`
+路径：官方为 `/skill`；local 同时提供 `/skill`、`/skill/[skillId]` 与既有 `/skills` 兼容入口，均原位渲染、不发生 canonical redirect。
 
 ## 已观察状态
 

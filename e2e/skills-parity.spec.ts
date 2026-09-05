@@ -40,6 +40,18 @@ test.describe('Skill discovery parity', () => {
     await expect(page.getByTestId('skill-composer-login-gate')).toContainText('登录后开始创作')
   })
 
+  test('serves the observed singular /skill routes without canonical path drift', async ({ page }) => {
+    await page.goto('/skill')
+    await expect(page).toHaveURL(/\/skill$/)
+    await expect(page.getByTestId('skill-gallery')).toBeVisible()
+    await expect(page.getByTestId('skill-card-skill-storyboard-breakdown')).toBeVisible({ timeout: 15_000 })
+
+    await page.goto('/skill/skill-storyboard-breakdown')
+    await expect(page).toHaveURL(/\/skill\/skill-storyboard-breakdown$/)
+    await expect(page.getByTestId('skill-detail')).toBeVisible()
+    await expect(page.getByTestId('skill-media-carousel')).toBeVisible({ timeout: 15_000 })
+  })
+
   test('navigates the detail carousel, lightbox and local action states', async ({ page }) => {
     await page.goto('/skills/skill-storyboard-breakdown')
     await expect(page.getByTestId('skill-detail')).toBeVisible()

@@ -519,6 +519,13 @@ async function waitForComposeTask(
 }
 
 describe('compose task lifecycle', () => {
+  it('rejects a non-local source when the service seam is called directly', async () => {
+    await expect(compose.startComposeTask({
+      clips: [clip({ url: 'https://cdn.example.com/remote.mp4' })],
+      subtitles: [],
+    })).rejects.toThrow('素材地址必须是 /api/media/ 下的本地媒体')
+  })
+
   it('persists queued work, permits failed retries, and never publishes an artifact after cancellation', async () => {
     let behavior: 'success' | 'failure' | 'block' = 'success'
     let unblock: (() => void) | null = null

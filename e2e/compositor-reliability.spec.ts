@@ -74,3 +74,65 @@ test('compositor preserves selected split and trim history through keyboard undo
   await clips.first().click()
   await expect(page.getByRole('spinbutton', { name: '片段入点' })).toHaveValue('0.1')
 })
+
+
+test('export cancellation preserves the persisted timeline and clears only its resumable task', async ({ page, request }) => {
+  await prepareCompositor(page, request)
+  await page
+    .getByTestId('clip-source-video-art_video_01')
+    .getByRole('button', { name: '添加到时间线' })
+    .click()
+  await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(1)
+
+  await expect.poll(async () => {
+    const saved = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+    const node = saved.canvas.document.nodes.find((item: { type: string }) => item.type === 'videoComposite')
+    return node.data.extra.composite.clips.length
+  }).toBe(1)
+  const current = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+  const composite = current.canvas.document.nodes.find((node: { type: string }) => node.type === 'videoComposite')
+
+  const baseTask = {
+    id: 'compose_task_cancel_e2e',
+    status: 'rendering',
+    artifact: null,
+    assetId: null,
+    subtitleMode: null,
+    notes: [],
+    failure: null,
+    createdAt: '2026-09-04T00:00:00.000Z',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+  }
+  let cancelled = false
+  await page.route('**/api/compose', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task: baseTask }) })
+  })
+  await page.route('**/api/compose/compose_task_cancel_e2e', async (route) => {
+    if (route.request().method() === 'POST') {
+      cancelled = true
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task: { ...baseTask, status: 'cancelled', updatedAt: '2026-09-04T00:00:01.000Z' } }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ task: cancelled ? { ...baseTask, status: 'cancelled' } : baseTask }),
+    })
+  })
+
+  await page.getByTestId('clip-export-trigger').click()
+  await page.getByTestId('export-to-canvas').click()
+  await expect(page.getByTestId('compose-progress')).toBeVisible()
+  await page.getByTestId('compose-cancel').click()
+  await expect(page.getByTestId('compose-success')).toContainText('已取消合成')
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
+
+  const after = await request.get('/api/canvases/can_video_main').then((response) => response.json())
+  const persisted = after.canvas.document.nodes.find((node: { type: string }) => node.type === 'videoComposite')
+  expect(persisted.data.extra.composite.clips).toEqual(composite.data.extra.composite.clips)
+  expect(after.canvas.document.nodes.filter((node: { type: string }) => node.type === 'video')).toHaveLength(1)
+})

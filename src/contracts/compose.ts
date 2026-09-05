@@ -2,11 +2,16 @@ import { z } from 'zod'
 
 import { ArtifactSchema } from './local'
 
+/** Local deterministic compositor inputs must be minted by the media route. */
+export const ComposeMediaUrlSchema = z
+  .string()
+  .regex(/^\/api\/media\/(?:[^/?#]+\/)*[^/?#]+$/, '素材地址必须是 /api/media/ 下的本地媒体')
+
 export const ComposeTransitionIdSchema = z.enum(['fade', 'to-black', 'to-white'])
 
 export const ComposeClipSchema = z
   .object({
-    url: z.string().min(1),
+    url: ComposeMediaUrlSchema,
     inPoint: z.number().finite().nonnegative(),
     outPoint: z.number().finite().positive(),
     speed: z.number().finite().min(0.25).max(4).default(1),
@@ -34,7 +39,7 @@ export const ComposeClipSchema = z
 
 export const ComposeAudioTrackSchema = z
   .object({
-    url: z.string().min(1),
+    url: ComposeMediaUrlSchema,
     inPoint: z.number().finite().nonnegative(),
     outPoint: z.number().finite().positive(),
     start: z.number().finite().nonnegative().default(0),

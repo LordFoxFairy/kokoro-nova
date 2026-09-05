@@ -8,6 +8,7 @@ import {
 import type { Artifact, WorkflowDocument } from '@/domain/types'
 import {
   collectSources,
+  isComposableMediaSource,
   isExcludedCompositeSource,
   playheadValueForKey,
   sourceAspectRatio,
@@ -113,6 +114,24 @@ describe('ClipEditor timeline accessibility helpers', () => {
 })
 
 describe('ClipEditor source semantics', () => {
+  it('admits only deterministic local media artifacts as compositor inputs', () => {
+    const localVideo = {
+      ...source('fixture-video'),
+      artifact: { ...artifact('fixture-video', 'video', 1280, 720), url: '/api/media/fixtures/city-night.mp4', durationSeconds: 12 },
+    }
+    const localAudio = {
+      artifact: { ...artifact('fixture-audio', 'audio', null, null), url: '/api/media/fixtures/compositor-bed.wav', durationSeconds: 3 },
+      nodeId: 'node-fixture-audio',
+      nodeName: '本地配乐',
+    } satisfies CompositeSource
+
+    expect(isComposableMediaSource(localVideo)).toBe(true)
+    expect(isComposableMediaSource(localAudio)).toBe(true)
+    expect(isComposableMediaSource({ ...localVideo, artifact: { ...localVideo.artifact, url: 'https://cdn.example.com/shot.mp4' } })).toBe(false)
+    expect(isComposableMediaSource({ ...localVideo, artifact: { ...localVideo.artifact, durationSeconds: 0 } })).toBe(false)
+    expect(isComposableMediaSource({ ...localVideo, nodeType: 'videoComposite' })).toBe(false)
+  })
+
   it('uses source dimensions for the original aspect ratio and labels the current composite exclusion', () => {
     expect(sourceAspectRatio({ width: 1176, height: 1764 })).toBe('1176 / 1764')
     expect(sourceAspectRatioLabel({ width: 1176, height: 1764 })).toBe('2:3')

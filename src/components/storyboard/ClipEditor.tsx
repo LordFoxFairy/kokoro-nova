@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { ComposeTaskResponseSchema, type ComposeTask } from '@/contracts/compose'
+import { ComposeMediaUrlSchema, ComposeTaskResponseSchema, type ComposeTask } from '@/contracts/compose'
 import {
   appendAudioTrack,
   appendClip,
@@ -157,6 +157,23 @@ export function isExcludedCompositeSource(source: CompositeSource): boolean {
   return source.nodeType === 'videoComposite'
 }
 
+/**
+ * The compositor only accepts deterministic local media. This mirrors
+ * the Zod request boundary before a user can place a source on the timeline;
+ * the server still realpath-checks and probes the file at render time.
+ */
+export function isComposableMediaSource(source: CompositeSource): boolean {
+  const artifact = source.artifact
+  return (
+    !isExcludedCompositeSource(source) &&
+    (artifact.kind === 'video' || artifact.kind === 'audio') &&
+    typeof artifact.durationSeconds === 'number' &&
+    Number.isFinite(artifact.durationSeconds) &&
+    artifact.durationSeconds >= MIN_CLIP_SECONDS &&
+    ComposeMediaUrlSchema.safeParse(artifact.url).success
+  )
+}
+
 function compositeNodeOf(document: WorkflowDocument): WorkflowNode | null {
   return document.nodes.find((node) => node.type === 'videoComposite') ?? null
 }
@@ -299,11 +316,15 @@ export function ClipEditor({
   const redoLabel = useEditor((state) => state.redoStack.at(-1)?.label ?? null)
   const allSources = useMemo(() => collectSources(workflow), [workflow])
   const sources = useMemo(
-    () => allSources.filter((source) => !isExcludedCompositeSource(source)),
+    () => allSources.filter(isComposableMediaSource),
     [allSources],
   )
   const excludedCompositeSources = useMemo(
     () => allSources.filter(isExcludedCompositeSource),
+    [allSources],
+  )
+  const unavailableSources = useMemo(
+    () => allSources.filter((source) => !isExcludedCompositeSource(source) && !isComposableMediaSource(source)),
     [allSources],
   )
   const videos = useMemo(() => sources.filter((source) => source.artifact.kind === 'video'), [sources])
@@ -342,6 +363,16 @@ export function ClipEditor({
   const trackViewportRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const aliveRef = useRef(true)
+
+  /** Only active work and failures are resumable; successful/cancelled work is acknowledged once. */
+  const rememberComposeTask = useCallback((task: ComposeTask) => {
+    setComposeTask(task)
+    if (task.status === 'queued' || task.status === 'rendering' || task.status === 'failed') {
+      window.localStorage.setItem(COMPOSE_TASK_STORAGE_KEY, task.id)
+    } else {
+      window.localStorage.removeItem(COMPOSE_TASK_STORAGE_KEY)
+    }
+  }, [])
 
   const timeline = useMemo(() => {
     if (!trimPreview) return persistedTimeline
@@ -450,7 +481,7 @@ export function ClipEditor({
         await api.get<unknown>(`/api/compose/${encodeURIComponent(current.id)}`),
       ).task
       if (aliveRef.current) {
-        setComposeTask(current)
+        rememberComposeTask(current)
         setRendering(current.status === 'queued' || current.status === 'rendering')
       }
     }
@@ -465,8 +496,9 @@ export function ClipEditor({
     } else if (current.status === 'cancelled') {
       setSuccess('已取消合成，时间线保持不变。')
     }
+    rememberComposeTask(current)
     return current
-  }, [])
+  }, [rememberComposeTask])
 
   useEffect(() => {
     aliveRef.current = true
@@ -485,7 +517,7 @@ export function ClipEditor({
           await api.get<unknown>(`/api/compose/${encodeURIComponent(taskId)}`),
         ).task
         if (!aliveRef.current) return
-        setComposeTask(task)
+        rememberComposeTask(task)
         setRendering(task.status === 'queued' || task.status === 'rendering')
         setFailure(task.status === 'failed' ? task.failure : null)
         setSuccess(task.status === 'succeeded'
@@ -497,7 +529,7 @@ export function ClipEditor({
         window.localStorage.removeItem(COMPOSE_TASK_STORAGE_KEY)
       }
     })()
-  }, [observeComposeTask, open])
+  }, [observeComposeTask, open, rememberComposeTask])
 
   useEffect(() => {
     const viewport = trackViewportRef.current
@@ -606,6 +638,13 @@ export function ClipEditor({
       setTimelineFeedback({
         tone: 'error',
         message: '当前合成已排除：当前 videoComposite 不是可添加的源素材，请改用其他视频。',
+      })
+      return
+    }
+    if (!isComposableMediaSource(source)) {
+      setTimelineFeedback({
+        tone: 'error',
+        message: '该素材不是有效的本地媒体，无法添加到时间线。',
       })
       return
     }
@@ -772,8 +811,7 @@ export function ClipEditor({
       const task = ComposeTaskResponseSchema.parse(
         await api.post<unknown>('/api/compose', toComposeRequest(timeline)),
       ).task
-      window.localStorage.setItem(COMPOSE_TASK_STORAGE_KEY, task.id)
-      if (aliveRef.current) setComposeTask(task)
+      if (aliveRef.current) rememberComposeTask(task)
       const terminal = await observeComposeTask(task)
       if (terminal.status === 'succeeded' && terminal.artifact) return terminal
       if (terminal.status === 'failed') toast(terminal.failure ?? '合成失败', 'error')
@@ -795,7 +833,7 @@ export function ClipEditor({
       await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'cancel' }),
     ).task
     if (!aliveRef.current) return
-    setComposeTask(task)
+    rememberComposeTask(task)
     setRendering(false)
     setFailure(null)
     setSuccess('已取消合成，时间线保持不变。')
@@ -810,7 +848,7 @@ export function ClipEditor({
       const task = ComposeTaskResponseSchema.parse(
         await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'retry' }),
       ).task
-      setComposeTask(task)
+      rememberComposeTask(task)
       await observeComposeTask(task)
     } catch (error) {
       const message = error instanceof Error ? error.message : '重试失败'
@@ -867,6 +905,7 @@ export function ClipEditor({
         sources={videos}
         audios={audios}
         excludedSources={excludedCompositeSources}
+        unavailableSources={unavailableSources}
         onAdd={addSource}
       />
       <section
@@ -1171,11 +1210,13 @@ function SourceRail({
   sources,
   audios,
   excludedSources,
+  unavailableSources,
   onAdd,
 }: {
   sources: CompositeSource[]
   audios: CompositeSource[]
   excludedSources: CompositeSource[]
+  unavailableSources: CompositeSource[]
   onAdd: (source: CompositeSource) => void
 }) {
   const drag = (event: DragEvent, source: CompositeSource) => {
@@ -1228,6 +1269,15 @@ function SourceRail({
               className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-800 ring-1 ring-amber-200"
             >
               当前合成已排除：{excludedSources.map((source) => source.nodeName).join('、')}不是可添加的源素材，请改用其他视频。
+            </p>
+          )}
+          {unavailableSources.length > 0 && (
+            <p
+              data-testid="clip-source-invalid"
+              role="note"
+              className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-800 ring-1 ring-amber-200"
+            >
+              已隐藏 {unavailableSources.map((source) => source.nodeName).join('、')}：仅支持存在时长的 `/api/media/` 本地媒体。
             </p>
           )}
           {sources.length === 0 ? (

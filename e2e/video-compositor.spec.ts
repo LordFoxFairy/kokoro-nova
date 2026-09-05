@@ -374,6 +374,7 @@ test('export sends the normalized persisted timeline contract and adds the resul
     subtitles: [],
   })
 
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
   await page.getByTestId('view-workflow').click()
   await expect(page.locator('[data-node-type="video"]')).toHaveCount(2)
 })
@@ -484,8 +485,10 @@ test('refresh restores a failed compose task and retries it without changing the
 
   await openCompositor(page, request)
   await expect(page.getByTestId('compose-error')).toContainText('本地 fixture 渲染失败')
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBe('compose_task_refresh')
   await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(0)
   await page.getByTestId('compose-retry').click()
   await expect(page.getByTestId('compose-success')).toContainText('合成完成')
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
   await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(0)
 })

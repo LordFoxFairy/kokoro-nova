@@ -346,16 +346,15 @@ type ComposeRequest = {
 
 - 至少 1、最多 40 个视频片段；独立音轨最多 16 条；字幕最多 100 条；
 - 裁切后、转场重叠前的总时长最多 20 分钟（1200 秒）；每个裁切窗口至少 0.05 秒；
-- `url` 必须是 `/api/media/` 下的本地媒体，服务端在交给 ffmpeg 前做解码、路径边界、
-  `realpath` 和普通文件校验；
+- `url` 必须是无 query/fragment 的 `/api/media/` 本地媒体 URL；ClipEditor 只允许存在正时长的本地 video/audio artifact 入轨，Zod 在 HTTP 边界拒绝远端 URL，服务端在交给 ffmpeg 前仍做解码、路径边界、`realpath` 和普通文件校验；
 - 视频源音频会按裁切、倍速和转场同步处理；无音频的片段以静音补齐；独立 BGM/配音按
   `start` 放置、按 `volume` 混音；
 - 转场时长会根据相邻片段有效长度收缩；字幕优先烧录，缺少文字渲染能力时封装为
   `mov_text`，响应的 `subtitleMode` 明确返回 `burned`、`muxed` 或 `none`；
 - 成功响应为 `{ artifact, assetId, subtitleMode, notes }`，其中 Artifact 同步登记进个人
   资产库。`notes` 用于展示裁切、几何或字幕降级，不代表请求失败；
-- `400` 表示契约/时间线无效，`404` 表示源文件消失，`503` 表示 ffmpeg 缺失，`504`
-  表示超过 90 秒执行预算，`500` 表示渲染失败。失败不会清空或改写前端时间线。
+- `POST /api/compose` 的 `400` 只表示同步契约/时间线无效；任务创建后发现源文件消失、ffmpeg
+  缺失、超过 90 秒预算或渲染失败，都会由同一 task 的 `failed + failure` 返回。失败不会清空或改写前端时间线。
 
 完整样本见 [`compose.request.json`](examples/compose.request.json) 与
 [`compose.response.json`](examples/compose.response.json)，运行时 Schema 位于

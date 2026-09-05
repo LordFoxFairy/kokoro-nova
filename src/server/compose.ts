@@ -4,7 +4,7 @@ import path from 'node:path'
 import { DATA_DIR, DEFAULT_SPACE_ID, MEDIA_DIR, withState, withWorkspaceLock } from './store'
 import { ids, newId } from '@/domain/ids'
 import type { Asset } from '@/domain/types'
-import type { ComposeTask } from '@/contracts/compose'
+import { ComposeRequestSchema, type ComposeTask } from '@/contracts/compose'
 import { MEDIA_PUBLIC_PREFIX } from './generation/runner'
 
 /**
@@ -1157,6 +1157,10 @@ function queueComposeTask(taskId: string) {
 }
 
 export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask> {
+  // HTTP routes already decode this contract, but the service is also a seam
+  // for deterministic fixtures and future workers. Re-parse here so no caller
+  // can enqueue a remote or malformed source by bypassing the route layer.
+  const normalizedSpec = ComposeRequestSchema.parse(spec)
   const now = new Date().toISOString()
   const task: StoredComposeTask = {
     id: newId('compose_task'),
@@ -1168,7 +1172,7 @@ export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask>
     failure: null,
     createdAt: now,
     updatedAt: now,
-    spec: structuredClone(spec),
+    spec: structuredClone(normalizedSpec),
   }
   await withWorkspaceLock(async () => {
     const tasks = await readComposeTasksUnlocked()

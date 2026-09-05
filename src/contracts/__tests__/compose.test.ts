@@ -25,6 +25,24 @@ describe('video compose contract', () => {
     })
   })
 
+  it('accepts only local media-route URLs at the request boundary', () => {
+    const request = {
+      clips: [{
+        url: 'https://cdn.example.com/remote.mp4',
+        inPoint: 0,
+        outPoint: 1,
+        speed: 1,
+        transitionAfter: null,
+      }],
+    }
+
+    expect(ComposeRequestSchema.safeParse(request).success).toBe(false)
+    expect(ComposeRequestSchema.safeParse({
+      ...request,
+      clips: [{ ...request.clips[0], url: '/api/media/fixtures/city-night.mp4' }],
+    }).success).toBe(true)
+  })
+
   it('keeps optional arrays backwards compatible', () => {
     expect(
       ComposeRequestSchema.parse({

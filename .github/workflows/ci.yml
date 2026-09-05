@@ -135,6 +135,7 @@ jobs:
 
       - name: Record visual platform contract
         run: |
+          set +e
           mkdir -p test-results/visual-platform
           {
             echo '=== runner ==='

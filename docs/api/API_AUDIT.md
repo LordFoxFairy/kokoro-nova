@@ -1,9 +1,9 @@
 # API 契约审计（1.25.1-account-member-not-found）
 
 > 审计日期：2026-09-05  
-> 范围：`docs/api/`、`src/app/api/`、`src/contracts/`、`src/contracts/route-manifest.ts` 与对应的 local mock Route Handler；本次不修改运行时代码。
-> 基线：`6a6d1d3a`，OpenAPI `1.25.1-account-member-not-found`。
-> 本次补齐：仅更新 OpenAPI、契约测试与 API 文档；不修改 Route Handler。
+> 范围：`docs/api/`、`src/app/api/`、`src/contracts/`、`src/contracts/route-manifest.ts` 与对应的 local mock Route Handler；本轮同时补充 compose mock worker 的 reset-generation 运行时闭环。
+> 基线：`main` 最新提交，OpenAPI `1.25.1-account-member-not-found`。
+> 本次补齐：OpenAPI、契约测试、API 文档，以及 compose mock worker 的 reset race 保护。
 
 ## 结论
 
@@ -19,6 +19,7 @@
 - `src/app/api/assets/folders/route.test.ts` 新增资产文件夹的 GET 空列表/计数、POST 创建、持久化回读、Zod schema、状态码和 JSON content-type smoke。
 - `src/app/api/compose/route.test.ts` 新增 succeeded 终态 artifact/assetId/subtitleMode/notes 校验，以及 renderer failure → failed → retry → succeeded 状态链。
 - `openapi.yaml` 为 compose task 增加 queued、rendering、failed、cancelled 的可执行 external examples；与现有 succeeded 示例一起覆盖完整终态投影。
+- `resetStore()` 轮换 workspace generation、清理 compose task/成片目录；进行中的旧 renderer 在提交 Asset 前校验 generation，避免 scenario 切换后向新 fixture 写入旧产物；`src/app/api/compose/route.test.ts` 新增 reset race 回归测试。
 
 上述闭环降低了 API-AUD-06/API-AUD-07 的 Video/Assets 缺口，但不改变“尚未覆盖全部 92 个 operation 的运行时矩阵”这一结论。
 

@@ -12,13 +12,13 @@ transport 的一一对应。
 
 | 范围 | path / operation | OpenAPI schema | 确定性 mock 约定 | 后端接手边界 |
 |---|---:|---|---|---|
-| Project / Folder / Recycle Bin | 6 / 12 | 已精确 | 空账户、默认命名、软删除 30 天保留、恢复与永久删除确认 | project/folder repository |
+| Project / Folder / Recycle Bin | 7 / 13 | 已精确 | 空账户、默认命名、软删除 30 天保留、恢复与永久删除确认 | project/folder repository |
 | Canvas / workflow / Creation Context | 3 / 8 | 已精确 | revision、冲突、当前 document 与首页发送前上下文冻结 | document store + optimistic lock + context store |
-| Jobs / Script V2 / compose | 6 / 11 | 已精确 | quote、poll、幂等、终态、取消/重试与 fixture | queue/provider/render adapter |
+| Jobs / Script V2 / compose | 7 / 11 | 已精确 | quote、poll、幂等、终态、取消/重试与 fixture | queue/provider/render adapter |
 | Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
-| Public discovery / publish | 7 / 9 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
+| Public discovery / publish | 8 / 11 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
 | Account / ledger / team | 11 / 15 | 已精确 | identity、会话、钱包、偏好、通知、Access Key、团队命令、共享资产与外部 handoff projection | shared account domain + billing/ledger/team service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |

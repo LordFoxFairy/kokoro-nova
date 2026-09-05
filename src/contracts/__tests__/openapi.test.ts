@@ -205,6 +205,35 @@ describe('local API manifest and OpenAPI', () => {
     expect(openApiPairs(document)).toEqual(manifestPairs)
   })
 
+  it('derives the Route Coverage domain counts from the manifest', () => {
+    const coverage = readFileSync(path.join(process.cwd(), 'docs/api/ROUTE_COVERAGE.md'), 'utf8')
+    const groups = [
+      {
+        label: 'Project / Folder / Recycle Bin',
+        includes: (route: (typeof LOCAL_API_ROUTES)[number]) =>
+          route.tag === 'Projects' || route.tag === 'Folders' || route.tag === 'Recycle Bin',
+      },
+      {
+        label: 'Jobs / Script V2 / compose',
+        includes: (route: (typeof LOCAL_API_ROUTES)[number]) =>
+          route.tag === 'Jobs' || route.tag === 'Script V2' || route.tag === 'Video',
+      },
+      {
+        // Home discovery belongs in both the project-home and public-discovery
+        // handoff domains, so it intentionally overlaps the first group.
+        label: 'Public discovery / publish',
+        includes: (route: (typeof LOCAL_API_ROUTES)[number]) =>
+          route.path === '/api/home' || route.tag === 'Publish' || route.tag === 'Showcase',
+      },
+    ] as const
+
+    for (const group of groups) {
+      const routes = LOCAL_API_ROUTES.filter(group.includes)
+      const paths = new Set(routes.map((route) => route.path)).size
+      expect(coverage).toContain(`| ${group.label} | ${paths} / ${routes.length} |`)
+    }
+  })
+
   it('gives every operation a unique ID, UI trigger and reproducible scenario', () => {
     const document = openApiDocument()
     const operationIds = new Set<string>()

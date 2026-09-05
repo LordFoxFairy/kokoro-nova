@@ -1,0 +1,5 @@
+{
+  "inviteeAlias": "本地协作者",
+  "role": "member",
+  "idempotencyKey": "team-invite-example"
+}

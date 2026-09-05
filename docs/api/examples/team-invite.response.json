@@ -1,0 +1,36 @@
+{
+  "invite": {
+    "id": "invite_local_0001",
+    "inviteeAlias": "本地协作者",
+    "role": "member",
+    "state": "pending",
+    "createdAt": "2026-09-04T14:00:00.000Z"
+  },
+  "team": {
+    "state": "ready",
+    "message": "已加载 Kokoro 创作组的本地团队视图。",
+    "team": {
+      "id": "team_kokoro_creative",
+      "name": "Kokoro 创作组",
+      "role": "owner",
+      "seatCount": 3,
+      "seatLimit": 5,
+      "sharedAssetCount": 2,
+      "members": [
+        { "id": "member_local_cd385d", "displayName": "微信用户cd385d", "avatarInitial": "微", "role": "owner" },
+        { "id": "member_liu", "displayName": "刘同学", "avatarInitial": "刘", "role": "admin" },
+        { "id": "member_video", "displayName": "视频策划", "avatarInitial": "视", "role": "member" }
+      ],
+      "pendingInvites": [
+        {
+          "id": "invite_local_0001",
+          "inviteeAlias": "本地协作者",
+          "role": "member",
+          "state": "pending",
+          "createdAt": "2026-09-04T14:00:00.000Z"
+        }
+      ]
+    }
+  },
+  "message": "本地邀请已创建；未来后端负责邮箱/成员目录投递。"
+}

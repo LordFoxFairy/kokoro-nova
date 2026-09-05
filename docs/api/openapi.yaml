@@ -6835,6 +6835,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTeamInviteRequest"
+              },
+              "examples": {
+                "createPendingInvite": {
+                  "$ref": "#/components/examples/CreateTeamInviteRequestExample"
+                }
               }
             }
           }
@@ -6846,6 +6851,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateTeamInviteResponse"
+                },
+                "examples": {
+                  "pendingInvite": {
+                    "$ref": "#/components/examples/CreateTeamInviteResponseExample"
+                  }
                 }
               }
             }
@@ -6941,6 +6951,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTeamMemberRequest"
+              },
+              "examples": {
+                "demoteAdminToMember": {
+                  "$ref": "#/components/examples/UpdateTeamMemberRequestExample"
+                }
               }
             }
           }
@@ -6952,6 +6967,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TeamMemberUpdateResponse"
+                },
+                "examples": {
+                  "memberRoleUpdated": {
+                    "$ref": "#/components/examples/TeamMemberUpdateResponseExample"
+                  }
                 }
               }
             }
@@ -17569,6 +17589,22 @@
       }
     },
     "examples": {
+      "CreateTeamInviteRequestExample": {
+        "summary": "以本地显示别名创建 pending 团队邀请",
+        "externalValue": "./examples/team-invite.request.json"
+      },
+      "CreateTeamInviteResponseExample": {
+        "summary": "创建后可在团队投影中读取 pending invitation",
+        "externalValue": "./examples/team-invite.response.json"
+      },
+      "UpdateTeamMemberRequestExample": {
+        "summary": "将现有管理员降为成员",
+        "externalValue": "./examples/team-member-update.request.json"
+      },
+      "TeamMemberUpdateResponseExample": {
+        "summary": "更新后的成员和团队 projection",
+        "externalValue": "./examples/team-member-update.response.json"
+      },
       "ComposeRequestExample": {
         "summary": "两段视频、独立配乐和一条字幕",
         "value": {

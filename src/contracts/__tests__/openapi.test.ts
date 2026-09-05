@@ -15,6 +15,10 @@ import materialsStyleExample from '../../../docs/api/examples/materials-style.re
 import materialsDetailExample from '../../../docs/api/examples/materials-detail.response.json'
 import materialsFavouriteRequestExample from '../../../docs/api/examples/materials-favourite.request.json'
 import materialsFavouriteResponseExample from '../../../docs/api/examples/materials-favourite.response.json'
+import teamInviteRequestExample from '../../../docs/api/examples/team-invite.request.json'
+import teamInviteResponseExample from '../../../docs/api/examples/team-invite.response.json'
+import teamMemberUpdateRequestExample from '../../../docs/api/examples/team-member-update.request.json'
+import teamMemberUpdateResponseExample from '../../../docs/api/examples/team-member-update.response.json'
 import {
   CreateScriptV2RunRequestSchema,
   OfficialPromptRecomputeEnvelopeSchema,
@@ -34,6 +38,12 @@ import {
   AccessKeyResponseSchema,
   AccountExternalHandoffsResponseSchema,
 } from '@/contracts/account-external'
+import {
+  CreateTeamInviteRequestSchema,
+  CreateTeamInviteResponseSchema,
+  TeamMemberUpdateResponseSchema,
+  UpdateTeamMemberRequestSchema,
+} from '@/contracts/team'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -49,14 +59,14 @@ type OpenApiOperation = {
     required?: boolean
     content?: Record<string, {
       schema?: { $ref?: string }
-      examples?: Record<string, { value?: unknown }>
+      examples?: Record<string, { $ref?: string; value?: unknown }>
     }>
   }
   parameters?: Array<{ name?: string; in?: string; required?: boolean }>
   responses?: Record<string, {
     content?: Record<string, {
       schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> }
-      examples?: Record<string, { value?: unknown }>
+      examples?: Record<string, { $ref?: string; value?: unknown }>
     }>
   }>
 }
@@ -360,6 +370,56 @@ describe('local API manifest and OpenAPI', () => {
       subscription: { action: 'open-subscription' },
     })
     expect(JSON.stringify({ activeKey, createCommand, createdKey, readyHandoffs })).not.toMatch(/(?:sk-|secret|token)/i)
+  })
+
+  it('keeps team command examples executable and connected to their OpenAPI operations', () => {
+    const document = openApiDocument()
+    const invite = operationAt(document, 'POST', '/api/team/invites')
+    const member = operationAt(document, 'PATCH', '/api/team/members/{memberId}')
+
+    expect(invite.requestBody?.content?.['application/json']?.examples?.createPendingInvite?.$ref).toBe(
+      '#/components/examples/CreateTeamInviteRequestExample',
+    )
+    expect(invite.responses?.['200']?.content?.['application/json']?.examples?.pendingInvite?.$ref).toBe(
+      '#/components/examples/CreateTeamInviteResponseExample',
+    )
+    expect(member.requestBody?.content?.['application/json']?.examples?.demoteAdminToMember?.$ref).toBe(
+      '#/components/examples/UpdateTeamMemberRequestExample',
+    )
+    expect(member.responses?.['200']?.content?.['application/json']?.examples?.memberRoleUpdated?.$ref).toBe(
+      '#/components/examples/TeamMemberUpdateResponseExample',
+    )
+
+    expect(document.components?.examples?.CreateTeamInviteRequestExample?.externalValue).toBe(
+      './examples/team-invite.request.json',
+    )
+    expect(document.components?.examples?.CreateTeamInviteResponseExample?.externalValue).toBe(
+      './examples/team-invite.response.json',
+    )
+    expect(document.components?.examples?.UpdateTeamMemberRequestExample?.externalValue).toBe(
+      './examples/team-member-update.request.json',
+    )
+    expect(document.components?.examples?.TeamMemberUpdateResponseExample?.externalValue).toBe(
+      './examples/team-member-update.response.json',
+    )
+
+    expect(CreateTeamInviteRequestSchema.parse(teamInviteRequestExample)).toEqual({
+      inviteeAlias: '本地协作者',
+      role: 'member',
+      idempotencyKey: 'team-invite-example',
+    })
+    expect(CreateTeamInviteResponseSchema.parse(teamInviteResponseExample)).toMatchObject({
+      invite: { id: 'invite_local_0001', state: 'pending' },
+      team: { state: 'ready', team: { pendingInvites: [{ id: 'invite_local_0001' }] } },
+    })
+    expect(UpdateTeamMemberRequestSchema.parse(teamMemberUpdateRequestExample)).toEqual({
+      role: 'member',
+      idempotencyKey: 'team-member-role-example',
+    })
+    expect(TeamMemberUpdateResponseSchema.parse(teamMemberUpdateResponseExample)).toMatchObject({
+      member: { id: 'member_liu', role: 'member' },
+      team: { state: 'ready' },
+    })
   })
 
   it('keeps the standalone documentation audit executable', () => {

@@ -1,0 +1,4 @@
+{
+  "role": "member",
+  "idempotencyKey": "team-member-role-example"
+}

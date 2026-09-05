@@ -1,0 +1,27 @@
+{
+  "member": {
+    "id": "member_liu",
+    "displayName": "刘同学",
+    "avatarInitial": "刘",
+    "role": "member"
+  },
+  "team": {
+    "state": "ready",
+    "message": "已加载 Kokoro 创作组的本地团队视图。",
+    "team": {
+      "id": "team_kokoro_creative",
+      "name": "Kokoro 创作组",
+      "role": "owner",
+      "seatCount": 3,
+      "seatLimit": 5,
+      "sharedAssetCount": 2,
+      "members": [
+        { "id": "member_local_cd385d", "displayName": "微信用户cd385d", "avatarInitial": "微", "role": "owner" },
+        { "id": "member_liu", "displayName": "刘同学", "avatarInitial": "刘", "role": "member" },
+        { "id": "member_video", "displayName": "视频策划", "avatarInitial": "视", "role": "member" }
+      ],
+      "pendingInvites": []
+    }
+  },
+  "message": "已将 刘同学 更新为成员。"
+}

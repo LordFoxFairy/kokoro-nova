@@ -1,5 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
+import teamInviteRequestExample from '../../../docs/api/examples/team-invite.request.json'
+import teamInviteResponseExample from '../../../docs/api/examples/team-invite.response.json'
+import teamMemberUpdateRequestExample from '../../../docs/api/examples/team-member-update.request.json'
+import teamMemberUpdateResponseExample from '../../../docs/api/examples/team-member-update.response.json'
+import { CreateTeamInviteRequestSchema, UpdateTeamMemberRequestSchema } from '@/contracts/team'
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
 import {
   commandLocalAccessKey,
@@ -47,6 +52,19 @@ describe.sequential('local account external command boundaries', () => {
     expect(updated.member).toMatchObject({ id: 'member_liu', role: 'member' })
     await expect(updateLocalTeamMember('member_local_cd385d', { role: 'member', idempotencyKey: 'member-owner' }))
       .rejects.toMatchObject({ status: 403 })
+  })
+
+  it('keeps the published team command examples identical to the deterministic fixture transitions', async () => {
+    const invitation = await createLocalTeamInvite(CreateTeamInviteRequestSchema.parse(teamInviteRequestExample))
+
+    // Each published example begins from the deterministic populated fixture,
+    // so the member transition intentionally does not inherit the invitation.
+    await resetStore('authenticated-populated')
+    await updateLocalSession({ action: 'signIn', returnTo: '/' })
+    const member = await updateLocalTeamMember('member_liu', UpdateTeamMemberRequestSchema.parse(teamMemberUpdateRequestExample))
+
+    expect(invitation).toEqual(teamInviteResponseExample)
+    expect(member).toEqual(teamMemberUpdateResponseExample)
   })
 
   it('makes billing, invoice and model-market ownership explicit rather than calling a remote service', async () => {

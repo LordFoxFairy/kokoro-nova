@@ -39,6 +39,15 @@ not-created --create--> active --rotate--> active (generation + 1)
 3. 在异步投递、过期、接受、撤回之间维护 invitation state；
 4. 保持 `TeamResponse` 的 `ready|empty|permission-denied` 投影不变量和显式 pending 列表。
 
+可执行的确定性样本将请求、成功响应和其 fixture transition 锁定在一起：
+
+- [创建 pending 团队邀请请求](examples/team-invite.request.json) / [响应](examples/team-invite.response.json)
+- [更新成员角色请求](examples/team-member-update.request.json) / [响应](examples/team-member-update.response.json)
+
+两条写命令均把 `idempotencyKey` 放在 JSON body。相同 key 与相同输入重放原 response；相同 key
+与不同输入返回 `409`。匿名会话返回 `401`；owner role 更新返回 `403`；未知成员返回 `404`。这些是
+本地 fixture 的稳定错误语义，未来 membership service 应保留 status/code 映射并改用真实 principal 与审计事件。
+
 ## Subscription, invoice and model-market handoff
 
 `GET /api/account/handoffs` 返回单一账号外部服务 projection：

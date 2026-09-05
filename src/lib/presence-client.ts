@@ -2,6 +2,8 @@
 
 import { create } from 'zustand'
 import { ApiError, client } from '@/lib/api'
+import type { ApiErrorCode } from '@/api/client'
+import { LocalErrorEnvelopeSchema } from '@/contracts/http'
 import type { EditorLease } from '@/contracts/presence'
 import type { Participant, PresenceEvent, PresencePoint, PresenceViewport } from '@/server/presence'
 
@@ -217,13 +219,32 @@ function parseFrame(frame: string): PresenceEvent | null {
   }
 }
 
+/** Keep JSON ErrorResponse diagnostics available when an SSE handshake fails. */
+export async function presenceStreamHandshakeError(response: Response): Promise<Error> {
+  const body: unknown = await response.json().catch(() => null)
+  const envelope = LocalErrorEnvelopeSchema.safeParse(body)
+  if (envelope.success) {
+    return new ApiError(
+      response.status,
+      envelope.data.error.message,
+      envelope.data.error.code as ApiErrorCode,
+      envelope.data.error.details ?? null,
+      envelope.data.requestId,
+    )
+  }
+  return new Error(`presence stream ${response.status}`)
+}
+
 async function readStream(conn: Connection) {
   const response = await fetch(streamUrl(conn), {
     signal: conn.abort.signal,
     cache: 'no-store',
     headers: { Accept: 'text/event-stream' },
   })
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
+    throw await presenceStreamHandshakeError(response)
+  }
+  if (!response.body) {
     throw new Error(`presence stream ${response.status}`)
   }
 

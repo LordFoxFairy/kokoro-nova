@@ -65,7 +65,7 @@
 
 ### Presence 客户端消费边界
 
-- `src/lib/presence-client.ts` 用 `fetch(..., Accept: text/event-stream)` 和手写 frame parser 读取 GET，不使用 `EventSource`。当 status 非 2xx 或无 `body` 时，它只抛 `Error("presence stream {status}")`；不会解析 JSON error body、`error.code`、`details` 或 `requestId`。随后以指数退避重连。
+- `src/lib/presence-client.ts` 用 `fetch(..., Accept: text/event-stream)` 和手写 frame parser 读取 GET，不使用 `EventSource`。当握手 status 非 2xx 时，它会解析完整 JSON `ErrorResponse` 并保留为 `ApiError(status, code, details, requestId)`；无 envelope 或成功响应却缺少 `body` 时仍使用紧凑的 `Error("presence stream {status}")` fallback。随后以指数退避重连。
 - Presence POST 通过 typed `client.presence.*` 进入 `src/api/client.ts`。该 client 可兼容 legacy string 与 object-shaped error，并让 `EDIT_LEASE_CONFLICT` / `SESSION_EXPIRED` 到达 `ApiError.code`；`ApiError` 现保留 `requestId`，因此 JSON transport 的调用方可将其用于安全诊断；页面仍只应展示安全 message，不显示内部细节。
 - 获取 lease 的 UI 仅以 `EDIT_LEASE_CONFLICT` 进入 blocked 状态；其他错误回到 idle。续约错误则显示为 blocked。任何 envelope 收敛都必须保持这两个 409 code，而不是仅按 status 归为 `REVISION_CONFLICT`。
 
@@ -116,7 +116,7 @@
 
 按风险和不改变既有页面语义的优先级：
 
-1. **P0：保持 Presence requestId 的客户端可观测性。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；`ApiError` 已保留 `requestId`，后续 telemetry 可安全采集该关联值。对已建立 SSE，不把 JSON response 写进流内；文档应明确“连接期异常以连接关闭/重连处理”，或新增版本化的 `event: error` schema 后再由客户端实现该事件。
+1. **已关闭：Presence 握手 requestId 的客户端保留。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；SSE handshake client 现解析该 envelope 并以 `ApiError` 保留 `requestId`。对已建立 SSE，不把 JSON response 写进流内；连接期异常仍以连接关闭/重连处理，只有新增版本化的 `event: error` schema 后才由客户端实现该事件。
 2. **已关闭：media 403/404 OpenAPI content type。** 文档现以 `text/plain; charset=utf-8` string 与 `Forbidden` / `Not found` examples 描述实际 runtime。若未来选择 JSON error，先为资源消费者定义不依赖 body 的 error UX，并改写 runtime 与测试。
 3. **P1：持续验证 binary response headers。** media OpenAPI 已列出 `Content-Length`、`Cache-Control`、`Content-Security-Policy`、`X-Content-Type-Options`，并明确当前不声明或实现 `Range` / `206` / `Content-Range`。未来若实现 Range，需同步增加 runtime、OpenAPI 与测试。
 4. **P1：明确 preview failure 策略。** 可保持“仅 200、无受控错误”的 fixture 声明，并在 OpenAPI description 写明其限制；若生产 adapter 可能失败，应另定义 resource-safe 4xx/5xx（建议 text/plain 或 SVG fallback，而非无消费者的 JSON），同时增加图像加载失败 UI 契约。stitch `seq` 已按 runtime 记录为宽容 string，只有 `"1"` 启用序号。

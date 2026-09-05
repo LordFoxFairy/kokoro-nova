@@ -6,6 +6,8 @@ import {
   CreationContextWriteResponseSchema,
   type CreationContext,
 } from "@/contracts/creation-context";
+import { LocalErrorEnvelopeSchema } from "@/contracts/http";
+import { ApiError, type ApiErrorCode } from "@/api/client";
 
 export type CreationContextTransport = (
   input: RequestInfo | URL,
@@ -22,14 +24,20 @@ async function typed<T>(
 ): Promise<T> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const message =
-      body &&
-      typeof body === "object" &&
-      "error" in body &&
-      typeof body.error === "string"
-        ? body.error
-        : `请求失败 (${response.status})`;
-    throw new Error(message);
+    const envelope = LocalErrorEnvelopeSchema.safeParse(body);
+    if (envelope.success) {
+      throw new ApiError(
+        response.status,
+        envelope.data.error.message,
+        envelope.data.error.code as ApiErrorCode,
+        envelope.data.error.details ?? null,
+        envelope.data.requestId,
+      );
+    }
+    const message = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+      ? body.error
+      : `请求失败 (${response.status})`;
+    throw new ApiError(response.status, message);
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success)

@@ -63,4 +63,28 @@ describe("CreationContext typed client", () => {
       },
     ]);
   });
+
+  it("preserves the standard JSON error envelope for UI recovery and diagnostics", async () => {
+    const transport: CreationContextTransport = async () =>
+      Response.json(
+        {
+          error: {
+            code: "INVALID_INPUT",
+            message: "context.references: 引用数量不能超过 8",
+            details: { field: "context.references", maximum: 8 },
+          },
+          requestId: "req_local_creation_context_invalid",
+        },
+        { status: 400 },
+      );
+    const client = createCreationContextClient(transport);
+
+    await expect(client.get()).rejects.toMatchObject({
+      name: "ApiError",
+      status: 400,
+      code: "INVALID_INPUT",
+      details: { field: "context.references", maximum: 8 },
+      requestId: "req_local_creation_context_invalid",
+    });
+  });
 });

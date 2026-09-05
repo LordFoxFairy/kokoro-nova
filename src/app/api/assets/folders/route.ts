@@ -1,3 +1,4 @@
+import { AssetFolderListResponseSchema } from '@/contracts/assets'
 import { newId } from '@/domain/ids'
 import { handle } from '@/server/http'
 import { DEFAULT_SPACE_ID, readState, withState, type WorkspaceState } from '@/server/store'
@@ -58,7 +59,7 @@ export async function GET() {
       if (counts[asset.folderId] !== undefined) counts[asset.folderId] += 1
     }
 
-    return { folders, counts }
+    return AssetFolderListResponseSchema.parse({ folders, counts })
   })
 }
 

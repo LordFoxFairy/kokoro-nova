@@ -237,6 +237,12 @@ export const CanvasDetailLocalResponseSchema = z.object({
   balance: z.number().finite(),
 })
 
+export const ProjectDetailLocalResponseSchema = z.object({
+  project: ProjectSchema,
+  canvases: z.array(CanvasSchema),
+  balance: z.number().finite(),
+})
+
 export const CanvasMutationSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('addNode'), node: WorkflowNodeSchema }).strict(),
   z.object({ op: z.literal('updateNode'), nodeId: z.string(), patch: z.record(z.unknown()) }).strict(),

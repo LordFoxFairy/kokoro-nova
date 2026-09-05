@@ -49,5 +49,18 @@ export const AssetLifecycleActionRequestSchema = z.object({ action: AssetLifecyc
 export const AssetListVisibilitySchema = z.enum(['active', 'unavailable', 'all'])
 export const AssetListFixtureSchema = z.enum(['none', 'media-missing'])
 
+export const AssetFolderSchema = z.object({
+  id: z.string(),
+  spaceId: z.string(),
+  name: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+}).strict()
+
+export const AssetFolderListResponseSchema = z.object({
+  folders: z.array(AssetFolderSchema),
+  counts: z.record(z.string(), z.number().int().nonnegative()),
+}).strict()
+
 export type AssetLifecycleAction = z.infer<typeof AssetLifecycleActionSchema>
 export type AssetListVisibility = z.infer<typeof AssetListVisibilitySchema>

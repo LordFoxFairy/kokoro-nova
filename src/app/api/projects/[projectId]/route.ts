@@ -1,5 +1,6 @@
 import { createCanvas } from '@/domain/factory'
 import { ids } from '@/domain/ids'
+import { ProjectDetailLocalResponseSchema } from '@/contracts/local'
 import { isProjectFixtureCoverUrl } from '@/contracts/project'
 import { HttpError, handle } from '@/server/http'
 import { activeScenarioId, canvasesOfProject, findProject, findProjectFolder, readState, recycleProjects, withState } from '@/server/store'
@@ -31,11 +32,11 @@ export async function GET(_request: Request, { params }: Params) {
     const state = await readState()
     const project = findProject(state, projectId)
     if (!project) throw new HttpError(404, '项目不存在')
-    return {
+    return ProjectDetailLocalResponseSchema.parse({
       project,
       canvases: canvasesOfProject(state, projectId),
       balance: state.balances[project.spaceId] ?? 0,
-    }
+    })
   })
 }
 

@@ -30,3 +30,14 @@ Kokoro Nova 的 `/showcase` 是本地演示信息架构，不得将它倒推为�
 - 首页 anonymous 状态保留空输入 disabled、公开发现读取与私有新建登录门的边界。
 - 对应的本地 `/showcase` 路由应在文档中始终标为 frontend-only 演示路径；未来 backend adapter
   只能依据 OpenAPI `operationId` 和已记录的官网请求证据接入。
+
+## 补充：公开 TV Show 卡片的索引证据
+
+公开搜索索引（同一 `https://www.liblib.tv/` 首页，采集时间为近月）在内容列表中暴露了作品标题、
+创作者显示名与`先锋 / 专业 / 荣誉`等展示标签，并在列表末尾显示“没有更多了”。这属于**公开索引
+摘要**，低于上面的实时可访问性树证据：
+
+- 它可确认 TV Show 不是只有搜索框的空壳，卡片至少包含作品、作者、等级标签与有穷列表终点；
+- 它不能证明这些字段的真实 API 名称、分页 cursor、授权要求、作品详情路由或媒体地址；
+- 本地 fixture 可保持 `title / creator / displayBadge / terminal-page` 这一展示投影，但必须继续把
+  `snapshotId`、分页和冻结工作流放在本地 OpenAPI 与 mock 契约中，不能从搜索索引推导出上游 wire schema。

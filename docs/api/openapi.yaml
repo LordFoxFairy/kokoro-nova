@@ -4881,6 +4881,24 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccessKeyResponse"
+                },
+                "examples": {
+                  "active": {
+                    "summary": "已创建的脱敏 key 生命周期",
+                    "value": {
+                      "key": {
+                        "id": "access_key_local",
+                        "label": "Access key",
+                        "maskedValue": "lvtk_••••••••01",
+                        "state": "active",
+                        "generation": 1,
+                        "createdAt": "2026-09-04T12:01:00.000Z",
+                        "revokedAt": null,
+                        "scopes": ["account:read", "jobs:create", "assets:read"]
+                      },
+                      "message": "Access Key 仅以脱敏本地生命周期展示。"
+                    }
+                  }
                 }
               }
             }
@@ -4963,6 +4981,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AccessKeyCommandRequest"
+              },
+              "examples": {
+                "create": {
+                  "summary": "创建脱敏生命周期记录",
+                  "value": {
+                    "action": "create",
+                    "idempotencyKey": "access-key-create-example"
+                  }
+                }
               }
             }
           }
@@ -4974,6 +5001,24 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccessKeyResponse"
+                },
+                "examples": {
+                  "created": {
+                    "summary": "创建后的脱敏 projection",
+                    "value": {
+                      "key": {
+                        "id": "access_key_local",
+                        "label": "Access key",
+                        "maskedValue": "lvtk_••••••••01",
+                        "state": "active",
+                        "generation": 1,
+                        "createdAt": "2026-09-04T12:01:00.000Z",
+                        "revokedAt": null,
+                        "scopes": ["account:read", "jobs:create", "assets:read"]
+                      },
+                      "message": "已创建脱敏 Access Key 生命周期记录。"
+                    }
+                  }
                 }
               }
             }
@@ -5060,6 +5105,39 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccountExternalHandoffsResponse"
+                },
+                "examples": {
+                  "ready": {
+                    "summary": "已登录账户的外部服务 handoff",
+                    "value": {
+                      "state": "ready",
+                      "message": "以下命令为前端 handoff 状态，不会触发支付、开票或远端模型市场。",
+                      "subscription": {
+                        "state": "handoff-ready",
+                        "owner": "billing",
+                        "title": "订阅计划",
+                        "message": "账单服务接手开通、变更与取消订阅。",
+                        "actionLabel": "前往订阅方案",
+                        "action": "open-subscription"
+                      },
+                      "invoices": {
+                        "state": "empty",
+                        "owner": "invoice",
+                        "title": "购买记录与发票",
+                        "message": "当前确定性 fixture 没有购买记录或可开具发票。",
+                        "actionLabel": "查看购买记录",
+                        "action": "view-invoices"
+                      },
+                      "modelMarket": {
+                        "state": "handoff-ready",
+                        "owner": "model-market",
+                        "title": "模型市场",
+                        "message": "模型目录服务负责可购买模型、地区可用性与授权展示。",
+                        "actionLabel": "浏览模型市场",
+                        "action": "browse-model-market"
+                      }
+                    }
+                  }
                 }
               }
             }

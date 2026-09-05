@@ -29,6 +29,11 @@ import {
   ToggleMaterialFavouriteRequestSchema,
   ToggleMaterialFavouriteResponseSchema,
 } from '@/contracts/materials'
+import {
+  AccessKeyCommandRequestSchema,
+  AccessKeyResponseSchema,
+  AccountExternalHandoffsResponseSchema,
+} from '@/contracts/account-external'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -42,10 +47,18 @@ type OpenApiOperation = {
   'x-mock-scenarios'?: string[]
   requestBody?: {
     required?: boolean
-    content?: Record<string, { schema?: { $ref?: string } }>
+    content?: Record<string, {
+      schema?: { $ref?: string }
+      examples?: Record<string, { value?: unknown }>
+    }>
   }
   parameters?: Array<{ name?: string; in?: string; required?: boolean }>
-  responses?: Record<string, { content?: Record<string, { schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> } }> }>
+  responses?: Record<string, {
+    content?: Record<string, {
+      schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> }
+      examples?: Record<string, { value?: unknown }>
+    }>
+  }>
 }
 type OpenApiDocument = {
   openapi?: string
@@ -311,6 +324,27 @@ describe('local API manifest and OpenAPI', () => {
         }),
       })
     }
+  })
+
+  it('provides executable account-boundary examples without exposing an Access Key secret', () => {
+    const document = openApiDocument()
+    const accessKey = operationAt(document, 'GET', '/api/access-key')
+    const accessKeyCommand = operationAt(document, 'POST', '/api/access-key')
+    const handoffs = operationAt(document, 'GET', '/api/account/handoffs')
+
+    const activeKey = accessKey.responses?.['200']?.content?.['application/json']?.examples?.active?.value
+    const createCommand = accessKeyCommand.requestBody?.content?.['application/json']?.examples?.create?.value
+    const createdKey = accessKeyCommand.responses?.['200']?.content?.['application/json']?.examples?.created?.value
+    const readyHandoffs = handoffs.responses?.['200']?.content?.['application/json']?.examples?.ready?.value
+
+    expect(AccessKeyResponseSchema.parse(activeKey)).toMatchObject({ key: { state: 'active' } })
+    expect(AccessKeyCommandRequestSchema.parse(createCommand)).toEqual({ action: 'create', idempotencyKey: 'access-key-create-example' })
+    expect(AccessKeyResponseSchema.parse(createdKey)).toMatchObject({ key: { state: 'active', generation: 1 } })
+    expect(AccountExternalHandoffsResponseSchema.parse(readyHandoffs)).toMatchObject({
+      state: 'ready',
+      subscription: { action: 'open-subscription' },
+    })
+    expect(JSON.stringify({ activeKey, createCommand, createdKey, readyHandoffs })).not.toMatch(/(?:sk-|secret|token)/i)
   })
 
   it('keeps the standalone documentation audit executable', () => {

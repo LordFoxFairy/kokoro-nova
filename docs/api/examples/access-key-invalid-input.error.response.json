@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "action: Invalid enum value. Expected 'create' | 'rotate' | 'revoke', received 'replace'"
+  },
+  "requestId": "req_local_15km51w"
+}

@@ -1,0 +1,4 @@
+{
+  "action": "create",
+  "idempotencyKey": "access-key-create-example"
+}

@@ -1,0 +1,13 @@
+{
+  "key": {
+    "id": "access_key_local",
+    "label": "Access key",
+    "maskedValue": "lvtk_••••••••02",
+    "state": "revoked",
+    "generation": 2,
+    "createdAt": "2026-09-04T12:02:00.000Z",
+    "revokedAt": "2026-09-04T13:02:00.000Z",
+    "scopes": ["account:read", "jobs:create", "assets:read"]
+  },
+  "message": "已撤销脱敏 Access Key；本地 fixture 不保留真实凭据。"
+}

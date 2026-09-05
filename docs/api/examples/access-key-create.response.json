@@ -1,0 +1,13 @@
+{
+  "key": {
+    "id": "access_key_local",
+    "label": "Access key",
+    "maskedValue": "lvtk_••••••••01",
+    "state": "active",
+    "generation": 1,
+    "createdAt": "2026-09-04T12:01:00.000Z",
+    "revokedAt": null,
+    "scopes": ["account:read", "jobs:create", "assets:read"]
+  },
+  "message": "已创建脱敏 Access Key 生命周期记录。"
+}

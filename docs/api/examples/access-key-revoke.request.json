@@ -1,0 +1,4 @@
+{
+  "action": "revoke",
+  "idempotencyKey": "access-key-revoke-example"
+}

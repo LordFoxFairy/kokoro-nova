@@ -15,6 +15,17 @@ import materialsStyleExample from '../../../docs/api/examples/materials-style.re
 import materialsDetailExample from '../../../docs/api/examples/materials-detail.response.json'
 import materialsFavouriteRequestExample from '../../../docs/api/examples/materials-favourite.request.json'
 import materialsFavouriteResponseExample from '../../../docs/api/examples/materials-favourite.response.json'
+import accessKeyActiveResponseExample from '../../../docs/api/examples/access-key-active.response.json'
+import accessKeyCreateRequestExample from '../../../docs/api/examples/access-key-create.request.json'
+import accessKeyCreateResponseExample from '../../../docs/api/examples/access-key-create.response.json'
+import accessKeyRotateRequestExample from '../../../docs/api/examples/access-key-rotate.request.json'
+import accessKeyRotateResponseExample from '../../../docs/api/examples/access-key-rotate.response.json'
+import accessKeyRevokeRequestExample from '../../../docs/api/examples/access-key-revoke.request.json'
+import accessKeyRevokeResponseExample from '../../../docs/api/examples/access-key-revoke.response.json'
+import accessKeyCreateReplayResponseExample from '../../../docs/api/examples/access-key-create-replay.response.json'
+import accessKeyInvalidInputErrorExample from '../../../docs/api/examples/access-key-invalid-input.error.response.json'
+import accessKeyUnauthenticatedErrorExample from '../../../docs/api/examples/access-key-unauthenticated.error.response.json'
+import accessKeyIdempotencyConflictErrorExample from '../../../docs/api/examples/access-key-idempotency-conflict.error.response.json'
 import teamInviteRequestExample from '../../../docs/api/examples/team-invite.request.json'
 import teamInviteResponseExample from '../../../docs/api/examples/team-invite.response.json'
 import teamMemberUpdateRequestExample from '../../../docs/api/examples/team-member-update.request.json'
@@ -41,6 +52,7 @@ import {
   AccessKeyResponseSchema,
   AccountExternalHandoffsResponseSchema,
 } from '@/contracts/account-external'
+import { LocalErrorEnvelopeSchema } from '@/contracts/http'
 import {
   CreateTeamInviteRequestSchema,
   CreateTeamInviteResponseSchema,
@@ -429,25 +441,83 @@ describe('local API manifest and OpenAPI', () => {
     expect(sequence?.schema?.enum).toBeUndefined()
   })
 
-  it('provides executable account-boundary examples without exposing an Access Key secret', () => {
+  it('provides executable Access Key lifecycle, replay and error examples without exposing a credential', () => {
     const document = openApiDocument()
     const accessKey = operationAt(document, 'GET', '/api/access-key')
     const accessKeyCommand = operationAt(document, 'POST', '/api/access-key')
     const handoffs = operationAt(document, 'GET', '/api/account/handoffs')
 
-    const activeKey = accessKey.responses?.['200']?.content?.['application/json']?.examples?.active?.value
-    const createCommand = accessKeyCommand.requestBody?.content?.['application/json']?.examples?.create?.value
-    const createdKey = accessKeyCommand.responses?.['200']?.content?.['application/json']?.examples?.created?.value
     const readyHandoffs = handoffs.responses?.['200']?.content?.['application/json']?.examples?.ready?.value
 
-    expect(AccessKeyResponseSchema.parse(activeKey)).toMatchObject({ key: { state: 'active' } })
-    expect(AccessKeyCommandRequestSchema.parse(createCommand)).toEqual({ action: 'create', idempotencyKey: 'access-key-create-example' })
-    expect(AccessKeyResponseSchema.parse(createdKey)).toMatchObject({ key: { state: 'active', generation: 1 } })
+    expect(accessKey.responses?.['200']?.content?.['application/json']?.examples?.active?.$ref).toBe(
+      '#/components/examples/AccessKeyActiveResponseExample',
+    )
+    expect(accessKeyCommand.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      create: { $ref: '#/components/examples/AccessKeyCreateRequestExample' },
+      rotateAfterCreate: { $ref: '#/components/examples/AccessKeyRotateRequestExample' },
+      revokeAfterRotate: { $ref: '#/components/examples/AccessKeyRevokeRequestExample' },
+      createReplay: { $ref: '#/components/examples/AccessKeyCreateRequestExample' },
+    })
+    expect(accessKeyCommand.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      created: { $ref: '#/components/examples/AccessKeyCreateResponseExample' },
+      rotatedAfterCreate: { $ref: '#/components/examples/AccessKeyRotateResponseExample' },
+      revokedAfterRotate: { $ref: '#/components/examples/AccessKeyRevokeResponseExample' },
+      createReplay: { $ref: '#/components/examples/AccessKeyCreateReplayResponseExample' },
+    })
+    expect(accessKeyCommand.responses?.['400']?.content?.['application/json']?.examples?.invalidAction?.$ref).toBe(
+      '#/components/examples/AccessKeyInvalidInputErrorExample',
+    )
+    expect(accessKeyCommand.responses?.['401']?.content?.['application/json']?.examples?.anonymous?.$ref).toBe(
+      '#/components/examples/AccessKeyUnauthenticatedErrorExample',
+    )
+    expect(accessKeyCommand.responses?.['409']?.content?.['application/json']?.examples?.idempotencyKeyReusedForAnotherAction?.$ref).toBe(
+      '#/components/examples/AccessKeyIdempotencyConflictErrorExample',
+    )
+
+    expect(AccessKeyResponseSchema.parse(accessKeyActiveResponseExample)).toMatchObject({ key: { state: 'active', generation: 1 } })
+    expect(AccessKeyCommandRequestSchema.parse(accessKeyCreateRequestExample)).toEqual({ action: 'create', idempotencyKey: 'access-key-create-example' })
+    expect(AccessKeyResponseSchema.parse(accessKeyCreateResponseExample)).toMatchObject({ key: { state: 'active', generation: 1 } })
+    expect(AccessKeyCommandRequestSchema.parse(accessKeyRotateRequestExample)).toEqual({ action: 'rotate', idempotencyKey: 'access-key-rotate-example' })
+    expect(AccessKeyResponseSchema.parse(accessKeyRotateResponseExample)).toMatchObject({ key: { state: 'active', generation: 2 } })
+    expect(AccessKeyCommandRequestSchema.parse(accessKeyRevokeRequestExample)).toEqual({ action: 'revoke', idempotencyKey: 'access-key-revoke-example' })
+    expect(AccessKeyResponseSchema.parse(accessKeyRevokeResponseExample)).toMatchObject({ key: { state: 'revoked', generation: 2 } })
+    expect(AccessKeyResponseSchema.parse(accessKeyCreateReplayResponseExample)).toEqual(accessKeyCreateResponseExample)
+    expect(LocalErrorEnvelopeSchema.parse(accessKeyInvalidInputErrorExample)).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+    expect(LocalErrorEnvelopeSchema.parse(accessKeyUnauthenticatedErrorExample)).toMatchObject({ error: { code: 'UNAUTHENTICATED' } })
+    expect(LocalErrorEnvelopeSchema.parse(accessKeyIdempotencyConflictErrorExample)).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
     expect(AccountExternalHandoffsResponseSchema.parse(readyHandoffs)).toMatchObject({
       state: 'ready',
       subscription: { action: 'open-subscription' },
     })
-    expect(JSON.stringify({ activeKey, createCommand, createdKey, readyHandoffs })).not.toMatch(/(?:sk-|secret|token)/i)
+    for (const [name, filename] of Object.entries({
+      AccessKeyActiveResponseExample: 'access-key-active.response.json',
+      AccessKeyCreateRequestExample: 'access-key-create.request.json',
+      AccessKeyCreateResponseExample: 'access-key-create.response.json',
+      AccessKeyRotateRequestExample: 'access-key-rotate.request.json',
+      AccessKeyRotateResponseExample: 'access-key-rotate.response.json',
+      AccessKeyRevokeRequestExample: 'access-key-revoke.request.json',
+      AccessKeyRevokeResponseExample: 'access-key-revoke.response.json',
+      AccessKeyCreateReplayResponseExample: 'access-key-create-replay.response.json',
+      AccessKeyInvalidInputErrorExample: 'access-key-invalid-input.error.response.json',
+      AccessKeyUnauthenticatedErrorExample: 'access-key-unauthenticated.error.response.json',
+      AccessKeyIdempotencyConflictErrorExample: 'access-key-idempotency-conflict.error.response.json',
+    })) {
+      expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
+    }
+    expect(JSON.stringify({
+      accessKeyActiveResponseExample,
+      accessKeyCreateRequestExample,
+      accessKeyCreateResponseExample,
+      accessKeyRotateRequestExample,
+      accessKeyRotateResponseExample,
+      accessKeyRevokeRequestExample,
+      accessKeyRevokeResponseExample,
+      accessKeyCreateReplayResponseExample,
+      accessKeyInvalidInputErrorExample,
+      accessKeyUnauthenticatedErrorExample,
+      accessKeyIdempotencyConflictErrorExample,
+      readyHandoffs,
+    })).not.toMatch(/(?:sk-|secret|token)/i)
   })
 
   it('keeps team command examples executable and connected to their OpenAPI operations', () => {

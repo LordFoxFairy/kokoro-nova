@@ -1,0 +1,4 @@
+{
+  "action": "rotate",
+  "idempotencyKey": "access-key-rotate-example"
+}

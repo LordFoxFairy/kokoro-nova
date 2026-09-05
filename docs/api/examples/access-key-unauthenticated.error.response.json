@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "需要登录后访问私有项目"
+  },
+  "requestId": "req_local_1ukj7tt"
+}

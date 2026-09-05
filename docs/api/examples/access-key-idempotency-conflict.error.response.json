@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "同一幂等键不能用于不同命令"
+  },
+  "requestId": "req_local_1awnu6f"
+}

@@ -4910,20 +4910,7 @@
                 },
                 "examples": {
                   "active": {
-                    "summary": "已创建的脱敏 key 生命周期",
-                    "value": {
-                      "key": {
-                        "id": "access_key_local",
-                        "label": "Access key",
-                        "maskedValue": "lvtk_••••••••01",
-                        "state": "active",
-                        "generation": 1,
-                        "createdAt": "2026-09-04T12:01:00.000Z",
-                        "revokedAt": null,
-                        "scopes": ["account:read", "jobs:create", "assets:read"]
-                      },
-                      "message": "Access Key 仅以脱敏本地生命周期展示。"
-                    }
+                    "$ref": "#/components/examples/AccessKeyActiveResponseExample"
                   }
                 }
               }
@@ -5010,11 +4997,16 @@
               },
               "examples": {
                 "create": {
-                  "summary": "创建脱敏生命周期记录",
-                  "value": {
-                    "action": "create",
-                    "idempotencyKey": "access-key-create-example"
-                  }
+                  "$ref": "#/components/examples/AccessKeyCreateRequestExample"
+                },
+                "rotateAfterCreate": {
+                  "$ref": "#/components/examples/AccessKeyRotateRequestExample"
+                },
+                "revokeAfterRotate": {
+                  "$ref": "#/components/examples/AccessKeyRevokeRequestExample"
+                },
+                "createReplay": {
+                  "$ref": "#/components/examples/AccessKeyCreateRequestExample"
                 }
               }
             }
@@ -5030,20 +5022,16 @@
                 },
                 "examples": {
                   "created": {
-                    "summary": "创建后的脱敏 projection",
-                    "value": {
-                      "key": {
-                        "id": "access_key_local",
-                        "label": "Access key",
-                        "maskedValue": "lvtk_••••••••01",
-                        "state": "active",
-                        "generation": 1,
-                        "createdAt": "2026-09-04T12:01:00.000Z",
-                        "revokedAt": null,
-                        "scopes": ["account:read", "jobs:create", "assets:read"]
-                      },
-                      "message": "已创建脱敏 Access Key 生命周期记录。"
-                    }
+                    "$ref": "#/components/examples/AccessKeyCreateResponseExample"
+                  },
+                  "rotatedAfterCreate": {
+                    "$ref": "#/components/examples/AccessKeyRotateResponseExample"
+                  },
+                  "revokedAfterRotate": {
+                    "$ref": "#/components/examples/AccessKeyRevokeResponseExample"
+                  },
+                  "createReplay": {
+                    "$ref": "#/components/examples/AccessKeyCreateReplayResponseExample"
                   }
                 }
               }
@@ -5055,6 +5043,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidAction": {
+                    "$ref": "#/components/examples/AccessKeyInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -5065,6 +5058,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "anonymous": {
+                    "$ref": "#/components/examples/AccessKeyUnauthenticatedErrorExample"
+                  }
                 }
               }
             }
@@ -5085,6 +5083,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "idempotencyKeyReusedForAnotherAction": {
+                    "$ref": "#/components/examples/AccessKeyIdempotencyConflictErrorExample"
+                  }
                 }
               }
             }
@@ -17600,6 +17603,50 @@
       }
     },
     "examples": {
+      "AccessKeyActiveResponseExample": {
+        "summary": "读取已创建 Access Key 的脱敏生命周期",
+        "externalValue": "./examples/access-key-active.response.json"
+      },
+      "AccessKeyCreateRequestExample": {
+        "summary": "从 not-created 状态创建脱敏 Access Key 生命周期",
+        "externalValue": "./examples/access-key-create.request.json"
+      },
+      "AccessKeyCreateResponseExample": {
+        "summary": "create 后 generation 为 1 的脱敏 projection",
+        "externalValue": "./examples/access-key-create.response.json"
+      },
+      "AccessKeyRotateRequestExample": {
+        "summary": "在 create 后轮换 active Access Key",
+        "externalValue": "./examples/access-key-rotate.request.json"
+      },
+      "AccessKeyRotateResponseExample": {
+        "summary": "rotate 后 generation 加一且旧 generation 失效",
+        "externalValue": "./examples/access-key-rotate.response.json"
+      },
+      "AccessKeyRevokeRequestExample": {
+        "summary": "在 rotate 后撤销 active Access Key",
+        "externalValue": "./examples/access-key-revoke.request.json"
+      },
+      "AccessKeyRevokeResponseExample": {
+        "summary": "revoke 后保留生命周期时间的脱敏 projection",
+        "externalValue": "./examples/access-key-revoke.response.json"
+      },
+      "AccessKeyCreateReplayResponseExample": {
+        "summary": "使用 create 请求的同一幂等键重放原响应",
+        "externalValue": "./examples/access-key-create-replay.response.json"
+      },
+      "AccessKeyInvalidInputErrorExample": {
+        "summary": "命令 action 不在当前 schema 枚举中",
+        "externalValue": "./examples/access-key-invalid-input.error.response.json"
+      },
+      "AccessKeyUnauthenticatedErrorExample": {
+        "summary": "匿名会话不可读取或写入私有 Access Key projection",
+        "externalValue": "./examples/access-key-unauthenticated.error.response.json"
+      },
+      "AccessKeyIdempotencyConflictErrorExample": {
+        "summary": "同一幂等键被复用于另一 Access Key action",
+        "externalValue": "./examples/access-key-idempotency-conflict.error.response.json"
+      },
       "ShowcaseEngagementRequestExample": {
         "summary": "已登录 viewer 喜欢公开作品",
         "externalValue": "./examples/showcase-engagement.request.json"

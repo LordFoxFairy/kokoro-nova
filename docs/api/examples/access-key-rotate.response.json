@@ -1,0 +1,13 @@
+{
+  "key": {
+    "id": "access_key_local",
+    "label": "Access key",
+    "maskedValue": "lvtk_••••••••02",
+    "state": "active",
+    "generation": 2,
+    "createdAt": "2026-09-04T12:02:00.000Z",
+    "revokedAt": null,
+    "scopes": ["account:read", "jobs:create", "assets:read"]
+  },
+  "message": "已轮换脱敏 Access Key；旧 generation 已失效。"
+}

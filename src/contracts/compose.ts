@@ -70,11 +70,28 @@ export const ComposeSubtitleSchema = z
     }
   })
 
+/** Identifies the canvas that owns a local compose task. */
+export const ComposeScopeSchema = z
+  .object({
+    projectId: z.string().trim().min(1),
+    canvasId: z.string().trim().min(1),
+  })
+  .strict()
+
+export function composeScopeForLocation(search: string): ComposeScope {
+  const params = new URLSearchParams(search)
+  return {
+    projectId: params.get('projectId')?.trim() || 'default-project',
+    canvasId: params.get('canvasId')?.trim() || 'default-canvas',
+  }
+}
+
 export const ComposeRequestSchema = z
   .object({
     clips: z.array(ComposeClipSchema).min(1).max(40),
     audioTracks: z.array(ComposeAudioTrackSchema).max(16).default([]),
     subtitles: z.array(ComposeSubtitleSchema).max(100).default([]),
+    scope: ComposeScopeSchema.optional(),
   })
   .strict()
 
@@ -130,6 +147,7 @@ export const ComposeTaskResponseSchema = z.object({ task: ComposeTaskSchema }).s
 export const ComposeTaskActionSchema = z.object({ action: z.enum(['cancel', 'retry']) }).strict()
 
 export type ComposeRequest = z.infer<typeof ComposeRequestSchema>
+export type ComposeScope = z.infer<typeof ComposeScopeSchema>
 export type ComposeContractResponse = z.infer<typeof ComposeResponseSchema>
 export type ComposeTask = z.infer<typeof ComposeTaskSchema>
 export type ComposeTaskResponse = z.infer<typeof ComposeTaskResponseSchema>

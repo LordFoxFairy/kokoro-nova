@@ -35,5 +35,9 @@
       "start": 0.5,
       "end": 2.8
     }
-  ]
+  ],
+  "scope": {
+    "projectId": "project-video-demo",
+    "canvasId": "canvas-video-main"
+  }
 }

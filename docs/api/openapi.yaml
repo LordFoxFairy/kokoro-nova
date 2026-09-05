@@ -7262,6 +7262,26 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "description": "有作用域的任务必须与创建时的 projectId 一致。",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "canvasId",
+            "in": "query",
+            "required": false,
+            "description": "有作用域的任务必须与创建时的 canvasId 一致。",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         ],
         "responses": {
@@ -7342,6 +7362,26 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "description": "有作用域的任务必须与创建时的 projectId 一致。",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "canvasId",
+            "in": "query",
+            "required": false,
+            "description": "有作用域的任务必须与创建时的 canvasId 一致。",
+            "schema": {
+              "type": "string",
+              "minLength": 1
             }
           }
         ],
@@ -9813,6 +9853,25 @@
         },
         "additionalProperties": false
       },
+      "ComposeScope": {
+        "type": "object",
+        "required": [
+          "projectId",
+          "canvasId"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canvasId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "description": "拥有该次本地合成任务的 project/canvas 作用域。"
+      },
       "ComposeRequest": {
         "type": "object",
         "required": [
@@ -9842,6 +9901,9 @@
             "items": {
               "$ref": "#/components/schemas/ComposeSubtitle"
             }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ComposeScope"
           }
         },
         "additionalProperties": false,
@@ -18356,7 +18418,11 @@
               "start": 0.5,
               "end": 2.8
             }
-          ]
+          ],
+          "scope": {
+            "projectId": "project-video-demo",
+            "canvasId": "canvas-video-main"
+          }
         }
       },
       "ComposeTaskSucceededExample": {

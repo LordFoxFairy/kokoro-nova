@@ -215,14 +215,14 @@ test('Script V2 video source reaches storyboard detail and compositor; compose f
     const task = composeAttempts === 1 ? failedTask : cancelledTask
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task }) })
   })
-  await page.route(`**/api/compose/${failedTask.id}`, async (route) => {
+  await page.route(`**/api/compose/${failedTask.id}**`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ task: { ...failedTask, status: 'failed', failure: '本地 Script V2 合成失败夹具' } }),
     })
   })
-  await page.route(`**/api/compose/${cancelledTask.id}`, async (route) => {
+  await page.route(`**/api/compose/${cancelledTask.id}**`, async (route) => {
     if (route.request().method() === 'POST') cancelled = true
     await route.fulfill({
       status: 200,

@@ -107,7 +107,7 @@ test('export cancellation preserves the persisted timeline and clears only its r
   await page.route('**/api/compose', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task: baseTask }) })
   })
-  await page.route('**/api/compose/compose_task_cancel_e2e', async (route) => {
+  await page.route('**/api/compose/compose_task_cancel_e2e**', async (route) => {
     if (route.request().method() === 'POST') {
       cancelled = true
       await route.fulfill({

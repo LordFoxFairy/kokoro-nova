@@ -11,7 +11,13 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { ComposeMediaUrlSchema, ComposeTaskResponseSchema, type ComposeTask } from '@/contracts/compose'
+import {
+  ComposeMediaUrlSchema,
+  ComposeTaskResponseSchema,
+  composeScopeForLocation,
+  type ComposeScope,
+  type ComposeTask,
+} from '@/contracts/compose'
 import {
   appendAudioTrack,
   appendClip,
@@ -98,10 +104,13 @@ export const COMPOSE_TASK_STORAGE_KEY = 'libtv.compose.active-task'
  * user opens canvas B in the same browser session.
  */
 export function composeTaskStorageKeyForLocation(search: string): string {
-  const params = new URLSearchParams(search)
-  const projectId = params.get('projectId')?.trim() || 'default-project'
-  const canvasId = params.get('canvasId')?.trim() || 'default-canvas'
-  return `${COMPOSE_TASK_STORAGE_KEY}:${encodeURIComponent(projectId)}:${encodeURIComponent(canvasId)}`
+  const scope = composeScopeForLocation(search)
+  return `${COMPOSE_TASK_STORAGE_KEY}:${encodeURIComponent(scope.projectId)}:${encodeURIComponent(scope.canvasId)}`
+}
+
+function composeTaskUrl(taskId: string, scope: ComposeScope): string {
+  const params = new URLSearchParams(scope)
+  return `/api/compose/${encodeURIComponent(taskId)}?${params.toString()}`
 }
 
 const TRANSITION_UI: Record<CompositeTransitionId, { label: string; accent: string }> = {
@@ -327,9 +336,9 @@ export function ClipEditor({
   onClose: () => void
   onExported?: (artifact: Artifact) => void
 }) {
-  const composeStorageKey = composeTaskStorageKeyForLocation(
-    typeof window === 'undefined' ? '' : window.location.search,
-  )
+  const locationSearch = typeof window === 'undefined' ? '' : window.location.search
+  const composeStorageKey = composeTaskStorageKeyForLocation(locationSearch)
+  const composeScope = useMemo(() => composeScopeForLocation(locationSearch), [locationSearch])
   const workflow = useEditor((state) => state.document)
   const commitWith = useEditor((state) => state.commitWith)
   const toast = useEditor((state) => state.toast)
@@ -502,7 +511,7 @@ export function ClipEditor({
       if (!aliveRef.current) return current
       await new Promise((resolve) => window.setTimeout(resolve, 300))
       current = ComposeTaskResponseSchema.parse(
-        await api.get<unknown>(`/api/compose/${encodeURIComponent(current.id)}`),
+        await api.get<unknown>(composeTaskUrl(current.id, composeScope)),
       ).task
       if (aliveRef.current) {
         rememberComposeTask(current)
@@ -522,7 +531,7 @@ export function ClipEditor({
     }
     rememberComposeTask(current)
     return current
-  }, [rememberComposeTask])
+  }, [composeScope, rememberComposeTask])
 
   useEffect(() => {
     aliveRef.current = true
@@ -538,7 +547,7 @@ export function ClipEditor({
     void (async () => {
       try {
         const task = ComposeTaskResponseSchema.parse(
-          await api.get<unknown>(`/api/compose/${encodeURIComponent(taskId)}`),
+          await api.get<unknown>(composeTaskUrl(taskId, composeScope)),
         ).task
         if (!aliveRef.current) return
         rememberComposeTask(task)
@@ -553,7 +562,7 @@ export function ClipEditor({
         window.localStorage.removeItem(composeStorageKey)
       }
     })()
-  }, [composeStorageKey, observeComposeTask, open, rememberComposeTask])
+  }, [composeScope, composeStorageKey, observeComposeTask, open, rememberComposeTask])
 
   useEffect(() => {
     const viewport = trackViewportRef.current
@@ -853,7 +862,7 @@ export function ClipEditor({
     const timer = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 250)
     try {
       const task = ComposeTaskResponseSchema.parse(
-        await api.post<unknown>('/api/compose', toComposeRequest(timeline)),
+        await api.post<unknown>('/api/compose', { ...toComposeRequest(timeline), scope: composeScope }),
       ).task
       if (aliveRef.current) rememberComposeTask(task)
       const terminal = await observeComposeTask(task)
@@ -875,7 +884,7 @@ export function ClipEditor({
     if (!composeTask || (composeTask.status !== 'queued' && composeTask.status !== 'rendering')) return
     try {
       const task = ComposeTaskResponseSchema.parse(
-        await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'cancel' }),
+        await api.post<unknown>(composeTaskUrl(composeTask.id, composeScope), { action: 'cancel' }),
       ).task
       if (!aliveRef.current) return
       rememberComposeTask(task)
@@ -898,7 +907,7 @@ export function ClipEditor({
     setRendering(true)
     try {
       const task = ComposeTaskResponseSchema.parse(
-        await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'retry' }),
+        await api.post<unknown>(composeTaskUrl(composeTask.id, composeScope), { action: 'retry' }),
       ).task
       rememberComposeTask(task)
       await observeComposeTask(task)

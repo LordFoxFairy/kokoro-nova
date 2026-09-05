@@ -326,7 +326,7 @@ test('export sends the normalized persisted timeline contract and adds the resul
     body = route.request().postDataJSON()
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task }) })
   })
-  await page.route('**/api/compose/compose_task_e2e', async (route) => {
+  await page.route('**/api/compose/compose_task_e2e**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -372,6 +372,10 @@ test('export sends the normalized persisted timeline contract and adds the resul
     ],
     audioTracks: [],
     subtitles: [],
+    scope: {
+      projectId: 'prj_video_demo',
+      canvasId: 'can_video_main',
+    },
   })
 
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task:prj_video_demo:can_video_main'))).toBeNull()
@@ -447,7 +451,7 @@ test('refresh restores a failed compose task and retries it without changing the
     updatedAt: '2026-09-03T12:00:00.000Z',
   }
   let retried = false
-  await page.route('**/api/compose/compose_task_refresh', async (route) => {
+  await page.route('**/api/compose/compose_task_refresh**', async (route) => {
     if (route.request().method() === 'POST') {
       retried = true
       await route.fulfill({

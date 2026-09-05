@@ -206,7 +206,7 @@ test('failed and cancelled exports preserve the timeline without creating a resu
       body: JSON.stringify({ task: { ...baseTask, id: 'compose_clip_editor_cancel', status: 'rendering', failure: null } }),
     })
   })
-  await page.route('**/api/compose/compose_clip_editor_cancel', async (route) => {
+  await page.route('**/api/compose/compose_clip_editor_cancel**', async (route) => {
     const task = {
       ...baseTask,
       id: 'compose_clip_editor_cancel',

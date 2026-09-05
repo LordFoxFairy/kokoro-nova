@@ -12,7 +12,7 @@ import {
 } from './store'
 import { ids, newId } from '@/domain/ids'
 import type { Asset } from '@/domain/types'
-import { ComposeRequestSchema, type ComposeTask } from '@/contracts/compose'
+import { ComposeRequestSchema, type ComposeScope, type ComposeTask } from '@/contracts/compose'
 import { MEDIA_PUBLIC_PREFIX } from './generation/runner'
 
 /**
@@ -1107,6 +1107,7 @@ export type ComposeTaskStatus = ComposeTask['status']
 
 interface StoredComposeTask extends ComposeTask {
   spec: TimelineSpec
+  scope?: ComposeScope
   /** Invalidated whenever the local mock workspace switches scenario. */
   workspaceGeneration?: string
   /** Prevents duplicate asset commits when route graphs observe one task. */
@@ -1129,9 +1130,15 @@ function publicTask(task: StoredComposeTask): ComposeTask {
     spec: _spec,
     committing: _committing,
     workspaceGeneration: _workspaceGeneration,
+    scope: _scope,
     ...publicValue
   } = task
   return publicValue
+}
+
+function scopeMatches(task: StoredComposeTask, scope: ComposeScope | undefined): boolean {
+  if (!task.scope) return scope === undefined
+  return scope?.projectId === task.scope.projectId && scope.canvasId === task.scope.canvasId
 }
 
 async function readComposeTasksUnlocked(): Promise<StoredComposeTask[]> {
@@ -1171,11 +1178,12 @@ function queueComposeTask(taskId: string) {
   })
 }
 
-export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask> {
+export async function startComposeTask(spec: TimelineSpec & { scope?: ComposeScope }): Promise<ComposeTask> {
   // HTTP routes already decode this contract, but the service is also a seam
   // for deterministic fixtures and future workers. Re-parse here so no caller
   // can enqueue a remote or malformed source by bypassing the route layer.
-  const normalizedSpec = ComposeRequestSchema.parse(spec)
+  const normalizedRequest = ComposeRequestSchema.parse(spec)
+  const { scope, ...normalizedSpec } = normalizedRequest
   let task!: StoredComposeTask
   await withWorkspaceLock(async () => {
     const now = new Date().toISOString()
@@ -1190,6 +1198,7 @@ export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask>
       createdAt: now,
       updatedAt: now,
       spec: structuredClone(normalizedSpec),
+      scope,
       workspaceGeneration: await activeWorkspaceGenerationWhileLocked(),
     }
     const tasks = await readComposeTasksUnlocked()
@@ -1200,14 +1209,19 @@ export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask>
   return publicTask(task)
 }
 
-export async function getComposeTask(taskId: string): Promise<ComposeTask | null> {
-  const task = await mutateComposeTask(taskId, (current) => publicTask(current))
+async function getStoredComposeTask(taskId: string): Promise<StoredComposeTask | null> {
+  return mutateComposeTask(taskId, (current) => structuredClone(current))
+}
+
+export async function getComposeTask(taskId: string, scope?: ComposeScope): Promise<ComposeTask | null> {
+  const task = await mutateComposeTask(taskId, (current) => scopeMatches(current, scope) ? publicTask(current) : null)
   if (task?.status === 'queued') queueComposeTask(task.id)
   return task
 }
 
-export async function cancelComposeTask(taskId: string): Promise<ComposeTask | null> {
+export async function cancelComposeTask(taskId: string, scope?: ComposeScope): Promise<ComposeTask | null> {
   const cancelled = await mutateComposeTask(taskId, (task) => {
+    if (!scopeMatches(task, scope)) return null
     if (task.status === 'queued' || task.status === 'rendering') {
       task.status = 'cancelled'
       task.updatedAt = new Date().toISOString()
@@ -1219,8 +1233,9 @@ export async function cancelComposeTask(taskId: string): Promise<ComposeTask | n
   return cancelled
 }
 
-export async function retryComposeTask(taskId: string): Promise<ComposeTask | null> {
+export async function retryComposeTask(taskId: string, scope?: ComposeScope): Promise<ComposeTask | null> {
   const retried = await mutateComposeTask(taskId, (task) => {
+    if (!scopeMatches(task, scope)) return null
     if (task.status !== 'failed') return publicTask(task)
     task.status = 'queued'
     task.artifact = null
@@ -1275,7 +1290,7 @@ async function runComposeTask(taskId: string) {
     return
   }
 
-  const afterRender = await getComposeTask(taskId)
+  const afterRender = await getStoredComposeTask(taskId)
   if (!afterRender || afterRender.status === 'cancelled') {
     await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
     return

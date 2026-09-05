@@ -14,6 +14,8 @@ import { POST as createTask } from './route'
 
 const params = (taskId: string) => ({ params: Promise.resolve({ taskId }) })
 const taskUrl = (taskId: string) => `http://localhost/api/compose/${taskId}`
+const scopedTaskUrl = (taskId: string, projectId: string, canvasId: string) =>
+  `${taskUrl(taskId)}?projectId=${encodeURIComponent(projectId)}&canvasId=${encodeURIComponent(canvasId)}`
 const request = (url: string, body: unknown) => new Request(url, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -39,9 +41,13 @@ function composeRequest() {
 async function waitForTaskStatus(
   taskId: string,
   status: 'rendering' | 'succeeded' | 'failed' | 'cancelled',
+  scope?: { projectId: string; canvasId: string },
 ) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    const response = await getTask(new Request(taskUrl(taskId)), params(taskId))
+    const response = await getTask(
+      new Request(scope ? scopedTaskUrl(taskId, scope.projectId, scope.canvasId) : taskUrl(taskId)),
+      params(taskId),
+    )
     expect(response.status).toBe(200)
     const body = ComposeTaskResponseSchema.parse(await response.json())
     if (body.task.status === status) return body.task
@@ -222,6 +228,38 @@ describe.sequential('compose route smoke', () => {
     const staleResponse = await getTask(new Request(taskUrl(created.task.id)), params(created.task.id))
     expect(staleResponse.status).toBe(404)
     expect((await readState()).assets).toHaveLength(0)
+  })
+
+  it('keeps a scoped compose task private to its owning canvas', async () => {
+    __setComposeRendererForTests(async (): Promise<ComposeResult> => ({
+      ok: false,
+      code: 'render_failed',
+      reason: 'scope fixture failure',
+    }))
+
+    const createdResponse = await createTask(request('http://localhost/api/compose', {
+      ...composeRequest(),
+      scope: { projectId: 'project-a', canvasId: 'canvas-a' },
+    }))
+    const created = ComposeTaskResponseSchema.parse(await createdResponse.json())
+    await waitForTaskStatus(created.task.id, 'failed', { projectId: 'project-a', canvasId: 'canvas-a' })
+
+    const wrongRead = await getTask(
+      new Request(scopedTaskUrl(created.task.id, 'project-b', 'canvas-b')),
+      params(created.task.id),
+    )
+    expect(wrongRead.status).toBe(404)
+    const ownerRead = await getTask(
+      new Request(scopedTaskUrl(created.task.id, 'project-a', 'canvas-a')),
+      params(created.task.id),
+    )
+    expect(ownerRead.status).toBe(200)
+
+    const wrongRetry = await transitionTask(
+      request(scopedTaskUrl(created.task.id, 'project-b', 'canvas-b'), { action: 'retry' }),
+      params(created.task.id),
+    )
+    expect(wrongRetry.status).toBe(404)
   })
 
   it('normalizes invalid compose input and missing-task actions as ErrorResponse envelopes', async () => {

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import requestExample from '../../../docs/api/examples/compose.request.json'
 import responseExample from '../../../docs/api/examples/compose.task-succeeded.response.json'
-import { ComposeRequestSchema, ComposeTaskResponseSchema } from '@/contracts/compose'
+import { ComposeRequestSchema, ComposeTaskResponseSchema, composeScopeForLocation } from '@/contracts/compose'
 
 describe('video compose contract', () => {
   it('accepts the documented multitrack request and asynchronous success task response', () => {
@@ -62,6 +62,15 @@ describe('video compose contract', () => {
     ).toMatchObject({ audioTracks: [], subtitles: [] })
   })
 
+  it('derives a stable project/canvas scope from the active canvas URL', () => {
+    expect(composeScopeForLocation('?projectId=project-a&canvasId=canvas-1'))
+      .toEqual({ projectId: 'project-a', canvasId: 'canvas-1' })
+    expect(composeScopeForLocation('')).toEqual({
+      projectId: 'default-project',
+      canvasId: 'default-canvas',
+    })
+  })
+
   it('keeps the OpenAPI compositor examples and required fields aligned with runtime schemas', () => {
     const openapi = JSON.parse(
       readFileSync(path.join(process.cwd(), 'docs/api/openapi.yaml'), 'utf8'),
@@ -77,6 +86,7 @@ describe('video compose contract', () => {
       'clips',
       'audioTracks',
       'subtitles',
+      'scope',
     ])
     expect(ComposeRequestSchema.parse(openapi.components.examples.ComposeRequestExample.value)).toEqual(
       ComposeRequestSchema.parse(requestExample),

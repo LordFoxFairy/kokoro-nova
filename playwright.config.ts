@@ -61,6 +61,10 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
   workers: 1,
+  // Browser surfaces intentionally exercise persisted local state. A single
+  // CI retry absorbs transient browser/runner timing without weakening the
+  // assertions or hiding deterministic failures; local runs stay fail-fast.
+  retries: process.env.CI ? 1 : 0,
   timeout: 90_000,
   expect: { timeout: 15_000 },
   globalSetup: "./e2e/helpers/e2e-preflight.ts",

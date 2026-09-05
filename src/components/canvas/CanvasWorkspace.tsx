@@ -970,7 +970,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
     setPressed('[aria-label="工具箱"]', leftPanel === 'toolbox')
     setPressed('[aria-label="素材库"]', leftPanel === 'material')
     setPressed('[aria-label="角色库"]', leftPanel === 'character')
-    setPressed('[aria-label="历史资产"]', leftPanel === 'history')
+    setPressed('[aria-label="生成历史"]', leftPanel === 'history')
     setPressed('[aria-label="快捷键"]', leftPanel === 'shortcuts')
 
     const assetToggle = root.querySelector<HTMLButtonElement>('[data-testid="asset-sidebar-toggle"]')

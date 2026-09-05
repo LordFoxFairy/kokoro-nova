@@ -51,6 +51,13 @@ function waitForCanvasMutation(page: Page) {
   })
 }
 
+function waitForScriptRun(page: Page) {
+  return page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return response.request().method() === 'POST' && url.pathname === '/api/script-v2/runs' && response.ok()
+  })
+}
+
 async function activeCanvas(page: Page): Promise<CanvasSnapshot> {
   const url = new URL(page.url())
   const projectId = url.searchParams.get('projectId')
@@ -90,7 +97,9 @@ async function createGeneratedScript(page: Page) {
 
   const generator = page.getByTestId('script-v2-generator')
   await generator.getByPlaceholder('描述剧情片段、故事，为你生成分镜脚本').fill('本地幂等夹具：雨夜车站的旅人收到一封旧信。')
+  const generated = waitForScriptRun(page)
   await generator.getByRole('button', { name: '生成分镜脚本', exact: true }).click()
+  await generated
 
   const resource = node.getByTestId('script-v2-resource-card')
   await expect(resource).toBeVisible({ timeout: 20_000 })

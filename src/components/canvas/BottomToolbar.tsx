@@ -247,7 +247,7 @@ export function BottomToolbar({
           testId="open-character"
         />
         <RailButton
-          label="历史资产"
+          label="生成历史"
           icon={<IconHistory size={18} />}
           active={leftPanel === 'history'}
           onClick={() => setLeftPanel('history')}

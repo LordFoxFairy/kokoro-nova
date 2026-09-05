@@ -277,6 +277,15 @@ test('add menu exposes the current product taxonomy and dismisses back to its tr
   await expect(trigger).toBeFocused()
 })
 
+test('primary canvas rail keeps the observed generation-history affordance discoverable', async ({ page, request }) => {
+  await selectCanvasScenario(request, 'authenticated-empty')
+  await createProjectAndOpenCanvas(page, request)
+
+  // The observed editor keeps this as a persistent, named top-level action;
+  // local fixture history remains the implementation behind the action.
+  await expect(page.getByTestId('open-history')).toHaveAttribute('aria-label', '生成历史')
+})
+
 test('首帧图生视频 starter creates a direct image-to-video workflow', async ({ page, request }) => {
   await selectCanvasScenario(request, 'authenticated-empty')
   await createProjectAndOpenCanvas(page, request)

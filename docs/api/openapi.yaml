@@ -2881,26 +2881,6 @@
                 }
               }
             }
-          },
-          "429": {
-            "description": "该画布的实时连接数已达上限",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "SSE 初始化失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         },
         "parameters": [
@@ -2975,7 +2955,7 @@
             }
           }
         ],
-        "description": "建立 text/event-stream 长连接。请求 query 标识订阅者；服务端先写 snapshot，随后写 join/move/leave。连接中每 20 秒发送 SSE 注释 keepalive。存在状态是进程内短暂视图状态，不写入 workspace。",
+        "description": "建立 text/event-stream 长连接。请求 query 标识订阅者；服务端先写 snapshot，随后写 join/move/leave。连接中每 20 秒发送 SSE 注释 keepalive。存在状态是进程内短暂视图状态，不写入 workspace。仅参数校验可在握手前返回 400 ErrorResponse；listener 上限和初始化/写入异常发生在 200 SSE 建立后，以连接关闭/重连处理，不声明 429 或 500 JSON 响应。",
         "x-authorization": "workspace",
         "security": [
           {

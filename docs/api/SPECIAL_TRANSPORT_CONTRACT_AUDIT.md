@@ -2,7 +2,7 @@
 
 - 审计日期：2026-09-05
 - 审计范围：`docs/CODEBASE_MAP.md`、`docs/api/openapi.yaml`、`docs/api/ERRORS.md`、`src/app/api/**`，以及直接消费者 `src/lib/presence-client.ts`、`src/components/**`。
-- 审计口径：本文描述的是当前本地 mock 的**实际 wire 行为**，并把它与 OpenAPI `1.25.1-account-member-not-found` 的声明分开。没有修改 route、既有文档或 OpenAPI。
+- 审计口径：本文描述的是当前本地 mock 的**实际 wire 行为**，并把它与 OpenAPI `1.25.1-account-member-not-found` 的声明分开。本文只修正 OpenAPI/契约测试，不修改 route。
 
 ## 结论
 
@@ -50,7 +50,7 @@
 | 建连前的输入错误 | `canvasId`、`participantId`、`name`、`color`、视口参数不合法时，`HttpError` 由共享 `errorResponseFor()` 返回 `400 application/json` 的完整 `ErrorResponse`，含 `INVALID_INPUT` 与 fixture-stable `requestId`。 |
 | 建连前的容量错误 | `subscribe()` 的 listener 上限会抛 `PresenceError(429, ...)`，但它发生在 `ReadableStream.start()` 内，HTTP `200` 已被构造；当前 route 不存在可依赖的握手期 `429 ErrorResponse` wire body。客户端应将该 stream error 视为连接失败并重连。后续若要声明 `429`，须在构造 `Response` 前完成容量预检并同步修改 runtime、OpenAPI 与测试。 |
 | SSE 初始化/连接期异常 | route 没有定义 `event: error`、`retry:` 或带 `requestId` 的 SSE error event。流一旦作为 `200 text/event-stream` 建立，不能再改写为 HTTP JSON error；stream start / 写入失败的可观察结果是连接关闭或客户端重连，而不是受控 `500 ErrorResponse`。 |
-| OpenAPI 声明 | `200 text/event-stream` 正确标注了 `PresenceStreamEvent`、20 秒 keepalive，并挂接 file-backed `PresenceSnapshotSseFrameExample`：fixture 是 JSON 编码的 SSE 字符串，含 `: connected` 注释和第一个 `event: snapshot` / `data:` 帧，保持 `string/binary` response schema 与真实 wire framing 一致；但列出的 400/429/500 都声明 `application/json` 的完整 `ErrorResponse`，与当前 runtime body 不符。 |
+| OpenAPI 声明 | `200 text/event-stream` 正确标注了 `PresenceStreamEvent`、20 秒 keepalive，并挂接 file-backed `PresenceSnapshotSseFrameExample`：fixture 是 JSON 编码的 SSE 字符串，含 `: connected` 注释和第一个 `event: snapshot` / `data:` 帧，保持 `string/binary` response schema 与真实 wire framing 一致。仅握手前可观察的 `400 application/json ErrorResponse` 被声明；`429` / `500` 不再伪装为 HTTP response。`src/contracts/__tests__/openapi.test.ts` 锁定此边界。 |
 
 ### `POST /api/presence/{canvasId}` — heartbeat / editor lease
 

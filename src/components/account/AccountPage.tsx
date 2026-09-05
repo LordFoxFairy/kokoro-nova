@@ -11,7 +11,7 @@ import React, {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import type { AccountProfileResponse } from "@/contracts/account";
+import type { AccountProfileResponse, AccountSectionId } from "@/contracts/account";
 import type {
   AccessKeyProjection,
   AccountExternalHandoffsResponse,
@@ -60,6 +60,17 @@ export type AccountRequestState =
   | "stale-error";
 
 export type TeamSurfaceRequestState = "loading" | "ready" | "error" | "stale-error";
+
+/**
+ * Search params can hydrate after a user has already moved through the tabs.
+ * Only a real route-query transition may replace the locally selected tab.
+ */
+export function shouldSyncAccountSectionFromQuery(
+  previous: AccountSectionId,
+  next: AccountSectionId,
+): boolean {
+  return previous !== next;
+}
 
 export function getTeamSurfaceRequestState({
   loading,
@@ -132,9 +143,9 @@ const LIGHT_ACCOUNT_VARS = {
 
 export function AccountPage() {
   const searchParams = useSearchParams();
-  const [section, setSection] = useState(() =>
-    sectionFromQuery(searchParams.get("tab")),
-  );
+  const querySection = sectionFromQuery(searchParams.get("tab"));
+  const [section, setSection] = useState(() => querySection);
+  const previousQuerySection = useRef(querySection);
   const [profile, setProfile] = useState<AccountProfileResponse | null>(null);
   const [ledger, setLedger] = useState<LedgerViewProjection | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -166,8 +177,12 @@ export function AccountPage() {
   >({});
 
   useEffect(() => {
-    setSection(sectionFromQuery(searchParams.get("tab")));
-  }, [searchParams]);
+    if (!shouldSyncAccountSectionFromQuery(previousQuerySection.current, querySection)) {
+      return;
+    }
+    previousQuerySection.current = querySection;
+    setSection(querySection);
+  }, [querySection]);
 
   useEffect(() => {
     let cancelled = false;

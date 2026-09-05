@@ -1,8 +1,9 @@
 # API 契约审计（1.25.1-account-member-not-found）
 
 > 审计日期：2026-09-05  
-> 范围：`docs/api/`、`src/app/api/`、`src/contracts/`、`src/contracts/route-manifest.ts` 与对应的 local mock Route Handler；不修改 OpenAPI 或运行时代码。  
+> 范围：`docs/api/`、`src/app/api/`、`src/contracts/`、`src/contracts/route-manifest.ts` 与对应的 local mock Route Handler；本次不修改运行时代码。
 > 基线：`6a6d1d3a`，OpenAPI `1.25.1-account-member-not-found`。
+> 本次补齐：仅更新 OpenAPI、契约测试与 API 文档；不修改 Route Handler。
 
 ## 结论
 
@@ -18,7 +19,7 @@
 审计后，`1.25.1-account-member-not-found` 已将
 `PATCH /api/team/members/{memberId}` 的运行时 `404` 明确写入 OpenAPI；API-AUD-04 的**文档
 缺项**已关闭。随后通用 `handle()` 也已收敛到 `ErrorResponse`，使 87 个 JSON operation 的
-runtime 成功/错误主路径与 OpenAPI 同向；Presence 的 JSON errors 与 media 的 plain-text resource errors 也已对齐。SVG preview 的无受控 failure 和 SSE 已建流后的生命周期仍使 wire contract 不能判定为完全交付。
+runtime 成功/错误主路径与 OpenAPI 同向；Presence 的 JSON errors 与 media 的 plain-text resource errors 也已对齐。`GET /api/presence/{canvasId}` 已移除 runtime 不可能在握手前返回的 `429` / `500` JSON response，并由 OpenAPI contract test 锁定；SVG preview 的无受控 failure 和 SSE 已建流后的生命周期仍使 wire contract 不能判定为完全交付。
 
 ## 已验证的基线
 
@@ -35,7 +36,7 @@ runtime 成功/错误主路径与 OpenAPI 同向；Presence 的 JSON errors 与 
 |---|---|---|---|---|
 | API-AUD-01 | P1（关闭） | `docs/api/README.md`、`src/contracts/__tests__/openapi.test.ts` | README 已统一为 55 个 path / 92 个 operation；契约测试同时断言权威总量且拒绝历史 `47/82` 标记，避免仅“包含正确数字”但文档仍自相矛盾。 | 保持总量断言；新增 route 时同步更新 README、manifest 与 OpenAPI。 |
 | API-AUD-02 | P1（已关闭） | `docs/api/ROUTE_COVERAGE.md` 的“覆盖结论”表、`src/contracts/__tests__/openapi.test.ts` | Project/Folder/Recycle Bin、Jobs/Script V2/compose、Public discovery/publish 已更正为 **7/13**、**7/11**、**8/11**。契约测试从 `LOCAL_API_ROUTES` 重新计算这些含 `GET /api/home` 重叠归类的分域统计，并断言覆盖表文本，防止新增 operation 后再次静默漂移。 | 新增或改 tag/path 时同步扩展覆盖分组 predicate；表格仍应只表达明确的后端接手 domain，而非所有 tag 的无差别汇总。 |
-| API-AUD-03 | P0（部分关闭） | `src/server/http.ts`、`src/app/api/presence/[canvasId]/route.ts`、`src/app/api/presence/[canvasId]/route.test.ts`、`src/api/client.ts`；`docs/api/ERRORS.md` 与 OpenAPI 的 `ErrorResponse` | 通用 `handle()` 的 87 个 JSON operation、Presence 参数校验/POST JSON error 已输出规范化 `ErrorResponse { error: { code, message, details? }, requestId }`，且 `ApiError.requestId` 已保留关联值。Presence route test 已锁定 SSE `200` headers、首个业务 `snapshot` frame、heartbeat 与 lease acquire/renew/release success schema，以及 `EDIT_LEASE_CONFLICT` / `SESSION_EXPIRED` 的 domain code/details。剩余 wire 边界是 listener 上限在 `ReadableStream.start()` 内触发而不构成 HTTP `429` 握手 envelope、SVG preview 无受控 failure 与 SSE 已建立后不存在 JSON error body；media 的 plain-text `Forbidden`/`Not found`、关键 cache/security headers 已与 OpenAPI 和 route tests 对齐。 | 保持 JSON/media route runtime tests；若要声明 SSE listener-limit `429`，先将容量预检移动到 Response 构造前；明确 SSE 建连后重连语义与 SVG resource failure 策略。 |
+| API-AUD-03 | P0（部分关闭） | `src/server/http.ts`、`src/app/api/presence/[canvasId]/route.ts`、`src/app/api/presence/[canvasId]/route.test.ts`、`src/api/client.ts`；`docs/api/ERRORS.md` 与 OpenAPI 的 `ErrorResponse` | 通用 `handle()` 的 87 个 JSON operation、Presence 参数校验/POST JSON error 已输出规范化 `ErrorResponse { error: { code, message, details? }, requestId }`，且 `ApiError.requestId` 已保留关联值。Presence route test 已锁定 SSE `200` headers、首个业务 `snapshot` frame、heartbeat 与 lease acquire/renew/release success schema，以及 `EDIT_LEASE_CONFLICT` / `SESSION_EXPIRED` 的 domain code/details。`GET /api/presence/{canvasId}` 现在只声明 runtime 可在握手前返回的 `400 ErrorResponse`；listener 上限在 `ReadableStream.start()` 内触发，初始化/写入异常发生在 `200` SSE 建立后，因此不再虚构 `429` / `500` JSON HTTP response，且由 OpenAPI contract test 锁定。剩余 wire 边界是 SVG preview 无受控 failure 与 SSE 已建立后不存在 JSON error body；media 的 plain-text `Forbidden`/`Not found`、关键 cache/security headers 已与 OpenAPI 和 route tests 对齐。 | 保持 JSON/media route runtime tests；若要声明 SSE listener-limit `429`，先将容量预检移动到 Response 构造前；明确 SSE 建连后重连语义与 SVG resource failure 策略。 |
 | API-AUD-04 | P1（已关闭） | `src/server/account-boundaries.ts:226`、`src/app/api/team/members/[memberId]/route.test.ts`；`/api/team/members/{memberId}` OpenAPI responses | `PATCH /api/team/members/{memberId}` 的未知成员路径已声明为 **404 `ErrorResponse`**，并由 route-level contract test 解析 `NOT_FOUND` envelope；同套测试同时锁定 owner `403`、成功重放与幂等冲突 `409`。 | 未来成员服务替换 fixture 时，保留 status/code 映射并增加真实 principal/权限矩阵测试。 |
 | API-AUD-05 | P1（部分关闭） | `src/app/api/account/route.ts`、`account/handoffs/route.ts`、`team/route.ts`、`shared-assets/route.ts`、`identity/route.ts`、`preferences/route.ts`、`notifications/route.ts`；这些 GET operation 的 OpenAPI security | 以上 7 个 GET 在匿名 fixture 下实际返回 **200 projection**（如 `permission-denied`、`authentication-required`、公开浏览者或空通知）。OpenAPI 现将其标为 `x-authorization: local-display-projection` + `security: []`，并由 `AUTHORIZATION.md` 明确它们只是不含真实账户资源的 local fixture display state。未来后端仍必须选择保留该脱敏 shape，或以 versioned protected resource + adapter 迁移。 | 将 future backend 的二选一记录为具体 ADR；若迁移到 protected resource，新增 versioned contract、adapter 和匿名/认证 E2E。 |
 | API-AUD-06 | P1（部分关闭） | OpenAPI operation example metadata 审计 | 当前 92 个 operation 中 **44 个没有 request/response example metadata**。`GET/POST /api/access-key`、`GET /api/account/handoffs`、`POST /api/team/invites`、`PATCH /api/team/members/{memberId}` 与 `GET/POST /api/showcase/{snapshotId}/engagement` 均已有可执行 schema 样本；团队写命令的 fixture transition、body idempotency、`401/403/404/409` 语义已在 `ACCOUNT_EXTERNAL_COMMANDS.md` 及 route tests 锁定，互动样本锁定匿名可读初始 projection 及登录 like transition。 | 为剩余高优先级 operation 至少提供 success、认证/权限失败、幂等 replay/冲突（写命令）样本，并将 examples 接入 OpenAPI `components.examples` 或 operation examples。 |

@@ -26,7 +26,10 @@ test('Docker, tagged GHCR publishing, and README demo use one image contract', (
   assert.match(workflow, /type=raw,value=latest/)
   assert.match(workflow, /type=sha,format=long/)
   assert.match(workflow, /if: github\.event_name == 'push' && startsWith\(github\.ref, 'refs\/tags\/v'\)/)
-  assert.match(workflow, /needs: \[verify, e2e\]/)
+  assert.match(workflow, /visual-regression:\n\s+name: Visual regression \(macOS 1440x900\)/)
+  assert.match(workflow, /runs-on: macos-14/)
+  assert.match(workflow, /run: pnpm e2e:visual/)
+  assert.match(workflow, /needs: \[verify, e2e, visual-regression\]/)
   assert.match(workflow, /VERSION=\$\{\{ steps\.meta\.outputs\.version \}\}/)
   assert.match(workflow, /VCS_REF=\$\{\{ github\.sha \}\}/)
 

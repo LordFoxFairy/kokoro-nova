@@ -225,6 +225,7 @@ const CONTRACT_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(
 type OpenApiOperation = {
   operationId?: string
   tags?: string[]
+  description?: string
   security?: Array<Record<string, string[]>>
   'x-authorization'?: 'public' | 'local-display-projection' | 'authenticated' | 'owner' | 'workspace'
   'x-ui-triggers'?: string[]
@@ -693,6 +694,22 @@ describe('local API manifest and OpenAPI', () => {
         }),
       })
     }
+  })
+
+  it('does not advertise SSE errors that the local stream cannot return before its 200 handshake', () => {
+    const document = openApiDocument()
+    const presence = operationAt(document, 'GET', '/api/presence/{canvasId}')
+    const specialTransportAudit = readFileSync(
+      path.join(process.cwd(), 'docs/api/SPECIAL_TRANSPORT_CONTRACT_AUDIT.md'),
+      'utf8',
+    )
+
+    expect(responseSchemaRef(presence, '400')).toBe('#/components/schemas/ErrorResponse')
+    expect(presence.responses?.['429']).toBeUndefined()
+    expect(presence.responses?.['500']).toBeUndefined()
+    expect(presence.description).toContain('不声明 429 或 500 JSON 响应')
+    expect(specialTransportAudit).toContain('当前 route 不存在可依赖的握手期 `429 ErrorResponse` wire body')
+    expect(specialTransportAudit).toContain('不能再改写为 HTTP JSON error')
   })
 
   it('documents the stitch preview sequence switch with its runtime-tolerant query semantics', () => {

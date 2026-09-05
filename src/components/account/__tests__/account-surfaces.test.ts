@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { getAccountRequestState, getTeamSurfaceRequestState } from '../AccountPage'
+import { getAccountRequestState, getTeamSurfaceRequestState, shouldSyncAccountSectionFromQuery } from '../AccountPage'
 import { getLedgerTabStatus } from '../LedgerView'
 
 describe('account surface state copy', () => {
   it('explains the active ledger tab and count', () => {
     expect(getLedgerTabStatus('spent', 3)).toBe('当前查看“消耗”，共 3 条记录。')
     expect(getLedgerTabStatus('returned', 0)).toBe('当前查看“返还”，暂无记录。')
+  })
+
+  it('does not reapply an unchanged initial query section over a keyboard selection', () => {
+    expect(shouldSyncAccountSectionFromQuery('overview', 'overview')).toBe(false)
+    expect(shouldSyncAccountSectionFromQuery('overview', 'wallet')).toBe(true)
   })
 
   it('distinguishes first load, refresh and retryable failure', () => {

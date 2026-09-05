@@ -13,6 +13,7 @@ import {
   scriptV2PromptSnapshot,
   updateScriptV2Row,
   type ScriptV2PromptSnapshot,
+  type ScriptV2Row,
   type ScriptV2RowPatch,
   type ScriptV2Stage,
   type ScriptV2State,
@@ -53,6 +54,37 @@ interface ScriptV2AutoPromptUndo {
   afterFingerprint: string
 }
 
+/** A same-field remote change requires an explicit user decision before replay. */
+interface ScriptV2RowConflict {
+  rowId: string
+  shotNumber: number
+  fieldLabels: string[]
+  patch: ScriptV2RowPatch
+  label: string
+}
+
+const ROW_PATCH_FIELD_LABELS: Partial<Record<keyof ScriptV2RowPatch, string>> = {
+  plotDescription: '画面描述',
+  durationSeconds: '时长',
+  shotSize: '景别',
+  lightingAndAtmosphere: '光影氛围',
+  dialogue: '对白·旁白',
+  audioEffects: '音效',
+  cinematics: '运镜',
+  imageGenerationPrompt: '图片提示词',
+  videoMotionPrompt: '视频运动提示词',
+}
+
+function scriptV2PatchConflicts(
+  base: ScriptV2Row,
+  current: ScriptV2Row,
+  patch: ScriptV2RowPatch,
+): Array<keyof ScriptV2RowPatch> {
+  return (Object.keys(patch) as Array<keyof ScriptV2RowPatch>).filter((key) =>
+    JSON.stringify(base[key]) !== JSON.stringify(current[key]),
+  )
+}
+
 function promptReady(state: ScriptV2State) {
   return state.rows.filter((row) => {
     const accepted = (value: string) => value === 'synced' || value === 'user_edited'
@@ -82,6 +114,7 @@ export function ScriptV2Workspace({
   const [promptRowId, setPromptRowId] = useState<string | null>(null)
   const [batchPromptOpen, setBatchPromptOpen] = useState(false)
   const [autoPromptUndo, setAutoPromptUndo] = useState<ScriptV2AutoPromptUndo | null>(null)
+  const [rowConflict, setRowConflict] = useState<ScriptV2RowConflict | null>(null)
   const promptFlushRef = useRef<(() => void) | null>(null)
   const promptRestoreTargetRef = useRef<HTMLElement | null>(null)
   const workspaceState = state ?? defaultScriptV2State(nodeId)
@@ -189,8 +222,44 @@ export function ScriptV2Workspace({
     )
   }
 
-  const patchRow = (rowId: string, patch: ScriptV2RowPatch, label: string) => {
-    void onStateChange((current) => updateScriptV2Row(current, rowId, patch), label)
+  const patchRow = (
+    rowId: string,
+    patch: ScriptV2RowPatch,
+    label: string,
+    baseRow = workspaceState.rows.find((row) => row.id === rowId),
+  ) => {
+    if (!baseRow) return
+    void onStateChange((current) => {
+      const currentRow = current.rows.find((row) => row.id === rowId)
+      const changedFields = currentRow
+        ? scriptV2PatchConflicts(baseRow, currentRow, patch)
+        : (Object.keys(patch) as Array<keyof ScriptV2RowPatch>)
+      if (changedFields.length > 0) {
+        // `commitWith` calls this producer again after a 409 reload. Returning
+        // the current state prevents the automatic rebase from silently
+        // replacing a collaborator's same-field revision. State is scheduled
+        // outside the store reducer, then the user can consciously reapply.
+        queueMicrotask(() => {
+          setRowConflict({
+            rowId,
+            shotNumber: baseRow.shotNumber,
+            fieldLabels: changedFields.map((field) => ROW_PATCH_FIELD_LABELS[field] ?? '镜头字段'),
+            patch,
+            label,
+          })
+        })
+        return current
+      }
+      return updateScriptV2Row(current, rowId, patch)
+    }, label)
+  }
+
+  const retryRowConflict = () => {
+    if (!rowConflict) return
+    const currentRow = workspaceState.rows.find((row) => row.id === rowConflict.rowId)
+    setRowConflict(null)
+    if (!currentRow) return
+    patchRow(rowConflict.rowId, rowConflict.patch, rowConflict.label, currentRow)
   }
 
   const patchPrompt = (
@@ -366,6 +435,32 @@ export function ScriptV2Workspace({
           onOpenDetail={openPrompt}
           onOpenBatch={openBatchPrompt}
         />
+      )}
+
+      {rowConflict && (
+        <div
+          data-testid="script-v2-row-conflict"
+          role="alert"
+          className="flex shrink-0 flex-wrap items-center gap-2 border-t border-amber-300/20 bg-amber-300/10 px-5 py-2 text-[11px] text-amber-100"
+        >
+          <span className="min-w-0 flex-1">
+            镜头 {rowConflict.shotNumber} 的{rowConflict.fieldLabels.join('、')}已被其他协作者更新；已保留远端版本。
+          </span>
+          <button
+            type="button"
+            onClick={() => setRowConflict(null)}
+            className="rounded-lg border border-amber-100/24 px-2.5 py-1 text-[11px] font-medium hover:bg-amber-100/10"
+          >
+            保留远端版本
+          </button>
+          <button
+            type="button"
+            onClick={retryRowConflict}
+            className="rounded-lg bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-[#302608] hover:bg-white"
+          >
+            重新应用我的草稿
+          </button>
+        </div>
       )}
 
       <footer className="flex min-h-16 shrink-0 flex-wrap items-center gap-y-2 border-t border-white/8 bg-[#1d1d1d] px-3 py-2 sm:px-5">

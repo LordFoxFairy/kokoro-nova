@@ -374,7 +374,7 @@ test('export sends the normalized persisted timeline contract and adds the resul
     subtitles: [],
   })
 
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task:prj_video_demo:can_video_main'))).toBeNull()
   await page.getByTestId('view-workflow').click()
   await expect(page.locator('[data-node-type="video"]')).toHaveCount(2)
 })
@@ -434,7 +434,7 @@ test('compose route renders the seeded local fixture into a readable MP4 artifac
 
 test('refresh restores a failed compose task and retries it without changing the timeline', async ({ page, request }) => {
   await page.addInitScript(() => {
-    window.localStorage.setItem('libtv.compose.active-task', 'compose_task_refresh')
+    window.localStorage.setItem('libtv.compose.active-task:prj_video_demo:can_video_main', 'compose_task_refresh')
   })
 
   const baseTask = {
@@ -485,10 +485,10 @@ test('refresh restores a failed compose task and retries it without changing the
 
   await openCompositor(page, request)
   await expect(page.getByTestId('compose-error')).toContainText('本地 fixture 渲染失败')
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBe('compose_task_refresh')
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task:prj_video_demo:can_video_main'))).toBe('compose_task_refresh')
   await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(0)
   await page.getByTestId('compose-retry').click()
   await expect(page.getByTestId('compose-success')).toContainText('合成完成')
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task:prj_video_demo:can_video_main'))).toBeNull()
   await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(0)
 })

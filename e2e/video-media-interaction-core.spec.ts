@@ -129,7 +129,7 @@ test('local export reports a terminal download without mutating the persisted ti
   expect(savedDownload.suggestedFilename()).toBe(`合成视频-${sourceArtifact.id.slice(-6)}.mp4`)
   await expect(page.getByTestId('compose-success')).toContainText('合成完成，预览和导出结果已准备好')
   await expect(page.getByTestId('toast')).toContainText('已导出到本地')
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task:prj_video_demo:can_video_main'))).toBeNull()
 
   const afterExport = await canvas(request)
   expect(composite(afterExport).data.extra).toEqual(beforeTimeline)

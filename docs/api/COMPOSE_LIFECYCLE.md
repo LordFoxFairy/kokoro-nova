@@ -19,6 +19,11 @@ queued/rendering → cancelled (POST cancel)
 
 `failed` task id 是唯一保留给刷新恢复和“重试”的终态；`succeeded`/`cancelled` 清除恢复指针但保留服务端 task 可审计。
 
+浏览器恢复指针使用 `libtv.compose.active-task:{projectId}:{canvasId}` 作为
+`localStorage` key，并对 project/canvas id 做 URL 编码；不同画布不会互相恢复任务。
+同一画布的多个标签页仍共享一个恢复指针，后续后端接入时应把 task scope 提升到服务端
+的 project/canvas/space 归属校验，而不是把 localStorage 当作授权边界。
+
 `succeeded` 是唯一可以包含 `artifact`、`assetId` 与 `subtitleMode` 的状态。`failed` 是唯一可以包含 `failure` 的状态；`queued`、`rendering`、`cancelled` 不暴露成片。服务端在提交 Asset 前持久化保护位，因此反复轮询或刷新只会创建一个画布产物。
 
 `ComposeRequest` 在 HTTP handler 和 `startComposeTask` 服务边界各解析一次：前者给调用方同步的 `400`，后者保护 fixture runner、队列 worker 等绕过 route 的调用者。文件消失、解码器缺失、超时和渲染失败发生在 task 已创建之后，因此统一收敛为同一 task 的 `failed + failure`，而非把前端时间线回滚。

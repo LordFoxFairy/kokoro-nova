@@ -8,6 +8,7 @@ import {
 import type { Artifact, WorkflowDocument } from '@/domain/types'
 import {
   audioTimeForPlayhead,
+  composeTaskStorageKeyForLocation,
   collectSources,
   isComposableMediaSource,
   isExcludedCompositeSource,
@@ -53,6 +54,15 @@ function workflowWithSources(...nodes: WorkflowDocument['nodes']): WorkflowDocum
 }
 
 describe('ClipEditor timeline accessibility helpers', () => {
+  it('scopes resumable compose tasks to the active project and canvas', () => {
+    expect(composeTaskStorageKeyForLocation('?projectId=project-a&canvasId=canvas-1'))
+      .toBe('libtv.compose.active-task:project-a:canvas-1')
+    expect(composeTaskStorageKeyForLocation('?projectId=project-a&canvasId=canvas-2'))
+      .not.toBe(composeTaskStorageKeyForLocation('?projectId=project-a&canvasId=canvas-1'))
+    expect(composeTaskStorageKeyForLocation('?projectId=project%2Fa&canvasId=canvas%3A1'))
+      .toBe('libtv.compose.active-task:project%2Fa:canvas%3A1')
+  })
+
   it('moves the playhead by keyboard steps and clamps Home/End at the timeline bounds', () => {
     expect(playheadValueForKey(1, 'ArrowRight', 10)).toBeCloseTo(1.1)
     expect(playheadValueForKey(1, 'ArrowLeft', 10)).toBeCloseTo(0.9)

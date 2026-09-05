@@ -129,7 +129,7 @@ test('export cancellation preserves the persisted timeline and clears only its r
   await expect(page.getByTestId('compose-progress')).toBeVisible()
   await page.getByTestId('compose-cancel').click()
   await expect(page.getByTestId('compose-success')).toContainText('已取消合成')
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('libtv.compose.active-task:prj_video_demo:can_video_main'))).toBeNull()
 
   const after = await request.get('/api/canvases/can_video_main').then((response) => response.json())
   const persisted = after.canvas.document.nodes.find((node: { type: string }) => node.type === 'videoComposite')

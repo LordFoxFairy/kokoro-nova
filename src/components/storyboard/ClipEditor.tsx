@@ -90,7 +90,19 @@ const TIMELINE_HEIGHT = 255
 const PLAYHEAD_STEP_SECONDS = 0.1
 const PLAYHEAD_PAGE_STEP_SECONDS = 1
 const DEFAULT_SOURCE_ASPECT_RATIO = '16 / 9'
-const COMPOSE_TASK_STORAGE_KEY = 'libtv.compose.active-task'
+export const COMPOSE_TASK_STORAGE_KEY = 'libtv.compose.active-task'
+
+/**
+ * Compose tasks belong to a canvas.  Keeping the task id under a location
+ * scoped key prevents a failed export from canvas A being restored when the
+ * user opens canvas B in the same browser session.
+ */
+export function composeTaskStorageKeyForLocation(search: string): string {
+  const params = new URLSearchParams(search)
+  const projectId = params.get('projectId')?.trim() || 'default-project'
+  const canvasId = params.get('canvasId')?.trim() || 'default-canvas'
+  return `${COMPOSE_TASK_STORAGE_KEY}:${encodeURIComponent(projectId)}:${encodeURIComponent(canvasId)}`
+}
 
 const TRANSITION_UI: Record<CompositeTransitionId, { label: string; accent: string }> = {
   fade: { label: '淡入淡出', accent: 'from-amber-300/80 via-slate-500/70 to-cyan-800/80' },
@@ -315,6 +327,9 @@ export function ClipEditor({
   onClose: () => void
   onExported?: (artifact: Artifact) => void
 }) {
+  const composeStorageKey = composeTaskStorageKeyForLocation(
+    typeof window === 'undefined' ? '' : window.location.search,
+  )
   const workflow = useEditor((state) => state.document)
   const commitWith = useEditor((state) => state.commitWith)
   const toast = useEditor((state) => state.toast)
@@ -377,11 +392,11 @@ export function ClipEditor({
   const rememberComposeTask = useCallback((task: ComposeTask) => {
     setComposeTask(task)
     if (task.status === 'queued' || task.status === 'rendering' || task.status === 'failed') {
-      window.localStorage.setItem(COMPOSE_TASK_STORAGE_KEY, task.id)
+      window.localStorage.setItem(composeStorageKey, task.id)
     } else {
-      window.localStorage.removeItem(COMPOSE_TASK_STORAGE_KEY)
+      window.localStorage.removeItem(composeStorageKey)
     }
-  }, [])
+  }, [composeStorageKey])
 
   const timeline = useMemo(() => {
     if (!trimPreview) return persistedTimeline
@@ -518,7 +533,7 @@ export function ClipEditor({
 
   useEffect(() => {
     if (!open) return
-    const taskId = window.localStorage.getItem(COMPOSE_TASK_STORAGE_KEY)
+    const taskId = window.localStorage.getItem(composeStorageKey)
     if (!taskId) return
     void (async () => {
       try {
@@ -535,10 +550,10 @@ export function ClipEditor({
         setNotes(task.notes)
         if (task.status === 'queued' || task.status === 'rendering') await observeComposeTask(task)
       } catch {
-        window.localStorage.removeItem(COMPOSE_TASK_STORAGE_KEY)
+        window.localStorage.removeItem(composeStorageKey)
       }
     })()
-  }, [observeComposeTask, open, rememberComposeTask])
+  }, [composeStorageKey, observeComposeTask, open, rememberComposeTask])
 
   useEffect(() => {
     const viewport = trackViewportRef.current

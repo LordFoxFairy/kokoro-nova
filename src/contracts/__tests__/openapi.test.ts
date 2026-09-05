@@ -42,7 +42,7 @@ type OpenApiOperation = {
   operationId?: string
   tags?: string[]
   security?: Array<Record<string, string[]>>
-  'x-authorization'?: 'public' | 'authenticated' | 'owner' | 'workspace'
+  'x-authorization'?: 'public' | 'local-display-projection' | 'authenticated' | 'owner' | 'workspace'
   'x-ui-triggers'?: string[]
   'x-mock-scenarios'?: string[]
   requestBody?: {
@@ -164,6 +164,16 @@ const PUBLIC_OPERATIONS = new Set([
   'GET /api/skills/{skillId}',
 ])
 
+const LOCAL_DISPLAY_PROJECTION_OPERATIONS = new Set([
+  'GET /api/account',
+  'GET /api/account/handoffs',
+  'GET /api/identity',
+  'GET /api/preferences',
+  'GET /api/notifications',
+  'GET /api/team',
+  'GET /api/shared-assets',
+])
+
 describe('local API manifest and OpenAPI', () => {
   it('lists exactly every exported local route method', () => {
     const manifestPairs = LOCAL_API_ROUTES.map((route) => `${route.method} ${route.path}`).sort()
@@ -249,11 +259,14 @@ describe('local API manifest and OpenAPI', () => {
 
   it('publishes a non-empty SemVer contract version consistent with the API README', () => {
     const version = openApiDocument().info?.version
+    const readme = readFileSync(path.join(process.cwd(), 'docs/api/README.md'), 'utf8')
 
     expect(version).toEqual(expect.any(String))
     expect(version).not.toBe('')
     expect(version).toMatch(CONTRACT_VERSION_PATTERN)
     expect(version).toBe(documentedContractVersion())
+    expect(readme).toContain('55 个 path、92 个 operation')
+    expect(readme).not.toMatch(/47 个 path\s*\/\s*82 个 operation|所有 82 个 operation/)
   })
 
   it('defines the backend-handoff bearer contract and operation authorization boundaries', () => {
@@ -271,6 +284,9 @@ describe('local API manifest and OpenAPI', () => {
 
       if (PUBLIC_OPERATIONS.has(pair)) {
         expect(operation['x-authorization'], pair).toBe('public')
+        expect(operation.security, pair).toEqual([])
+      } else if (LOCAL_DISPLAY_PROJECTION_OPERATIONS.has(pair)) {
+        expect(operation['x-authorization'], pair).toBe('local-display-projection')
         expect(operation.security, pair).toEqual([])
       } else {
         expect(operation['x-authorization'], pair).toMatch(/^(authenticated|owner|workspace)$/)

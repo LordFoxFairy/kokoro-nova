@@ -5193,12 +5193,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       }
     },
     "/api/account": {
@@ -5238,12 +5234,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       }
     },
     "/api/materials": {
@@ -5805,12 +5797,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       },
       "post": {
         "tags": [
@@ -5917,12 +5905,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       },
       "patch": {
         "tags": [
@@ -6026,12 +6010,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       },
       "post": {
         "tags": [
@@ -7068,12 +7048,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       }
     },
     "/api/shared-assets": {
@@ -7114,12 +7090,8 @@
             }
           }
         },
-        "x-authorization": "owner",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        "x-authorization": "local-display-projection",
+        "security": []
       }
     }
   },

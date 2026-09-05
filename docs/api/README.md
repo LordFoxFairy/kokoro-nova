@@ -14,7 +14,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | 文件 | 作用 |
 |---|---|
 | [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；55 个 path、92 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
-| [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/authenticated/owner/workspace 语义与后端授权交接边界 |
+| [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/local-display-projection/authenticated/owner/workspace 语义与后端授权交接边界 |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`COMPOSE_LIFECYCLE.md`](COMPOSE_LIFECYCLE.md) | 视频剪辑合成的持久化 task、取消、失败重试、刷新恢复与一次性产物约定 |
@@ -409,7 +409,7 @@ mock scenario 非空。新增 route 时三个来源必须在同一提交更新�
 1. 保留 `src/api/client.ts` 的方法签名；
 2. 将 transport base URL 指向真实服务；
 3. 在 adapter 层添加认证头，不让业务组件读取 token；按 [`AUTHORIZATION.md`](AUTHORIZATION.md)
-   执行 `x-authorization` 的 public/authenticated/owner/workspace 边界；
+   执行 `x-authorization` 的 public/local-display-projection/authenticated/owner/workspace 边界；
 4. 先将上游错误归一化为 `ErrorResponse`，再让真实成功响应通过同一 Zod Schema；
 5. 使用 examples 与 scenario E2E 做消费者契约测试；
 6. 真实长任务可把轮询替换为 SSE/WebSocket，但状态机和资源结构保持不变。

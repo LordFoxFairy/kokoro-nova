@@ -33,11 +33,11 @@ runtime 成功/错误主路径与 OpenAPI 同向；Presence 的 JSON errors 与 
 
 | ID | 优先级 | 证据 | 缺口 | 建议闭环 |
 |---|---|---|---|---|
-| API-AUD-01 | P1 | `docs/api/README.md:41,128` | README 同时保留 `47 个 path / 82 个 operation` 和“所有 82 个 operation”的旧数字，与封面处 55/92 冲突。当前校验只断言 README *包含* 55/92，因此会产生通过但文档自相矛盾的假阳性。 | 更新旧数字，并让 verifier 断言 README 中没有其他 `N path/M operation` 总量声明。 |
+| API-AUD-01 | P1（关闭） | `docs/api/README.md`、`src/contracts/__tests__/openapi.test.ts` | README 已统一为 55 个 path / 92 个 operation；契约测试同时断言权威总量且拒绝历史 `47/82` 标记，避免仅“包含正确数字”但文档仍自相矛盾。 | 保持总量断言；新增 route 时同步更新 README、manifest 与 OpenAPI。 |
 | API-AUD-02 | P1 | `docs/api/ROUTE_COVERAGE.md` 的“覆盖结论”表 | 分域计数未随新路由更新：Project/Folder/Recycle Bin 实际 **7/13**（文档 6/12）；Jobs/Script V2/compose 实际 **7/11**（文档 6/11）；Public discovery/publish 实际 **8/11**（文档 7/9）。三项按现有 tag/path 合并后均与正文总量冲突。 | 从 `LOCAL_API_ROUTES` 或 OpenAPI tags 自动生成分域统计，避免人工计数漂移。 |
 | API-AUD-03 | P0（部分关闭） | `src/server/http.ts`、`src/app/api/presence/[canvasId]/route.ts`、`src/api/client.ts`；`docs/api/ERRORS.md` 与 OpenAPI 的 `ErrorResponse` | 通用 `handle()` 的 87 个 JSON operation、Presence 握手前/POST JSON error 已输出规范化 `ErrorResponse { error: { code, message, details? }, requestId }`，且 `ApiError.requestId` 已保留关联值。剩余 wire 边界是 SVG preview 无受控 failure 与 SSE 已建立后不存在 JSON error body；media 的 plain-text `Forbidden`/`Not found`、关键 cache/security headers 已与 OpenAPI 和 route tests 对齐。 | 保持 JSON/media route runtime tests；明确 SSE 建连后重连语义与 SVG resource failure 策略。 |
 | API-AUD-04 | P1 | `src/server/account-boundaries.ts:226`；`/api/team/members/{memberId}` OpenAPI responses | `PATCH /api/team/members/{memberId}` 当成员不存在时实际抛出 **404**，OpenAPI 仅声明 200/400/401/403/409/500，漏掉 404。 | 增补 404 `ErrorResponse` 并为不存在成员增加 route-level contract test。 |
-| API-AUD-05 | P1 | `src/app/api/account/route.ts`、`account/handoffs/route.ts`、`team/route.ts`、`shared-assets/route.ts`、`identity/route.ts`、`preferences/route.ts`、`notifications/route.ts`；这些 GET operation 的 OpenAPI security | 以上 7 个 GET 在匿名 fixture 下实际返回 **200 projection**（如 `permission-denied`、`authentication-required`、公开浏览者或空通知），但 OpenAPI 标为 `x-authorization: owner` + `bearerAuth`。`ACCOUNT_EXTERNAL_COMMANDS.md` 也明确把匿名 handoff 写为 200 projection。未来服务无法同时“Bearer 必需”与“匿名拿到该 200 body”。 | 为每个 route 明确二选一：将读取 projection 作为 public/local-display contract，或让真实 API 返回 401 并把 projection 转换留在前端 adapter；随后使 OpenAPI、场景和文档同向。 |
+| API-AUD-05 | P1（部分关闭） | `src/app/api/account/route.ts`、`account/handoffs/route.ts`、`team/route.ts`、`shared-assets/route.ts`、`identity/route.ts`、`preferences/route.ts`、`notifications/route.ts`；这些 GET operation 的 OpenAPI security | 以上 7 个 GET 在匿名 fixture 下实际返回 **200 projection**（如 `permission-denied`、`authentication-required`、公开浏览者或空通知）。OpenAPI 现将其标为 `x-authorization: local-display-projection` + `security: []`，并由 `AUTHORIZATION.md` 明确它们只是不含真实账户资源的 local fixture display state。未来后端仍必须选择保留该脱敏 shape，或以 versioned protected resource + adapter 迁移。 | 将 future backend 的二选一记录为具体 ADR；若迁移到 protected resource，新增 versioned contract、adapter 和匿名/认证 E2E。 |
 | API-AUD-06 | P1（部分关闭） | OpenAPI operation example metadata 审计 | 当前 92 个 operation 中 **48 个没有 request/response example metadata**。`GET/POST /api/access-key` 与 `GET /api/account/handoffs` 已有可执行 schema 样本，并明确 Access Key 只含脱敏生命周期 projection；`POST /api/team/invites`、`PATCH /api/team/members/{memberId}` 与 TV Show engagement（`GET/POST /api/showcase/{snapshotId}/engagement`）仍无样本。后者包含状态机、匿名门或幂等语义，是后端交接风险最高的一组。 | 为剩余高优先级 operation 至少提供 success、认证/权限失败、幂等 replay/冲突（写命令）样本，并将 examples 接入 OpenAPI `components.examples` 或 operation examples。 |
 | API-AUD-07 | P2 | `src/contracts/__tests__/openapi.test.ts`、`scripts/verify-api-contract.mjs` | 现有静态门验证集合、引用、路径参数与少量 schema，但不执行 92 个 route，也不校验运行时成功/错误 body 是否能被对应 OpenAPI schema 解析；因此 API-AUD-03/04 不会阻断 CI。 | 添加 manifest 驱动的 route smoke matrix：每 operation 至少验证成功 content type/schema，错误 fixture 验证 status + `ErrorResponse`；对 body 命令增加 request schema、幂等 replay 和相同 key 不同输入的 409。 |
 | API-AUD-08 | P2 | `docs/api/README.md:77` 对 transport header 的表述；`AccessKeyCommandRequest`、`CreateTeamInviteRequest`、`UpdateTeamMemberRequest` | README 把 idempotency key 作为“调用方 header”的示例，而三个账户/团队命令和 Script V2 实际把 `idempotencyKey` 置于 JSON body。没有全局 header 约定，但文案容易让 future adapter 在错误位置注入 key。 | 明确：本仓的幂等键为 operation schema 的 body 字段；若未来采用 `Idempotency-Key` header，应作为 versioned contract 迁移并同时保留兼容策略。 |
@@ -46,7 +46,7 @@ runtime 成功/错误主路径与 OpenAPI 同向；Presence 的 JSON errors 与 
 
 1. **P0：特殊 transport 错误契约** — JSON routes 与 Presence JSON errors 已收敛；媒体 binary/text error 与 SVG preview 需单独声明、测试或归一化。
 2. **P1：账户与团队命令** — Access Key create 与账户 handoff 已有脱敏 success 样本；继续补齐 rotate/revoke、同键 replay、同键不同 command 的 409、邀请 seat 满、owner 修改和未知 member 的 404。
-3. **P1：匿名读取决策** — Account/identity/team/handoff 选择 public display projection 或 401 backend resource model，禁止混合语义。
+3. **P1：匿名读取决策** — 7 个账户菜单 GET 已收敛为 local display projection；未来后端选择保留该脱敏 shape 或 versioned protected resource + adapter，禁止混合语义。
 4. **P1：公开互动** — engagement 的匿名 POST 401、已登录 like/unlike/share、刷新后 state 及不会改动冻结 snapshot 的样本。
 5. **P2：全表生成验证** — 把 example 覆盖、status 集合和 schema 解析纳入 CI，而不是只验证路由名集合。
 
@@ -59,7 +59,7 @@ node scripts/verify-api-contract.mjs
 # OpenAPI/manifest 结构测试（当前 16 assertions）。
 pnpm exec vitest run src/contracts/__tests__/openapi.test.ts
 
-# 无依赖地重算权威总量；应输出 55 92 与 1.25.0-showcase-account-commands。
+# 无依赖地重算权威总量；应输出 55 92 与 1.25.1-account-member-not-found。
 node - <<'NODE'
 const fs = require('node:fs')
 const api = JSON.parse(fs.readFileSync('docs/api/openapi.yaml', 'utf8'))
@@ -71,8 +71,8 @@ const operations = Object.values(api.paths).reduce(
 console.log(Object.keys(api.paths).length, operations, api.info.version)
 NODE
 
-# 定位本审计记录的旧总量和需要统一的 legacy error path。
-rg -n '47 个 path|82 个 operation|NextResponse\.json\(\{ error: error\.message \}' docs/api src/server/http.ts
+# 检查正文不再混入旧总量（审计历史本身不计入）。
+rg -n '47 个 path|82 个 operation' docs/api/README.md docs/api/ROUTE_COVERAGE.md
 ```
 
 ## 审计边界

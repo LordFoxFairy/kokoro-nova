@@ -23,13 +23,28 @@ x-authorization: public
 
 这表示不要求 bearer；它不表示可返回私有 workspace、账户、草稿、会话或未发布资产。
 
+本地账户菜单还有一类明确的 display projection：
+
+```yaml
+security: []
+x-authorization: local-display-projection
+```
+
+它只适用于当前 frontend-only fixture 的 `GET /api/account`、`/api/account/handoffs`、
+`/api/identity`、`/api/preferences`、`/api/notifications`、`/api/team` 与
+`/api/shared-assets`。匿名访问返回脱敏的 `authentication-required`、`permission-denied`、
+空集合或默认偏好，以便页面在登录门前可确定性渲染；它不是公开账户资源。真实后端接手时必须
+二选一：保留完全相同的脱敏匿名 projection，或以 versioned protected resource + 前端 adapter
+替换它，不能只给同一路径加 bearer 而保留现有 response contract。
+
 ## 授权级别
 
 | `x-authorization` | `security` | 后端判定 | 资源可见性/写入边界 |
 |---|---|---|---|
 | `public` | `[]` | 无 bearer 要求 | 仅公开发现、目录、预览、已发布快照与其可公开媒体；不得借 path 或 ID 推断私有资源。 |
+| `local-display-projection` | `[]` | 当前 local fixture 不读取 bearer | 仅脱敏账户菜单 display state；未来后端须保留同一匿名 projection，或通过 versioned protected resource + adapter 迁移。 |
 | `authenticated` | `bearerAuth` | bearer 的 subject 有效 | 只确认已登录身份；用于收藏、公开快照复制和开发 fixture 控制，不授予某个资源的所有权。 |
-| `owner` | `bearerAuth` | subject 是个人资源的创建者/当前账户 | 账户、偏好、账本、Creation Context、Agent 会话、作者 Skill，以及发布/下架操作均只允许资源 owner。 |
+| `owner` | `bearerAuth` | subject 是个人资源的创建者/当前账户 | 账本、Creation Context、Agent 会话、作者 Skill，以及发布/下架操作均只允许资源 owner。 |
 | `workspace` | `bearerAuth` | subject 具有目标 workspace 的所需角色 | 项目、画布、资产、任务、回收站、Presence、合成和 Script V2 必须先解析资源归属，再按读/写角色授权。 |
 
 `workspace` 读操作要求 workspace reader；创建、mutation、上传、删除、任务 transition 和
@@ -40,8 +55,9 @@ Presence heartbeat 要求 workspace editor。后端可实现更细粒度角色�
 | 级别 | Operation 范围 |
 |---|---|
 | `public` | `GET /api/home`、`/api/models`、`/api/skills*`、`/api/materials*`、`/api/showcase*`、`GET /api/publish*`、预览和媒体读取。 |
+| `local-display-projection` | `GET /api/account`、`/api/account/handoffs`、`/api/identity`、`/api/preferences`、`/api/notifications`、`/api/team`、`/api/shared-assets`。 |
 | `authenticated` | 收藏 Skill/素材、`POST /api/publish/{snapshotId}/clone`、`/api/dev/scenario` 与 `/api/dev/reset`。开发 fixture 仍须同时通过环境门，production 不暴露。 |
-| `owner` | `/api/account`、`/api/ledger`、`/api/identity`、`/api/preferences`、`/api/notifications`、`/api/creation-context`、`/api/agent/**`、`/api/skills/author/**` 以及发布/下架。 |
+| `owner` | `/api/ledger`、`/api/creation-context`、`/api/agent/**`、`/api/skills/author/**` 以及发布/下架。 |
 | `workspace` | `/api/projects*`、`/api/folders*`、`/api/recycle-bin*`、`/api/canvases*`、`/api/assets*`、`/api/jobs*`、`/api/compose*`、`/api/presence*`、`/api/script-v2/**`。 |
 
 `*` 仅表示同一路径族中已在 OpenAPI 列出的 operation；具体 method 的 authoritative 标注始终是

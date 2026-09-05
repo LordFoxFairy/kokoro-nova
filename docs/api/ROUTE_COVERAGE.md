@@ -74,9 +74,10 @@ UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所�
 ## 后端授权与错误交接
 
 55 个 path、92 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
-15 个 public 读取明确为 `security: []`，其余 72 个 operation 使用 `bearerAuth`。后端以
-[`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
-和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。
+15 个 public 读取与 7 个 `local-display-projection` 读取使用 `security: []`，其余 70 个
+operation 使用 `bearerAuth`。后端以 [`AUTHORIZATION.md`](AUTHORIZATION.md) 的
+public/local-display-projection/authenticated/owner/workspace 语义在业务查询和副作用前完成
+认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。
 
 所有 OpenAPI 4xx/5xx JSON response 均已收敛到 `ErrorResponse`。当前 Route Handler 旧
 `{ error: string }` 输出仅由 client compatibility layer 接受，不能带入后端 response contract；完整
@@ -118,7 +119,7 @@ SSE 首帧为 `snapshot`，后续为 `join`、`move` 或 `leave`；每 20 秒有
 1. 根据 OpenAPI 的 `operationId` 实现相同 method/path/成功 schema/错误 status 与 operation-level
    `security`；不得让组件改到 provider URL 或读取环境变量。
 2. 在 transport adapter 归一化真实 provider envelope 和错误为 `ErrorResponse`；页面只消费本仓的资源 schema。
-3. 按 [`AUTHORIZATION.md`](AUTHORIZATION.md) 解析 public/authenticated/owner/workspace，不把有效
+3. 按 [`AUTHORIZATION.md`](AUTHORIZATION.md) 解析 public/local-display-projection/authenticated/owner/workspace，不把有效
    bearer 误当作 workspace editor 或 resource owner。
 4. 保留空数组、分页终止、fixture 仅开发可用、revision 与 idempotency 的明确语义。
 5. 让 SSE/实时层有独立部署和观测；不能把 cursor heartbeat 误当成画布 mutation。

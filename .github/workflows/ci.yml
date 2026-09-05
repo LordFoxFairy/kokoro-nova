@@ -145,7 +145,7 @@ jobs:
             echo '=== chromium ==='
             node --input-type=module -e "import { chromium } from 'playwright'; import { execFileSync } from 'node:child_process'; const executable = chromium.executablePath(); console.log(executable); console.log(execFileSync(executable, ['--version'], { encoding: 'utf8' }));"
             echo '=== installed font families ==='
-            system_profiler SPFontsDataType
+            system_profiler SPFontsDataType || true
           } > test-results/visual-platform/platform.txt
 
       - name: Compare approved 1440x900 visual baselines

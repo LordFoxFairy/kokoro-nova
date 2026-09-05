@@ -599,6 +599,16 @@
               }
             }
           },
+          "400": {
+            "description": "请求 JSON 或会话归属字段不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "本地状态写入失败",
             "content": {
@@ -616,6 +626,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateAgentSessionRequest"
+              },
+              "examples": {
+                "standalone": {
+                  "summary": "不绑定项目或画布的新会话",
+                  "value": {
+                    "projectId": null,
+                    "canvasId": null
+                  }
+                }
               }
             }
           }

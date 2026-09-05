@@ -648,7 +648,7 @@ describe('local API manifest and OpenAPI', () => {
       string,
       string[],
     ]> = [
-      ['POST', '/api/agent/sessions', null, 'AgentSession', ['500']],
+      ['POST', '/api/agent/sessions', null, 'AgentSession', ['400', '500']],
       ['GET', '/api/agent/sessions', null, 'AgentSessionsResponse', ['500']],
       ['GET', '/api/agent/sessions/{sessionId}', null, 'AgentSessionDetailResponse', ['404', '500']],
       ['PATCH', '/api/agent/sessions/{sessionId}', 'UpdateAgentSessionRequest', 'AgentSession', ['400', '404', '500']],

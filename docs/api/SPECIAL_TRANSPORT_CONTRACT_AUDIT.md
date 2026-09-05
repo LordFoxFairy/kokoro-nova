@@ -66,7 +66,7 @@
 ### Presence 客户端消费边界
 
 - `src/lib/presence-client.ts` 用 `fetch(..., Accept: text/event-stream)` 和手写 frame parser 读取 GET，不使用 `EventSource`。当 status 非 2xx 或无 `body` 时，它只抛 `Error("presence stream {status}")`；不会解析 JSON error body、`error.code`、`details` 或 `requestId`。随后以指数退避重连。
-- Presence POST 通过 typed `client.presence.*` 进入 `src/api/client.ts`。该 client 可兼容 legacy string 与 object-shaped error，并让 `EDIT_LEASE_CONFLICT` / `SESSION_EXPIRED` 到达 `ApiError.code`；但 `ApiError` 当前没有 `requestId` 字段，因此 requestId 仍会在 JSON transport 层丢失。
+- Presence POST 通过 typed `client.presence.*` 进入 `src/api/client.ts`。该 client 可兼容 legacy string 与 object-shaped error，并让 `EDIT_LEASE_CONFLICT` / `SESSION_EXPIRED` 到达 `ApiError.code`；`ApiError` 现保留 `requestId`，因此 JSON transport 的调用方可将其用于安全诊断；页面仍只应展示安全 message，不显示内部细节。
 - 获取 lease 的 UI 仅以 `EDIT_LEASE_CONFLICT` 进入 blocked 状态；其他错误回到 idle。续约错误则显示为 blocked。任何 envelope 收敛都必须保持这两个 409 code，而不是仅按 status 归为 `REVISION_CONFLICT`。
 
 ## Media：浏览器资源字节流
@@ -116,12 +116,12 @@
 
 按风险和不改变既有页面语义的优先级：
 
-1. **P0：完成 Presence requestId 的客户端可观测性。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；下一步把 `requestId` 纳入 `ApiError` 或 transport telemetry。对已建立 SSE，不把 JSON response 写进流内；文档应明确“连接期异常以连接关闭/重连处理”，或新增版本化的 `event: error` schema 后再由客户端实现该事件。
+1. **P0：保持 Presence requestId 的客户端可观测性。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；`ApiError` 已保留 `requestId`，后续 telemetry 可安全采集该关联值。对已建立 SSE，不把 JSON response 写进流内；文档应明确“连接期异常以连接关闭/重连处理”，或新增版本化的 `event: error` schema 后再由客户端实现该事件。
 2. **P0：修正 media 403/404 的 OpenAPI content type。** 在实际仍返回文本时，把 403/404 改为 `text/plain; charset=utf-8`（schema `string`，并给 `Forbidden` / `Not found` examples），而非 `application/json` / `ErrorResponse`。若未来选择 JSON error，先为资源消费者定义不依赖 body 的 error UX，并改写 runtime 与测试；不要仅改 YAML。
 3. **P1：把 binary response headers 作为显式契约。** media 应在 OpenAPI `headers` 中列出 `Content-Length`、`Cache-Control`、`Accept-Ranges`、`Content-Security-Policy`、`X-Content-Type-Options`，并说明 extension-to-content-type map。二选一处理 range：实现并文档化 `206` / `Content-Range`，或移除目前暗示 capability 的 `Accept-Ranges: bytes`。
 4. **P1：明确 preview failure 策略。** 可保持“仅 200、无受控错误”的 fixture 声明，并在 OpenAPI description 写明其限制；若生产 adapter 可能失败，应另定义 resource-safe 4xx/5xx（建议 text/plain 或 SVG fallback，而非无消费者的 JSON），同时增加图像加载失败 UI 契约。将 stitch `seq` 的文档改为接受任意 string 并说明仅 `1` 启用，或让 runtime 拒绝非 `0|1`，二者择一。
 5. **P1：增加 transport-aware runtime contract suite。** 现有 OpenAPI test 主要验证 operation 集合、成功 transport 和文档 response ref；新增 route-level test 应同时断言 status、content type、body shape、requestId 和关键 headers。最低集：Presence GET invalid query / listener limit / successful snapshot；Presence POST malformed body / lease conflict / expired lease；media 200/403/404 headers；两个 preview 的默认、边界参数与 SVG content type。
-6. **P2：将错误 body 的可观测边界写入 SDK。** JSON client 应保留 `requestId`；SSE client 应记录握手前 HTTP status/body 中的 requestId（若已迁移）并把已建连异常和 HTTP rejection 分为不同诊断事件；media/preview 仅记录 URL、HTTP status 和安全的 response metadata，避免读取或暴露资源字节。
+6. **P2：补足特殊 transport 的可观测边界。** JSON client 已保留 `requestId`；SSE client 应记录握手前 HTTP status/body 中的 requestId（若已迁移）并把已建连异常和 HTTP rejection 分为不同诊断事件；media/preview 仅记录 URL、HTTP status 和安全的 response metadata，避免读取或暴露资源字节。
 
 ## 验收基线
 

@@ -27,7 +27,7 @@ type ErrorResponse = {
 
 `src/server/http.ts` 的通用 `handle()` 路径现已返回完整 `ErrorResponse`（稳定 code 与
 fixture-stable requestId）。`src/api/client.ts` 在兼容期仍接受旧/新 envelope，以便 future adapter
-或未迁移的专门 transport 保持 `ApiError.status/message` 兼容。
+或未迁移的专门 transport 保持 `ApiError.status/message` 兼容；object-shaped JSON error 的 `requestId` 同时保留在 `ApiError.requestId`。
 
 兼容输入 `{ "error": "message" }` 在 OpenAPI components 中仍命名为
 `LegacyErrorResponse` 并标记 deprecated；它只用于读取旧 adapter/专门 transport 的响应，

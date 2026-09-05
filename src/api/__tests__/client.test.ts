@@ -70,6 +70,24 @@ describe('createApiClient', () => {
     )
   })
 
+  it('preserves ErrorResponse requestId and domain details for transport diagnostics', async () => {
+    const transport: JsonTransport = async () => json({
+      error: {
+        code: 'EDIT_LEASE_CONFLICT',
+        message: '当前画布正在由另一位协作者编辑',
+        details: { canvasId: 'can_fixture', ownerClientId: 'alice' },
+      },
+      requestId: 'req_local_presence_conflict',
+    }, { status: 409 })
+
+    await expect(createApiClient(transport).raw.post('/api/presence/can_fixture', {})).rejects.toMatchObject({
+      status: 409,
+      code: 'EDIT_LEASE_CONFLICT',
+      requestId: 'req_local_presence_conflict',
+      details: { canvasId: 'can_fixture', ownerClientId: 'alice' },
+    })
+  })
+
   it('maps malformed JSON to a transport error instead of throwing SyntaxError', async () => {
     const transport: JsonTransport = async () => new Response('{broken', { status: 200 })
 

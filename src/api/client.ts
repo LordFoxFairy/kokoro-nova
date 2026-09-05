@@ -125,6 +125,8 @@ export class ApiError extends Error {
     message: string,
     public readonly code: ApiErrorCode = codeForStatus(status),
     public readonly details: unknown = null,
+    /** Correlates a JSON ErrorResponse with fixture/server diagnostics. */
+    public readonly requestId: string | null = null,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -133,13 +135,15 @@ export class ApiError extends Error {
 
 function errorFromBody(body: unknown, status: number): ApiError {
   if (body && typeof body === 'object' && 'error' in body) {
-    const error = (body as { error: unknown }).error
-    if (typeof error === 'string') return new ApiError(status, error)
+    const envelope = body as { error: unknown; requestId?: unknown }
+    const requestId = typeof envelope.requestId === 'string' ? envelope.requestId : null
+    const error = envelope.error
+    if (typeof error === 'string') return new ApiError(status, error, undefined, null, requestId)
     if (error && typeof error === 'object') {
       const record = error as { code?: unknown; message?: unknown; details?: unknown }
       const code = typeof record.code === 'string' ? (record.code as ApiErrorCode) : codeForStatus(status)
       const message = typeof record.message === 'string' ? record.message : `请求失败 (${status})`
-      return new ApiError(status, message, code, record.details)
+      return new ApiError(status, message, code, record.details, requestId)
     }
   }
   return new ApiError(status, `请求失败 (${status})`)

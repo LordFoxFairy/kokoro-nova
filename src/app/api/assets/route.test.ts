@@ -3,10 +3,10 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { AssetLifecycleListResponseSchema, AssetLifecycleViewSchema } from '@/contracts/assets'
 import { LocalErrorEnvelopeSchema } from '@/contracts/http'
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
-import { resetStore } from '@/server/store'
+import { readState, resetStore } from '@/server/store'
 import { DELETE, PATCH } from './[assetId]/route'
 import { GET as listFolders, POST as createFolder } from './folders/route'
-import { GET } from './route'
+import { GET, POST } from './route'
 
 const ASSET_ID = 'asset_image_seed'
 const params = (assetId: string) => ({ params: Promise.resolve({ assetId }) })
@@ -48,6 +48,47 @@ describe.sequential('asset library route smoke', () => {
         lifecycle: expect.objectContaining({ availability: 'missing', reason: 'media_url_unavailable' }),
       }),
     ])
+  })
+
+  it('registers an unbound generated artifact as one schema-valid reusable asset and replays the same source artifact', async () => {
+    const stateBefore = await readState()
+    const artifact = stateBefore.jobs.flatMap((job) => job.artifacts).find((item) => item.assetId === null)
+    if (!artifact) throw new Error('authenticated-populated fixture must include an unbound generated artifact')
+
+    const request = () => new Request('http://localhost/api/assets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        artifactId: artifact.id,
+        name: '保存的视频生成产物',
+        namespace: 'agent',
+        tags: ['场景', '风格'],
+      }),
+    })
+    const registeredResponse = await POST(request())
+    const registered = AssetLifecycleViewSchema.parse(await registeredResponse.json())
+    const replayResponse = await POST(request())
+    const replay = AssetLifecycleViewSchema.parse(await replayResponse.json())
+
+    expect(registeredResponse.status).toBe(200)
+    expect(registered).toMatchObject({
+      id: expect.stringMatching(/^ast_/),
+      sourceArtifactId: artifact.id,
+      namespace: 'agent',
+      kind: artifact.kind,
+      name: '保存的视频生成产物',
+      tags: ['场景', '风格'],
+      state: 'committed',
+      lifecycle: { availability: 'active', reason: 'available' },
+    })
+    expect(replayResponse.status).toBe(200)
+    expect(replay).toEqual(registered)
+
+    const stateAfter = await readState()
+    expect(stateAfter.assets.filter((asset) => asset.sourceArtifactId === artifact.id)).toEqual([
+      expect.objectContaining({ id: registered.id }),
+    ])
+    expect(stateAfter.jobs.flatMap((job) => job.artifacts).find((item) => item.id === artifact.id)?.assetId).toBe(registered.id)
   })
 
   it('persists a folder move and metadata update through the documented route responses', async () => {

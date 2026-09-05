@@ -14,7 +14,7 @@
 | Payload example metadata | OpenAPI operation 的 `requestBody.content.*.example(s)` 或 `responses.*.content.*.example(s)` 有 payload-level example/ref。response header 的 `example` 不计为 payload 样本。 | 仅有 schema、仅有 README/专题文档中的示意 JSON、或未接到 operation 的 `components.examples`。 |
 | Special transport | `LOCAL_API_ROUTES.transport` 为 `sse` 或 `binary`；此外 Presence POST 是与 SSE room 共享状态机的 JSON companion，单列其 room/lease 约束。 | 通用 `application/json` 的 schema existence。 |
 
-按这个口径解析现有 manifest/OpenAPI：**55 paths / 92 operations**；**35** 个 operation 没有 direct-success runtime smoke；**44** 个 operation 没有 payload-level example metadata；成功 transport 为 SSE/binary 的 operation 有 **4** 个。该数字是当前代码快照，不把工作区的其他未提交并行改动纳入依据。
+按这个口径解析现有 manifest/OpenAPI：**55 paths / 92 operations**；**30** 个 operation 没有 direct-success runtime smoke；**44** 个 operation 没有 payload-level example metadata；成功 transport 为 SSE/binary 的 operation 有 **4** 个。该数字是当前代码快照，不把工作区的其他未提交并行改动纳入依据。
 
 ### 自动核对规则（后续实现必须遵守）
 
@@ -29,19 +29,19 @@
 
 | Domain / manifest tag | Operations | 无 runtime smoke（operationId） | 缺 payload example metadata（operationId） | 特殊 transport / 独立缺口 |
 | --- | ---: | --- | --- | --- |
-| Account | 14 | `getAccountExternalHandoffs` | `getAccountProfile`, `getLocalIdentity`, `updateLocalSession`, `getLocalPreferences`, `updateLocalPreferences`, `getNotificationSummary`, `markNotificationsRead`, `getLocalTeam`, `getLocalSharedAssets` | local-display-projection 的匿名 200 语义须与未来受保护资源迁移分开测试。 |
+| Account | 14 | — | `getAccountProfile`, `getLocalIdentity`, `updateLocalSession`, `getLocalPreferences`, `updateLocalPreferences`, `getNotificationSummary`, `markNotificationsRead`, `getLocalTeam`, `getLocalSharedAssets` | local-display-projection 的匿名 200 语义须与未来受保护资源迁移分开测试。 |
 | Agent | 7 | `sendAgentMessage`, `resolveAgentMessage`, `getAgentSession`, `updateAgentSession`, `deleteAgentSession`, `listAgentSessions`, `createAgentSession` | — | `createAgentSession` 现仅有 malformed 400 handler evidence，不能代表其他 6 个 operation。 |
 | Assets | 11 | `registerArtifactAsAsset`, `uploadAsset`, `cancelAssetUpload` | `previewCharacterReference`, `previewStoryboardStitch` | `readLocalMedia`、两个 preview 见特殊 transport；upload 是 multipart，不能使用 JSON-only matrix。 |
 | Canvases | 4 | `getCanvas`, `renameCanvas`, `deleteCanvas`, `createCanvas` | `getCanvas`, `renameCanvas`, `deleteCanvas`, `createCanvas` | 与 `mutateCanvas` 共用 document/revision 状态；不可只按 CRUD status 断言。 |
 | Creation Context | 3 | — | `getHomeCreationContext`, `saveHomeCreationContext`, `submitHomeCreationContext` | — |
-| Development | 3 | `resetActiveScenario` | — | production 403 是 deployment guard，不应被普通成功 matrix 漏掉。 |
-| Folders | 3 | `deleteFolder` | — | — |
+| Development | 3 | — | — | production 403 是 deployment guard，不应被普通成功 matrix 漏掉。 |
+| Folders | 3 | — | — | — |
 | Jobs | 4 | `getGenerationJob`, `transitionGenerationJob`, `listGenerationJobs`, `createGenerationJob` | — | create/transition 现有输入 400 断言；仍缺成功 queue/retry/cancel wire matrix。 |
-| Ledger | 1 | `listLedgerEntries` | `listLedgerEntries` | scenario balance/entries 排序须作为 success schema 断言。 |
+| Ledger | 1 | — | `listLedgerEntries` | scenario balance/entries 排序须作为 success schema 断言。 |
 | Materials | 3 | — | — | — |
 | Models | 1 | — | — | — |
 | Presence | 2 | `getCanvasPresence`, `updateCanvasPresence` | `getCanvasPresence` | `getCanvasPresence` 是 SSE；`updateCanvasPresence` 是其 heartbeat/lease JSON companion。 |
-| Projects | 7 | `getProject` | `getProject`, `updateProject`, `deleteProject`, `duplicateProject`, `listProjects`, `getHomeDiscovery` | — |
+| Projects | 7 | — | `getProject`, `updateProject`, `deleteProject`, `duplicateProject`, `listProjects`, `getHomeDiscovery` | — |
 | Publish | 5 | `revokePublishedSnapshot`, `listPublishedSnapshots`, `publishCanvas` | `getPublishedSnapshot`, `revokePublishedSnapshot`, `listPublishedSnapshots`, `publishCanvas` | frozen snapshot、private clone 和 revoke 的可见性必须分开覆盖。 |
 | Recycle Bin | 3 | — | `listRecycleBin`, `restoreRecycledProject`, `permanentlyDeleteRecycledProject` | — |
 | Script V2 | 4 | `quoteScriptV2`, `createScriptV2Run`, `getScriptV2Run`, `transitionScriptV2Run` | — | E2E 已覆盖主要 UI 状态；仍缺 handler-level success/error wire matrix。 |
@@ -49,7 +49,7 @@
 | Skills | 8 | `getSkill`, `toggleSkillFavorite` | `getSkill`, `toggleSkillFavorite`, `listSkills`, `listAuthoredSkills`, `createAuthoredSkill`, `getAuthoredSkill`, `updateAuthoredSkill`, `transitionAuthoredSkill` | author lifecycle 已有 direct route flow；缺 operation-bound OpenAPI payload examples。 |
 | Video | 3 | — | — | compose 已有主 lifecycle smoke；后续矩阵仍须覆盖所有声明的 failure status。 |
 | Workflow | 1 | `mutateCanvas` | — | revision conflict、atomic mutation 与 document projection 是一个 operation 的同一 contract。 |
-| **Total** | **92** | **35** | **44** | **4 SSE/binary success transports** |
+| **Total** | **92** | **30** | **44** | **4 SSE/binary success transports** |
 
 ### 已有但仍属 partial 的 direct evidence
 
@@ -87,17 +87,13 @@ runtime_cuts:
     operations: [registerArtifactAsAsset, uploadAsset, cancelAssetUpload, revokePublishedSnapshot, listPublishedSnapshots, publishCanvas]
     files: [src/app/api/assets/upload/route.test.ts, src/app/api/assets/route.test.ts, src/app/api/publish/route.test.ts, src/app/api/publish/[snapshotId]/route.test.ts]
     assertions: [success_schema, multipart_partial_success, cancellation_replay, visibility_boundary, frozen_snapshot]
-  - id: RT-05-account-project-ops
-    operations: [getAccountExternalHandoffs, listLedgerEntries, resetActiveScenario, deleteFolder, getProject]
-    files: [src/app/api/account/handoffs/route.test.ts, src/app/api/ledger/route.test.ts, src/app/api/dev/reset/route.test.ts, src/app/api/folders/[folderId]/route.test.ts, src/app/api/projects/[projectId]/route.test.ts]
-    assertions: [success_schema, authorization_or_projection, not_found_error, production_guard]
   - id: RT-06-special-transport
     operations: [getCanvasPresence, updateCanvasPresence, readLocalMedia, previewCharacterReference, previewStoryboardStitch]
     files: [src/app/api/presence/[canvasId]/route.test.ts, src/server/__tests__/media-route-traversal.test.ts, src/app/api/preview/preview-route.test.ts]
     assertions: [content_type, cache_and_security_headers, stream_first_frame, transport_specific_error_policy]
 ```
 
-`RT-01` 和 `RT-02` 最接近 Workflow/Video 主链，应优先；`RT-06` 不与 JSON matrix 合并。`RT-04` 的 upload test 文件若已有并行未提交工作，先等待其提交/清理再开新 agent，避免覆盖同一文件。
+`RT-05-account-project-ops` 已由五个 dedicated handler smoke 完成：handoffs 登录/匿名 display projection、ledger schema/limit、dev reset 成功/production guard、folder 删除确认/认证/404，以及 project detail 的认证/会话过期/404。`RT-01` 和 `RT-02` 最接近 Workflow/Video 主链，应优先；`RT-06` 不与 JSON matrix 合并。`RT-04` 的 upload test 文件若已有并行未提交工作，先等待其提交/清理再开新 agent，避免覆盖同一文件。
 
 ## 下一批互不重叠的 example/document cuts
 

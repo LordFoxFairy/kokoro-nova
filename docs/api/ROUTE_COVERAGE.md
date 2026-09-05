@@ -30,6 +30,7 @@ transport 的一一对应。
 - Canvas/workflow 主切片已由 `src/app/api/canvases/route.test.ts` 与 `src/app/api/canvases/[canvasId]/route.test.ts` 直接执行：新建/深拷贝画布、完整 canvas/project/jobs/balance 读取投影、重命名、非最后画布删除、revisioned mutation 回读与 stale revision `409`。同一切片还以 `setViewport` 后接无效 edge 的 batch 验证失败不提交任何 document/revision 变化；成功体经 `CanvasSchema` / `CanvasDetailLocalResponseSchema` / `MutationResultSchema` 解析，错误经 `LocalErrorEnvelopeSchema` 解析。
 - 视频合成主切片也已由 `src/app/api/compose/route.test.ts` 直接执行：创建返回严格 `ComposeTaskResponse`，以受控 renderer 到达 `rendering` 后取消，重复 `cancel` 返回同一 terminal projection，并在后续 GET 中保持；非法 clips 与未知 task action 分别返回 schema-valid `400` / `404 ErrorResponse`。该测试不依赖 ffmpeg 或实际媒体输出。
 - Agent session 的全部 7 个 operation 已由 `src/app/api/agent/sessions/route.test.ts` 与 `src/app/api/agent/sessions/[sessionId]/route.test.ts` 直接执行：新建/按项目列表返回严格 session schema；短提示词产生按 `seq` 递增的 `ask_human`，`afterSeq` cursor 只投影后续消息，回答后保留已回答的 question 与连续 follow-up trace；有内容的会话可更新分享/模式；未知 session 的 detail 与 message 写入均返回标准 `404 ErrorResponse`；删除后 detail 与 collection projection 都不再包含该 session。
+- RT-05 的五个低耦合边界也已经由 dedicated handler smoke 执行：账户 handoffs 在认证/匿名下保持同一脱敏 projection schema；ledger 锁定 entries/jobs/totals 与 `limit` 不改变汇总；dev reset 锁定 active fixture reset 与 production `403` 不写入；folder delete 锁定确认名、认证/404 和 active 子项目投影；project detail 锁定 project/canvas/balance schema、认证、会话过期和 404。
 - 这些仍只是 API-AUD-07 的可重复 route smoke 切片；尚未替代 92 个 operation 的 manifest 驱动 matrix，生成产物注册及其余 domain 仍需按 operation 补 success/error wire 断言。
 
 ### 本轮补齐项

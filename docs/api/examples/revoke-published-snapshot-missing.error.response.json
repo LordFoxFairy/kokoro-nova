@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "作品不存在"
+  },
+  "requestId": "req_local_revoke_snapshot_missing"
+}

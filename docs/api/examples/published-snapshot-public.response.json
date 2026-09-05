@@ -1,0 +1,38 @@
+{
+  "snapshot": {
+    "id": "showcase-dust-skeleton",
+    "projectId": "fixture-project-showcase-dust-skeleton",
+    "canvasId": "fixture-canvas-showcase-dust-skeleton",
+    "title": "尘骸丨东方蒸汽朋克 EP.01",
+    "summary": "东方蒸汽朋克世界观的镜头实验。",
+    "coverUrl": "/fixtures/libtv/showcase/dust-skeleton.webp",
+    "publishedAt": "2026-08-31T10:00:00.000Z",
+    "state": "listed",
+    "document": {
+      "schemaVersion": 1,
+      "nodes": [
+        {
+          "id": "showcase-dust-skeleton-node",
+          "type": "text",
+          "name": "公开文本节点",
+          "position": { "x": 80, "y": 80 },
+          "size": { "width": 350, "height": 200 },
+          "groupId": null,
+          "keyElement": false,
+          "createdAt": "2026-08-31T10:00:00.000Z",
+          "updatedAt": "2026-08-31T10:00:00.000Z",
+          "data": {
+            "prompt": "东方蒸汽朋克世界观的镜头实验。",
+            "references": [],
+            "artifacts": [],
+            "jobId": null,
+            "extra": {}
+          }
+        }
+      ],
+      "edges": [],
+      "groups": [],
+      "viewport": { "x": 0, "y": 0, "zoom": 1 }
+    }
+  }
+}

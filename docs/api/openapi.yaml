@@ -3592,6 +3592,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ShowcaseDetailResponse"
+                },
+                "examples": {
+                  "publicDetail": {
+                    "$ref": "#/components/examples/ShowcaseDetailPublicResponseExample"
+                  }
                 }
               }
             }
@@ -3654,6 +3659,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ShowcasePlaybackManifest"
+                },
+                "examples": {
+                  "localQualityManifest": {
+                    "$ref": "#/components/examples/ShowcasePlaybackManifestResponseExample"
+                  }
                 }
               }
             }
@@ -3892,6 +3902,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ShowcaseListResponse"
+                },
+                "examples": {
+                  "publicFirstPage": {
+                    "$ref": "#/components/examples/ShowcaseListPublicResponseExample"
+                  }
                 }
               }
             }
@@ -3996,6 +4011,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetPublishedSnapshotResponse"
+                },
+                "examples": {
+                  "publicFrozenSnapshot": {
+                    "$ref": "#/components/examples/PublishedSnapshotPublicResponseExample"
+                  }
                 }
               }
             }
@@ -4055,6 +4075,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RevokePublishedSnapshotResponse"
+                },
+                "examples": {
+                  "revokedSummary": {
+                    "$ref": "#/components/examples/RevokePublishedSnapshotResponseExample"
+                  }
                 }
               }
             }
@@ -4065,6 +4090,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "snapshotMissing": {
+                    "$ref": "#/components/examples/RevokePublishedSnapshotMissingErrorExample"
+                  }
                 }
               }
             }
@@ -4121,6 +4151,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListPublishedSnapshotsResponse"
+                },
+                "examples": {
+                  "publicListedSnapshots": {
+                    "$ref": "#/components/examples/PublishedSnapshotsListResponseExample"
+                  }
                 }
               }
             }
@@ -4158,6 +4193,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublishCanvasResponse"
+                },
+                "examples": {
+                  "listedSummary": {
+                    "$ref": "#/components/examples/PublishCanvasResponseExample"
+                  }
                 }
               }
             }
@@ -4178,6 +4218,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "canvasMissing": {
+                    "$ref": "#/components/examples/PublishCanvasMissingErrorExample"
+                  }
                 }
               }
             }
@@ -4199,6 +4244,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PublishRequest"
+              },
+              "examples": {
+                "freezeCanvas": {
+                  "$ref": "#/components/examples/PublishCanvasRequestExample"
+                }
               }
             }
           }
@@ -17813,6 +17863,46 @@
       "ShowcaseEngagementLikeResponseExample": {
         "summary": "喜欢动作后的 viewer-local projection",
         "externalValue": "./examples/showcase-engagement.like.response.json"
+      },
+      "PublishedSnapshotPublicResponseExample": {
+        "summary": "公开作品的冻结 workflow snapshot；不包含可继续执行的私有 job 句柄。",
+        "externalValue": "./examples/published-snapshot-public.response.json"
+      },
+      "PublishedSnapshotsListResponseExample": {
+        "summary": "匿名作品流仅投影 listed snapshot 的摘要。",
+        "externalValue": "./examples/published-snapshots-list.response.json"
+      },
+      "PublishCanvasRequestExample": {
+        "summary": "owner 将可发布的本地画布冻结为新公开 snapshot。",
+        "externalValue": "./examples/publish-canvas.request.json"
+      },
+      "PublishCanvasResponseExample": {
+        "summary": "发布命令返回新 listed snapshot 的摘要，不回传完整 document。",
+        "externalValue": "./examples/publish-canvas.response.json"
+      },
+      "RevokePublishedSnapshotResponseExample": {
+        "summary": "owner 下架后保留审计摘要，state 变为 revoked。",
+        "externalValue": "./examples/revoke-published-snapshot.response.json"
+      },
+      "PublishCanvasMissingErrorExample": {
+        "summary": "owner 写入时目标画布不存在。",
+        "externalValue": "./examples/publish-canvas-missing.error.response.json"
+      },
+      "RevokePublishedSnapshotMissingErrorExample": {
+        "summary": "owner 下架时公开 snapshot 不存在。",
+        "externalValue": "./examples/revoke-published-snapshot-missing.error.response.json"
+      },
+      "ShowcaseDetailPublicResponseExample": {
+        "summary": "匿名可读的 TV Show 详情及相邻作品投影。",
+        "externalValue": "./examples/showcase-detail-public.response.json"
+      },
+      "ShowcasePlaybackManifestResponseExample": {
+        "summary": "匿名播放器按本地 fixture 质量清单确定性回退。",
+        "externalValue": "./examples/showcase-playback-public.response.json"
+      },
+      "ShowcaseListPublicResponseExample": {
+        "summary": "匿名 TV Show 目录的首页分页投影。",
+        "externalValue": "./examples/showcase-list-public.response.json"
       },
       "CreateTeamInviteRequestExample": {
         "summary": "以本地显示别名创建 pending 团队邀请",

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "画布不存在"
+  },
+  "requestId": "req_local_publish_canvas_missing"
+}

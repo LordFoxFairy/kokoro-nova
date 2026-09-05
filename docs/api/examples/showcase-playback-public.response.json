@@ -1,0 +1,30 @@
+{
+  "snapshotId": "pub_city_night_01",
+  "media": {
+    "url": "/api/media/fixtures/city-night.mp4",
+    "posterUrl": "/fixtures/libtv/media/city-night-poster.webp",
+    "durationSeconds": 15,
+    "width": 1280,
+    "height": 720,
+    "originalQualityLabel": "720p 原画质"
+  },
+  "initialQuality": "720p",
+  "variants": [
+    {
+      "quality": "720p",
+      "label": "720p 高清",
+      "url": "/api/media/fixtures/city-night.mp4?quality=720p"
+    },
+    {
+      "quality": "480p",
+      "label": "480p 流畅",
+      "url": "/api/media/fixtures/city-night.mp4?quality=480p"
+    },
+    {
+      "quality": "original",
+      "label": "720p 原画质",
+      "url": "/api/media/fixtures/city-night.mp4?quality=original"
+    }
+  ],
+  "fallbackOrder": ["720p", "480p", "original"]
+}

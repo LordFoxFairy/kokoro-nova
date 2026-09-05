@@ -1,0 +1,14 @@
+{
+  "snapshot": {
+    "id": "pub_example_0001",
+    "projectId": "prj_video_demo",
+    "canvasId": "can_video_main",
+    "title": "雨夜霓虹城市",
+    "summary": "从故事梗概、首帧到视频成片的公开制作过程。",
+    "coverUrl": "/fixtures/libtv/media/city-night-poster.webp",
+    "publishedAt": "2026-09-03T12:00:00.000Z",
+    "state": "listed",
+    "nodeCount": 4,
+    "mediaCount": 2
+  }
+}

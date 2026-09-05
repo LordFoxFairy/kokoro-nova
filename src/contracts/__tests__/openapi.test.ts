@@ -33,6 +33,16 @@ import teamMemberUpdateResponseExample from '../../../docs/api/examples/team-mem
 import initialEngagementExample from '../../../docs/api/examples/showcase-engagement.initial.response.json'
 import likeEngagementExample from '../../../docs/api/examples/showcase-engagement.like.response.json'
 import likeEngagementRequestExample from '../../../docs/api/examples/showcase-engagement.request.json'
+import publishedSnapshotPublicExample from '../../../docs/api/examples/published-snapshot-public.response.json'
+import publishedSnapshotsListExample from '../../../docs/api/examples/published-snapshots-list.response.json'
+import publishCanvasRequestExample from '../../../docs/api/examples/publish-canvas.request.json'
+import publishCanvasResponseExample from '../../../docs/api/examples/publish-canvas.response.json'
+import revokePublishedSnapshotResponseExample from '../../../docs/api/examples/revoke-published-snapshot.response.json'
+import publishCanvasMissingErrorExample from '../../../docs/api/examples/publish-canvas-missing.error.response.json'
+import revokePublishedSnapshotMissingErrorExample from '../../../docs/api/examples/revoke-published-snapshot-missing.error.response.json'
+import showcaseDetailPublicExample from '../../../docs/api/examples/showcase-detail-public.response.json'
+import showcasePlaybackPublicExample from '../../../docs/api/examples/showcase-playback-public.response.json'
+import showcaseListPublicExample from '../../../docs/api/examples/showcase-list-public.response.json'
 import assetLifecycleActiveExample from '../../../docs/api/examples/asset-lifecycle-active.response.json'
 import assetLifecycleListActiveExample from '../../../docs/api/examples/asset-lifecycle-list-active.response.json'
 import assetUpdateMetadataRequestExample from '../../../docs/api/examples/asset-update-metadata.request.json'
@@ -107,9 +117,19 @@ import {
   UpdateTeamMemberRequestSchema,
 } from '@/contracts/team'
 import {
+  ShowcaseDetailResponseSchema,
   ShowcaseEngagementRequestSchema,
   ShowcaseEngagementResponseSchema,
+  ShowcaseListResponseSchema,
+  ShowcasePlaybackManifestSchema,
 } from '@/contracts/showcase'
+import {
+  GetPublishedSnapshotResponseSchema,
+  ListPublishedSnapshotsResponseSchema,
+  PublishCanvasResponseSchema,
+  PublishRequestSchema,
+  RevokePublishedSnapshotResponseSchema,
+} from '@/contracts/publish'
 import {
   CreateJobRequestSchema,
   CreateJobResponseSchema,
@@ -799,6 +819,107 @@ describe('local API manifest and OpenAPI', () => {
       likeCount: 13,
       shareCount: 0,
     })
+  })
+
+  it('keeps EX-03 public snapshot and TV Show examples schema-valid, file-backed and bound to protected write failures', () => {
+    const document = openApiDocument()
+    const publishedSnapshot = operationAt(document, 'GET', '/api/publish/{snapshotId}')
+    const revokePublishedSnapshot = operationAt(document, 'DELETE', '/api/publish/{snapshotId}')
+    const publishedSnapshots = operationAt(document, 'GET', '/api/publish')
+    const publishCanvas = operationAt(document, 'POST', '/api/publish')
+    const showcaseDetail = operationAt(document, 'GET', '/api/showcase/{snapshotId}')
+    const showcasePlayback = operationAt(document, 'GET', '/api/showcase/{snapshotId}/playback')
+    const showcaseList = operationAt(document, 'GET', '/api/showcase')
+
+    expect(publishedSnapshot.responses?.['200']?.content?.['application/json']?.examples?.publicFrozenSnapshot?.$ref).toBe(
+      '#/components/examples/PublishedSnapshotPublicResponseExample',
+    )
+    expect(revokePublishedSnapshot.responses?.['200']?.content?.['application/json']?.examples?.revokedSummary?.$ref).toBe(
+      '#/components/examples/RevokePublishedSnapshotResponseExample',
+    )
+    expect(revokePublishedSnapshot.responses?.['404']?.content?.['application/json']?.examples?.snapshotMissing?.$ref).toBe(
+      '#/components/examples/RevokePublishedSnapshotMissingErrorExample',
+    )
+    expect(publishedSnapshots.responses?.['200']?.content?.['application/json']?.examples?.publicListedSnapshots?.$ref).toBe(
+      '#/components/examples/PublishedSnapshotsListResponseExample',
+    )
+    expect(publishCanvas.requestBody?.content?.['application/json']?.examples?.freezeCanvas?.$ref).toBe(
+      '#/components/examples/PublishCanvasRequestExample',
+    )
+    expect(publishCanvas.responses?.['200']?.content?.['application/json']?.examples?.listedSummary?.$ref).toBe(
+      '#/components/examples/PublishCanvasResponseExample',
+    )
+    expect(publishCanvas.responses?.['404']?.content?.['application/json']?.examples?.canvasMissing?.$ref).toBe(
+      '#/components/examples/PublishCanvasMissingErrorExample',
+    )
+    expect(showcaseDetail.responses?.['200']?.content?.['application/json']?.examples?.publicDetail?.$ref).toBe(
+      '#/components/examples/ShowcaseDetailPublicResponseExample',
+    )
+    expect(showcasePlayback.responses?.['200']?.content?.['application/json']?.examples?.localQualityManifest?.$ref).toBe(
+      '#/components/examples/ShowcasePlaybackManifestResponseExample',
+    )
+    expect(showcaseList.responses?.['200']?.content?.['application/json']?.examples?.publicFirstPage?.$ref).toBe(
+      '#/components/examples/ShowcaseListPublicResponseExample',
+    )
+
+    const frozen = GetPublishedSnapshotResponseSchema.parse(publishedSnapshotPublicExample)
+    expect(frozen.snapshot).toMatchObject({
+      id: 'showcase-dust-skeleton',
+      state: 'listed',
+      document: { schemaVersion: 1, edges: [], groups: [] },
+    })
+    expect(frozen.snapshot.document.nodes).toHaveLength(1)
+    expect(frozen.snapshot.document.nodes[0]?.data).toMatchObject({ jobId: null, references: [], artifacts: [] })
+    expect(ListPublishedSnapshotsResponseSchema.parse(publishedSnapshotsListExample)).toMatchObject({
+      snapshots: [{ id: 'pub_city_night_01', state: 'listed', nodeCount: 4, mediaCount: 2 }],
+    })
+    expect(PublishRequestSchema.parse(publishCanvasRequestExample)).toEqual({
+      canvasId: 'can_video_main',
+      title: '雨夜霓虹城市',
+      summary: '从故事梗概、首帧到视频成片的公开制作过程。',
+    })
+    expect(PublishCanvasResponseSchema.parse(publishCanvasResponseExample)).toMatchObject({
+      snapshot: { id: 'pub_example_0001', state: 'listed', nodeCount: 4, mediaCount: 2 },
+    })
+    expect(RevokePublishedSnapshotResponseSchema.parse(revokePublishedSnapshotResponseExample)).toMatchObject({
+      snapshot: { id: 'pub_example_0001', state: 'revoked', nodeCount: 4, mediaCount: 2 },
+    })
+    expect(LocalErrorEnvelopeSchema.parse(publishCanvasMissingErrorExample)).toEqual({
+      error: { code: 'NOT_FOUND', message: '画布不存在' },
+      requestId: 'req_local_publish_canvas_missing',
+    })
+    expect(LocalErrorEnvelopeSchema.parse(revokePublishedSnapshotMissingErrorExample)).toEqual({
+      error: { code: 'NOT_FOUND', message: '作品不存在' },
+      requestId: 'req_local_revoke_snapshot_missing',
+    })
+    expect(ShowcaseDetailResponseSchema.parse(showcaseDetailPublicExample)).toMatchObject({
+      entry: { id: 'pub_city_night_01', processAvailable: true },
+      related: [{ id: 'pub_city_night_01' }],
+    })
+    expect(ShowcasePlaybackManifestSchema.parse(showcasePlaybackPublicExample)).toMatchObject({
+      snapshotId: 'pub_city_night_01',
+      initialQuality: '720p',
+      fallbackOrder: ['720p', '480p', 'original'],
+    })
+    expect(ShowcaseListResponseSchema.parse(showcaseListPublicExample)).toMatchObject({
+      entries: [{ id: 'pub_city_night_01' }],
+      page: { offset: 0, limit: 4, total: 7, nextOffset: 4 },
+    })
+
+    for (const [name, filename] of Object.entries({
+      PublishedSnapshotPublicResponseExample: 'published-snapshot-public.response.json',
+      PublishedSnapshotsListResponseExample: 'published-snapshots-list.response.json',
+      PublishCanvasRequestExample: 'publish-canvas.request.json',
+      PublishCanvasResponseExample: 'publish-canvas.response.json',
+      RevokePublishedSnapshotResponseExample: 'revoke-published-snapshot.response.json',
+      PublishCanvasMissingErrorExample: 'publish-canvas-missing.error.response.json',
+      RevokePublishedSnapshotMissingErrorExample: 'revoke-published-snapshot-missing.error.response.json',
+      ShowcaseDetailPublicResponseExample: 'showcase-detail-public.response.json',
+      ShowcasePlaybackManifestResponseExample: 'showcase-playback-public.response.json',
+      ShowcaseListPublicResponseExample: 'showcase-list-public.response.json',
+    })) {
+      expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
+    }
   })
 
   it('keeps the standalone documentation audit executable', () => {

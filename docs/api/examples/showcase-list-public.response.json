@@ -1,0 +1,40 @@
+{
+  "entries": [
+    {
+      "id": "pub_city_night_01",
+      "snapshotId": "pub_city_night_01",
+      "title": "雨夜霓虹城市",
+      "summary": "从故事梗概、首帧到视频成片的公开制作过程。",
+      "coverUrl": "/fixtures/libtv/media/city-night-poster.webp",
+      "publishedAt": "2026-09-03T11:30:00.000Z",
+      "nodeCount": 4,
+      "mediaCount": 2,
+      "category": "专业影视",
+      "author": "公开创作者",
+      "authorTier": "先锋",
+      "authorAvatarUrl": null,
+      "likeCount": 12,
+      "viewCount": 12846,
+      "hasAiContent": true,
+      "processAvailable": true,
+      "media": {
+        "url": "/api/media/fixtures/city-night.mp4",
+        "posterUrl": "/fixtures/libtv/media/city-night-poster.webp",
+        "durationSeconds": 15,
+        "width": 1280,
+        "height": 720,
+        "originalQualityLabel": "720p 原画质"
+      }
+    }
+  ],
+  "page": {
+    "offset": 0,
+    "limit": 4,
+    "total": 7,
+    "hasMore": true,
+    "nextOffset": 4,
+    "category": "全部",
+    "query": "",
+    "searchFallback": false
+  }
+}

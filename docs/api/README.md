@@ -74,7 +74,10 @@ const backendClient = createApiClient(fetch, {
 })
 ```
 
-fixture、组件 state、Route Handler body 和文档样本都不保存该 token；调用方 header（例如 idempotency key）优先于 adapter 的同名默认值。
+fixture、组件 state、Route Handler body 和文档样本都不保存该 token；调用方显式传入的 header 优先于 adapter 的同名默认值。
+本仓没有全局 `Idempotency-Key` header 约定：需要幂等的命令（包括 Access Key、团队和 Script V2）将
+`idempotencyKey` 作为各 operation 的 JSON request body schema 必填字段。未来若改用
+`Idempotency-Key` header，必须进行 versioned contract 迁移，并明确迁移期的 body/header 兼容策略。
 
 ## 传输约定
 

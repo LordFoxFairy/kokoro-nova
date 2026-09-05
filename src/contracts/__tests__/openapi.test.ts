@@ -320,6 +320,35 @@ describe('local API manifest and OpenAPI', () => {
     expect(readme).not.toMatch(/47 个 path\s*\/\s*82 个 operation|所有 82 个 operation/)
   })
 
+  it('documents body idempotency keys without inventing a global transport header', () => {
+    const document = openApiDocument()
+    const readme = readFileSync(path.join(process.cwd(), 'docs/api/README.md'), 'utf8')
+    const bodyKeyOperations = [
+      ['POST', '/api/access-key', '#/components/schemas/AccessKeyCommandRequest'],
+      ['POST', '/api/team/invites', '#/components/schemas/CreateTeamInviteRequest'],
+      ['PATCH', '/api/team/members/{memberId}', '#/components/schemas/UpdateTeamMemberRequest'],
+    ] as const
+
+    expect(readme).toContain('没有全局 `Idempotency-Key` header 约定')
+    expect(readme).toContain('`idempotencyKey` 作为各 operation 的 JSON request body schema 必填字段')
+    expect(readme).toContain('`Idempotency-Key` header，必须进行 versioned contract 迁移')
+    expect(readme).not.toContain('header（例如 idempotency key）')
+
+    for (const [method, routePath, schemaRef] of bodyKeyOperations) {
+      const operation = operationAt(document, method, routePath)
+      expect(operation.requestBody?.content?.['application/json']?.schema?.$ref).toBe(schemaRef)
+      expect(operation.parameters?.some((parameter) => parameter.name?.toLowerCase() === 'idempotency-key') ?? false).toBe(false)
+      const schemaName = schemaRef.replace('#/components/schemas/', '')
+      expect(document.components?.schemas?.[schemaName]?.required).toContain('idempotencyKey')
+    }
+
+    const scriptRun = operationAt(document, 'POST', '/api/script-v2/runs')
+    expect(scriptRun.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/CreateScriptV2RunRequest',
+    )
+    expect(scriptRun.parameters?.some((parameter) => parameter.name?.toLowerCase() === 'idempotency-key') ?? false).toBe(false)
+  })
+
   it('defines the backend-handoff bearer contract and operation authorization boundaries', () => {
     const document = openApiDocument()
 

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "状态为 succeeded 的 Script V2 任务不能取消"
+  },
+  "requestId": "req_local_z5vc15"
+}

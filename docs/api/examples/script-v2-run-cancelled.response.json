@@ -1,0 +1,56 @@
+{
+  "run": {
+    "id": "run_script_fixture_01",
+    "idempotencyKey": "script_asset_fixture_01",
+    "canvasId": "canvas_fixture",
+    "nodeId": "node_script_fixture",
+    "operation": "generate-asset",
+    "input": {
+      "asset": {
+        "id": "asset_character_linxia",
+        "role": "character",
+        "name": "林夏",
+        "description": "二十多岁，黑色风衣，短发，神情克制",
+        "source": "ai",
+        "status": "pending",
+        "generation": {
+          "modelId": "lib-image-2",
+          "prompt": "黑色风衣、短发、克制神情的年轻女性角色设定图",
+          "quality": "standard",
+          "resolution": "2K",
+          "aspectRatio": "2:1"
+        },
+        "createdAt": "2026-09-03T00:00:00.000Z",
+        "updatedAt": "2026-09-03T00:00:00.000Z"
+      },
+      "settings": {
+        "modelId": "lib-image-2",
+        "prompt": "黑色风衣、短发、克制神情的年轻女性角色设定图",
+        "quality": "standard",
+        "resolution": "2K",
+        "aspectRatio": "2:1"
+      }
+    },
+    "status": "cancelled",
+    "attempt": 1,
+    "progress": 0,
+    "quote": {
+      "id": "quote_script_fixture_01",
+      "operation": "generate-asset",
+      "credits": 18,
+      "priceVersion": "script-v2-local-1",
+      "expiresAt": "2026-09-03T00:05:00.000Z",
+      "breakdown": [
+        {
+          "label": "Lib Image 标准 2K × 1",
+          "credits": 18
+        }
+      ]
+    },
+    "inputFingerprint": "script-v2-run-v1:fixture01",
+    "result": null,
+    "error": null,
+    "createdAt": "2026-09-03T00:00:00.000Z",
+    "updatedAt": "2026-09-03T00:00:03.000Z"
+  }
+}

@@ -50,6 +50,30 @@ import assetUpdateInvalidTagsErrorExample from '../../../docs/api/examples/asset
 import assetNotFoundErrorExample from '../../../docs/api/examples/asset-not-found.error.response.json'
 import assetRestoreNotRecoverableErrorExample from '../../../docs/api/examples/asset-restore-not-recoverable.error.response.json'
 import assetDeletedErrorExample from '../../../docs/api/examples/asset-deleted.error.response.json'
+import jobCreateRequestExample from '../../../docs/api/examples/jobs-create.request.json'
+import jobCreateResponseExample from '../../../docs/api/examples/jobs-create.response.json'
+import jobListResponseExample from '../../../docs/api/examples/jobs-list.response.json'
+import jobGetResponseExample from '../../../docs/api/examples/jobs-get.response.json'
+import jobTransitionConfirmRequestExample from '../../../docs/api/examples/jobs-transition.request.json'
+import jobTransitionConfirmedResponseExample from '../../../docs/api/examples/jobs-transition.response.json'
+import jobTransitionCancelRequestExample from '../../../docs/api/examples/jobs-transition-cancel.request.json'
+import jobTransitionCancelledResponseExample from '../../../docs/api/examples/jobs-transition-cancel.response.json'
+import jobTransitionCancelReplayResponseExample from '../../../docs/api/examples/jobs-transition-cancel-replay.response.json'
+import jobCreateInvalidInputErrorExample from '../../../docs/api/examples/jobs-create-invalid-input.error.response.json'
+import jobNotFoundErrorExample from '../../../docs/api/examples/jobs-not-found.error.response.json'
+import jobTransitionInvalidActionErrorExample from '../../../docs/api/examples/jobs-transition-invalid-action.error.response.json'
+import scriptQuoteInvalidInputErrorExample from '../../../docs/api/examples/script-v2-quote-invalid-input.error.response.json'
+import scriptRunCreatedResponseExample from '../../../docs/api/examples/script-v2-run-created.response.json'
+import scriptRunReplayResponseExample from '../../../docs/api/examples/script-v2-run-replay.response.json'
+import scriptIdempotencyConflictErrorExample from '../../../docs/api/examples/script-v2-idempotency-conflict.error.response.json'
+import scriptRunNotFoundErrorExample from '../../../docs/api/examples/script-v2-run-not-found.error.response.json'
+import scriptTransitionCancelRequestExample from '../../../docs/api/examples/script-v2-transition-cancel.request.json'
+import scriptRunCancelledResponseExample from '../../../docs/api/examples/script-v2-run-cancelled.response.json'
+import scriptRunCancelReplayResponseExample from '../../../docs/api/examples/script-v2-run-cancel-replay.response.json'
+import scriptTransitionRetryRequestExample from '../../../docs/api/examples/script-v2-transition-retry.request.json'
+import scriptRunRetryResponseExample from '../../../docs/api/examples/script-v2-run-retry.response.json'
+import scriptTransitionConflictErrorExample from '../../../docs/api/examples/script-v2-transition-conflict.error.response.json'
+import scriptTransitionInvalidInputErrorExample from '../../../docs/api/examples/script-v2-transition-invalid-input.error.response.json'
 import {
   CreateScriptV2RunRequestSchema,
   OfficialPromptRecomputeEnvelopeSchema,
@@ -57,6 +81,7 @@ import {
   ScriptV2QuoteResponseSchema,
   ScriptV2RunResponseSchema,
   ScriptV2StateSchema,
+  TransitionScriptV2RunRequestSchema,
 } from '@/contracts/script-v2'
 import {
   GetMaterialResponseSchema,
@@ -85,6 +110,14 @@ import {
   ShowcaseEngagementRequestSchema,
   ShowcaseEngagementResponseSchema,
 } from '@/contracts/showcase'
+import {
+  CreateJobRequestSchema,
+  CreateJobResponseSchema,
+  GetJobResponseSchema,
+  ListJobsResponseSchema,
+  TransitionJobRequestSchema,
+  TransitionJobResponseSchema,
+} from '@/contracts/jobs'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -837,6 +870,156 @@ describe('local API manifest and OpenAPI', () => {
       'telephone',
       'electronic',
     ])
+  })
+
+  it('keeps Jobs and Script V2 lifecycle examples schema-valid, file-backed and attached to their state-machine outcomes', () => {
+    const document = openApiDocument()
+    const jobs = operationAt(document, 'POST', '/api/jobs')
+    const jobDetail = operationAt(document, 'POST', '/api/jobs/{jobId}')
+    const jobRead = operationAt(document, 'GET', '/api/jobs/{jobId}')
+    const jobList = operationAt(document, 'GET', '/api/jobs')
+
+    expect(jobs.requestBody?.content?.['application/json']?.examples?.create?.$ref).toBe(
+      '#/components/examples/JobsCreateRequestFileExample',
+    )
+    expect(jobs.responses?.['200']?.content?.['application/json']?.examples?.awaitingConfirmation?.$ref).toBe(
+      '#/components/examples/JobsCreateResponseFileExample',
+    )
+    expect(jobs.responses?.['400']?.content?.['application/json']?.examples?.invalidNode?.$ref).toBe(
+      '#/components/examples/JobsCreateInvalidInputErrorExample',
+    )
+    expect(jobList.responses?.['200']?.content?.['application/json']?.examples?.history?.$ref).toBe(
+      '#/components/examples/JobsListResponseFileExample',
+    )
+    expect(jobRead.responses?.['200']?.content?.['application/json']?.examples?.running?.$ref).toBe(
+      '#/components/examples/JobsGetResponseFileExample',
+    )
+    expect(jobRead.responses?.['404']?.content?.['application/json']?.examples?.jobMissing?.$ref).toBe(
+      '#/components/examples/JobsNotFoundErrorExample',
+    )
+    expect(jobDetail.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      confirm: { $ref: '#/components/examples/JobsTransitionConfirmRequestFileExample' },
+      cancel: { $ref: '#/components/examples/JobsTransitionCancelRequestExample' },
+      cancelReplay: { $ref: '#/components/examples/JobsTransitionCancelRequestExample' },
+    })
+    expect(jobDetail.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      confirmed: { $ref: '#/components/examples/JobsTransitionConfirmedResponseFileExample' },
+      cancelled: { $ref: '#/components/examples/JobsTransitionCancelledResponseExample' },
+      cancelReplay: { $ref: '#/components/examples/JobsTransitionCancelReplayResponseExample' },
+    })
+    expect(jobDetail.responses?.['400']?.content?.['application/json']?.examples?.invalidAction?.$ref).toBe(
+      '#/components/examples/JobsTransitionInvalidActionErrorExample',
+    )
+
+    expect(CreateJobRequestSchema.parse(jobCreateRequestExample)).toEqual(jobCreateRequestExample)
+    expect(CreateJobResponseSchema.parse(jobCreateResponseExample)).toEqual(jobCreateResponseExample)
+    expect(ListJobsResponseSchema.parse(jobListResponseExample)).toEqual(jobListResponseExample)
+    expect(GetJobResponseSchema.parse(jobGetResponseExample)).toEqual(jobGetResponseExample)
+    expect(TransitionJobRequestSchema.parse(jobTransitionConfirmRequestExample)).toEqual(jobTransitionConfirmRequestExample)
+    expect(TransitionJobResponseSchema.parse(jobTransitionConfirmedResponseExample)).toEqual(jobTransitionConfirmedResponseExample)
+    expect(TransitionJobRequestSchema.parse(jobTransitionCancelRequestExample)).toEqual({ action: 'cancel' })
+    expect(TransitionJobResponseSchema.parse(jobTransitionCancelledResponseExample)).toMatchObject({
+      job: { status: 'cancelled', finishedAt: expect.any(String) },
+    })
+    expect(jobTransitionCancelReplayResponseExample).toEqual(jobTransitionCancelledResponseExample)
+    for (const [example, code] of [
+      [jobCreateInvalidInputErrorExample, 'INVALID_INPUT'],
+      [jobNotFoundErrorExample, 'NOT_FOUND'],
+      [jobTransitionInvalidActionErrorExample, 'INVALID_INPUT'],
+    ] as const) {
+      expect(LocalErrorEnvelopeSchema.parse(example)).toMatchObject({ error: { code } })
+    }
+
+    const quote = operationAt(document, 'POST', '/api/script-v2/quotes')
+    const runs = operationAt(document, 'POST', '/api/script-v2/runs')
+    const runRead = operationAt(document, 'GET', '/api/script-v2/runs/{runId}')
+    const runTransition = operationAt(document, 'POST', '/api/script-v2/runs/{runId}')
+    expect(quote.responses?.['422']?.content?.['application/json']?.examples?.invalidQuoteInput?.$ref).toBe(
+      '#/components/examples/ScriptV2QuoteInvalidInputErrorExample',
+    )
+    expect(runs.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      createAsset: { $ref: '#/components/examples/CreateScriptV2RunRequestExample' },
+      idempotentReplay: { $ref: '#/components/examples/CreateScriptV2RunRequestExample' },
+    })
+    expect(runs.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      queued: { $ref: '#/components/examples/ScriptV2RunCreatedResponseExample' },
+      idempotentReplay: { $ref: '#/components/examples/ScriptV2RunReplayResponseExample' },
+    })
+    expect(runs.responses?.['409']?.content?.['application/json']?.examples?.idempotencyKeyPayloadDrift?.$ref).toBe(
+      '#/components/examples/ScriptV2IdempotencyConflictErrorExample',
+    )
+    expect(runRead.responses?.['404']?.content?.['application/json']?.examples?.runMissing?.$ref).toBe(
+      '#/components/examples/ScriptV2RunNotFoundErrorExample',
+    )
+    expect(runTransition.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      cancel: { $ref: '#/components/examples/ScriptV2TransitionCancelRequestExample' },
+      cancelReplay: { $ref: '#/components/examples/ScriptV2TransitionCancelRequestExample' },
+      retryAfterCancellation: { $ref: '#/components/examples/ScriptV2TransitionRetryRequestExample' },
+    })
+    expect(runTransition.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      cancelled: { $ref: '#/components/examples/ScriptV2RunCancelledResponseExample' },
+      cancelReplay: { $ref: '#/components/examples/ScriptV2RunCancelReplayResponseExample' },
+      retryQueued: { $ref: '#/components/examples/ScriptV2RunRetryResponseExample' },
+    })
+    expect(runTransition.responses?.['409']?.content?.['application/json']?.examples?.terminalTransitionConflict?.$ref).toBe(
+      '#/components/examples/ScriptV2TransitionConflictErrorExample',
+    )
+    expect(runTransition.responses?.['422']?.content?.['application/json']?.examples?.invalidTransitionInput?.$ref).toBe(
+      '#/components/examples/ScriptV2TransitionInvalidInputErrorExample',
+    )
+
+    expect(ScriptV2RunResponseSchema.parse(scriptRunCreatedResponseExample)).toMatchObject({
+      run: { status: 'queued', attempt: 1, progress: 0, result: null },
+    })
+    expect(scriptRunReplayResponseExample).toEqual(scriptRunCreatedResponseExample)
+    expect(TransitionScriptV2RunRequestSchema.parse(scriptTransitionCancelRequestExample)).toEqual({ action: 'cancel' })
+    expect(ScriptV2RunResponseSchema.parse(scriptRunCancelledResponseExample)).toMatchObject({
+      run: { status: 'cancelled', attempt: 1, result: null },
+    })
+    expect(scriptRunCancelReplayResponseExample).toEqual(scriptRunCancelledResponseExample)
+    expect(TransitionScriptV2RunRequestSchema.parse(scriptTransitionRetryRequestExample)).toEqual({ action: 'retry' })
+    expect(ScriptV2RunResponseSchema.parse(scriptRunRetryResponseExample)).toMatchObject({
+      run: { status: 'queued', attempt: 2, progress: 0, result: null },
+    })
+    for (const [example, code] of [
+      [scriptQuoteInvalidInputErrorExample, 'INVALID_INPUT'],
+      [scriptIdempotencyConflictErrorExample, 'REVISION_CONFLICT'],
+      [scriptRunNotFoundErrorExample, 'NOT_FOUND'],
+      [scriptTransitionConflictErrorExample, 'REVISION_CONFLICT'],
+      [scriptTransitionInvalidInputErrorExample, 'INVALID_INPUT'],
+    ] as const) {
+      expect(LocalErrorEnvelopeSchema.parse(example)).toMatchObject({ error: { code } })
+    }
+
+    const paths = {
+      JobsCreateRequestFileExample: 'jobs-create.request.json',
+      JobsCreateResponseFileExample: 'jobs-create.response.json',
+      JobsListResponseFileExample: 'jobs-list.response.json',
+      JobsGetResponseFileExample: 'jobs-get.response.json',
+      JobsTransitionConfirmRequestFileExample: 'jobs-transition.request.json',
+      JobsTransitionConfirmedResponseFileExample: 'jobs-transition.response.json',
+      JobsTransitionCancelRequestExample: 'jobs-transition-cancel.request.json',
+      JobsTransitionCancelledResponseExample: 'jobs-transition-cancel.response.json',
+      JobsTransitionCancelReplayResponseExample: 'jobs-transition-cancel-replay.response.json',
+      JobsCreateInvalidInputErrorExample: 'jobs-create-invalid-input.error.response.json',
+      JobsNotFoundErrorExample: 'jobs-not-found.error.response.json',
+      JobsTransitionInvalidActionErrorExample: 'jobs-transition-invalid-action.error.response.json',
+      ScriptV2QuoteInvalidInputErrorExample: 'script-v2-quote-invalid-input.error.response.json',
+      ScriptV2RunCreatedResponseExample: 'script-v2-run-created.response.json',
+      ScriptV2RunReplayResponseExample: 'script-v2-run-replay.response.json',
+      ScriptV2IdempotencyConflictErrorExample: 'script-v2-idempotency-conflict.error.response.json',
+      ScriptV2RunNotFoundErrorExample: 'script-v2-run-not-found.error.response.json',
+      ScriptV2TransitionCancelRequestExample: 'script-v2-transition-cancel.request.json',
+      ScriptV2RunCancelledResponseExample: 'script-v2-run-cancelled.response.json',
+      ScriptV2RunCancelReplayResponseExample: 'script-v2-run-cancel-replay.response.json',
+      ScriptV2TransitionRetryRequestExample: 'script-v2-transition-retry.request.json',
+      ScriptV2RunRetryResponseExample: 'script-v2-run-retry.response.json',
+      ScriptV2TransitionConflictErrorExample: 'script-v2-transition-conflict.error.response.json',
+      ScriptV2TransitionInvalidInputErrorExample: 'script-v2-transition-invalid-input.error.response.json',
+    } as const
+    for (const [name, filename] of Object.entries(paths)) {
+      expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
+    }
   })
 
   it('documents all four Script V2 routes and keeps all six examples executable', () => {

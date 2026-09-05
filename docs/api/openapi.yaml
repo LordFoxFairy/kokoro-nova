@@ -2279,8 +2279,8 @@
                   "$ref": "#/components/schemas/GetJobResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/GetJobResponseExample"
+                  "running": {
+                    "$ref": "#/components/examples/JobsGetResponseFileExample"
                   }
                 }
               }
@@ -2292,6 +2292,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "jobMissing": {
+                    "$ref": "#/components/examples/JobsNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -2366,8 +2371,14 @@
                   "$ref": "#/components/schemas/TransitionJobResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/TransitionJobResponseExample"
+                  "confirmed": {
+                    "$ref": "#/components/examples/JobsTransitionConfirmedResponseFileExample"
+                  },
+                  "cancelled": {
+                    "$ref": "#/components/examples/JobsTransitionCancelledResponseExample"
+                  },
+                  "cancelReplay": {
+                    "$ref": "#/components/examples/JobsTransitionCancelReplayResponseExample"
                   }
                 }
               }
@@ -2379,6 +2390,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidAction": {
+                    "$ref": "#/components/examples/JobsTransitionInvalidActionErrorExample"
+                  }
                 }
               }
             }
@@ -2415,7 +2431,13 @@
               },
               "examples": {
                 "confirm": {
-                  "$ref": "#/components/examples/TransitionJobRequestExample"
+                  "$ref": "#/components/examples/JobsTransitionConfirmRequestFileExample"
+                },
+                "cancel": {
+                  "$ref": "#/components/examples/JobsTransitionCancelRequestExample"
+                },
+                "cancelReplay": {
+                  "$ref": "#/components/examples/JobsTransitionCancelRequestExample"
                 }
               }
             }
@@ -2466,8 +2488,8 @@
                   "$ref": "#/components/schemas/ListJobsResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/ListJobsResponseExample"
+                  "history": {
+                    "$ref": "#/components/examples/JobsListResponseFileExample"
                   }
                 }
               }
@@ -2531,8 +2553,8 @@
                   "$ref": "#/components/schemas/CreateJobResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/CreateJobResponseExample"
+                  "awaitingConfirmation": {
+                    "$ref": "#/components/examples/JobsCreateResponseFileExample"
                   }
                 }
               }
@@ -2544,6 +2566,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidNode": {
+                    "$ref": "#/components/examples/JobsCreateInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -2567,8 +2594,8 @@
                 "$ref": "#/components/schemas/CreateJobRequest"
               },
               "examples": {
-                "fixture": {
-                  "$ref": "#/components/examples/CreateJobRequestExample"
+                "create": {
+                  "$ref": "#/components/examples/JobsCreateRequestFileExample"
                 }
               }
             }
@@ -4617,7 +4644,7 @@
                 "$ref": "#/components/schemas/ScriptV2QuoteRequest"
               },
               "examples": {
-                "fixture": {
+                "generateAsset": {
                   "$ref": "#/components/examples/ScriptV2QuoteRequestExample"
                 }
               }
@@ -4633,7 +4660,7 @@
                   "$ref": "#/components/schemas/ScriptV2QuoteResponse"
                 },
                 "examples": {
-                  "fixture": {
+                  "generatedQuote": {
                     "$ref": "#/components/examples/ScriptV2QuoteResponseExample"
                   }
                 }
@@ -4656,6 +4683,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidQuoteInput": {
+                    "$ref": "#/components/examples/ScriptV2QuoteInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -4706,7 +4738,10 @@
                 "$ref": "#/components/schemas/CreateScriptV2RunRequest"
               },
               "examples": {
-                "fixture": {
+                "createAsset": {
+                  "$ref": "#/components/examples/CreateScriptV2RunRequestExample"
+                },
+                "idempotentReplay": {
                   "$ref": "#/components/examples/CreateScriptV2RunRequestExample"
                 }
               }
@@ -4722,8 +4757,11 @@
                   "$ref": "#/components/schemas/ScriptV2RunResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/ScriptV2RunResponseExample"
+                  "queued": {
+                    "$ref": "#/components/examples/ScriptV2RunCreatedResponseExample"
+                  },
+                  "idempotentReplay": {
+                    "$ref": "#/components/examples/ScriptV2RunReplayResponseExample"
                   }
                 }
               }
@@ -4745,6 +4783,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "idempotencyKeyPayloadDrift": {
+                    "$ref": "#/components/examples/ScriptV2IdempotencyConflictErrorExample"
+                  }
                 }
               }
             }
@@ -4820,7 +4863,7 @@
                   "$ref": "#/components/schemas/ScriptV2RunResponse"
                 },
                 "examples": {
-                  "fixture": {
+                  "succeeded": {
                     "$ref": "#/components/examples/ScriptV2RunResponseExample"
                   }
                 }
@@ -4833,6 +4876,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "runMissing": {
+                    "$ref": "#/components/examples/ScriptV2RunNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -4885,6 +4933,17 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TransitionScriptV2RunRequest"
+              },
+              "examples": {
+                "cancel": {
+                  "$ref": "#/components/examples/ScriptV2TransitionCancelRequestExample"
+                },
+                "cancelReplay": {
+                  "$ref": "#/components/examples/ScriptV2TransitionCancelRequestExample"
+                },
+                "retryAfterCancellation": {
+                  "$ref": "#/components/examples/ScriptV2TransitionRetryRequestExample"
+                }
               }
             }
           }
@@ -4898,8 +4957,14 @@
                   "$ref": "#/components/schemas/ScriptV2RunResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/ScriptV2RunResponseExample"
+                  "cancelled": {
+                    "$ref": "#/components/examples/ScriptV2RunCancelledResponseExample"
+                  },
+                  "cancelReplay": {
+                    "$ref": "#/components/examples/ScriptV2RunCancelReplayResponseExample"
+                  },
+                  "retryQueued": {
+                    "$ref": "#/components/examples/ScriptV2RunRetryResponseExample"
                   }
                 }
               }
@@ -4931,6 +4996,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "terminalTransitionConflict": {
+                    "$ref": "#/components/examples/ScriptV2TransitionConflictErrorExample"
+                  }
                 }
               }
             }
@@ -4941,6 +5011,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidTransitionInput": {
+                    "$ref": "#/components/examples/ScriptV2TransitionInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -18076,6 +18151,54 @@
           "balance": 408
         }
       },
+      "JobsCreateRequestFileExample": {
+        "summary": "创建并冻结报价",
+        "externalValue": "./examples/jobs-create.request.json"
+      },
+      "JobsCreateResponseFileExample": {
+        "summary": "等待确认的本地视频任务",
+        "externalValue": "./examples/jobs-create.response.json"
+      },
+      "JobsListResponseFileExample": {
+        "summary": "画布任务历史",
+        "externalValue": "./examples/jobs-list.response.json"
+      },
+      "JobsGetResponseFileExample": {
+        "summary": "轮询中的任务、画布 revision 与余额",
+        "externalValue": "./examples/jobs-get.response.json"
+      },
+      "JobsTransitionConfirmRequestFileExample": {
+        "summary": "确认生成报价",
+        "externalValue": "./examples/jobs-transition.request.json"
+      },
+      "JobsTransitionConfirmedResponseFileExample": {
+        "summary": "确认后的运行中任务",
+        "externalValue": "./examples/jobs-transition.response.json"
+      },
+      "JobsTransitionCancelRequestExample": {
+        "summary": "取消运行中的任务",
+        "externalValue": "./examples/jobs-transition-cancel.request.json"
+      },
+      "JobsTransitionCancelledResponseExample": {
+        "summary": "取消后释放预留积分的终态任务",
+        "externalValue": "./examples/jobs-transition-cancel.response.json"
+      },
+      "JobsTransitionCancelReplayResponseExample": {
+        "summary": "重复取消返回同一终态 projection",
+        "externalValue": "./examples/jobs-transition-cancel-replay.response.json"
+      },
+      "JobsCreateInvalidInputErrorExample": {
+        "summary": "缺少 nodeId 的严格请求错误",
+        "externalValue": "./examples/jobs-create-invalid-input.error.response.json"
+      },
+      "JobsNotFoundErrorExample": {
+        "summary": "任务标识不存在",
+        "externalValue": "./examples/jobs-not-found.error.response.json"
+      },
+      "JobsTransitionInvalidActionErrorExample": {
+        "summary": "不支持的 transition action",
+        "externalValue": "./examples/jobs-transition-invalid-action.error.response.json"
+      },
       "ImageReferenceAddRequestExample": {
         "summary": "给 Image 节点添加画布参考",
         "externalValue": "./examples/canvas-image-reference-add.request.json"
@@ -18127,6 +18250,54 @@
       "TextStarterMusicRequestExample": {
         "summary": "原子创建 Text -> Audio 音乐预设",
         "externalValue": "./examples/canvas-text-starter-music.request.json"
+      },
+      "ScriptV2QuoteInvalidInputErrorExample": {
+        "summary": "不满足报价分支约束的 422",
+        "externalValue": "./examples/script-v2-quote-invalid-input.error.response.json"
+      },
+      "ScriptV2RunCreatedResponseExample": {
+        "summary": "POST /runs 后的 queued 任务",
+        "externalValue": "./examples/script-v2-run-created.response.json"
+      },
+      "ScriptV2RunReplayResponseExample": {
+        "summary": "相同幂等键与请求返回同一 queued 任务",
+        "externalValue": "./examples/script-v2-run-replay.response.json"
+      },
+      "ScriptV2IdempotencyConflictErrorExample": {
+        "summary": "幂等键被不同 Script V2 请求复用",
+        "externalValue": "./examples/script-v2-idempotency-conflict.error.response.json"
+      },
+      "ScriptV2RunNotFoundErrorExample": {
+        "summary": "本地逻辑任务不存在",
+        "externalValue": "./examples/script-v2-run-not-found.error.response.json"
+      },
+      "ScriptV2TransitionCancelRequestExample": {
+        "summary": "取消 queued 或 running Script V2 任务",
+        "externalValue": "./examples/script-v2-transition-cancel.request.json"
+      },
+      "ScriptV2RunCancelledResponseExample": {
+        "summary": "取消后的终态任务",
+        "externalValue": "./examples/script-v2-run-cancelled.response.json"
+      },
+      "ScriptV2RunCancelReplayResponseExample": {
+        "summary": "重复取消返回不变终态",
+        "externalValue": "./examples/script-v2-run-cancel-replay.response.json"
+      },
+      "ScriptV2TransitionRetryRequestExample": {
+        "summary": "取消后以原逻辑任务重新入队",
+        "externalValue": "./examples/script-v2-transition-retry.request.json"
+      },
+      "ScriptV2RunRetryResponseExample": {
+        "summary": "retry 后 attempt 递增的 queued 任务",
+        "externalValue": "./examples/script-v2-run-retry.response.json"
+      },
+      "ScriptV2TransitionConflictErrorExample": {
+        "summary": "成功任务不可取消的状态机冲突",
+        "externalValue": "./examples/script-v2-transition-conflict.error.response.json"
+      },
+      "ScriptV2TransitionInvalidInputErrorExample": {
+        "summary": "不支持的 Script V2 transition action",
+        "externalValue": "./examples/script-v2-transition-invalid-input.error.response.json"
       },
       "ScriptV2StateExample": {
         "summary": "Script V2 完整持久化状态",

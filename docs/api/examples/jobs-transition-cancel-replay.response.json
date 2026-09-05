@@ -1,0 +1,62 @@
+{
+  "job": {
+    "id": "job_video_fixture_01",
+    "spaceId": "space_fixture",
+    "projectId": "project_video_fixture",
+    "canvasId": "canvas_video_fixture",
+    "nodeId": "node_video_fixture",
+    "modelId": "seedance-fixture",
+    "status": "cancelled",
+    "invocationId": "invocation_video_fixture_01",
+    "attempt": 1,
+    "progress": 58,
+    "spec": {
+      "workflowDigest": "fixture-video-digest-v1",
+      "nodeId": "node_video_fixture",
+      "nodeType": "video",
+      "modelId": "seedance-fixture",
+      "prompt": "镜头沿湿润街道缓慢推进，霓虹倒影自然流动。",
+      "output": {
+        "aspectRatio": "16:9",
+        "resolution": "720p",
+        "durationSeconds": 15,
+        "count": 1,
+        "withAudio": true,
+        "mode": "omni-reference"
+      },
+      "inputs": [
+        {
+          "kind": "image",
+          "value": "/fixtures/libtv/media/first-frame.webp",
+          "fromNodeId": "node_image_fixture"
+        },
+        {
+          "kind": "text",
+          "value": "雨夜城市街道，蓝紫色霓虹。",
+          "fromNodeId": "node_text_fixture"
+        }
+      ]
+    },
+    "quote": {
+      "credits": 70,
+      "priceVersion": "fixture-2026-09-03",
+      "expiresAt": "2026-09-03T12:10:00.000Z",
+      "breakdown": [
+        {
+          "label": "视频模型基础",
+          "credits": 35
+        },
+        {
+          "label": "15 秒",
+          "credits": 35
+        }
+      ]
+    },
+    "artifacts": [],
+    "error": null,
+    "createdAt": "2026-09-03T12:00:00.000Z",
+    "startedAt": "2026-09-03T12:00:05.000Z",
+    "finishedAt": "2026-09-03T12:00:08.000Z"
+  },
+  "balance": 478
+}

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "action: Invalid enum value. Expected 'cancel' | 'retry', received 'pause'"
+  },
+  "requestId": "req_local_1y7exwz"
+}

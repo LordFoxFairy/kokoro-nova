@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "shotCount: Number must be greater than or equal to 1"
+  },
+  "requestId": "req_local_p5h8xx"
+}

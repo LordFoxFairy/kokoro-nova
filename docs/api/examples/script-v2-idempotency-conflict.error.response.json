@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "idempotencyKey 已用于不同的 Script V2 请求"
+  },
+  "requestId": "req_local_18woq2l"
+}

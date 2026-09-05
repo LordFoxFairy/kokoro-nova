@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "nodeId: Required"
+  },
+  "requestId": "req_local_6u8bfh"
+}

@@ -57,6 +57,11 @@ test("account navigation supports keyboard paths and preserves stale data on ref
     page.getByRole("tab", { name: "积分与消费", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "积分与消费", exact: true }).press("End");
+  const team = page.getByRole("tab", { name: "团队与共享资产", exact: true });
+  await expect(team).toBeFocused();
+  await expect(team).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("account-team-empty")).toBeVisible();
+  await team.press("ArrowUp");
   await expect(
     page.getByRole("tab", { name: "CLI & Skill", exact: true }),
   ).toBeFocused();
@@ -143,13 +148,26 @@ test('account team workspace projects loading, shared assets and retryable error
   const signIn = await request.post('/api/identity', { data: { action: 'signIn', returnTo: '/' } });
   expect(signIn.ok()).toBe(true);
 
+  let releaseTeamResponse: (() => void) | undefined;
+  const teamResponseGate = new Promise<void>((resolve) => {
+    releaseTeamResponse = resolve;
+  });
+  let markTeamRequest: (() => void) | undefined;
+  const teamRequestStarted = new Promise<void>((resolve) => {
+    markTeamRequest = resolve;
+  });
   await page.route(/\/api\/team$/, async (route) => {
     const response = await route.fetch();
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    markTeamRequest?.();
+    await teamResponseGate;
     await route.fulfill({ response });
   });
   await page.goto('/account?tab=team');
+  await teamRequestStarted;
+  // The team response stays deferred until the base account surface is ready,
+  // so this proves the real in-panel loading state instead of timing a delay.
   await expect(page.getByRole('status', { name: '正在加载团队与共享资产' })).toBeVisible();
+  releaseTeamResponse?.();
   await expect(page.getByTestId('account-team-ready')).toContainText('Kokoro 创作组');
   await page.unroute(/\/api\/team$/);
   await expect(page.getByTestId('account-shared-assets')).toContainText('雨夜城市分镜参考');

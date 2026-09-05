@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.19.0-asset-lifecycle",
+    "version": "1.20.0-folder-and-upload-handoff",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -1940,10 +1940,11 @@
         "tags": [
           "Folders"
         ],
-        "summary": "项目页文件夹内联重命名",
+        "summary": "项目页文件夹内联重命名或修改封面",
         "operationId": "renameFolder",
         "x-ui-triggers": [
-          "项目页文件夹内联重命名"
+          "项目页文件夹内联重命名",
+          "项目页文件夹封面更新"
         ],
         "x-mock-scenarios": [
           "authenticated-populated"
@@ -2001,7 +2002,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameRequest"
+                "$ref": "#/components/schemas/UpdateFolderRequest"
               }
             }
           }
@@ -7575,6 +7576,22 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateFolderRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
       },
       "CreateAgentSessionRequest": {
         "type": "object",

@@ -57,8 +57,12 @@ type OpenApiDocument = {
     schemas?: Record<
       string,
       {
+        required?: string[]
         properties?: Record<string, { enum?: string[]; $ref?: string; items?: { $ref?: string } }>
         oneOf?: unknown[]
+        minProperties?: number
+        additionalProperties?: boolean
+        [key: string]: unknown
       }
     >
   }
@@ -506,6 +510,19 @@ describe('local API manifest and OpenAPI', () => {
     expect(createFolder.requestBody).toBeUndefined()
     expect(responseSchemaRef(createFolder, '200')).toBe('#/components/schemas/Folder')
 
+    const updateFolder = operationAt(document, 'PATCH', '/api/folders/{folderId}')
+    expect(updateFolder.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
+      '#/components/schemas/UpdateFolderRequest',
+    )
+    expect(document.components?.schemas?.UpdateFolderRequest).toMatchObject({
+      minProperties: 1,
+      additionalProperties: false,
+      properties: expect.objectContaining({
+        name: expect.any(Object),
+        coverUrl: expect.any(Object),
+      }),
+    })
+
     const deleteFolder = operationAt(document, 'DELETE', '/api/folders/{folderId}')
     expect(responseSchemaRef(deleteFolder, '200')).toBe('#/components/schemas/FolderDeleteResponse')
     expect(deleteFolder.parameters).toEqual(
@@ -599,6 +616,16 @@ describe('local API manifest and OpenAPI', () => {
     const upload = operationAt(document, 'POST', '/api/assets/upload')
     expect(upload.requestBody?.content?.['multipart/form-data']?.schema?.$ref).toBe(
       '#/components/schemas/UploadAssetRequest',
+    )
+    expect(document.components?.schemas?.UploadAssetRequest).toMatchObject({
+      required: ['files'],
+      properties: expect.objectContaining({
+        files: expect.objectContaining({ items: expect.objectContaining({ format: 'binary' }) }),
+        uploadToken: expect.any(Object),
+      }),
+    })
+    expect(readFileSync(path.join(process.cwd(), 'docs/api/ASSET_INGESTION.md'), 'utf8')).toContain(
+      'stage → persist staging row → content gate → commit',
     )
     expect(operationAt(document, 'DELETE', '/api/assets/upload').parameters).toEqual([
       expect.objectContaining({ name: 'token', in: 'query', required: true }),

@@ -270,6 +270,15 @@ export const CreateProjectInputSchema = z.object({
   folderId: z.string().nullable().optional(),
 })
 
+/** Shared by the project-folder inline rename and cover picker. */
+export const UpdateFolderRequestSchema = z
+  .object({
+    name: z.string().optional(),
+    coverUrl: z.string().nullable().optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, '至少提供 name 或 coverUrl')
+
 export const CreateProjectResponseSchema = z.object({
   project: ProjectSchema,
   canvas: CanvasSchema,
@@ -281,6 +290,7 @@ export { AudioAuthoringStateSchema, AudioSettingsSchema, AudioVoiceSchema }
 export type ProjectListLocalResponse = z.infer<typeof ProjectListLocalResponseSchema>
 export type CanvasDetailLocalResponse = z.infer<typeof CanvasDetailLocalResponseSchema>
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>
+export type UpdateFolderRequest = z.infer<typeof UpdateFolderRequestSchema>
 export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>
 export type MutationRequest = z.infer<typeof MutationRequestSchema>
 export type MutationResult = z.infer<typeof MutationResultSchema>

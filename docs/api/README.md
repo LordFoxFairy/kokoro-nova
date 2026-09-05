@@ -19,6 +19,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
 | [`COMPOSE_LIFECYCLE.md`](COMPOSE_LIFECYCLE.md) | 视频剪辑合成的持久化 task、取消、失败重试、刷新恢复与一次性产物约定 |
 | [`ASSET_LIFECYCLE.md`](ASSET_LIFECYCLE.md) | 资产可用性投影、恢复/媒体失效动作及本地 fixture 边界 |
+| [`ASSET_INGESTION.md`](ASSET_INGESTION.md) | 上传、取消、资产文件夹与生成产物入库的请求/响应和并发交接 |
 | [`jobs-lifecycle.md`](jobs-lifecycle.md) | 可重放 Job fixture、停止/重试/刷新恢复和一次性账本结算 |
 | [`WORKFLOW_CONCURRENCY.md`](WORKFLOW_CONCURRENCY.md) | revision、mutation、心跳和冲突恢复 |
 | [`VIDEO_REFERENCE_STATE.md`](VIDEO_REFERENCE_STATE.md) | Video 图引用、`@` token、局部元素与运镜持久化契约 |
@@ -53,7 +54,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.19.0-asset-lifecycle
+Contract version: 1.20.0-folder-and-upload-handoff
 OpenAPI: 3.1.0
 ```
 

@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
 import { resetStore } from '@/server/store'
 import { POST as createFolder } from '../folders/route'
+import { PATCH as updateFolder } from '../folders/[folderId]/route'
 import { POST as restoreProject } from '../recycle-bin/[projectId]/route'
 import { DELETE as recycleProject, PATCH, PUT } from './[projectId]/route'
 import { GET as listProjects, POST as createProject } from './route'
@@ -78,5 +79,29 @@ describe.sequential('project lifecycle persistence', () => {
     )
     expect(moved.status).toBe(400)
     expect((await moved.json())).toEqual({ error: '目标文件夹不存在' })
+  })
+
+  it('keeps folder cover updates in the documented PATCH contract', async () => {
+    const created = await createFolder()
+    const folder = await created.json() as { id: string }
+    const updated = await updateFolder(
+      new Request(`http://localhost/api/folders/${folder.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ coverUrl: fixtureCover }),
+      }),
+      { params: Promise.resolve({ folderId: folder.id }) },
+    )
+
+    expect(updated.status).toBe(200)
+    expect(await updated.json()).toMatchObject({ id: folder.id, coverUrl: fixtureCover })
+
+    const invalid = await updateFolder(
+      new Request(`http://localhost/api/folders/${folder.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({}),
+      }),
+      { params: Promise.resolve({ folderId: folder.id }) },
+    )
+    expect(invalid.status).toBe(400)
   })
 })

@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.19.0-asset-lifecycle` · scope: 47 paths / 82 operations
+> Contract version: `1.20.0-folder-and-upload-handoff` · scope: 47 paths / 82 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -36,6 +36,8 @@ transport 的一一对应。
 - scenario/reset 的成功体有可读本地样本；`reset` 的 schema 不再是悬空 `$ref`；
 - `Creation Context` 用同一路径的 GET / PUT / POST 表示恢复、保存和发送前冻结，Skill 作者流用独立 `/api/skills/author` 路径表达草稿、审核、发布和下架；
 - identity、preferences、notifications、account 与 ledger 保持独立读取/写入 operation，避免账户菜单把会话、偏好和账本折叠为一个无类型聚合。
+- `PATCH /api/folders/{folderId}` 同时承载项目文件夹重命名和封面更新；请求体是至少包含一个字段的 `UpdateFolderRequest`，不再错误复用只允许 `name` 的 `RenameRequest`。
+- 上传边界单独记录在 [`ASSET_INGESTION.md`](ASSET_INGESTION.md)：`multipart/form-data` 的 `files[]`、50 MiB/文件、50 文件/请求、可选 `uploadToken` 取消票据、逐文件 `rejected` 与资产文件夹归属都必须由后端保留。
 
 ## 查询、空态、分页和 fixture 约定
 

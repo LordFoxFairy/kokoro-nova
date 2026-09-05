@@ -1,4 +1,5 @@
-import { HttpError, handle } from '@/server/http'
+import { UpdateFolderRequestSchema } from '@/contracts/local'
+import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { deleteProjects, isProjectRecycled, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +9,7 @@ type Params = { params: Promise<{ folderId: string }> }
 export async function PATCH(request: Request, { params }: Params) {
   return handle(async () => {
     const { folderId } = await params
-    const body = (await request.json()) as { name?: string; coverUrl?: string | null }
+    const body = await parseJsonBody(request, UpdateFolderRequestSchema)
     return withState((state) => {
       const folder = state.folders.find((f) => f.id === folderId)
       if (!folder) throw new HttpError(404, '文件夹不存在')

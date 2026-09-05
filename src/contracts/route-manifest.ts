@@ -131,7 +131,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-empty',
   ]),
 
-  route('PATCH', '/api/folders/{folderId}', 'Folders', 'renameFolder', ['项目页文件夹内联重命名']),
+  route('PATCH', '/api/folders/{folderId}', 'Folders', 'renameFolder', ['项目页文件夹内联重命名', '项目页文件夹封面更新']),
   route('DELETE', '/api/folders/{folderId}', 'Folders', 'deleteFolder', ['输入完整文件夹名后永久删除']),
   route('POST', '/api/folders', 'Folders', 'createFolder', ['项目页新建文件夹']),
 

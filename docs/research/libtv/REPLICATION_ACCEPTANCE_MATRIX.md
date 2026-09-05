@@ -90,7 +90,7 @@
 | V-03 | 详情沉浸背景、观看、倍速、清晰度、音量、全屏、相邻作品带 | [播放器截图](pages/showcase/screenshots/player-controls-speed-quality-volume-fullscreen.png) | `ShowcaseDetailView`；`public-discovery.spec.ts` | `PARTIAL`：local 控件有，真实媒体变体/缓冲/失败态没有官网网络证据 |
 | V-04 | 查看制作过程保持作品上下文，Workflow/Storyboard 只读，复制触发认证门 | [公开工作流](pages/showcase/screenshots/public-production-process-readonly-workflow.png)、[公开故事板](pages/showcase/screenshots/public-production-process-readonly-storyboard.png) | `PublicCanvasView`；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（未登录门） |
 | V-05 | 公开快照与作者/分类/统计/播放器 projection 分层 | [public product 研究](references/public-product/README.md) | `PublishedSnapshot` + `ShowcaseEntryProjection` + `/api/showcase`；`HomeShowcaseItem` 从同一基础 projection 挑选首页字段，并强制 `id === snapshotId` | `VERIFIED_LOCAL`（公开 discovery projection） |
-| V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | 有 retry 和 login gate，但没有分页与已登录 clone 成功态 | `PENDING` / `COST_GATED` |
+| V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | `public-discovery.spec.ts` 覆盖目录 retry、匿名登录门，以及已登录确认 → 原子 clone → 新私有项目/画布 → 打开副本；分页、喜欢与 clone 失败仍待补 | `PARTIAL`（local clone 成功态已验证） |
 
 ### A — Account
 

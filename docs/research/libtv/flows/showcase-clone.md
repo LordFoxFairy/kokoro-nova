@@ -42,12 +42,13 @@ ShowcaseEntry 的统计、分类和推荐可更新，但已发布 snapshot 不�
 - `/api/showcase` 提供独立的 `ShowcaseEntry` discovery projection，不把作者、统计或播放器状态写入冻结快照。
 - `/api/showcase/:snapshotId` 返回详情媒体、作者/互动元数据和相邻作品带；媒体源只使用 `public/fixtures/libtv` 或 `/api/media` 本地 fixture。
 - 详情页的“喜欢”保留作品上下文并打开登录门；“分享”写入本地当前 URL 的剪贴板（不可用时仍给出确定性反馈）。
+- 已登录 fixture 下，`public-discovery.spec.ts` 验证复制确认、`POST /api/publish/:snapshotId/clone`、成功弹层、生成新的私有 project/canvas 标识，以及打开可编辑 Workflow；冻结 source 不被改写。
 - 播放器清晰度菜单固定为自动、480p 流畅、720p 高清与由源媒体元数据推导的原画质标签；公开制作过程仍复用冻结 snapshot 的 Workflow/Storyboard 只读投影。
 
 ## 待采集验收态
 
 - 播放器加载、播放、暂停、清晰度、字幕、音量、全屏和媒体错误。
 - 喜欢/收藏/分享成功与未登录门槛。
-- 已登录复制确认、workspace 选择、素材说明、进度、成功和失败。
+- workspace 选择、素材说明、进度细节、失败重试与不可复制状态。
 - 不可复制、已下架、审核中、资源失效和节点/模型不兼容。
 - 作者发布配置、公开制作过程开关、审核、更新和下架。

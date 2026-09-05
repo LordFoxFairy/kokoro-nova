@@ -177,3 +177,42 @@ test('TV Show catalogue exposes empty, error and retry states', async ({ page })
   await expect(page.getByText('暂无公开作品')).toBeVisible()
   expect(attempts).toBe(2)
 })
+
+test('authenticated viewer clones a frozen TV Show into an independent editable project', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-empty' } })
+  expect(selected.ok()).toBe(true)
+  const reset = await request.post('/api/dev/reset')
+  expect(reset.ok()).toBe(true)
+
+  await page.goto('/showcase/pub_city_night_01')
+  await page.getByTestId('showcase-process').click()
+  await expect(page.getByTestId('public-workflow')).toBeVisible()
+
+  await page.getByTestId('clone-project').click()
+  const confirm = page.getByTestId('showcase-clone-dialog')
+  await expect(confirm).toBeVisible()
+  const cloned = page.waitForResponse((response) =>
+    response.request().method() === 'POST'
+    && /\/api\/publish\/pub_city_night_01\/clone$/.test(new URL(response.url()).pathname)
+    && response.ok(),
+  )
+  await confirm.getByTestId('showcase-clone-confirm').click()
+  await cloned
+
+  const success = page.getByTestId('showcase-clone-success')
+  await expect(success).toBeVisible()
+  const openCopy = success.getByTestId('showcase-clone-open-project')
+  const href = await openCopy.getAttribute('href')
+  expect(href).toMatch(/^\/canvas\?projectId=prj_/)
+  await openCopy.click()
+  await page.waitForURL(/\/canvas\?projectId=prj_.*&canvasId=cvs_/)
+  await expect(page.getByTestId('workflow-canvas')).toBeVisible()
+
+  // The private copy retains the frozen document but has new workspace IDs.
+  await expect(page.locator('[data-node-type]')).not.toHaveCount(0)
+  const projects = await request.get('/api/projects')
+  expect(projects.ok()).toBe(true)
+  await expect(projects.json()).resolves.toMatchObject({
+    projects: expect.arrayContaining([expect.objectContaining({ name: '雨夜霓虹城市 · 副本' })]),
+  })
+})

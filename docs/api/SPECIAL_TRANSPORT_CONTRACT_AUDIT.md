@@ -105,7 +105,7 @@
 | 成功 | `200 image/svg+xml`，`Cache-Control: public, max-age=86400`；输出固定为 2048×1152。 |
 | 参数归一化 | `rows` / `cols` 对缺省、非有限和越界数值归一化到 1..5；`seq` 只有精确值 `1` 显示序号，其他任意值按无序号处理。 |
 | 错误 | 无显式 error branch；同样没有稳定 failure envelope 或 requestId。 |
-| OpenAPI | 只声明 200；description 已说明 rows/cols 归一化。`seq` 的 schema 枚举为 `0|1`，但 runtime 实际容忍任意其他值并按 `0` 处理，属于参数语义比文档更宽的轻微漂移。 |
+| OpenAPI | 只声明 200；description 已说明 rows/cols 归一化。`seq` 是默认 `"0"` 的 string，只有精确值 `"1"` 启用序号，其余任意值按无序号处理；这与 runtime 的宽容归一化一致。 |
 
 ### Preview 客户端消费边界
 
@@ -119,7 +119,7 @@
 1. **P0：保持 Presence requestId 的客户端可观测性。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；`ApiError` 已保留 `requestId`，后续 telemetry 可安全采集该关联值。对已建立 SSE，不把 JSON response 写进流内；文档应明确“连接期异常以连接关闭/重连处理”，或新增版本化的 `event: error` schema 后再由客户端实现该事件。
 2. **已关闭：media 403/404 OpenAPI content type。** 文档现以 `text/plain; charset=utf-8` string 与 `Forbidden` / `Not found` examples 描述实际 runtime。若未来选择 JSON error，先为资源消费者定义不依赖 body 的 error UX，并改写 runtime 与测试。
 3. **P1：持续验证 binary response headers。** media OpenAPI 已列出 `Content-Length`、`Cache-Control`、`Content-Security-Policy`、`X-Content-Type-Options`，并明确当前不声明或实现 `Range` / `206` / `Content-Range`。未来若实现 Range，需同步增加 runtime、OpenAPI 与测试。
-4. **P1：明确 preview failure 策略。** 可保持“仅 200、无受控错误”的 fixture 声明，并在 OpenAPI description 写明其限制；若生产 adapter 可能失败，应另定义 resource-safe 4xx/5xx（建议 text/plain 或 SVG fallback，而非无消费者的 JSON），同时增加图像加载失败 UI 契约。将 stitch `seq` 的文档改为接受任意 string 并说明仅 `1` 启用，或让 runtime 拒绝非 `0|1`，二者择一。
+4. **P1：明确 preview failure 策略。** 可保持“仅 200、无受控错误”的 fixture 声明，并在 OpenAPI description 写明其限制；若生产 adapter 可能失败，应另定义 resource-safe 4xx/5xx（建议 text/plain 或 SVG fallback，而非无消费者的 JSON），同时增加图像加载失败 UI 契约。stitch `seq` 已按 runtime 记录为宽容 string，只有 `"1"` 启用序号。
 5. **P1：增加 transport-aware runtime contract suite。** 现有 OpenAPI test 主要验证 operation 集合、成功 transport 和文档 response ref；新增 route-level test 应同时断言 status、content type、body shape、requestId 和关键 headers。最低集：Presence GET invalid query / listener limit / successful snapshot；Presence POST malformed body / lease conflict / expired lease；media 200/403/404 headers；两个 preview 的默认、边界参数与 SVG content type。
 6. **P2：补足特殊 transport 的可观测边界。** JSON client 已保留 `requestId`；SSE client 应记录握手前 HTTP status/body 中的 requestId（若已迁移）并把已建连异常和 HTTP rejection 分为不同诊断事件；media/preview 仅记录 URL、HTTP status 和安全的 response metadata，避免读取或暴露资源字节。
 

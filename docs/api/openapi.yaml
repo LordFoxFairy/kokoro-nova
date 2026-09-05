@@ -3042,10 +3042,6 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": [
-                "0",
-                "1"
-              ],
               "default": "0"
             },
             "description": "传入 1 显示确定性序号；其他值按无序号处理。"

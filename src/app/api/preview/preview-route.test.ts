@@ -70,4 +70,12 @@ describe('preview SVG routes', () => {
     expect(contentCellCount(svg)).toBe(3)
     expect(svg.match(/>\d{2}<\/text>/g)).toEqual(['>01</text>', '>02</text>', '>03</text>'])
   })
+
+  it('treats non-1 sequence values as the documented unnumbered fallback', async () => {
+    const response = await getStitchPreview(new Request(`${STITCH_URL}?rows=1&cols=3&seq=unexpected`))
+    const svg = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(svg.match(/>\d{2}<\/text>/g)).toBeNull()
+  })
 })

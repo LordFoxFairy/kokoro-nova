@@ -69,7 +69,12 @@ type OpenApiOperation = {
       examples?: Record<string, { $ref?: string; value?: unknown }>
     }>
   }
-  parameters?: Array<{ name?: string; in?: string; required?: boolean }>
+  parameters?: Array<{
+    name?: string
+    in?: string
+    required?: boolean
+    schema?: { type?: string; enum?: string[]; default?: unknown }
+  }>
   responses?: Record<string, {
     content?: Record<string, {
       schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> }
@@ -385,6 +390,14 @@ describe('local API manifest and OpenAPI', () => {
         }),
       })
     }
+  })
+
+  it('documents the stitch preview sequence switch with its runtime-tolerant query semantics', () => {
+    const stitch = operationAt(openApiDocument(), 'GET', '/api/preview/stitch')
+    const sequence = stitch.parameters?.find((parameter) => parameter.name === 'seq')
+
+    expect(sequence).toMatchObject({ in: 'query', required: false, schema: { type: 'string', default: '0' } })
+    expect(sequence?.schema?.enum).toBeUndefined()
   })
 
   it('provides executable account-boundary examples without exposing an Access Key secret', () => {

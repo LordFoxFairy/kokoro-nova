@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+import { waitForStableVisuals } from './helpers/visual-stability'
+
 test.beforeEach(async ({ request }) => {
   const selected = await request.post('/api/dev/scenario', {
     data: { scenarioId: 'authenticated-empty' },
@@ -75,7 +77,7 @@ async function openGeneratedCharacterWorkspace(page: Page) {
   const workspace = page.getByTestId('script-v2-workspace')
   await expect(workspace).toBeVisible()
   const persisted = waitForCanvasMutation(page)
-  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^准备资产/ }).click()
   await persisted
   return workspace
 }
@@ -142,8 +144,7 @@ async function readScriptV2State(page: Page) {
  * can still pass after a panel silently drifts out of its documented geometry.
  */
 async function expectVisualBaseline(page: Page, name: string) {
-  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
-  await page.evaluate(() => document.fonts.ready)
+  await waitForStableVisuals(page)
   await expect(page).toHaveScreenshot(name, {
     animations: 'disabled',
     caret: 'hide',
@@ -658,7 +659,7 @@ test('script v2 asset stage groups roles and keeps a pending card when its sourc
 
   const workspace = page.getByTestId('script-v2-workspace')
   persisted = waitForCanvasMutation(page)
-  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^准备资产/ }).click()
   await persisted
 
   for (const [section, addLabel] of [
@@ -707,7 +708,7 @@ test('script v2 asset AI form quotes observed defaults and generates a ready loc
 
   const workspace = page.getByTestId('script-v2-workspace')
   persisted = waitForCanvasMutation(page)
-  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^准备资产/ }).click()
   await persisted
   persisted = waitForCanvasMutation(page)
   await workspace.getByRole('button', { name: '新增角色', exact: true }).click()
@@ -773,7 +774,7 @@ test('script v2 asset sources bind canvas, upload and personal-library images lo
 
   const workspace = page.getByTestId('script-v2-workspace')
   persisted = waitForCanvasMutation(page)
-  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^准备资产/ }).click()
   await persisted
 
   persisted = waitForCanvasMutation(page)
@@ -1000,7 +1001,7 @@ test('script v2 batch assets groups selections, quotes aggregate credits and con
   await persisted
   const workspace = page.getByTestId('script-v2-workspace')
   persisted = waitForCanvasMutation(page)
-  await workspace.getByRole('button', { name: /准备资产/ }).click()
+  await workspace.getByTestId('script-v2-stages').getByRole('button', { name: /^准备资产/ }).click()
   await persisted
 
   for (const label of ['角色', '场景', '道具']) {

@@ -9,11 +9,16 @@
 | `script-v2-node-empty-1440x900-darwin.png` | `script-node-default-generator-and-three-entry-paths.png` | 深色无限画布中的脚本节点、三条入口、选中外框和底部工具轨。 |
 | `script-v2-generator-1440x900-darwin.png` | `script-node-default-generator-and-three-entry-paths.png` | 节点附着式生成器、剧情输入、模型/翻译控制和报价位置。 |
 | `script-v2-model-catalog-1440x900-darwin.png` | `script-node-language-model-catalog-with-latency.png` | 生成器上的模型浮层、GVLM/CVLM 目录与预计耗时层级。 |
-| `script-v2-shots-1440x900-darwin.png` | `script-v2-manual-storyboard-confirm-shots-table.png` | 全屏三阶段壳、顶部阶段导航、镜头表列序、批量行动作与暗色密度。 |
-| `script-v2-assets-1440x900-darwin.png` | `script-v2-prepare-assets-characters-scenes-props.png` | 角色/场景/道具三分组、空资产卡、底部阶段门槛和下一步动作。 |
-| `script-v2-prompts-1440x900-darwin.png` | `script-v2-compose-prompts-phase-and-batch-action.png` | 双轨最终提示词阶段、完成计数、批量分镜/视频动作。 |
+| `script-v2-shots-1440x900-darwin.png` | `script-v2-manual-storyboard-confirm-shots-table.png` | 画布 chrome 仍可见的三阶段 overlay、顶部阶段导航、镜头表列序、底部下一步动作与暗色密度。 |
+| `script-v2-assets-1440x900-darwin.png` | `script-v2-prepare-assets-characters-scenes-props.png` | 保留画布 chrome 的资产阶段 overlay、角色/场景/道具三分组、空资产卡、阶段门槛和下一步动作。 |
+| `script-v2-prompts-1440x900-darwin.png` | `script-v2-compose-prompts-phase-and-batch-action.png` | 保留画布 chrome 的提示词阶段 overlay、双轨最终提示词、完成计数与批量分镜/视频动作。 |
 | `script-v2-prompt-detail-1440x900-darwin.png` | `script-v2-compose-prompts-phase-and-batch-action.png` | 单镜头双提示词详情、独立状态、模型/模式控制与关闭层级。 |
 | `script-v2-batch-image-1440x900-darwin.png` | `script-v2-compose-prompts-phase-and-batch-action.png` | 选镜批量分镜确认层、模型与画质配置、预估积分和确认门。 |
+
+## 基线更新说明
+
+2026-09-04：三阶段基线更新为当前实现的“画布 chrome 保留 + Script V2 overlay”状态。该状态与登录态官网
+画布中 Script V2 从节点打开后仍保留工作流上下文的观察一致；基线通过字体、图片解码和连续绘制帧后捕获。
 
 ## 已知且刻意保留的差异
 

@@ -626,7 +626,7 @@ test('the new surfaces are reachable from the home page', async ({ page }) => {
   for (const [label, path] of [
     ['全部 Skill', '/skills'],
     ['公开作品', '/showcase'],
-    ['账户', '/account'],
+    ['积分超市', '/account'],
   ] as const) {
     await page.goto('/')
     await page.getByRole('link', { name: label, exact: true }).click()

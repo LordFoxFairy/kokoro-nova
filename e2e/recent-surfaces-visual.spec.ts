@@ -23,6 +23,31 @@ async function expectStableBaseline(page: Page, name: string) {
   })
 }
 
+/**
+ * A visible <video> may still be using the poster's intrinsic dimensions.
+ * The browser replaces those with the stream dimensions after metadata lands,
+ * which changes the object-contain projection without a React state update.
+ * Capture the post-metadata state so neighbouring serial journeys cannot turn
+ * this visual contract into a timing race.
+ */
+async function stabilizeShowcaseVideo(page: Page) {
+  const video = page.getByTestId('showcase-player-video')
+  await expect(video).toBeVisible()
+  await expect.poll(async () => video.evaluate((element) => (
+    element.readyState >= HTMLMediaElement.HAVE_METADATA
+      && element.videoWidth === 1280
+      && element.videoHeight === 720
+  ))).toBe(true)
+
+  await video.evaluate((element) => {
+    element.pause()
+    element.currentTime = 0
+    element.dispatchEvent(new Event('timeupdate'))
+    element.dispatchEvent(new Event('canplay'))
+  })
+  await expect(video).toHaveJSProperty('currentTime', 0)
+}
+
 async function resetAuthenticatedPopulated(page: Page) {
   const selected = await page.request.post('/api/dev/scenario', {
     data: { scenarioId: 'authenticated-populated' },
@@ -88,13 +113,7 @@ test.describe('recent surface visual baselines', () => {
 
     await page.goto('/showcase/pub_city_night_01')
     await page.getByTestId('showcase-watch').click()
-    await expect(page.getByTestId('showcase-player-video')).toBeVisible()
-    await page.getByTestId('showcase-player-video').evaluate((video) => {
-      video.pause()
-      video.currentTime = 0
-      video.dispatchEvent(new Event('timeupdate'))
-      video.dispatchEvent(new Event('canplay'))
-    })
+    await stabilizeShowcaseVideo(page)
     await expect(page.getByTestId('showcase-player-buffering')).toHaveCount(0)
     await page.getByTestId('showcase-player-quality').click()
     await expect(page.getByTestId('showcase-player-quality-menu')).toBeVisible()

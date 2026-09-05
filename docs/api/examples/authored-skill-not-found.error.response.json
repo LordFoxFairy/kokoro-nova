@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "本地作者 Skill 不存在"
+  },
+  "requestId": "req_local_authored_skill_missing"
+}

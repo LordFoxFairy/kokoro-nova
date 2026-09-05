@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "action: Invalid literal value, expected \"markAllRead\""
+  },
+  "requestId": "req_local_notifications_action"
+}

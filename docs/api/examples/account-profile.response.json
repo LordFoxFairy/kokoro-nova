@@ -1,0 +1,44 @@
+{
+  "identity": {
+    "displayName": "微信用户cd385d",
+    "maskedAccount": "微信 · cd••••5d",
+    "uuidMasked": "cd385d••••••9a21",
+    "accessKeyLabel": "Access key",
+    "avatarInitial": "微"
+  },
+  "membership": {
+    "label": "免费用户",
+    "status": "active",
+    "benefit": "Seedream 4.5 限时 5 折",
+    "daysRemaining": 1
+  },
+  "wallet": {
+    "availableCredits": 20,
+    "commonCredits": 20,
+    "libTvCredits": 0,
+    "storageUsedGb": 0,
+    "storageTotalGb": 3
+  },
+  "preferences": {
+    "theme": "dark",
+    "aiWatermark": true,
+    "recommendations": true
+  },
+  "notifications": [
+    {
+      "id": "local-notice-render",
+      "title": "视频任务已完成",
+      "body": "你的本地演示视频已写回画布，可在故事板继续剪辑。",
+      "createdAt": "2026-09-04T12:00:00.000Z",
+      "unread": true
+    },
+    {
+      "id": "local-notice-skill",
+      "title": "CLI & Skill 已就绪",
+      "body": "Access Key 仅展示脱敏入口；未来后端接入时再签发真实凭据。",
+      "createdAt": "2026-09-04T11:00:00.000Z",
+      "unread": true
+    }
+  ],
+  "unreadCount": 2
+}

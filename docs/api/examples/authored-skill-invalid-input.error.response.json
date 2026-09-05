@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "name: String must contain at most 80 character(s)"
+  },
+  "requestId": "req_local_authored_skill_invalid"
+}

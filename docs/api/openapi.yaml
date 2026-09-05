@@ -2642,6 +2642,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LedgerViewProjection"
+                },
+                "examples": {
+                  "initialGrant": {
+                    "$ref": "#/components/examples/LedgerViewResponseExample"
+                  }
                 }
               }
             }
@@ -4281,6 +4286,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetSkillResponse"
+                },
+                "examples": {
+                  "detail": {
+                    "$ref": "#/components/examples/SkillDetailResponseExample"
+                  }
                 }
               }
             }
@@ -4291,6 +4301,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "skillMissing": {
+                    "$ref": "#/components/examples/SkillNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -4340,6 +4355,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ToggleSkillFavouriteResponse"
+                },
+                "examples": {
+                  "favourited": {
+                    "$ref": "#/components/examples/ToggleSkillFavouriteResponseExample"
+                  },
+                  "favouriteReplay": {
+                    "$ref": "#/components/examples/ToggleSkillFavouriteResponseExample"
+                  }
                 }
               }
             }
@@ -4360,6 +4383,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "skillMissing": {
+                    "$ref": "#/components/examples/SkillNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -4393,6 +4421,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ToggleSkillFavouriteRequest"
+              },
+              "examples": {
+                "favourite": {
+                  "$ref": "#/components/examples/ToggleSkillFavouriteRequestExample"
+                },
+                "favouriteReplay": {
+                  "$ref": "#/components/examples/ToggleSkillFavouriteRequestExample"
+                }
               }
             }
           }
@@ -4437,6 +4473,11 @@
                       "$ref": "#/components/schemas/SkillComposerModesResponse"
                     }
                   ]
+                },
+                "examples": {
+                  "catalogue": {
+                    "$ref": "#/components/examples/SkillsListResponseExample"
+                  }
                 }
               }
             }
@@ -5453,6 +5494,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccountProfileResponse"
+                },
+                "examples": {
+                  "authenticatedProjection": {
+                    "$ref": "#/components/examples/AccountProfileResponseExample"
+                  }
                 }
               }
             }
@@ -6006,6 +6052,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdentityResponse"
+                },
+                "examples": {
+                  "authenticatedProjection": {
+                    "$ref": "#/components/examples/LocalIdentityAuthenticatedResponseExample"
+                  }
                 }
               }
             }
@@ -6016,6 +6067,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidReturnTo": {
+                    "$ref": "#/components/examples/LocalIdentityInvalidReturnToErrorExample"
+                  }
                 }
               }
             }
@@ -6057,6 +6113,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateSessionRequest"
+              },
+              "examples": {
+                "signInProject": {
+                  "$ref": "#/components/examples/LocalSessionSignInRequestExample"
+                }
               }
             }
           }
@@ -6068,6 +6129,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdentityResponse"
+                },
+                "examples": {
+                  "signedIn": {
+                    "$ref": "#/components/examples/LocalIdentityAuthenticatedResponseExample"
+                  }
                 }
               }
             }
@@ -6078,6 +6144,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidReturnTo": {
+                    "$ref": "#/components/examples/LocalIdentityInvalidReturnToErrorExample"
+                  }
                 }
               }
             }
@@ -6124,6 +6195,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PreferencesResponse"
+                },
+                "examples": {
+                  "current": {
+                    "$ref": "#/components/examples/LocalPreferencesResponseExample"
+                  }
                 }
               }
             }
@@ -6163,6 +6239,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              },
+              "examples": {
+                "setDisplayOptions": {
+                  "$ref": "#/components/examples/UpdateLocalPreferencesRequestExample"
+                }
               }
             }
           }
@@ -6174,6 +6255,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PreferencesResponse"
+                },
+                "examples": {
+                  "updated": {
+                    "$ref": "#/components/examples/LocalPreferencesResponseExample"
+                  }
                 }
               }
             }
@@ -6184,6 +6270,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "emptyPatch": {
+                    "$ref": "#/components/examples/LocalPreferencesInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -6229,6 +6320,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotificationsResponse"
+                },
+                "examples": {
+                  "unreadSummary": {
+                    "$ref": "#/components/examples/NotificationSummaryResponseExample"
+                  }
                 }
               }
             }
@@ -6266,6 +6362,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateNotificationsRequest"
+              },
+              "examples": {
+                "markAllRead": {
+                  "$ref": "#/components/examples/MarkNotificationsReadRequestExample"
+                }
               }
             }
           }
@@ -6277,6 +6378,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotificationsResponse"
+                },
+                "examples": {
+                  "allRead": {
+                    "$ref": "#/components/examples/NotificationSummaryAllReadResponseExample"
+                  }
                 }
               }
             }
@@ -6287,6 +6393,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidAction": {
+                    "$ref": "#/components/examples/NotificationsInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -6475,6 +6586,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthorSkillListResponse"
+                },
+                "examples": {
+                  "draftShelf": {
+                    "$ref": "#/components/examples/AuthoredSkillsListResponseExample"
+                  }
                 }
               }
             }
@@ -6515,6 +6631,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateAuthoredSkillRequest"
+              },
+              "examples": {
+                "createDraft": {
+                  "$ref": "#/components/examples/CreateAuthoredSkillRequestExample"
+                }
               }
             }
           }
@@ -6526,6 +6647,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateAuthoredSkillResponse"
+                },
+                "examples": {
+                  "createdDraft": {
+                    "$ref": "#/components/examples/CreateAuthoredSkillResponseExample"
+                  }
                 }
               }
             }
@@ -6536,6 +6662,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidDraft": {
+                    "$ref": "#/components/examples/AuthoredSkillInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -6591,6 +6722,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetAuthoredSkillResponse"
+                },
+                "examples": {
+                  "publishedDetail": {
+                    "$ref": "#/components/examples/AuthoredSkillDetailResponseExample"
+                  }
                 }
               }
             }
@@ -6601,6 +6737,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "authoredSkillMissing": {
+                    "$ref": "#/components/examples/AuthoredSkillNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -6653,6 +6794,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateAuthoredSkillRequest"
+              },
+              "examples": {
+                "updateMetadata": {
+                  "$ref": "#/components/examples/UpdateAuthoredSkillRequestExample"
+                }
               }
             }
           }
@@ -6664,6 +6810,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateAuthoredSkillResponse"
+                },
+                "examples": {
+                  "updated": {
+                    "$ref": "#/components/examples/UpdateAuthoredSkillResponseExample"
+                  }
                 }
               }
             }
@@ -6674,6 +6825,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidPatch": {
+                    "$ref": "#/components/examples/AuthoredSkillInvalidInputErrorExample"
+                  }
                 }
               }
             }
@@ -6684,6 +6840,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "publishedMustUnpublish": {
+                    "$ref": "#/components/examples/AuthoredSkillPublishedConflictErrorExample"
+                  }
                 }
               }
             }
@@ -6736,6 +6897,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AuthorSkillActionRequest"
+              },
+              "examples": {
+                "publish": {
+                  "$ref": "#/components/examples/AuthorSkillTransitionRequestExample"
+                },
+                "publishReplay": {
+                  "$ref": "#/components/examples/AuthorSkillTransitionRequestExample"
+                }
               }
             }
           }
@@ -6747,6 +6916,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthorSkillActionResponse"
+                },
+                "examples": {
+                  "published": {
+                    "$ref": "#/components/examples/AuthoredSkillDetailResponseExample"
+                  },
+                  "publishReplay": {
+                    "$ref": "#/components/examples/AuthoredSkillDetailResponseExample"
+                  }
                 }
               }
             }
@@ -6757,6 +6934,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingReview": {
+                    "$ref": "#/components/examples/AuthoredSkillTransitionConflictErrorExample"
+                  }
                 }
               }
             }
@@ -6767,6 +6949,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "reviewFailed": {
+                    "$ref": "#/components/examples/AuthoredSkillReviewErrorExample"
+                  }
                 }
               }
             }
@@ -7287,6 +7474,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TeamResponse"
+                },
+                "examples": {
+                  "readyTeam": {
+                    "$ref": "#/components/examples/LocalTeamResponseExample"
+                  }
                 }
               }
             }
@@ -7329,6 +7521,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SharedAssetsResponse"
+                },
+                "examples": {
+                  "readyAssets": {
+                    "$ref": "#/components/examples/LocalSharedAssetsResponseExample"
+                  }
                 }
               }
             }
@@ -18686,7 +18883,132 @@
       "PresenceLeaseAcquireResponseExample": {
         "externalValue": "./examples/presence-lease-acquire.response.json"
       }
+    ,
+    "AccountProfileResponseExample": {
+      "summary": "已登录本地账户的身份、钱包与偏好显示投影",
+      "externalValue": "./examples/account-profile.response.json"
+    },
+    "LocalIdentityAuthenticatedResponseExample": {
+      "summary": "携带项目回跳 continuation 的已登录本地身份",
+      "externalValue": "./examples/identity-authenticated.response.json"
+    },
+    "LocalSessionSignInRequestExample": {
+      "summary": "登录并恢复项目路由上下文",
+      "externalValue": "./examples/identity-sign-in.request.json"
+    },
+    "LocalIdentityInvalidReturnToErrorExample": {
+      "summary": "站外 returnTo 被拒绝",
+      "externalValue": "./examples/identity-invalid-return-to.error.response.json"
+    },
+    "LocalPreferencesResponseExample": {
+      "summary": "本地显示偏好 projection",
+      "externalValue": "./examples/preferences.response.json"
+    },
+    "UpdateLocalPreferencesRequestExample": {
+      "summary": "更新主题与 AI 水印偏好",
+      "externalValue": "./examples/preferences-update.request.json"
+    },
+    "LocalPreferencesInvalidInputErrorExample": {
+      "summary": "空偏好 patch 被拒绝",
+      "externalValue": "./examples/preferences-invalid-input.error.response.json"
+    },
+    "NotificationSummaryResponseExample": {
+      "summary": "有两条未读本地通知的显示 projection",
+      "externalValue": "./examples/notifications.response.json"
+    },
+    "NotificationSummaryAllReadResponseExample": {
+      "summary": "markAllRead 后未读数归零的本地通知 projection",
+      "externalValue": "./examples/notifications-all-read.response.json"
+    },
+    "MarkNotificationsReadRequestExample": {
+      "summary": "标记当前本地通知全部已读",
+      "externalValue": "./examples/notifications-mark-all-read.request.json"
+    },
+    "NotificationsInvalidInputErrorExample": {
+      "summary": "不支持的通知命令",
+      "externalValue": "./examples/notifications-invalid-input.error.response.json"
+    },
+    "LocalTeamResponseExample": {
+      "summary": "已登录本地团队显示 projection",
+      "externalValue": "./examples/team.response.json"
+    },
+    "LocalSharedAssetsResponseExample": {
+      "summary": "可访问的本地共享素材显示 projection",
+      "externalValue": "./examples/shared-assets.response.json"
+    },
+    "LedgerViewResponseExample": {
+      "summary": "初始积分 grant 的账户明细 projection",
+      "externalValue": "./examples/ledger.response.json"
+    },
+    "SkillsListResponseExample": {
+      "summary": "公开 Skill 市场目录的稳定第一页",
+      "externalValue": "./examples/skills-list.response.json"
+    },
+    "SkillDetailResponseExample": {
+      "summary": "固定版本 Skill 详情",
+      "externalValue": "./examples/skill-detail.response.json"
+    },
+    "ToggleSkillFavouriteRequestExample": {
+      "summary": "将 Skill 显式设为收藏",
+      "externalValue": "./examples/skill-favourite.request.json"
+    },
+    "ToggleSkillFavouriteResponseExample": {
+      "summary": "收藏后返回的 Skill projection",
+      "externalValue": "./examples/skill-favourite.response.json"
+    },
+    "SkillNotFoundErrorExample": {
+      "summary": "Skill 标识不存在或已下架",
+      "externalValue": "./examples/skill-not-found.error.response.json"
+    },
+    "AuthoredSkillsListResponseExample": {
+      "summary": "本地作者 shelf 的草稿列表",
+      "externalValue": "./examples/authored-skills-list.response.json"
+    },
+    "CreateAuthoredSkillRequestExample": {
+      "summary": "创建名称已给定的本地 Skill 草稿",
+      "externalValue": "./examples/authored-skill-create.request.json"
+    },
+    "CreateAuthoredSkillResponseExample": {
+      "summary": "新建后带模板文件的 draft",
+      "externalValue": "./examples/authored-skill-created.response.json"
+    },
+    "AuthoredSkillDetailResponseExample": {
+      "summary": "审核通过并发布的作者 Skill",
+      "externalValue": "./examples/authored-skill-detail.response.json"
+    },
+    "UpdateAuthoredSkillRequestExample": {
+      "summary": "修改作者 Skill 摘要与标签",
+      "externalValue": "./examples/authored-skill-update.request.json"
+    },
+    "UpdateAuthoredSkillResponseExample": {
+      "summary": "保存作者 Skill 后回到 draft 的持久化 projection",
+      "externalValue": "./examples/authored-skill-updated.response.json"
+    },
+    "AuthorSkillTransitionRequestExample": {
+      "summary": "发布已审核作者 Skill",
+      "externalValue": "./examples/authored-skill-transition.request.json"
+    },
+    "AuthoredSkillNotFoundErrorExample": {
+      "summary": "本地作者 Skill 标识不存在",
+      "externalValue": "./examples/authored-skill-not-found.error.response.json"
+    },
+    "AuthoredSkillInvalidInputErrorExample": {
+      "summary": "作者 Skill 请求字段不符合 schema",
+      "externalValue": "./examples/authored-skill-invalid-input.error.response.json"
+    },
+    "AuthoredSkillPublishedConflictErrorExample": {
+      "summary": "已发布作者 Skill 不可直接编辑",
+      "externalValue": "./examples/authored-skill-published-conflict.error.response.json"
+    },
+    "AuthoredSkillTransitionConflictErrorExample": {
+      "summary": "未提交审核时直接发布的状态机冲突",
+      "externalValue": "./examples/authored-skill-transition-conflict.error.response.json"
+    },
+    "AuthoredSkillReviewErrorExample": {
+      "summary": "审核字段不足时发布被拒绝",
+      "externalValue": "./examples/authored-skill-review-error.response.json"
     }
+  }
   },
   "x-contract-source": "src/contracts/route-manifest.ts",
   "x-research-source": "docs/research/libtv/api/ENDPOINTS.md",

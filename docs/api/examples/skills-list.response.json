@@ -1,0 +1,42 @@
+{
+  "skills": [
+    {
+      "id": "skill-storyboard-breakdown",
+      "name": "分镜拆解",
+      "summary": "把一段文字脚本拆成带镜号、景别、时长与画面描述的镜头表，并把总时长对齐到目标。",
+      "category": "叙事分镜",
+      "author": "Lib 官方",
+      "origin": "official",
+      "version": "2.4.0",
+      "updatedAt": "2026-06-18",
+      "hue": 212,
+      "usageCount": 186200,
+      "tags": [
+        "脚本",
+        "镜头表",
+        "节奏"
+      ],
+      "examples": [
+        "把这段 200 字的产品文案拆成 12 个镜头，总时长 30 秒"
+      ],
+      "executableSpec": [
+        {
+          "heading": "触发条件",
+          "body": "会话中存在脚本、文本节点或用户贴入的正文，并且诉求是拆分镜或输出镜头表。"
+        },
+        {
+          "heading": "输出格式",
+          "body": "每行为镜号、景别、时长、画面描述、台词或旁白和备注。"
+        }
+      ],
+      "favourite": false
+    }
+  ],
+  "category": "全部",
+  "collection": "全部",
+  "counts": {
+    "all": 8,
+    "favourite": 0,
+    "mine": 0
+  }
+}

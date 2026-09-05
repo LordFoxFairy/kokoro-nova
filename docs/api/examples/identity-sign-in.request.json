@@ -1,0 +1,8 @@
+{
+  "action": "signIn",
+  "returnTo": "/project",
+  "continuation": {
+    "kind": "project-route",
+    "route": "/project"
+  }
+}

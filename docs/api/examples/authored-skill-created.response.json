@@ -1,0 +1,45 @@
+{
+  "skill": {
+    "id": "skill-local-001",
+    "name": "镜头节奏助手",
+    "summary": "将镜头表整理为节奏明确、可执行的短片创作任务。",
+    "category": "叙事分镜",
+    "usageScenarios": "适用于脚本定稿后需要明确镜头节奏的短片创作阶段。",
+    "howToUse": "输入镜头表、目标时长和已有角色资产，调用后确认镜头节奏。",
+    "outputContent": "返回镜头节奏表、转场建议与可执行镜头清单。",
+    "outputTypes": [
+      "image",
+      "video",
+      "text"
+    ],
+    "cover": "/fixtures/libtv/skills/example-01.svg",
+    "version": "1.2.0",
+    "status": "draft",
+    "review": {
+      "status": "not_requested",
+      "checkedAt": null,
+      "checks": []
+    },
+    "files": [
+      {
+        "path": "SKILL.md",
+        "language": "markdown",
+        "content": "# 镜头节奏助手\n\n## 执行步骤\n1. 读取镜头表。"
+      },
+      {
+        "path": "notes/review.md",
+        "language": "markdown",
+        "content": "# 审核说明"
+      }
+    ],
+    "tags": [
+      "节奏",
+      "镜头"
+    ],
+    "createdAt": "2026-09-04T12:00:00.000Z",
+    "updatedAt": "2026-09-04T12:00:00.000Z",
+    "publishedAt": null,
+    "author": "本地创作者",
+    "hue": 204
+  }
+}

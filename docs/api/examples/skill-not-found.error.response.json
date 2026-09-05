@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Skill 不存在或已下架"
+  },
+  "requestId": "req_local_skill_missing"
+}

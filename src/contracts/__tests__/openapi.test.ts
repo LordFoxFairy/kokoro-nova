@@ -138,6 +138,38 @@ import {
   TransitionJobRequestSchema,
   TransitionJobResponseSchema,
 } from '@/contracts/jobs'
+import { AccountProfileResponseSchema } from '@/contracts/account'
+import {
+  IdentityResponseSchema,
+  UpdateSessionRequestSchema,
+} from '@/contracts/identity'
+import {
+  PreferencesResponseSchema,
+  UpdatePreferencesRequestSchema,
+} from '@/contracts/preferences'
+import {
+  NotificationsResponseSchema,
+  UpdateNotificationsRequestSchema,
+} from '@/contracts/notifications'
+import {
+  SharedAssetsResponseSchema,
+  TeamResponseSchema,
+} from '@/contracts/team'
+import { LedgerViewProjectionSchema } from '@/contracts/ledger'
+import {
+  AuthorSkillActionRequestSchema,
+  AuthorSkillActionResponseSchema,
+  AuthorSkillListResponseSchema,
+  CreateAuthoredSkillRequestSchema,
+  CreateAuthoredSkillResponseSchema,
+  GetAuthoredSkillResponseSchema,
+  GetSkillResponseSchema,
+  SkillListResponseSchema,
+  ToggleSkillFavouriteRequestSchema,
+  ToggleSkillFavouriteResponseSchema,
+  UpdateAuthoredSkillRequestSchema,
+  UpdateAuthoredSkillResponseSchema,
+} from '@/contracts/skills'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -253,6 +285,10 @@ function documentedOperations(document: OpenApiDocument): Array<[HttpMethod, str
     const [method, routePath] = pair.split(' ', 2)
     return [method as HttpMethod, routePath]
   })
+}
+
+function readExampleFixture(filename: string): unknown {
+  return JSON.parse(readFileSync(path.join(process.cwd(), 'docs/api/examples', filename), 'utf8'))
 }
 
 const PUBLIC_OPERATIONS = new Set([
@@ -643,6 +679,209 @@ describe('local API manifest and OpenAPI', () => {
       member: { id: 'member_liu', role: 'member' },
       team: { state: 'ready' },
     })
+  })
+
+  it('keeps EX-01 account display projections and Skill lifecycle examples schema-valid, file-backed and attached', () => {
+    const document = openApiDocument()
+    const account = operationAt(document, 'GET', '/api/account')
+    const identityRead = operationAt(document, 'GET', '/api/identity')
+    const identityWrite = operationAt(document, 'POST', '/api/identity')
+    const preferencesRead = operationAt(document, 'GET', '/api/preferences')
+    const preferencesWrite = operationAt(document, 'PATCH', '/api/preferences')
+    const notificationsRead = operationAt(document, 'GET', '/api/notifications')
+    const notificationsWrite = operationAt(document, 'POST', '/api/notifications')
+    const team = operationAt(document, 'GET', '/api/team')
+    const sharedAssets = operationAt(document, 'GET', '/api/shared-assets')
+    const ledger = operationAt(document, 'GET', '/api/ledger')
+    const skills = operationAt(document, 'GET', '/api/skills')
+    const skill = operationAt(document, 'GET', '/api/skills/{skillId}')
+    const favourite = operationAt(document, 'POST', '/api/skills/{skillId}')
+    const authoredSkills = operationAt(document, 'GET', '/api/skills/author')
+    const authoredCreate = operationAt(document, 'POST', '/api/skills/author')
+    const authoredSkill = operationAt(document, 'GET', '/api/skills/author/{skillId}')
+    const authoredUpdate = operationAt(document, 'PATCH', '/api/skills/author/{skillId}')
+    const authoredTransition = operationAt(document, 'POST', '/api/skills/author/{skillId}')
+
+    expect(account.responses?.['200']?.content?.['application/json']?.examples?.authenticatedProjection?.$ref).toBe(
+      '#/components/examples/AccountProfileResponseExample',
+    )
+    expect(identityRead.responses?.['200']?.content?.['application/json']?.examples?.authenticatedProjection?.$ref).toBe(
+      '#/components/examples/LocalIdentityAuthenticatedResponseExample',
+    )
+    expect(identityWrite.requestBody?.content?.['application/json']?.examples?.signInProject?.$ref).toBe(
+      '#/components/examples/LocalSessionSignInRequestExample',
+    )
+    expect(identityWrite.responses?.['400']?.content?.['application/json']?.examples?.invalidReturnTo?.$ref).toBe(
+      '#/components/examples/LocalIdentityInvalidReturnToErrorExample',
+    )
+    expect(preferencesRead.responses?.['200']?.content?.['application/json']?.examples?.current?.$ref).toBe(
+      '#/components/examples/LocalPreferencesResponseExample',
+    )
+    expect(preferencesWrite.requestBody?.content?.['application/json']?.examples?.setDisplayOptions?.$ref).toBe(
+      '#/components/examples/UpdateLocalPreferencesRequestExample',
+    )
+    expect(notificationsRead.responses?.['200']?.content?.['application/json']?.examples?.unreadSummary?.$ref).toBe(
+      '#/components/examples/NotificationSummaryResponseExample',
+    )
+    expect(notificationsWrite.requestBody?.content?.['application/json']?.examples?.markAllRead?.$ref).toBe(
+      '#/components/examples/MarkNotificationsReadRequestExample',
+    )
+    expect(notificationsWrite.responses?.['200']?.content?.['application/json']?.examples?.allRead?.$ref).toBe(
+      '#/components/examples/NotificationSummaryAllReadResponseExample',
+    )
+    expect(team.responses?.['200']?.content?.['application/json']?.examples?.readyTeam?.$ref).toBe(
+      '#/components/examples/LocalTeamResponseExample',
+    )
+    expect(sharedAssets.responses?.['200']?.content?.['application/json']?.examples?.readyAssets?.$ref).toBe(
+      '#/components/examples/LocalSharedAssetsResponseExample',
+    )
+    expect(ledger.responses?.['200']?.content?.['application/json']?.examples?.initialGrant?.$ref).toBe(
+      '#/components/examples/LedgerViewResponseExample',
+    )
+    expect(skills.responses?.['200']?.content?.['application/json']?.examples?.catalogue?.$ref).toBe(
+      '#/components/examples/SkillsListResponseExample',
+    )
+    expect(skill.responses?.['200']?.content?.['application/json']?.examples?.detail?.$ref).toBe(
+      '#/components/examples/SkillDetailResponseExample',
+    )
+    expect(favourite.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      favourite: { $ref: '#/components/examples/ToggleSkillFavouriteRequestExample' },
+      favouriteReplay: { $ref: '#/components/examples/ToggleSkillFavouriteRequestExample' },
+    })
+    expect(favourite.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      favourited: { $ref: '#/components/examples/ToggleSkillFavouriteResponseExample' },
+      favouriteReplay: { $ref: '#/components/examples/ToggleSkillFavouriteResponseExample' },
+    })
+    expect(authoredSkills.responses?.['200']?.content?.['application/json']?.examples?.draftShelf?.$ref).toBe(
+      '#/components/examples/AuthoredSkillsListResponseExample',
+    )
+    expect(authoredCreate.requestBody?.content?.['application/json']?.examples?.createDraft?.$ref).toBe(
+      '#/components/examples/CreateAuthoredSkillRequestExample',
+    )
+    expect(authoredCreate.responses?.['200']?.content?.['application/json']?.examples?.createdDraft?.$ref).toBe(
+      '#/components/examples/CreateAuthoredSkillResponseExample',
+    )
+    expect(authoredSkill.responses?.['200']?.content?.['application/json']?.examples?.publishedDetail?.$ref).toBe(
+      '#/components/examples/AuthoredSkillDetailResponseExample',
+    )
+    expect(authoredUpdate.requestBody?.content?.['application/json']?.examples?.updateMetadata?.$ref).toBe(
+      '#/components/examples/UpdateAuthoredSkillRequestExample',
+    )
+    expect(authoredUpdate.responses?.['200']?.content?.['application/json']?.examples?.updated?.$ref).toBe(
+      '#/components/examples/UpdateAuthoredSkillResponseExample',
+    )
+    expect(authoredUpdate.responses?.['409']?.content?.['application/json']?.examples?.publishedMustUnpublish?.$ref).toBe(
+      '#/components/examples/AuthoredSkillPublishedConflictErrorExample',
+    )
+    expect(authoredTransition.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      publish: { $ref: '#/components/examples/AuthorSkillTransitionRequestExample' },
+      publishReplay: { $ref: '#/components/examples/AuthorSkillTransitionRequestExample' },
+    })
+    expect(authoredTransition.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      published: { $ref: '#/components/examples/AuthoredSkillDetailResponseExample' },
+      publishReplay: { $ref: '#/components/examples/AuthoredSkillDetailResponseExample' },
+    })
+
+    const accountProfile = readExampleFixture('account-profile.response.json')
+    const identity = readExampleFixture('identity-authenticated.response.json')
+    const sessionRequest = readExampleFixture('identity-sign-in.request.json')
+    const preferences = readExampleFixture('preferences.response.json')
+    const preferenceRequest = readExampleFixture('preferences-update.request.json')
+    const notificationSummary = readExampleFixture('notifications.response.json')
+    const markAllRead = readExampleFixture('notifications-mark-all-read.request.json')
+    const allRead = readExampleFixture('notifications-all-read.response.json')
+    const localTeam = readExampleFixture('team.response.json')
+    const localSharedAssets = readExampleFixture('shared-assets.response.json')
+    const ledgerProjection = readExampleFixture('ledger.response.json')
+    const skillList = readExampleFixture('skills-list.response.json')
+    const skillDetail = readExampleFixture('skill-detail.response.json')
+    const favouriteRequest = readExampleFixture('skill-favourite.request.json')
+    const favouriteResponse = readExampleFixture('skill-favourite.response.json')
+    const authoredList = readExampleFixture('authored-skills-list.response.json')
+    const authoredCreateRequest = readExampleFixture('authored-skill-create.request.json')
+    const authoredCreated = readExampleFixture('authored-skill-created.response.json')
+    const authoredDetail = readExampleFixture('authored-skill-detail.response.json')
+    const authoredUpdateRequest = readExampleFixture('authored-skill-update.request.json')
+    const authoredUpdated = readExampleFixture('authored-skill-updated.response.json')
+    const authoredTransitionRequest = readExampleFixture('authored-skill-transition.request.json')
+
+    expect(AccountProfileResponseSchema.parse(accountProfile)).toMatchObject({ wallet: { availableCredits: 20 } })
+    expect(IdentityResponseSchema.parse(identity)).toMatchObject({ session: { status: 'authenticated', returnTo: '/project' } })
+    expect(UpdateSessionRequestSchema.parse(sessionRequest)).toMatchObject({ action: 'signIn', continuation: { kind: 'project-route' } })
+    expect(PreferencesResponseSchema.parse(preferences)).toEqual({ preferences: { theme: 'light', aiWatermark: false } })
+    expect(UpdatePreferencesRequestSchema.parse(preferenceRequest)).toEqual({ theme: 'light', aiWatermark: false })
+    expect(NotificationsResponseSchema.parse(notificationSummary)).toMatchObject({ notifications: { unreadCount: 2 } })
+    expect(UpdateNotificationsRequestSchema.parse(markAllRead)).toEqual({ action: 'markAllRead' })
+    expect(NotificationsResponseSchema.parse(allRead)).toMatchObject({ notifications: { unreadCount: 0 } })
+    expect(TeamResponseSchema.parse(localTeam)).toMatchObject({ state: 'ready', team: { id: 'team_kokoro_creative' } })
+    const parsedSharedAssets = SharedAssetsResponseSchema.parse(localSharedAssets)
+    expect(parsedSharedAssets.state).toBe('ready')
+    expect(parsedSharedAssets.assets[0]).toMatchObject({ permission: 'edit' })
+    expect(LedgerViewProjectionSchema.parse(ledgerProjection)).toMatchObject({ balance: 20, counts: { earned: 1 } })
+    expect(SkillListResponseSchema.parse(skillList)).toMatchObject({ collection: '全部', skills: [{ id: 'skill-storyboard-breakdown' }] })
+    expect(GetSkillResponseSchema.parse(skillDetail)).toMatchObject({ skill: { favourite: false } })
+    expect(ToggleSkillFavouriteRequestSchema.parse(favouriteRequest)).toEqual({ action: 'favourite' })
+    expect(ToggleSkillFavouriteResponseSchema.parse(favouriteResponse)).toMatchObject({ skill: { favourite: true } })
+    expect(AuthorSkillListResponseSchema.parse(authoredList)).toMatchObject({ skills: [{ status: 'draft' }] })
+    expect(CreateAuthoredSkillRequestSchema.parse(authoredCreateRequest)).toEqual({ name: '镜头节奏助手' })
+    const parsedCreatedSkill = CreateAuthoredSkillResponseSchema.parse(authoredCreated)
+    expect(parsedCreatedSkill.skill.status).toBe('draft')
+    expect(parsedCreatedSkill.skill.files[0]).toMatchObject({ path: 'SKILL.md' })
+    expect(GetAuthoredSkillResponseSchema.parse(authoredDetail)).toMatchObject({ skill: { status: 'published', review: { status: 'approved' } } })
+    expect(UpdateAuthoredSkillRequestSchema.parse(authoredUpdateRequest)).toMatchObject({ tags: ['节奏', '镜头', '短片'] })
+    expect(UpdateAuthoredSkillResponseSchema.parse(authoredUpdated)).toMatchObject({ skill: { status: 'draft', tags: ['节奏', '镜头', '短片'] } })
+    expect(AuthorSkillActionRequestSchema.parse(authoredTransitionRequest)).toEqual({ action: 'publish' })
+    expect(AuthorSkillActionResponseSchema.parse(authoredDetail)).toMatchObject({ skill: { publishedAt: '2026-09-04T12:03:20.000Z' } })
+
+    for (const [filename, code] of [
+      ['identity-invalid-return-to.error.response.json', 'INVALID_INPUT'],
+      ['preferences-invalid-input.error.response.json', 'INVALID_INPUT'],
+      ['notifications-invalid-input.error.response.json', 'INVALID_INPUT'],
+      ['skill-not-found.error.response.json', 'NOT_FOUND'],
+      ['authored-skill-not-found.error.response.json', 'NOT_FOUND'],
+      ['authored-skill-invalid-input.error.response.json', 'INVALID_INPUT'],
+      ['authored-skill-published-conflict.error.response.json', 'REVISION_CONFLICT'],
+      ['authored-skill-transition-conflict.error.response.json', 'REVISION_CONFLICT'],
+      ['authored-skill-review-error.response.json', 'HTTP_ERROR'],
+    ] as const) {
+      expect(LocalErrorEnvelopeSchema.parse(readExampleFixture(filename))).toMatchObject({ error: { code } })
+    }
+
+    for (const [name, filename] of Object.entries({
+      AccountProfileResponseExample: 'account-profile.response.json',
+      LocalIdentityAuthenticatedResponseExample: 'identity-authenticated.response.json',
+      LocalSessionSignInRequestExample: 'identity-sign-in.request.json',
+      LocalIdentityInvalidReturnToErrorExample: 'identity-invalid-return-to.error.response.json',
+      LocalPreferencesResponseExample: 'preferences.response.json',
+      UpdateLocalPreferencesRequestExample: 'preferences-update.request.json',
+      LocalPreferencesInvalidInputErrorExample: 'preferences-invalid-input.error.response.json',
+      NotificationSummaryResponseExample: 'notifications.response.json',
+      NotificationSummaryAllReadResponseExample: 'notifications-all-read.response.json',
+      MarkNotificationsReadRequestExample: 'notifications-mark-all-read.request.json',
+      NotificationsInvalidInputErrorExample: 'notifications-invalid-input.error.response.json',
+      LocalTeamResponseExample: 'team.response.json',
+      LocalSharedAssetsResponseExample: 'shared-assets.response.json',
+      LedgerViewResponseExample: 'ledger.response.json',
+      SkillsListResponseExample: 'skills-list.response.json',
+      SkillDetailResponseExample: 'skill-detail.response.json',
+      ToggleSkillFavouriteRequestExample: 'skill-favourite.request.json',
+      ToggleSkillFavouriteResponseExample: 'skill-favourite.response.json',
+      SkillNotFoundErrorExample: 'skill-not-found.error.response.json',
+      AuthoredSkillsListResponseExample: 'authored-skills-list.response.json',
+      CreateAuthoredSkillRequestExample: 'authored-skill-create.request.json',
+      CreateAuthoredSkillResponseExample: 'authored-skill-created.response.json',
+      AuthoredSkillDetailResponseExample: 'authored-skill-detail.response.json',
+      UpdateAuthoredSkillRequestExample: 'authored-skill-update.request.json',
+      UpdateAuthoredSkillResponseExample: 'authored-skill-updated.response.json',
+      AuthorSkillTransitionRequestExample: 'authored-skill-transition.request.json',
+      AuthoredSkillNotFoundErrorExample: 'authored-skill-not-found.error.response.json',
+      AuthoredSkillInvalidInputErrorExample: 'authored-skill-invalid-input.error.response.json',
+      AuthoredSkillPublishedConflictErrorExample: 'authored-skill-published-conflict.error.response.json',
+      AuthoredSkillTransitionConflictErrorExample: 'authored-skill-transition-conflict.error.response.json',
+      AuthoredSkillReviewErrorExample: 'authored-skill-review-error.response.json',
+    })) {
+      expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
+    }
   })
 
   it('keeps asset lifecycle and upload examples executable without inventing request-level idempotency', () => {

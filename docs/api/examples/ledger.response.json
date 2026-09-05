@@ -1,0 +1,32 @@
+{
+  "balance": 20,
+  "earned": [
+    {
+      "id": "ledger_grant_welcome",
+      "spaceId": "space_fixture",
+      "type": "grant",
+      "credits": 20,
+      "balanceAfter": 20,
+      "logicalChargeId": "charge_welcome",
+      "jobId": null,
+      "note": "本地演示初始积分",
+      "createdAt": "2026-09-04T10:00:00.000Z",
+      "charge": null
+    }
+  ],
+  "spent": [],
+  "returned": [],
+  "counts": {
+    "earned": 1,
+    "spent": 0,
+    "returned": 0
+  },
+  "totals": {
+    "earned": 20,
+    "reserved": 0,
+    "returned": 0,
+    "spent": 0,
+    "held": 0
+  },
+  "jobs": {}
+}

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "至少提供一个偏好字段"
+  },
+  "requestId": "req_local_preferences_empty"
+}

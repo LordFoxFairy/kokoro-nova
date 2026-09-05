@@ -1,0 +1,22 @@
+{
+  "notifications": {
+    "unreadCount": 2,
+    "totalCount": 2,
+    "items": [
+      {
+        "id": "local-notice-render",
+        "title": "视频任务已完成",
+        "body": "你的本地演示视频已写回画布，可在故事板继续剪辑。",
+        "createdAt": "2026-09-04T12:00:00.000Z",
+        "unread": true
+      },
+      {
+        "id": "local-notice-skill",
+        "title": "CLI & Skill 已就绪",
+        "body": "Access Key 仅展示脱敏入口；未来后端接入时再签发真实凭据。",
+        "createdAt": "2026-09-04T11:00:00.000Z",
+        "unread": true
+      }
+    ]
+  }
+}

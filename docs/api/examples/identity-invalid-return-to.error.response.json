@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "returnTo 必须是站内相对路径"
+  },
+  "requestId": "req_local_identity_return_to"
+}

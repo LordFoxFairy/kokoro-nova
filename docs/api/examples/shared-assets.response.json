@@ -1,0 +1,26 @@
+{
+  "state": "ready",
+  "message": "展示 2 个本地共享资产；权限仅用于前端演示。",
+  "assets": [
+    {
+      "id": "shared_asset_city_board",
+      "teamId": "team_kokoro_creative",
+      "name": "雨夜城市分镜参考",
+      "kind": "image",
+      "thumbnailUrl": "/fixtures/libtv/assets/rain.webp",
+      "ownerDisplayName": "刘同学",
+      "permission": "edit",
+      "updatedAt": "2026-09-04T12:00:00.000Z"
+    },
+    {
+      "id": "shared_asset_voice_over",
+      "teamId": "team_kokoro_creative",
+      "name": "旁白氛围音轨",
+      "kind": "audio",
+      "thumbnailUrl": "/fixtures/libtv/assets/ambient.mp3",
+      "ownerDisplayName": "视频策划",
+      "permission": "view",
+      "updatedAt": "2026-09-04T11:30:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "已发布的 Skill 请先下架再编辑"
+  },
+  "requestId": "req_local_authored_skill_published"
+}

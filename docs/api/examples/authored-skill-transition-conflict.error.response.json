@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "请先提交审核，再发布 Skill"
+  },
+  "requestId": "req_local_authored_skill_transition"
+}

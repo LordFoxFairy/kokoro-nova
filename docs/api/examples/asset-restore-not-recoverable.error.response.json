@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "该资产当前不可恢复"
+  },
+  "requestId": "req_local_hzloyt"
+}

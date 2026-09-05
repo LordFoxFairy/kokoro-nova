@@ -33,6 +33,23 @@ import teamMemberUpdateResponseExample from '../../../docs/api/examples/team-mem
 import initialEngagementExample from '../../../docs/api/examples/showcase-engagement.initial.response.json'
 import likeEngagementExample from '../../../docs/api/examples/showcase-engagement.like.response.json'
 import likeEngagementRequestExample from '../../../docs/api/examples/showcase-engagement.request.json'
+import assetLifecycleActiveExample from '../../../docs/api/examples/asset-lifecycle-active.response.json'
+import assetLifecycleListActiveExample from '../../../docs/api/examples/asset-lifecycle-list-active.response.json'
+import assetUpdateMetadataRequestExample from '../../../docs/api/examples/asset-update-metadata.request.json'
+import assetDeleteRecoverableExample from '../../../docs/api/examples/asset-delete-recoverable.response.json'
+import assetRegisterArtifactRequestExample from '../../../docs/api/examples/asset-register-artifact.request.json'
+import assetRegisterArtifactMissingErrorExample from '../../../docs/api/examples/asset-register-artifact-missing.error.response.json'
+import assetUploadSuccessExample from '../../../docs/api/examples/asset-upload-success.response.json'
+import assetUploadEmptyFilesErrorExample from '../../../docs/api/examples/asset-upload-empty-files.error.response.json'
+import assetUploadFolderNotFoundErrorExample from '../../../docs/api/examples/asset-upload-folder-not-found.error.response.json'
+import assetUploadTokenConflictErrorExample from '../../../docs/api/examples/asset-upload-token-conflict.error.response.json'
+import assetUploadCancelExample from '../../../docs/api/examples/asset-upload-cancel.response.json'
+import assetUploadCancelReplayExample from '../../../docs/api/examples/asset-upload-cancel-replay.response.json'
+import assetUploadInvalidTokenErrorExample from '../../../docs/api/examples/asset-upload-invalid-token.error.response.json'
+import assetUpdateInvalidTagsErrorExample from '../../../docs/api/examples/asset-update-invalid-tags.error.response.json'
+import assetNotFoundErrorExample from '../../../docs/api/examples/asset-not-found.error.response.json'
+import assetRestoreNotRecoverableErrorExample from '../../../docs/api/examples/asset-restore-not-recoverable.error.response.json'
+import assetDeletedErrorExample from '../../../docs/api/examples/asset-deleted.error.response.json'
 import {
   CreateScriptV2RunRequestSchema,
   OfficialPromptRecomputeEnvelopeSchema,
@@ -53,6 +70,11 @@ import {
   AccountExternalHandoffsResponseSchema,
 } from '@/contracts/account-external'
 import { LocalErrorEnvelopeSchema } from '@/contracts/http'
+import {
+  AssetLifecycleActionRequestSchema,
+  AssetLifecycleListResponseSchema,
+  AssetLifecycleViewSchema,
+} from '@/contracts/assets'
 import {
   CreateTeamInviteRequestSchema,
   CreateTeamInviteResponseSchema,
@@ -568,6 +590,145 @@ describe('local API manifest and OpenAPI', () => {
       member: { id: 'member_liu', role: 'member' },
       team: { state: 'ready' },
     })
+  })
+
+  it('keeps asset lifecycle and upload examples executable without inventing request-level idempotency', () => {
+    const document = openApiDocument()
+    const update = operationAt(document, 'PATCH', '/api/assets/{assetId}')
+    const remove = operationAt(document, 'DELETE', '/api/assets/{assetId}')
+    const list = operationAt(document, 'GET', '/api/assets')
+    const register = operationAt(document, 'POST', '/api/assets')
+    const upload = operationAt(document, 'POST', '/api/assets/upload')
+    const cancel = operationAt(document, 'DELETE', '/api/assets/upload')
+
+    expect(update.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      metadata: { $ref: '#/components/examples/UpdateAssetMetadataRequestExample' },
+      restore: { value: { action: 'restore' } },
+    })
+    expect(update.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      metadataUpdated: { $ref: '#/components/examples/AssetLifecycleActiveResponseExample' },
+      restored: { $ref: '#/components/examples/AssetLifecycleActiveResponseExample' },
+    })
+    expect(update.responses?.['400']?.content?.['application/json']?.examples?.invalidTagList?.$ref).toBe(
+      '#/components/examples/UpdateAssetInvalidTagsErrorExample',
+    )
+    expect(update.responses?.['404']?.content?.['application/json']?.examples?.assetMissing?.$ref).toBe(
+      '#/components/examples/AssetNotFoundErrorExample',
+    )
+    expect(update.responses?.['409']?.content?.['application/json']?.examples?.restoreNotRecoverable?.$ref).toBe(
+      '#/components/examples/AssetRestoreNotRecoverableErrorExample',
+    )
+    expect(update.responses?.['410']?.content?.['application/json']?.examples?.assetDeleted?.$ref).toBe(
+      '#/components/examples/AssetDeletedErrorExample',
+    )
+    expect(remove.responses?.['200']?.content?.['application/json']?.examples?.softDeleted?.$ref).toBe(
+      '#/components/examples/AssetDeleteRecoverableResponseExample',
+    )
+    expect(remove.responses?.['404']?.content?.['application/json']?.examples?.assetMissing?.$ref).toBe(
+      '#/components/examples/AssetNotFoundErrorExample',
+    )
+    expect(list.responses?.['200']?.content?.['application/json']?.examples?.active?.$ref).toBe(
+      '#/components/examples/AssetLifecycleListActiveResponseExample',
+    )
+    expect(register.requestBody?.content?.['application/json']?.examples).toMatchObject({
+      existingArtifact: { $ref: '#/components/examples/RegisterAssetArtifactRequestExample' },
+      replayExistingArtifact: { $ref: '#/components/examples/RegisterAssetArtifactRequestExample' },
+    })
+    expect(register.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      existingArtifact: { $ref: '#/components/examples/AssetLifecycleActiveResponseExample' },
+      replayExistingArtifact: { $ref: '#/components/examples/AssetLifecycleActiveResponseExample' },
+    })
+    expect(register.responses?.['400']?.content?.['application/json']?.examples?.artifactMissing?.$ref).toBe(
+      '#/components/examples/RegisterAssetArtifactMissingErrorExample',
+    )
+    expect(upload.responses?.['200']?.content?.['application/json']?.examples?.partialSuccess?.$ref).toBe(
+      '#/components/examples/UploadAssetSuccessResponseExample',
+    )
+    expect(upload.responses?.['400']?.content?.['application/json']?.examples?.filesMissing?.$ref).toBe(
+      '#/components/examples/UploadAssetEmptyFilesErrorExample',
+    )
+    expect(upload.responses?.['404']?.content?.['application/json']?.examples?.folderMissing?.$ref).toBe(
+      '#/components/examples/UploadAssetFolderNotFoundErrorExample',
+    )
+    expect(upload.responses?.['409']?.content?.['application/json']?.examples?.tokenConflict?.$ref).toBe(
+      '#/components/examples/UploadAssetTokenConflictErrorExample',
+    )
+    expect(cancel.responses?.['200']?.content?.['application/json']?.examples).toMatchObject({
+      cancelled: { $ref: '#/components/examples/CancelAssetUploadResponseExample' },
+      replayAfterCancellation: { $ref: '#/components/examples/CancelAssetUploadReplayResponseExample' },
+    })
+    expect(cancel.responses?.['400']?.content?.['application/json']?.examples?.invalidToken?.$ref).toBe(
+      '#/components/examples/CancelAssetUploadInvalidTokenErrorExample',
+    )
+
+    expect(AssetLifecycleViewSchema.parse(assetLifecycleActiveExample)).toMatchObject({
+      id: 'asset_image_seed',
+      state: 'committed',
+      sourceArtifactId: 'art_image_seed',
+      lifecycle: { availability: 'active', reason: 'available' },
+    })
+    expect(AssetLifecycleListResponseSchema.parse(assetLifecycleListActiveExample)).toEqual({
+      assets: [assetLifecycleActiveExample],
+    })
+    expect(assetUpdateMetadataRequestExample).toEqual({
+      name: '雨夜城市首帧（归档）',
+      tags: ['场景', '风格'],
+      folderId: 'afld_example_0001',
+    })
+    expect(AssetLifecycleActionRequestSchema.parse({ action: 'restore' })).toEqual({ action: 'restore' })
+    expect(AssetLifecycleViewSchema.parse(assetDeleteRecoverableExample)).toMatchObject({
+      state: 'revoked',
+      lifecycle: { availability: 'recoverable', reason: 'deleted_by_user', recoverableUntil: null },
+    })
+    expect(assetRegisterArtifactRequestExample).toEqual({ artifactId: 'art_image_seed' })
+    expect(assetLifecycleActiveExample).toEqual(
+      AssetLifecycleViewSchema.parse(assetLifecycleActiveExample),
+    )
+    expect(assetUploadSuccessExample).toMatchObject({
+      assets: [expect.objectContaining({
+        id: 'ast_upload_example_01',
+        state: 'committed',
+        url: '/api/media/uploads/upl_example_01/first-frame.webp',
+      })],
+      rejected: [{ name: 'notes.txt', reason: '不接受的文件类型：text/plain' }],
+    })
+    expect(assetUploadCancelExample).toEqual({ revoked: 1 })
+    expect(assetUploadCancelReplayExample).toEqual({ revoked: 0 })
+    for (const [example, code, message, requestId] of [
+      [assetRegisterArtifactMissingErrorExample, 'INVALID_INPUT', '产物不存在', 'req_local_gzjenq'],
+      [assetUploadEmptyFilesErrorExample, 'INVALID_INPUT', '未选择文件', 'req_local_ipgz94'],
+      [assetUploadFolderNotFoundErrorExample, 'NOT_FOUND', '文件夹不存在', 'req_local_xjr5ck'],
+      [assetUploadTokenConflictErrorExample, 'REVISION_CONFLICT', '上传令牌冲突', 'req_local_1wxi8cp'],
+      [assetUploadInvalidTokenErrorExample, 'INVALID_INPUT', '上传令牌不合法', 'req_local_1s4755n'],
+      [assetUpdateInvalidTagsErrorExample, 'INVALID_INPUT', '标签需要是数组', 'req_local_1dkjtnq'],
+      [assetNotFoundErrorExample, 'NOT_FOUND', '资产不存在', 'req_local_kdsoz1'],
+      [assetRestoreNotRecoverableErrorExample, 'REVISION_CONFLICT', '该资产当前不可恢复', 'req_local_hzloyt'],
+      [assetDeletedErrorExample, 'HTTP_ERROR', '资产已删除', 'req_local_1rnhjg5'],
+    ] as const) {
+      expect(LocalErrorEnvelopeSchema.parse(example)).toEqual({ error: { code, message }, requestId })
+    }
+
+    for (const [name, filename] of Object.entries({
+      AssetLifecycleActiveResponseExample: 'asset-lifecycle-active.response.json',
+      AssetLifecycleListActiveResponseExample: 'asset-lifecycle-list-active.response.json',
+      UpdateAssetMetadataRequestExample: 'asset-update-metadata.request.json',
+      AssetDeleteRecoverableResponseExample: 'asset-delete-recoverable.response.json',
+      RegisterAssetArtifactRequestExample: 'asset-register-artifact.request.json',
+      RegisterAssetArtifactMissingErrorExample: 'asset-register-artifact-missing.error.response.json',
+      UploadAssetSuccessResponseExample: 'asset-upload-success.response.json',
+      UploadAssetEmptyFilesErrorExample: 'asset-upload-empty-files.error.response.json',
+      UploadAssetFolderNotFoundErrorExample: 'asset-upload-folder-not-found.error.response.json',
+      UploadAssetTokenConflictErrorExample: 'asset-upload-token-conflict.error.response.json',
+      CancelAssetUploadResponseExample: 'asset-upload-cancel.response.json',
+      CancelAssetUploadReplayResponseExample: 'asset-upload-cancel-replay.response.json',
+      CancelAssetUploadInvalidTokenErrorExample: 'asset-upload-invalid-token.error.response.json',
+      UpdateAssetInvalidTagsErrorExample: 'asset-update-invalid-tags.error.response.json',
+      AssetNotFoundErrorExample: 'asset-not-found.error.response.json',
+      AssetRestoreNotRecoverableErrorExample: 'asset-restore-not-recoverable.error.response.json',
+      AssetDeletedErrorExample: 'asset-deleted.error.response.json',
+    })) {
+      expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
+    }
   })
 
   it('keeps public TV Show engagement examples executable and connected to their OpenAPI operations', () => {

@@ -1,0 +1,27 @@
+{
+  "id": "asset_image_seed",
+  "spaceId": "sp_default",
+  "namespace": "personal",
+  "kind": "image",
+  "name": "雨夜城市首帧",
+  "url": "/fixtures/libtv/media/first-frame.webp",
+  "thumbnailUrl": "/fixtures/libtv/media/first-frame.webp",
+  "width": 1280,
+  "height": 720,
+  "durationSeconds": null,
+  "byteSize": 182400,
+  "tags": [
+    "场景"
+  ],
+  "folderId": null,
+  "state": "revoked",
+  "createdAt": "2026-09-03T11:40:00.000Z",
+  "sourceArtifactId": "art_image_seed",
+  "lifecycle": {
+    "assetId": "asset_image_seed",
+    "availability": "recoverable",
+    "reason": "deleted_by_user",
+    "changedAt": "2026-09-05T12:00:00.000Z",
+    "recoverableUntil": null
+  }
+}

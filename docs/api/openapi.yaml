@@ -669,8 +669,11 @@
                   "$ref": "#/components/schemas/AssetLifecycleView"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/AssetExample"
+                  "metadataUpdated": {
+                    "$ref": "#/components/examples/AssetLifecycleActiveResponseExample"
+                  },
+                  "restored": {
+                    "$ref": "#/components/examples/AssetLifecycleActiveResponseExample"
                   }
                 }
               }
@@ -682,6 +685,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidTagList": {
+                    "$ref": "#/components/examples/UpdateAssetInvalidTagsErrorExample"
+                  }
                 }
               }
             }
@@ -692,6 +700,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "assetMissing": {
+                    "$ref": "#/components/examples/AssetNotFoundErrorExample"
+                  },
+                  "folderMissing": {
+                    "$ref": "#/components/examples/UploadAssetFolderNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -702,6 +718,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "restoreNotRecoverable": {
+                    "$ref": "#/components/examples/AssetRestoreNotRecoverableErrorExample"
+                  }
                 }
               }
             }
@@ -712,6 +733,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "assetDeleted": {
+                    "$ref": "#/components/examples/AssetDeletedErrorExample"
+                  }
                 }
               }
             }
@@ -745,6 +771,16 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateAssetRequest"
+              },
+              "examples": {
+                "metadata": {
+                  "$ref": "#/components/examples/UpdateAssetMetadataRequestExample"
+                },
+                "restore": {
+                  "value": {
+                    "action": "restore"
+                  }
+                }
               }
             }
           }
@@ -777,8 +813,8 @@
                   "$ref": "#/components/schemas/AssetLifecycleView"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/AssetExample"
+                  "softDeleted": {
+                    "$ref": "#/components/examples/AssetDeleteRecoverableResponseExample"
                   }
                 }
               }
@@ -790,6 +826,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "assetMissing": {
+                    "$ref": "#/components/examples/AssetNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -941,8 +982,8 @@
                   "$ref": "#/components/schemas/AssetLifecycleListResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/AssetListResponseExample"
+                  "active": {
+                    "$ref": "#/components/examples/AssetLifecycleListActiveResponseExample"
                   }
                 }
               }
@@ -1068,8 +1109,11 @@
                   "$ref": "#/components/schemas/AssetLifecycleView"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/AssetExample"
+                  "existingArtifact": {
+                    "$ref": "#/components/examples/AssetLifecycleActiveResponseExample"
+                  },
+                  "replayExistingArtifact": {
+                    "$ref": "#/components/examples/AssetLifecycleActiveResponseExample"
                   }
                 }
               }
@@ -1081,6 +1125,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "artifactMissing": {
+                    "$ref": "#/components/examples/RegisterAssetArtifactMissingErrorExample"
+                  }
                 }
               }
             }
@@ -1102,6 +1151,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RegisterAssetRequest"
+              },
+              "examples": {
+                "existingArtifact": {
+                  "$ref": "#/components/examples/RegisterAssetArtifactRequestExample"
+                },
+                "replayExistingArtifact": {
+                  "$ref": "#/components/examples/RegisterAssetArtifactRequestExample"
+                }
               }
             }
           }
@@ -1136,8 +1193,8 @@
                   "$ref": "#/components/schemas/UploadAssetResponse"
                 },
                 "examples": {
-                  "fixture": {
-                    "$ref": "#/components/examples/UploadAssetResponseExample"
+                  "partialSuccess": {
+                    "$ref": "#/components/examples/UploadAssetSuccessResponseExample"
                   }
                 }
               }
@@ -1149,6 +1206,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "filesMissing": {
+                    "$ref": "#/components/examples/UploadAssetEmptyFilesErrorExample"
+                  }
                 }
               }
             }
@@ -1159,6 +1221,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "folderMissing": {
+                    "$ref": "#/components/examples/UploadAssetFolderNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -1169,6 +1236,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "tokenConflict": {
+                    "$ref": "#/components/examples/UploadAssetTokenConflictErrorExample"
+                  }
                 }
               }
             }
@@ -1222,8 +1294,11 @@
                   "$ref": "#/components/schemas/CancelAssetUploadResponse"
                 },
                 "examples": {
-                  "fixture": {
+                  "cancelled": {
                     "$ref": "#/components/examples/CancelAssetUploadResponseExample"
+                  },
+                  "replayAfterCancellation": {
+                    "$ref": "#/components/examples/CancelAssetUploadReplayResponseExample"
                   }
                 }
               }
@@ -1235,6 +1310,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidToken": {
+                    "$ref": "#/components/examples/CancelAssetUploadInvalidTokenErrorExample"
+                  }
                 }
               }
             }
@@ -18196,56 +18276,6 @@
           "deleted": "session_fixture_01"
         }
       },
-      "AssetExample": {
-        "summary": "本地已提交图片资产",
-        "value": {
-          "id": "asset_fixture_01",
-          "spaceId": "space_fixture",
-          "namespace": "personal",
-          "kind": "image",
-          "name": "人物参考.png",
-          "url": "/api/media/uploads/upl_fixture_01/person.png",
-          "thumbnailUrl": "/api/media/uploads/upl_fixture_01/person.png",
-          "width": 768,
-          "height": 768,
-          "durationSeconds": null,
-          "byteSize": 1234,
-          "tags": [
-            "人物"
-          ],
-          "folderId": null,
-          "state": "committed",
-          "createdAt": "2026-09-03T12:00:00.000Z",
-          "sourceArtifactId": null
-        }
-      },
-      "AssetListResponseExample": {
-        "summary": "资产列表",
-        "value": {
-          "assets": [
-            {
-              "id": "asset_fixture_01",
-              "spaceId": "space_fixture",
-              "namespace": "personal",
-              "kind": "image",
-              "name": "人物参考.png",
-              "url": "/api/media/uploads/upl_fixture_01/person.png",
-              "thumbnailUrl": "/api/media/uploads/upl_fixture_01/person.png",
-              "width": 768,
-              "height": 768,
-              "durationSeconds": null,
-              "byteSize": 1234,
-              "tags": [
-                "人物"
-              ],
-              "folderId": null,
-              "state": "committed",
-              "createdAt": "2026-09-03T12:00:00.000Z",
-              "sourceArtifactId": null
-            }
-          ]
-        }
-      },
       "AssetFolderListResponseExample": {
         "summary": "资产文件夹列表",
         "value": {
@@ -18263,44 +18293,73 @@
           "updatedAt": "2026-09-03T12:00:00.000Z"
         }
       },
-      "UploadAssetResponseExample": {
-        "summary": "上传结果（含逐文件拒绝项）",
-        "value": {
-          "assets": [
-            {
-              "id": "asset_fixture_01",
-              "spaceId": "space_fixture",
-              "namespace": "personal",
-              "kind": "image",
-              "name": "人物参考.png",
-              "url": "/api/media/uploads/upl_fixture_01/person.png",
-              "thumbnailUrl": "/api/media/uploads/upl_fixture_01/person.png",
-              "width": 768,
-              "height": 768,
-              "durationSeconds": null,
-              "byteSize": 1234,
-              "tags": [
-                "人物"
-              ],
-              "folderId": null,
-              "state": "committed",
-              "createdAt": "2026-09-03T12:00:00.000Z",
-              "sourceArtifactId": null
-            }
-          ],
-          "rejected": [
-            {
-              "name": "bad.txt",
-              "reason": "不接受的文件类型：text/plain"
-            }
-          ]
-        }
+      "AssetLifecycleActiveResponseExample": {
+        "summary": "已提交且可用的本地 fixture 资产",
+        "externalValue": "./examples/asset-lifecycle-active.response.json"
+      },
+      "AssetLifecycleListActiveResponseExample": {
+        "summary": "个人资产 active 视图",
+        "externalValue": "./examples/asset-lifecycle-list-active.response.json"
+      },
+      "UpdateAssetMetadataRequestExample": {
+        "summary": "重命名、标签与资产文件夹移动",
+        "externalValue": "./examples/asset-update-metadata.request.json"
+      },
+      "AssetDeleteRecoverableResponseExample": {
+        "summary": "软删除后可恢复的资产生命周期",
+        "externalValue": "./examples/asset-delete-recoverable.response.json"
+      },
+      "RegisterAssetArtifactRequestExample": {
+        "summary": "重复登记已存在的生成产物",
+        "externalValue": "./examples/asset-register-artifact.request.json"
+      },
+      "RegisterAssetArtifactMissingErrorExample": {
+        "summary": "生成产物不存在",
+        "externalValue": "./examples/asset-register-artifact-missing.error.response.json"
+      },
+      "UploadAssetSuccessResponseExample": {
+        "summary": "上传部分成功并返回逐文件拒绝项",
+        "externalValue": "./examples/asset-upload-success.response.json"
+      },
+      "UploadAssetEmptyFilesErrorExample": {
+        "summary": "multipart 未包含 files",
+        "externalValue": "./examples/asset-upload-empty-files.error.response.json"
+      },
+      "UploadAssetFolderNotFoundErrorExample": {
+        "summary": "目标资产文件夹不存在",
+        "externalValue": "./examples/asset-upload-folder-not-found.error.response.json"
+      },
+      "UploadAssetTokenConflictErrorExample": {
+        "summary": "同一上传令牌被第二个请求占用",
+        "externalValue": "./examples/asset-upload-token-conflict.error.response.json"
       },
       "CancelAssetUploadResponseExample": {
-        "summary": "取消上传结果",
-        "value": {
-          "revoked": 1
-        }
+        "summary": "取消已声明上传并撤销已关联资产",
+        "externalValue": "./examples/asset-upload-cancel.response.json"
+      },
+      "CancelAssetUploadReplayResponseExample": {
+        "summary": "重复取消同一上传令牌",
+        "externalValue": "./examples/asset-upload-cancel-replay.response.json"
+      },
+      "CancelAssetUploadInvalidTokenErrorExample": {
+        "summary": "取消 URL 中的上传令牌不合法",
+        "externalValue": "./examples/asset-upload-invalid-token.error.response.json"
+      },
+      "UpdateAssetInvalidTagsErrorExample": {
+        "summary": "资产标签不是数组",
+        "externalValue": "./examples/asset-update-invalid-tags.error.response.json"
+      },
+      "AssetNotFoundErrorExample": {
+        "summary": "资产不存在",
+        "externalValue": "./examples/asset-not-found.error.response.json"
+      },
+      "AssetRestoreNotRecoverableErrorExample": {
+        "summary": "当前资产状态不可恢复",
+        "externalValue": "./examples/asset-restore-not-recoverable.error.response.json"
+      },
+      "AssetDeletedErrorExample": {
+        "summary": "已删除资产不能更新元数据",
+        "externalValue": "./examples/asset-deleted.error.response.json"
       },
       "MaterialCatalogResponseExample": {
         "externalValue": "./examples/materials-style.response.json"

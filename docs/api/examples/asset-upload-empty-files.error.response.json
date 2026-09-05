@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "未选择文件"
+  },
+  "requestId": "req_local_ipgz94"
+}

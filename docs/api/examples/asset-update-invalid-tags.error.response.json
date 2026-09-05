@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "标签需要是数组"
+  },
+  "requestId": "req_local_1dkjtnq"
+}

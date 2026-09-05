@@ -1,0 +1,28 @@
+{
+  "assets": [
+    {
+      "id": "ast_upload_example_01",
+      "spaceId": "sp_default",
+      "namespace": "personal",
+      "kind": "image",
+      "name": "first-frame.webp",
+      "url": "/api/media/uploads/upl_example_01/first-frame.webp",
+      "thumbnailUrl": "/api/media/uploads/upl_example_01/first-frame.webp",
+      "width": null,
+      "height": null,
+      "durationSeconds": null,
+      "byteSize": 182400,
+      "tags": [],
+      "folderId": null,
+      "state": "committed",
+      "createdAt": "2026-09-05T12:00:00.000Z",
+      "sourceArtifactId": null
+    }
+  ],
+  "rejected": [
+    {
+      "name": "notes.txt",
+      "reason": "不接受的文件类型：text/plain"
+    }
+  ]
+}

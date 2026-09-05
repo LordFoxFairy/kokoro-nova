@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_CONFLICT",
+    "message": "上传令牌冲突"
+  },
+  "requestId": "req_local_1wxi8cp"
+}

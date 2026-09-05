@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "上传令牌不合法"
+  },
+  "requestId": "req_local_1s4755n"
+}

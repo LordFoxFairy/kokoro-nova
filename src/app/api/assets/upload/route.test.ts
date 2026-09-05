@@ -124,6 +124,17 @@ describe.sequential('asset upload route smoke', () => {
     expect(listedAfterCancel.assets).not.toContainEqual(expect.objectContaining({ id: assetId }))
   })
 
+  it('rejects an unknown namespace instead of silently falling back to personal', async () => {
+    const form = new FormData()
+    form.append('files', new File([png(16, 9)], 'invalid-namespace.png', { type: 'image/png' }))
+    form.append('namespace', 'remote')
+    const response = await POST(new Request('http://localhost/api/assets/upload', { method: 'POST', body: form }))
+    const error = LocalErrorEnvelopeSchema.parse(await response.json())
+
+    expect(response.status).toBe(400)
+    expect(error.error).toMatchObject({ code: 'INVALID_INPUT', message: 'namespace: 参数值不合法' })
+  })
+
   it('rejects second multipart ingress for an occupied token with the normalized conflict envelope', async () => {
     const token = 'upload_route_smoke_000002'
     const first = await POST(uploadRequest(token, [

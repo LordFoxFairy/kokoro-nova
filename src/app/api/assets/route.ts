@@ -1,8 +1,8 @@
-import { AssetListFixtureSchema, AssetListVisibilitySchema } from '@/contracts/assets'
+import { AssetListFixtureSchema, AssetListVisibilitySchema, RegisterAssetRequestSchema } from '@/contracts/assets'
 import { ids } from '@/domain/ids'
-import type { Asset, AssetNamespace, AssetTag } from '@/domain/types'
+import type { Asset } from '@/domain/types'
 import { assetLifecycleView, assetMatchesLifecycle, setAssetLifecycle } from '@/server/assets'
-import { handle } from '@/server/http'
+import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { DEFAULT_SPACE_ID, readState, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
@@ -10,10 +10,10 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   return handle(async () => {
     const url = new URL(request.url)
-    const namespace = url.searchParams.get('namespace') as AssetNamespace | null
-    const kind = url.searchParams.get('kind')
+    const namespace = readEnumQuery(url, 'namespace', ['personal', 'agent'] as const)
+    const kind = readEnumQuery(url, 'kind', ['image', 'video', 'audio', 'text'] as const)
     const query = (url.searchParams.get('q') ?? '').trim().toLowerCase()
-    const tag = url.searchParams.get('tag')
+    const tag = readEnumQuery(url, 'tag', ['其它', '人物', '场景', '物品', '风格', '音效'] as const)
     const visibility = AssetListVisibilitySchema.catch('active').parse(url.searchParams.get('visibility') ?? 'active')
     const fixture = AssetListFixtureSchema.catch('none').parse(url.searchParams.get('fixture') ?? 'none')
 
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     let assets = state.assets.filter((asset) => asset.spaceId === DEFAULT_SPACE_ID)
     if (namespace) assets = assets.filter((asset) => asset.namespace === namespace)
     if (kind) assets = assets.filter((asset) => asset.kind === kind)
-    if (tag) assets = assets.filter((asset) => asset.tags.includes(tag as AssetTag))
+    if (tag) assets = assets.filter((asset) => asset.tags.includes(tag))
     if (query) assets = assets.filter((asset) => asset.name.toLowerCase().includes(query))
 
     return {
@@ -58,12 +58,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   return handle(async () => {
-    const body = (await request.json()) as {
-      artifactId?: string
-      name?: string
-      namespace?: AssetNamespace
-      tags?: AssetTag[]
-    }
+    const body = await parseJsonBody(request, RegisterAssetRequestSchema)
     return withState((state) => {
       const job = state.jobs.find((j) => j.artifacts.some((a) => a.id === body.artifactId))
       const artifact = job?.artifacts.find((a) => a.id === body.artifactId)
@@ -95,4 +90,12 @@ export async function POST(request: Request) {
       return setAssetLifecycle(state, asset, 'active', 'available')
     })
   })
+}
+
+
+function readEnumQuery<const T extends readonly string[]>(url: URL, key: string, values: T): T[number] | null {
+  const raw = url.searchParams.get(key)
+  if (raw === null || raw.trim() === '') return null
+  if ((values as readonly string[]).includes(raw)) return raw as T[number]
+  throw new HttpError(400, `${key}: 参数值不合法`)
 }

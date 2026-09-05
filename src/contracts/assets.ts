@@ -48,6 +48,17 @@ export const AssetLifecycleActionRequestSchema = z.object({ action: AssetLifecyc
 
 export const AssetListVisibilitySchema = z.enum(['active', 'unavailable', 'all'])
 export const AssetListFixtureSchema = z.enum(['none', 'media-missing'])
+export const AssetKindSchema = z.enum(['image', 'video', 'audio', 'text'])
+export const AssetTagSchema = z.enum(['其它', '人物', '场景', '物品', '风格', '音效'])
+
+/** Runtime request boundary shared by the asset register route and OpenAPI. */
+export const RegisterAssetRequestSchema = z.object({
+  artifactId: z.string().trim().min(1),
+  name: z.string().optional(),
+  namespace: z.enum(['personal', 'agent']).optional(),
+  tags: z.array(AssetTagSchema).optional(),
+}).strict()
+
 
 export const AssetFolderSchema = z.object({
   id: z.string(),

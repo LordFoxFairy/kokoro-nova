@@ -130,8 +130,10 @@ export async function DELETE(request: Request) {
 }
 
 function readNamespace(value: FormDataEntryValue | null): AssetNamespace {
-  const namespace = typeof value === 'string' ? (value as AssetNamespace) : null
-  return namespace && NAMESPACES.includes(namespace) ? namespace : 'personal'
+  if (typeof value !== 'string' || value.trim() === '') return 'personal'
+  const namespace = value.trim()
+  if (NAMESPACES.includes(namespace as AssetNamespace)) return namespace as AssetNamespace
+  throw new HttpError(400, 'namespace: 参数值不合法')
 }
 
 function readFolderId(value: FormDataEntryValue | null): string | null {

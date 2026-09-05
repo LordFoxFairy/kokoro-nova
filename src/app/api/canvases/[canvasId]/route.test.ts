@@ -120,6 +120,26 @@ describe.sequential('/api/canvases/[canvasId] workflow route', () => {
     expect(staleError.error.message).toContain(`期望 ${initial.body.canvas.revision}`)
   })
 
+  it('rejects a mutation whose body canvasId does not match the path', async () => {
+    const canvasId = await firstCanvasId()
+    const initial = await canvasDetail(canvasId)
+    const mismatched = await POST(
+      mutationRequest(canvasId, {
+        canvasId: 'cvs_other_canvas',
+        expectedRevision: initial.body.canvas.revision,
+        label: '路径绑定校验',
+        mutations: [],
+      }),
+      params(canvasId),
+    )
+    const error = LocalErrorEnvelopeSchema.parse(await mismatched.json())
+
+    expect(mismatched.status).toBe(400)
+    expect(error.error).toMatchObject({ code: 'INVALID_INPUT', message: 'canvasId 与路径参数不一致' })
+    const reloaded = await canvasDetail(canvasId)
+    expect(reloaded.body.canvas.revision).toBe(initial.body.canvas.revision)
+  })
+
   it('keeps the persisted document and revision unchanged when one mutation in an atomic batch is invalid', async () => {
     const canvasId = await firstCanvasId()
     const initial = await canvasDetail(canvasId)
@@ -168,6 +188,14 @@ describe.sequential('/api/canvases/[canvasId] workflow route', () => {
     const missingError = LocalErrorEnvelopeSchema.parse(await missing.json())
     expect(missing.status).toBe(404)
     expect(missingError.error).toMatchObject({ code: 'NOT_FOUND', message: '画布不存在' })
+  })
+
+  it('rejects an empty rename body instead of silently returning the unchanged canvas', async () => {
+    const canvasId = await firstCanvasId()
+    const response = await PATCH(renameRequest(canvasId, { name: '   ' }), params(canvasId))
+    const error = LocalErrorEnvelopeSchema.parse(await response.json())
+    expect(response.status).toBe(400)
+    expect(error.error.code).toBe('INVALID_INPUT')
   })
 
   it('deletes a non-last canvas and leaves its project projection without the removed id', async () => {

@@ -1,5 +1,6 @@
+import { CreateCanvasRequestSchema } from '@/contracts/local'
 import { createCanvas } from '@/domain/factory'
-import { HttpError, handle } from '@/server/http'
+import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { canvasesOfProject, findCanvas, findProject, withState } from '@/server/store'
 
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: Request) {
   return handle(async () => {
-    const body = (await request.json()) as { projectId: string; name?: string; copyOf?: string }
+    const body = await parseJsonBody(request, CreateCanvasRequestSchema)
     return withState((state) => {
       const project = findProject(state, body.projectId)
       if (!project) throw new HttpError(404, '项目不存在')

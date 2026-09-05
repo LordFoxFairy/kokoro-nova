@@ -271,6 +271,16 @@ export const MutationResultSchema = z
   })
   .strict()
 
+export const CreateCanvasRequestSchema = z.object({
+  projectId: z.string().trim().min(1),
+  name: z.string().optional(),
+  copyOf: z.string().trim().min(1).optional(),
+}).strict()
+
+export const RenameCanvasRequestSchema = z.object({
+  name: z.string().trim().min(1),
+}).strict()
+
 export const CreateProjectInputSchema = z.object({
   name: z.string().optional(),
   folderId: z.string().nullable().optional(),

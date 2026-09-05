@@ -9,6 +9,9 @@ export async function waitForStableVisuals(page: Page) {
   await page.addStyleTag({
     content: `
       nextjs-portal { display: none !important; }
+      /* Presence is a live lease, not part of the deterministic visual state. */
+      [data-testid="presence-lease-acquiring"],
+      [data-testid="presence-lease-active"] { visibility: hidden !important; }
       *, *::before, *::after {
         animation-duration: 0s !important;
         animation-delay: 0s !important;

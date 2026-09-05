@@ -1,5 +1,9 @@
 import { applyMutations } from '@/domain/mutations'
-import { MutationRequestSchema, MutationResultSchema } from '@/contracts/local'
+import {
+  MutationRequestSchema,
+  MutationResultSchema,
+  RenameCanvasRequestSchema,
+} from '@/contracts/local'
 import { HttpError, handle, parseJsonBody } from '@/server/http'
 import { findCanvas, findProject, readState, withState } from '@/server/store'
 
@@ -35,6 +39,9 @@ export async function POST(request: Request, { params }: Params) {
   return handle(async () => {
     const { canvasId } = await params
     const body = await parseJsonBody(request, MutationRequestSchema)
+    if (body.canvasId !== canvasId) {
+      throw new HttpError(400, 'canvasId 与路径参数不一致')
+    }
     return withState((state) => {
       const canvas = findCanvas(state, canvasId)
       if (!canvas) throw new HttpError(404, '画布不存在')
@@ -60,7 +67,7 @@ export async function POST(request: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   return handle(async () => {
     const { canvasId } = await params
-    const body = (await request.json()) as { name?: string }
+    const body = await parseJsonBody(request, RenameCanvasRequestSchema)
     return withState((state) => {
       const canvas = findCanvas(state, canvasId)
       if (!canvas) throw new HttpError(404, '画布不存在')

@@ -50,6 +50,22 @@ describe.sequential('asset library route smoke', () => {
     ])
   })
 
+  it('rejects invalid register bodies and enum query values at the HTTP boundary', async () => {
+    const invalidBody = await POST(new Request('http://localhost/api/assets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ artifactId: '', namespace: 'remote', tags: ['unknown'] }),
+    }))
+    const bodyError = LocalErrorEnvelopeSchema.parse(await invalidBody.json())
+    expect(invalidBody.status).toBe(400)
+    expect(bodyError.error.code).toBe('INVALID_INPUT')
+
+    const invalidQuery = await GET(new Request('http://localhost/api/assets?namespace=remote'))
+    const queryError = LocalErrorEnvelopeSchema.parse(await invalidQuery.json())
+    expect(invalidQuery.status).toBe(400)
+    expect(queryError.error).toMatchObject({ code: 'INVALID_INPUT', message: 'namespace: 参数值不合法' })
+  })
+
   it('registers an unbound generated artifact as one schema-valid reusable asset and replays the same source artifact', async () => {
     const stateBefore = await readState()
     const artifact = stateBefore.jobs.flatMap((job) => job.artifacts).find((item) => item.assetId === null)

@@ -34,7 +34,7 @@ Ubuntu runner 上作为视觉结论。尚未纳入 CI 的是 `pnpm demo:smoke`�
 | 可观测性 | 失败 reporter 输出 runner mode、base URL、数据目录与本地 dist；Playwright 保留失败 trace。 | 有利于将失败关联到实际 fixture 服务。 |
 | 截图机制 | 多个 spec 使用 `toHaveScreenshot`，1440×900 为主基准；部分调用 `waitForStableVisuals`，关闭动画、等待字体和图片解码，并采用 `maxDiffPixelRatio: 0.0001`。 | 已有首页/项目、画布、故事板、编辑器、Script V2、账户、公开展示等基线。 |
 | 视觉运行入口 | `home-visual-parity.spec.ts` 要求显式 `REGRESSION_BASE_URL`，未提供时跳过。 | 这使视觉首页/项目基线不会在默认 `pnpm e2e` 中运行。 |
-| 当前 GitHub CI | `verify` job 在 main/PR/tag 上运行 frozen install、typecheck、lint、Vitest、production build；独立 `e2e` job 安装 Chromium 后以 `:3210/.data-e2e/.next-e2e` 运行 `pnpm e2e:ci`，其中包含 Script V2 的三阶段、镜头字段和批量 gate 核心流程，失败保存 diagnostics。 | 能防止基础编译、单测与核心浏览器交互回归；尚未执行 demo smoke、跨平台截图或镜像运行验证。 |
+| 当前 GitHub CI | `verify` job 在 main/PR/tag 上运行 frozen install、typecheck、lint、Vitest、production build；独立 `e2e` job 安装 Chromium 后以 `:3210/.data-e2e/.next-e2e` 运行 `pnpm e2e:ci`，其中包含 Script V2 三阶段、镜头字段和 batch gate、编辑 reload、asset gate、取消/单次 materialize，以及 Script V2→Storyboard→source 的确定性组合链；失败保存 diagnostics。 | 能防止基础编译、单测与核心浏览器交互回归；尚未执行 demo smoke、跨平台截图或镜像运行验证。 |
 | GHCR 发布 | 仅在 `v*` tag 且 `verify` 成功后，workflow 使用 Buildx、metadata-action 与 GITHUB_TOKEN 推送 `ghcr.io/lordfoxfairy/kokoro-nova`。 | 有 tag、semver、latest、sha 标签和 GHA cache；发布路径目前没有容器启动/健康检查步骤。 |
 
 ## 3. 可执行的本地验收流程
@@ -126,7 +126,7 @@ Ubuntu runner 上作为视觉结论。尚未纳入 CI 的是 `pnpm demo:smoke`�
 | Job | 触发 | 前置 | 步骤 | 通过条件 | 失败产物 |
 | --- | --- | --- | --- | --- | --- |
 | `verify` | PR/main/tag | 无 | 保持现有 frozen install、typecheck、lint、Vitest、build | 现有四项均为 0 | test log。 |
-| `e2e` | PR/main/tag | 独立 Ubuntu runner | 安装 Chromium，以 `pnpm e2e:ci` 启动 :3210 的隔离 fixture server；涵盖账户、登录回跳、项目、生成/账本、合成、presence、公开互动及 Script V2 三阶段核心流 | preflight 和 core browser suite 均为 0；失败保存 trace/report | `test-results`、`playwright-report`。 |
+| `e2e` | PR/main/tag | 独立 Ubuntu runner | 安装 Chromium，以 `pnpm e2e:ci` 启动 :3210 的隔离 fixture server；涵盖账户、登录回跳、项目、生成/账本、合成、presence、公开互动，以及 Script V2 三阶段、durability 和 Storyboard handoff 核心流 | preflight 和 core browser suite 均为 0；失败保存 trace/report | `test-results`、`playwright-report`。 |
 | `demo-smoke` | PR/main/tag | dependencies install | `pnpm demo:smoke` | demo 子进程正常退出且 fixture envelope 合法 | server stdout/stderr、环境摘要。 |
 | `e2e-core` | PR/main/tag | build 或隔离 dev service | 默认 `pnpm e2e`，可先显式限定核心 spec 后再扩展 | preflight 和所有未跳过用例通过 | Playwright trace、report、screenshots。 |
 | `e2e-production` | main/tag；PR 可按变更路径触发 | production build | 以非 3200 端口运行 `.next-prod` 后执行 `pnpm e2e:prod` | 核心生产路径通过且 dev reset 拒绝 | trace 与 server log。 |

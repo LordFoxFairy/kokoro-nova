@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "e2e:ci": "playwright test e2e/account.spec.ts e2e/home-project-return-to.spec.ts e2e/project-lifecycle.spec.ts e2e/generation-ledger-lifecycle.spec.ts e2e/compositor-reliability.spec.ts e2e/presence-concurrency.spec.ts e2e/showcase-interactions.spec.ts e2e/script-v2-core.spec.ts",
+    "e2e:ci": "playwright test e2e/account.spec.ts e2e/home-project-return-to.spec.ts e2e/project-lifecycle.spec.ts e2e/generation-ledger-lifecycle.spec.ts e2e/compositor-reliability.spec.ts e2e/presence-concurrency.spec.ts e2e/showcase-interactions.spec.ts e2e/script-v2-core.spec.ts e2e/script-v2-durability-core.spec.ts e2e/script-v2-storyboard-core.spec.ts",
     "e2e:ui": "playwright test --ui",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "e2e:prod": "PROD_URL=http://localhost:3300 playwright test production"

@@ -11,8 +11,8 @@
 | --- | --- | --- |
 | 官网 Script V2 可见结构 | 三阶段、十列表格、局部 `ESC` 关闭、镜头排序提示、`重新生成 / 批量生成分镜 / 批量生视频 / 下载` 工具栏及前置不足时的 disabled 投影。 | 已有可复刻的布局和基本 gate 事实；未观察到官网真实请求、成功结果、失败恢复或计费语义。 |
 | 本地 Script V2 深度旅程 | `e2e/script-v2.spec.ts` 覆盖三入口、编辑/排序、资产、提示词、批量操作、局部失败、图/视频 materialize、撤销和刷新；该文件每例重置 fixture。 | 本地能力广度高，且存在丰富的 deterministic fixture 证明。 |
-| CI 核心门 | `pnpm e2e:ci` 只纳入 `e2e/script-v2-core.spec.ts` 的一个 Script V2 主链例：手写入口、三阶段、十列表头、node 级 batch disabled、阶段切换。 | 能拦截最基础的 Script V2 断裂，不能作为完整交互复刻的放行依据。 |
-| Canvas 主路径 | `canvas-parity`、`workflow`、`presence-concurrency`、`video-compositor`、`compositor-reliability` 等专项测试覆盖画布、投影、协作和剪辑行为。 | 这些专项包含大量强证据，但除 presence / compositor reliability 外并不在当前 `e2e:ci` 的完整 canvas 视觉/交互 gate 中。 |
+| CI 核心门 | `pnpm e2e:ci` 纳入 `script-v2-core`、`script-v2-durability-core` 与 `script-v2-storyboard-core`：三阶段/十列表头/gate、镜头编辑 reload、取消不落半成品、单次 materialize、Storyboard 投影及 source 定位。 | 已覆盖最关键的 local-only Script V2 主链；并非全部深度交互或视觉一比一放行。 |
+| Canvas 主路径 | `canvas-parity`、`workflow`、`presence-concurrency`、`video-compositor`、`compositor-reliability` 等专项测试覆盖画布、投影、协作和剪辑行为；新 core 还覆盖 Script V2→Storyboard 组合链。 | 这些专项包含大量强证据，但大部分 canvas 视觉/交互仍不在 `e2e:ci`。 |
 | 视觉证据 | 1440×900 Script V2、canvas、storyboard 等基线已提交；`toHaveScreenshot` 使用稳定等待及严格 diff。 | 基线可做人工/本地回归依据；当前 CI 没有固定平台的 visual job，不能把现有 CI 绿色解释为视觉一比一。 |
 
 **审计结论：**当前仓库足以演示 Script V2 与 canvas 的本地核心能力，但尚不具备“每次 main/tag 自动证明一比一交互复刻”的验收闭环。最短板不是页面数量，而是将已有深度专项证据提升为分层、可追溯、稳定的发布门。
@@ -24,10 +24,10 @@
 | ID | 验收对象 | 当前证据 | 缺口 / 风险 | 优先级 | 可交付验收条件 |
 | --- | --- | --- | --- | --- | --- |
 | CV-S0 | 官网事实与 local-only 状态的边界 | Script V2 AX contract 已只读、脱敏地记录初始可见结构。 | 官网“完成态”、真实异步、扣费、权限、下载格式和失败文案仍未证实；local 成功 E2E 易被误读为官网事实。 | P0 | 每条新增官网观察都标注观察方法、状态前置、直接可见控件和未知项；local fixture 说明与官网事实分表保存。 |
-| CV-S1 | Script V2 核心交互门覆盖度 | `script-v2-core` 有一个主链；详细 spec 有 21 个专项例。 | 详细 spec 不在 `e2e:ci`；入口顺序、ESC 层级、镜头编辑/排序、asset/prompt/batch 成功和失败均可在 CI 绿灯时回归。 | P0 | 将语义最强、无截图依赖的详细例拆入稳定 core 分组；至少覆盖三个入口、局部关闭与焦点、编辑持久化、排序、阶段 gate、一个失败恢复和一次 materialize→reload。 |
+| CV-S1 | Script V2 核心交互门覆盖度 | `script-v2-core`、`script-v2-durability-core` 已纳入 CI；后者覆盖编辑 reload、asset gate、取消和单次 materialize；详细 spec 有 21 个专项例。 | 三入口顺序、ESC 层级、镜头排序、asset/prompt 的失败→retry 仍未进入 `e2e:ci`。 | P0 | 将其余语义最强、无截图依赖的例拆入稳定 core 分组，补齐三个入口、局部关闭与焦点、排序和一次失败恢复。 |
 | CV-S2 | Script V2 完整阶段状态机 | 本地覆盖确认镜头、准备资产、合成提示词和批量 gate。 | 核心门只检查可跳转，未检查“阶段计数与 row/asset/prompt 状态同步”；错误状态、重试和前进/回退的禁止条件缺少同一端到端断言。 | P0 | 为单一 fixture 流程断言阶段计数、disabled/enabled 原因、asset/prompt 失败→重试、成功后 batch video gate 与 reload 后状态一致。 |
 | CV-S3 | 原子 materialize 与重复提交防护 | 详细 spec 验证图/视频节点拓扑、一次 undo 与 reload。 | 未见同一 run 的 double-click/replay、网络超时后重进、部分成功后二次提交等幂等性验收；易出现重复节点或重复扣本地 ledger。 | P0 | 每种 materialize 至少有：重复触发只生成一组、取消不写 graph、失败不产生半拓扑、刷新后重试不重复；同时断言 document revision/节点 ID/账本 mock projection。 |
-| CV-C1 | Canvas 到 Storyboard 的端到端主链 | `workflow`、`canvas-parity` 和 Script V2 detail 分别验证建图、投影或 materialize。 | 当前 CI 没有一条从“新项目 → Script V2 → 产物节点 → Storyboard 投影 → 返回 source”的组合链；跨 surface contract 漂移难以及时发现。 | P0 | 核心 browser 分组加入一条小规模、确定性旅程；断言共享 `WorkflowDocument`、切换不产生无关 revision、source 定位可返回，且不依赖真实媒体。 |
+| CV-C1 | Canvas 到 Storyboard 的端到端主链 | `script-v2-storyboard-core` 已在 CI 执行“新项目 → Script V2 → 单镜头图 materialize → Storyboard → 返回 source”，并断言共享 `WorkflowDocument`、无额外 revision、source metadata/edge/group 与定位选中。 | 视频产物到 storyboard/clip editor 的链路另列 CV-C5；不把图片主链的通过外推为全部媒体类型。 | 已覆盖 | 持续保持该确定性旅程在核心 browser 分组中运行，且不依赖真实媒体。 |
 | CV-C2 | Canvas 键盘、焦点与层级恢复 | 专项覆盖部分 Escape、Delete、快捷键、可聚焦 edge；Script V2 覆盖 generator 的分层 Escape。 | 关键 overlay 的关闭后焦点回归、Tab 顺序、未保存草稿策略、selection 不应被局部面板改变，尚未形成跨 canvas 的明确矩阵。 | P1 | 对 add menu、Script generator/catalog/workspace、prompt detail、batch dialog、Storyboard detail、Clip editor 各记录 trigger、Escape、关闭后 focus、selection 和 persisted draft 预期。 |
 | CV-C3 | 多客户端与编辑冲突 | presence 专项验证 lease、follow、release 后接管。 | 未覆盖 Script V2 打开/编辑期间 revision conflict、远端写入后的草稿冲突提示、重连时工作区状态恢复。 | P1 | 使用两个隔离 context：A 编辑 Script row，B 造成 revision 变化；验证本地草稿不静默覆盖、冲突可定位、刷新/重试结果可预测。 |
 | CV-C4 | Canvas / Script V2 视觉发布门 | 现有 1440×900 snapshot 和严格 ratio。 | GitHub Ubuntu CI 不运行固定平台 visual suite；Darwin 基线不能直接作为 Ubuntu 通过条件。 | P1 | 确定唯一截图平台与字体/浏览器版本；建立隔离 `e2e:visual` job，至少覆盖 empty canvas、add menu、Script V2 三阶段、Storyboard、一个 failure/gate state，并上传 actual/diff/trace。 |
@@ -39,8 +39,8 @@
 
 ### P0：把“已有能力”变成不可跳过的发布事实
 
-1. **Script V2 semantic core**：从详细 spec 选择不依赖 screenshot 的最小代表例，控制运行时长；保留现有 `script-v2-core` 作为入口/阶段/disabled smoke。
-2. **单条跨 surface journey**：新项目 → Script V2 手写或固定 fixture → materialize 一个产物 → Storyboard → source node；只使用原创 deterministic data。
+1. **已部分落地 — Script V2 semantic core**：保留 `script-v2-core` 作为入口/阶段/disabled smoke，并已加入编辑 reload、asset gate、取消与单次 materialize。下一步补齐入口顺序、Escape/focus、排序和失败→retry。
+2. **已落地 — 单条跨 surface journey**：新项目 → Script V2 固定 local prompt → materialize 一个产物 → Storyboard → source node；只使用原创 deterministic data。
 3. **原子性与失败恢复**：以 route interception 或 fixture scenario 验证重复动作、取消、失败、retry、刷新，不以 sleep 作为完成判据。
 4. **证据归档规则**：PR 描述/验收文档必须分别列出“官网直接观察”和“local contract”，禁止把 mock 的模型名、价格、状态文本标成官网行为。
 

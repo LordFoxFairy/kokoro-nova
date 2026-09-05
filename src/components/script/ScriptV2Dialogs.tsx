@@ -55,18 +55,25 @@ interface ScriptV2DialogFocusOptions {
   trap?: boolean
   /** A trigger captured before an auto-focused child takes focus. */
   restoreFocusTarget?: HTMLElement | null
+  /** Selector used when a save replaces the captured trigger during close. */
+  restoreFocusSelector?: string
 }
 
 /** Keep keyboard focus inside transient Script V2 surfaces and return it to the trigger. */
 export function useScriptV2DialogFocus(
   open: boolean,
-  { trap = true, restoreFocusTarget = null }: ScriptV2DialogFocusOptions = {},
+  { trap = true, restoreFocusTarget = null, restoreFocusSelector }: ScriptV2DialogFocusOptions = {},
 ) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
+  const restoreFrameRef = useRef<number | null>(null)
 
   useLayoutEffect(() => {
     if (!open) return
+    if (restoreFrameRef.current !== null) {
+      window.cancelAnimationFrame(restoreFrameRef.current)
+      restoreFrameRef.current = null
+    }
     restoreFocusRef.current = restoreFocusTarget ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     const dialog = dialogRef.current
     if (!dialog) return
@@ -87,12 +94,13 @@ export function useScriptV2DialogFocus(
       // When focus moved to another live control (for example, Tab from a
       // text editor), preserve the browser's destination. Explicit closes,
       // however, still return focus to the trigger.
-      if (
-        restoreFocusRef.current &&
-        document.contains(restoreFocusRef.current) &&
-        (!active || active === document.body || dialog.contains(active))
-      ) {
-        restoreFocusRef.current.focus()
+      if (!active || active === document.body || dialog.contains(active)) {
+        const target = document.contains(restoreFocusRef.current)
+          ? restoreFocusRef.current
+          : restoreFocusSelector
+            ? document.querySelector<HTMLElement>(restoreFocusSelector)
+            : null
+        target?.focus()
       }
     }
 
@@ -118,9 +126,15 @@ export function useScriptV2DialogFocus(
     if (trap) window.addEventListener('keydown', onKeyDown, true)
     return () => {
       if (trap) window.removeEventListener('keydown', onKeyDown, true)
-      restoreFocus()
+      // React Strict Mode replays layout effects in development.  Scheduling
+      // restoration lets the immediate replay cancel it, so an auto-focused
+      // floating editor is not blurred and closed during its own mount.
+      restoreFrameRef.current = window.requestAnimationFrame(() => {
+        restoreFrameRef.current = null
+        restoreFocus()
+      })
     }
-  }, [open, restoreFocusTarget, trap])
+  }, [open, restoreFocusSelector, restoreFocusTarget, trap])
 
   return dialogRef
 }

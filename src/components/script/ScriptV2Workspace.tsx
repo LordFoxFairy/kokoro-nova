@@ -83,6 +83,7 @@ export function ScriptV2Workspace({
   const [batchPromptOpen, setBatchPromptOpen] = useState(false)
   const [autoPromptUndo, setAutoPromptUndo] = useState<ScriptV2AutoPromptUndo | null>(null)
   const promptFlushRef = useRef<(() => void) | null>(null)
+  const promptRestoreTargetRef = useRef<HTMLElement | null>(null)
   const workspaceState = state ?? defaultScriptV2State(nodeId)
 
   const runs = useScriptV2Runs({
@@ -153,8 +154,9 @@ export function ScriptV2Workspace({
     { id: 'prompts', title: '合成提示词', subtitle: `${readyPrompts}/${workspaceState.rows.length} 已合成` },
   ]
 
-  const openPrompt = (rowId: string) => {
+  const openPrompt = (rowId: string, trigger?: HTMLElement) => {
     promptFlushRef.current?.()
+    promptRestoreTargetRef.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     setBatchPromptOpen(false)
     setPromptRowId(rowId)
     setChildSurfaceOpen(true)
@@ -462,6 +464,7 @@ export function ScriptV2Workspace({
           onAutoCompose={(rowId) => applyAutoCompose([rowId])}
           onCancelRun={runs.cancelRun}
           onRegisterFlush={registerPromptFlush}
+          restoreFocusTarget={promptRestoreTargetRef.current}
           onClose={closePromptSurface}
         />
       )}

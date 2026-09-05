@@ -63,6 +63,7 @@ export interface ScriptV2PromptDetailDialogProps {
   onAutoCompose: (rowId: string) => void
   onCancelRun?: () => Promise<unknown>
   onRegisterFlush?: (flush: (() => void) | null) => void
+  restoreFocusTarget?: HTMLElement | null
   onClose: () => void
 }
 
@@ -83,6 +84,7 @@ export function ScriptV2PromptDetailDialog({
   onAutoCompose,
   onCancelRun,
   onRegisterFlush,
+  restoreFocusTarget,
   onClose,
 }: ScriptV2PromptDetailDialogProps) {
   const [imageDraft, setImageDraft] = useState('')
@@ -262,7 +264,13 @@ export function ScriptV2PromptDetailDialog({
   }
 
   return (
-    <PromptLayer ariaLabel={`第 ${row.shotNumber} 镜：最终提示词`} testId="script-v2-prompt-detail-dialog" width="max-w-[760px]">
+    <PromptLayer
+      ariaLabel={`第 ${row.shotNumber} 镜：最终提示词`}
+      testId="script-v2-prompt-detail-dialog"
+      width="max-w-[760px]"
+      restoreFocusTarget={restoreFocusTarget}
+      restoreFocusSelector={`button[aria-label="查看镜头 ${row.shotNumber} 最终提示词"]`}
+    >
       <header className="flex h-14 items-center border-b border-white/8 px-4">
         <div className="flex items-center gap-1.5">
           <h2 className="text-[14px] font-medium text-white/90">第 {row.shotNumber} 镜：最终提示词</h2>
@@ -651,7 +659,7 @@ export function ScriptV2BatchPromptDialog({
 
 export interface ScriptV2PromptStageProps {
   state: ScriptV2State
-  onOpenDetail: (rowId: string) => void
+  onOpenDetail: (rowId: string, trigger: HTMLButtonElement) => void
   onOpenBatch: () => void
 }
 
@@ -683,7 +691,7 @@ export function ScriptV2PromptStage({ state, onOpenDetail, onOpenBatch }: Script
               <td className="border-b border-r border-white/8 px-3 text-[11px] text-white/45">{row.audioEffects || '+'}</td>
               <td className="border-b border-r border-white/8 px-3 text-[11px] text-white/45">{row.cinematics?.cameraMovement || '+'}</td>
               <td className="border-b border-r border-white/8 bg-cyan-400/[0.025] px-3">
-                <button type="button" aria-label={`查看镜头 ${row.shotNumber} 最终提示词`} onClick={() => onOpenDetail(row.id)} className="w-full text-left">
+                <button type="button" aria-label={`查看镜头 ${row.shotNumber} 最终提示词`} onClick={(event) => onOpenDetail(row.id, event.currentTarget)} className="w-full text-left">
                   <span className="block truncate text-[10px] text-white/62">{row.imageGenerationPrompt || row.videoMotionPrompt || '待生成提示词'}</span>
                   <span className="mt-1 flex gap-1.5">
                     <PromptStatusBadge track="image" state={row.imagePromptState} />
@@ -691,7 +699,7 @@ export function ScriptV2PromptStage({ state, onOpenDetail, onOpenBatch }: Script
                   </span>
                 </button>
               </td>
-              <td className="sticky right-0 z-10 border-b border-white/8 bg-[#1b1b1b] px-3"><button type="button" aria-label={`编辑镜头 ${row.shotNumber} 提示词`} onClick={() => onOpenDetail(row.id)} className="rounded-md px-2 py-1 text-[10px] text-white/38 hover:bg-white/7 hover:text-white/72">编辑</button></td>
+              <td className="sticky right-0 z-10 border-b border-white/8 bg-[#1b1b1b] px-3"><button type="button" aria-label={`编辑镜头 ${row.shotNumber} 提示词`} onClick={(event) => onOpenDetail(row.id, event.currentTarget)} className="rounded-md px-2 py-1 text-[10px] text-white/38 hover:bg-white/7 hover:text-white/72">编辑</button></td>
             </tr>
           ))}
         </tbody>
@@ -768,14 +776,18 @@ function PromptLayer({
   ariaLabel,
   testId,
   width,
+  restoreFocusTarget,
+  restoreFocusSelector,
   children,
 }: {
   ariaLabel: string
   testId: string
   width: string
+  restoreFocusTarget?: HTMLElement | null
+  restoreFocusSelector?: string
   children: ReactNode
 }) {
-  const dialogRef = useScriptV2DialogFocus(true)
+  const dialogRef = useScriptV2DialogFocus(true, { restoreFocusTarget, restoreFocusSelector })
 
   return (
     <div className="fixed inset-0 z-[240] flex items-center justify-center bg-black/60 p-3 backdrop-blur-[1px] sm:p-6" data-testid={`${testId}-backdrop`}>

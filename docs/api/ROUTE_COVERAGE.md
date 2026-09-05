@@ -18,7 +18,7 @@ transport 的一一对应。
 | Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
-| Public discovery / publish | 6 / 8 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
+| Public discovery / publish | 7 / 9 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
 | Account / ledger / team | 7 / 10 | 已精确 | identity、会话、钱包、偏好、通知、团队与共享资产 projection | shared account domain + billing/ledger/team service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |
@@ -69,8 +69,8 @@ UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所�
 
 ## 后端授权与错误交接
 
-49 个 path、84 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
-13 个 public 读取明确为 `security: []`，其余 69 个 operation 使用 `bearerAuth`。后端以
+50 个 path、85 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
+14 个 public 读取明确为 `security: []`，其余 70 个 operation 使用 `bearerAuth`。后端以
 [`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
 和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。
 

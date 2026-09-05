@@ -4,6 +4,7 @@ import type {
   ShowcaseListQuery,
   ShowcaseListResponse,
   ShowcaseMedia,
+  ShowcasePlaybackManifest,
 } from '@/contracts/showcase'
 import type { Artifact } from '@/domain/types'
 import { HttpError } from './http'
@@ -135,5 +136,36 @@ export async function findShowcaseDetail(snapshotId: string): Promise<ShowcaseDe
   return {
     entry,
     related: [entry, ...related.filter((fixture) => fixture.id !== entry.id)],
+  }
+}
+
+function variantUrl(url: string, quality: '480p' | '720p' | 'original'): string {
+  const parsed = new URL(url, 'http://local.fixture')
+  parsed.searchParams.set('quality', quality)
+  return `${parsed.pathname}${parsed.search}`
+}
+
+/**
+ * Local-only playback manifest. It intentionally describes variants rather
+ * than issuing a remote stream token: the browser can deterministically move
+ * through `fallbackOrder` after a native media delivery/decode error.
+ */
+export async function findShowcasePlaybackManifest(snapshotId: string): Promise<ShowcasePlaybackManifest> {
+  const detail = await findShowcaseDetail(snapshotId)
+  const media = detail.entry.media
+  if (!media.url || !media.url.startsWith('/api/media/')) {
+    throw new HttpError(404, '作品暂时没有可播放的本地媒体')
+  }
+
+  return {
+    snapshotId: detail.entry.snapshotId,
+    media,
+    initialQuality: '720p',
+    variants: [
+      { quality: '720p', label: '720p 高清', url: variantUrl(media.url, '720p') },
+      { quality: '480p', label: '480p 流畅', url: variantUrl(media.url, '480p') },
+      { quality: 'original', label: media.originalQualityLabel, url: variantUrl(media.url, 'original') },
+    ],
+    fallbackOrder: ['720p', '480p', 'original'],
   }
 }

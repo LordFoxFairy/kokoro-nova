@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { HomeDiscoveryResponseSchema, HomeShowcaseItemSchema } from '@/contracts/home'
-import { ShowcaseCategorySchema, ShowcaseListResponseSchema } from '@/contracts/showcase'
+import { ShowcaseCategorySchema, ShowcaseListResponseSchema, ShowcasePlaybackManifestSchema } from '@/contracts/showcase'
 import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
 import { SHOWCASE_CATEGORIES, SHOWCASE_DISCOVERY_CATALOG } from '@/mocks/showcase'
 
@@ -45,5 +45,24 @@ describe('showcase discovery contract', () => {
       ...SHOWCASE_DISCOVERY_CATALOG[0],
       id: 'drifted-card-id',
     })).toThrow()
+  })
+
+  it('accepts only unique local playback variants and a coherent fallback order', () => {
+    const manifest = {
+      snapshotId: 'pub_city_night_01',
+      media: SHOWCASE_DISCOVERY_CATALOG[0].media,
+      initialQuality: '720p',
+      variants: [
+        { quality: '720p', label: '720p 高清', url: '/api/media/fixtures/city-night.mp4?quality=720p' },
+        { quality: '480p', label: '480p 流畅', url: '/api/media/fixtures/city-night.mp4?quality=480p' },
+      ],
+      fallbackOrder: ['720p', '480p'],
+    }
+    expect(ShowcasePlaybackManifestSchema.parse(manifest)).toEqual(manifest)
+    expect(ShowcasePlaybackManifestSchema.safeParse({
+      ...manifest,
+      variants: [{ quality: '720p', label: 'remote', url: 'https://media.example/video.mp4' }],
+    }).success).toBe(false)
+    expect(ShowcasePlaybackManifestSchema.safeParse({ ...manifest, fallbackOrder: ['original'] }).success).toBe(false)
   })
 })

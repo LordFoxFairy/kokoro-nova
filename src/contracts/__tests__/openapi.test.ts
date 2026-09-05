@@ -145,6 +145,7 @@ const PUBLIC_OPERATIONS = new Set([
   'GET /api/publish/{snapshotId}',
   'GET /api/showcase',
   'GET /api/showcase/{snapshotId}',
+  'GET /api/showcase/{snapshotId}/playback',
   'GET /api/skills',
   'GET /api/skills/{skillId}',
 ])

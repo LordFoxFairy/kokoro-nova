@@ -4,8 +4,10 @@ import {
   cyclePlaybackRate,
   formatShowcaseDuration,
   getShowcaseDetailState,
+  resolveShowcasePlaybackSources,
   type ShowcaseQuality,
 } from '../ShowcaseDetailView'
+import type { ShowcasePlaybackManifest } from '@/contracts/showcase'
 
 describe('showcase detail playback model', () => {
   it('cycles the observed playback rates and formats the player clock', () => {
@@ -28,5 +30,22 @@ describe('showcase detail playback model', () => {
     expect(getShowcaseDetailState({ loading: false, hasDetail: true, error: null })).toBe('ready')
     expect(getShowcaseDetailState({ loading: false, hasDetail: true, error: '媒体暂时不可用' })).toBe('stale-error')
     expect(getShowcaseDetailState({ loading: false, hasDetail: false, error: '作品不存在' })).toBe('error')
+  })
+
+  it('uses a deterministic auto quality fallback without overriding an explicit quality choice', () => {
+    const manifest: ShowcasePlaybackManifest = {
+      snapshotId: 'pub_city_night_01',
+      media: { url: '/api/media/fixtures/city-night.mp4', posterUrl: null, durationSeconds: 15, width: 1280, height: 720, originalQualityLabel: '720p 原画质' },
+      initialQuality: '720p',
+      variants: [
+        { quality: '720p', label: '720p 高清', url: '/api/media/fixtures/city-night.mp4?quality=720p' },
+        { quality: '480p', label: '480p 流畅', url: '/api/media/fixtures/city-night.mp4?quality=480p' },
+        { quality: 'original', label: '720p 原画质', url: '/api/media/fixtures/city-night.mp4?quality=original' },
+      ],
+      fallbackOrder: ['720p', '480p', 'original'],
+    }
+
+    expect(resolveShowcasePlaybackSources(manifest, 'auto').map((variant) => variant.quality)).toEqual(['720p', '480p', 'original'])
+    expect(resolveShowcasePlaybackSources(manifest, '480p').map((variant) => variant.quality)).toEqual(['480p'])
   })
 })

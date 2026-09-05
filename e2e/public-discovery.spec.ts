@@ -220,6 +220,7 @@ test('authenticated viewer clones a frozen TV Show into an independent editable 
 test('TV Show auto-paginates after catalog scrolling and retries a failed media delivery', async ({ page }) => {
   const catalogRequests: string[] = []
   let mediaAttempts = 0
+  let mediaDeliveryAvailable = false
   const media = {
     url: '/api/media/fixtures/city-night.mp4',
     posterUrl: '/fixtures/libtv/media/city-night-poster.webp',
@@ -261,9 +262,9 @@ test('TV Show auto-paginates after catalog scrolling and retries a failed media 
         : { entries: [second], page: { offset: 1, limit: 4, total: 2, hasMore: false, nextOffset: null, category: '全部', query: '', searchFallback: false } }),
     })
   })
-  await page.route('**/api/media/fixtures/city-night.mp4', async (route) => {
+  await page.route('**/api/media/fixtures/city-night.mp4?quality=*', async (route) => {
     mediaAttempts += 1
-    if (mediaAttempts === 1) {
+    if (!mediaDeliveryAvailable) {
       await route.fulfill({ status: 503, contentType: 'video/mp4', body: '' })
       return
     }
@@ -280,8 +281,52 @@ test('TV Show auto-paginates after catalog scrolling and retries a failed media 
   await page.getByTestId('showcase-card-pub_city_night_01').click()
   await page.getByTestId('showcase-watch').click()
   await expect(page.getByTestId('showcase-media-error')).toBeVisible()
+  mediaDeliveryAvailable = true
   await page.getByTestId('showcase-media-retry').click()
   await expect(page.getByTestId('showcase-media-error')).toHaveCount(0)
   await expect(page.getByTestId('showcase-player-video')).toBeVisible()
-  expect(mediaAttempts).toBeGreaterThanOrEqual(2)
+  expect(mediaAttempts).toBeGreaterThanOrEqual(4)
+})
+
+test('TV Show player exposes deterministic buffering, quality fallback, terminal error and retry', async ({ page }) => {
+  let playbackRequests = 0
+  let allowPlayback = false
+  const attemptedQualities: string[] = []
+
+  await page.route('**/api/showcase/pub_city_night_01/playback', async (route) => {
+    playbackRequests += 1
+    // Keep the client in its explicit manifest-loading state long enough to
+    // exercise the visible state machine rather than relying on timing.
+    await new Promise((resolve) => setTimeout(resolve, 180))
+    await route.continue()
+  })
+  await page.route('**/api/media/fixtures/city-night.mp4?quality=*', async (route) => {
+    const quality = new URL(route.request().url()).searchParams.get('quality')
+    if (quality) attemptedQualities.push(quality)
+    if (!allowPlayback) {
+      if (attemptedQualities.length === 1) await new Promise((resolve) => setTimeout(resolve, 180))
+      await route.fulfill({ status: 503, contentType: 'video/mp4', body: '' })
+      return
+    }
+    await route.continue()
+  })
+
+  await page.goto('/showcase/pub_city_night_01')
+  await page.getByTestId('showcase-watch').click()
+  await expect(page.getByTestId('showcase-player-loading')).toBeVisible()
+  await expect(page.getByTestId('showcase-media-error')).toBeVisible()
+  await expect(page.getByTestId('showcase-media-error')).toContainText('已尝试 720p 高清、480p 流畅、720p 原画质')
+  expect(attemptedQualities).toEqual(['720p', '480p', 'original'])
+
+  const manifestsBeforeRetry = playbackRequests
+  allowPlayback = true
+  await page.getByTestId('showcase-media-retry').click()
+  await expect(page.getByTestId('showcase-media-error')).toHaveCount(0)
+  await expect(page.getByTestId('showcase-player-video')).toHaveAttribute('src', /quality=720p/)
+  await expect(page.getByTestId('showcase-player-active-quality')).toContainText('720p 高清')
+  await page.getByTestId('showcase-player-video').evaluate((video) => video.dispatchEvent(new Event('waiting')))
+  await expect(page.getByTestId('showcase-player-buffering')).toBeVisible()
+  await page.getByTestId('showcase-player-video').evaluate((video) => video.dispatchEvent(new Event('canplay')))
+  await expect(page.getByTestId('showcase-player-buffering')).toHaveCount(0)
+  expect(playbackRequests).toBe(manifestsBeforeRetry)
 })

@@ -26,6 +26,39 @@ export const ShowcaseMediaSchema = z.object({
   originalQualityLabel: z.string().min(1),
 })
 
+/** A public player may only receive an in-origin local fixture media address. */
+const LocalShowcaseMediaUrlSchema = z.string().regex(/^\/api\/media\//, '播放器媒体必须是本地 /api/media/ 地址')
+
+export const ShowcasePlaybackVariantSchema = z.object({
+  quality: ShowcaseQualitySchema.exclude(['auto']),
+  label: z.string().min(1),
+  /** Each quality remains a local fixture URL; the quality query is a deterministic delivery key. */
+  url: LocalShowcaseMediaUrlSchema,
+}).strict()
+
+/**
+ * Fetching the manifest is the player’s only source-selection boundary. Native
+ * media events then drive buffering, fallback, error and retry locally.
+ */
+export const ShowcasePlaybackManifestSchema = z.object({
+  snapshotId: z.string().trim().min(1),
+  media: ShowcaseMediaSchema,
+  initialQuality: ShowcaseQualitySchema.exclude(['auto']),
+  variants: z.array(ShowcasePlaybackVariantSchema).min(1),
+  fallbackOrder: z.array(ShowcaseQualitySchema.exclude(['auto'])).min(1),
+}).strict().superRefine((manifest, context) => {
+  const qualities = manifest.variants.map((variant) => variant.quality)
+  if (new Set(qualities).size !== qualities.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: '播放清单不能包含重复清晰度', path: ['variants'] })
+  }
+  if (!qualities.includes(manifest.initialQuality)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: '初始清晰度必须存在于 variants', path: ['initialQuality'] })
+  }
+  if (new Set(manifest.fallbackOrder).size !== manifest.fallbackOrder.length || manifest.fallbackOrder.some((quality) => !qualities.includes(quality))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'fallbackOrder 必须是 variants 的无重复子集', path: ['fallbackOrder'] })
+  }
+})
+
 export const ShowcaseEntryProjectionBaseSchema = z.object({
   /** `id` is the public discovery key and is intentionally equal to snapshotId. */
   id: z.string().trim().min(1),
@@ -93,6 +126,8 @@ export const ShowcaseCloneResponseSchema = z.object({
 export type ShowcaseCategory = z.infer<typeof ShowcaseCategorySchema>
 export type ShowcaseQuality = z.infer<typeof ShowcaseQualitySchema>
 export type ShowcaseMedia = z.infer<typeof ShowcaseMediaSchema>
+export type ShowcasePlaybackVariant = z.infer<typeof ShowcasePlaybackVariantSchema>
+export type ShowcasePlaybackManifest = z.infer<typeof ShowcasePlaybackManifestSchema>
 export type ShowcaseEntryProjection = z.infer<typeof ShowcaseEntryProjectionSchema>
 export type ShowcaseListQuery = z.infer<typeof ShowcaseListQuerySchema>
 export type ShowcasePage = z.infer<typeof ShowcasePageSchema>

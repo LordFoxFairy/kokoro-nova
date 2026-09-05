@@ -5,6 +5,8 @@ import Link from 'next/link'
 import type {
   ShowcaseDetailResponse,
   ShowcaseEntryProjection,
+  ShowcasePlaybackManifest,
+  ShowcasePlaybackVariant,
   ShowcaseQuality,
 } from '@/contracts/showcase'
 export type { ShowcaseQuality } from '@/contracts/showcase'
@@ -62,6 +64,26 @@ const QUALITY_OPTIONS: Array<{ value: ShowcaseQuality; label: string }> = [
   { value: '480p', label: '480p 流畅' },
   { value: '720p', label: '720p 高清' },
 ]
+
+export type ShowcasePlayerTransportState = 'manifest-loading' | 'buffering' | 'ready' | 'error'
+
+/**
+ * `auto` follows the server-provided deterministic order. An explicit manual
+ * choice is never silently downgraded: it gets its own retry/error boundary.
+ */
+export function resolveShowcasePlaybackSources(
+  manifest: ShowcasePlaybackManifest,
+  quality: ShowcaseQuality,
+): ShowcasePlaybackVariant[] {
+  const byQuality = new Map(manifest.variants.map((variant) => [variant.quality, variant]))
+  const requested = quality === 'auto'
+    ? [manifest.initialQuality, ...manifest.fallbackOrder.filter((item) => item !== manifest.initialQuality)]
+    : [quality]
+  return requested.flatMap((item) => {
+    const variant = byQuality.get(item)
+    return variant ? [variant] : []
+  })
+}
 
 export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
   const [detail, setDetail] = useState<ShowcaseDetailResponse | null>(null)
@@ -394,20 +416,67 @@ function ShowcasePlayer({
   const [qualityOpen, setQualityOpen] = useState(false)
   const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(1)
+  const [playbackManifest, setPlaybackManifest] = useState<ShowcasePlaybackManifest | null>(null)
+  const [transportState, setTransportState] = useState<ShowcasePlayerTransportState>('manifest-loading')
+  const [manifestError, setManifestError] = useState<string | null>(null)
   const [mediaError, setMediaError] = useState<string | null>(null)
+  const [sourceIndex, setSourceIndex] = useState(0)
   const [mediaAttempt, setMediaAttempt] = useState(0)
+  const [manifestAttempt, setManifestAttempt] = useState(0)
+
+  useEffect(() => {
+    if (!detail.entry.media.url) {
+      setPlaybackManifest(null)
+      setTransportState('ready')
+      return
+    }
+    let cancelled = false
+    setPlaybackManifest(null)
+    setManifestError(null)
+    setMediaError(null)
+    setSourceIndex(0)
+    setTransportState('manifest-loading')
+    void client.showcase
+      .playback(detail.entry.snapshotId)
+      .then((manifest) => {
+        if (cancelled) return
+        setPlaybackManifest(manifest)
+        setTransportState('buffering')
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) return
+        setManifestError(cause instanceof Error ? cause.message : '播放源暂时不可用，请重试')
+        setTransportState('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [detail.entry.media.url, detail.entry.snapshotId, manifestAttempt])
+
+  const playbackSources = useMemo(
+    () => playbackManifest ? resolveShowcasePlaybackSources(playbackManifest, quality) : [],
+    [playbackManifest, quality],
+  )
+  const activeSource = playbackSources[sourceIndex] ?? null
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !detail.entry.media.url) return
+    if (!video || !activeSource) return
     void video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     return () => video.pause()
-  }, [detail.entry.id, detail.entry.media.url, mediaAttempt])
+  }, [activeSource, mediaAttempt])
 
   const retryMedia = () => {
     setMediaError(null)
+    setManifestError(null)
     setCurrentTime(0)
     setPlaying(false)
+    if (!playbackManifest) {
+      setManifestAttempt((attempt) => attempt + 1)
+      return
+    }
+    setSourceIndex(0)
+    setTransportState('buffering')
     setMediaAttempt((attempt) => attempt + 1)
   }
 
@@ -446,6 +515,27 @@ function ShowcasePlayer({
     }
   }
 
+  const selectQuality = (nextQuality: ShowcaseQuality) => {
+    setQuality(nextQuality)
+    setQualityOpen(false)
+    setMediaError(null)
+    setSourceIndex(0)
+    setTransportState('buffering')
+    setMediaAttempt((attempt) => attempt + 1)
+  }
+
+  const handleMediaError = () => {
+    setPlaying(false)
+    if (sourceIndex + 1 < playbackSources.length) {
+      setSourceIndex((index) => index + 1)
+      setTransportState('buffering')
+      return
+    }
+    const attempted = playbackSources.map((source) => source.label).join('、')
+    setMediaError(attempted ? `本地播放源暂时不可用。已尝试 ${attempted}。` : '本地播放源暂时不可用，请重试')
+    setTransportState('error')
+  }
+
   return (
     <div ref={playerRef} className="relative flex h-screen flex-col bg-black text-white" data-testid="showcase-player">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between bg-gradient-to-b from-black/65 to-transparent px-8 pb-16 pt-7 sm:px-10">
@@ -471,29 +561,36 @@ function ShowcasePlayer({
       <div className="relative flex min-h-0 flex-1 items-center justify-center px-5 py-20 sm:px-12">
         {detail.entry.media.url ? (
           <>
-            <video
-              key={`${detail.entry.id}-${mediaAttempt}`}
-              ref={videoRef}
-              data-testid="showcase-player-video"
-              src={detail.entry.media.url}
-              poster={detail.entry.media.posterUrl ?? undefined}
-              playsInline
-              loop
-              preload="metadata"
-              aria-label={detail.entry.title}
-              className="max-h-full max-w-full object-contain"
-              onClick={togglePlay}
-              onLoadStart={() => setMediaError(null)}
-              onError={() => {
-                setPlaying(false)
-                setMediaError('媒体文件暂时不可用，请重试')
-              }}
-              onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || detail.entry.media.durationSeconds)}
-              onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-            />
-            {mediaError && <div data-testid="showcase-media-error" role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/68 px-6 text-center backdrop-blur-sm"><div className="text-[16px] font-semibold text-white">视频加载失败</div><p className="max-w-sm text-[12px] leading-relaxed text-white/60">{mediaError}</p><button type="button" data-testid="showcase-media-retry" onClick={retryMedia} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-medium text-black transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><IconRefresh size={14} /> 重试播放</button></div>}
+            {activeSource && (
+              <video
+                key={`${detail.entry.id}-${activeSource.url}-${mediaAttempt}`}
+                ref={videoRef}
+                data-testid="showcase-player-video"
+                src={activeSource.url}
+                poster={playbackManifest?.media.posterUrl ?? detail.entry.media.posterUrl ?? undefined}
+                playsInline
+                loop
+                preload="metadata"
+                aria-label={detail.entry.title}
+                className="max-h-full max-w-full object-contain"
+                onClick={togglePlay}
+                onLoadStart={() => {
+                  setMediaError(null)
+                  setTransportState('buffering')
+                }}
+                onWaiting={() => setTransportState('buffering')}
+                onCanPlay={() => setTransportState('ready')}
+                onError={handleMediaError}
+                onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || detail.entry.media.durationSeconds)}
+                onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+              />
+            )}
+            {transportState === 'manifest-loading' && <div data-testid="showcase-player-loading" role="status" className="absolute inset-0 flex items-center justify-center gap-2 bg-black/58 text-[13px] text-white/78"><Spinner size={18} /> 正在加载播放源…</div>}
+            {transportState === 'buffering' && <div data-testid="showcase-player-buffering" role="status" className="absolute inset-0 flex items-center justify-center gap-2 bg-black/44 text-[13px] text-white/78"><Spinner size={18} /> 正在缓冲 {activeSource?.label ?? '本地媒体'}…</div>}
+            {activeSource && <div data-testid="showcase-player-active-quality" className="sr-only" aria-live="polite">当前播放：{activeSource.label}</div>}
+            {(mediaError || manifestError) && <div data-testid="showcase-media-error" role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/68 px-6 text-center backdrop-blur-sm"><div className="text-[16px] font-semibold text-white">视频加载失败</div><p className="max-w-sm text-[12px] leading-relaxed text-white/60">{mediaError ?? manifestError}</p><button type="button" data-testid="showcase-media-retry" onClick={retryMedia} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-medium text-black transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><IconRefresh size={14} /> 重试播放</button></div>}
           </>
         ) : detail.entry.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -555,10 +652,7 @@ function ShowcasePlayer({
                     key={option.value}
                     type="button"
                     data-testid={`showcase-quality-${option.value}`}
-                    onClick={() => {
-                      setQuality(option.value)
-                      setQualityOpen(false)
-                    }}
+                    onClick={() => selectQuality(option.value)}
                     className={cn('flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left hover:bg-white/10', option.value === quality ? 'text-white' : 'text-white/58')}
                   >
                     {option.label}

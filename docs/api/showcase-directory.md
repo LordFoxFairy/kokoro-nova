@@ -23,3 +23,16 @@
 复制 UI 依次呈现确认、`正在复制…`、成功入口或可重试错误，供未来后端替换为异步任务时保持相同状态机。
 
 示例：[复制响应](examples/showcase-clone.response.json)。
+
+## 播放清单、缓冲与质量回退
+
+`GET /api/showcase/{snapshotId}/playback` 返回 `ShowcasePlaybackManifest`。这是播放器唯一的
+source-selection 读取边界：`variants[].url` 必须以 `/api/media/` 开头，且当前 mock 只生成
+仓库已种子的本地 fixture URL；响应中不存在远端流地址、Cookie、签名或 token。
+
+播放器先显示 `manifest-loading`，清单到达后由 `<video>` 的 `loadstart` / `waiting` / `canplay`
+事件显示 `buffering` / `ready`。选择“自动”时从 `initialQuality` 开始并严格按
+`fallbackOrder` 依次尝试；某个本地媒体请求或浏览器解码错误会切换到下一个变体。用户手动选择
+`480p`、`720p` 或 `original` 后只尝试该变体，绝不静默改变其选择。全部候选失败时显示错误和
+“重试播放”；重试从同一确定性候选顺序重新挂载媒体元素，不发起写操作，也不改变详情、目录或
+公开快照。

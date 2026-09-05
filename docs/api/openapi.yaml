@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.22.0-presence-editor-lease",
+    "version": "1.22.0-showcase-playback",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -3454,6 +3454,68 @@
           },
           "500": {
             "description": "本地公开发现 projection 读取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "公开快照的稳定本地标识"
+          }
+        ],
+        "x-authorization": "public",
+        "security": []
+      }
+    },
+    "/api/showcase/{snapshotId}/playback": {
+      "get": {
+        "tags": [
+          "Showcase"
+        ],
+        "summary": "TV Show 播放器本地质量清单",
+        "description": "匿名读取、仅返回 /api/media/ 本地 fixture 质量变体。客户端先呈现 manifest-loading，再以 native media 事件呈现 buffering；auto 按 fallbackOrder 依次回退，显式手选质量不静默降级。全部变体失败后 Retry 从同一 deterministic 顺序重新挂载，不写入公开快照。",
+        "operationId": "getShowcasePlaybackManifest",
+        "x-ui-triggers": [
+          "TV Show 播放器加载本地质量清单并按顺序回退"
+        ],
+        "x-mock-scenarios": [
+          "public-showcase"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcasePlaybackManifest"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标作品不存在、已下架或没有本地可播放媒体",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地播放清单读取失败",
             "content": {
               "application/json": {
                 "schema": {
@@ -16271,6 +16333,83 @@
             "$ref": "#/components/schemas/PresenceLeaseResponse"
           }
         ]
+      },
+      "ShowcasePlaybackVariant": {
+        "type": "object",
+        "required": [
+          "quality",
+          "label",
+          "url"
+        ],
+        "properties": {
+          "quality": {
+            "type": "string",
+            "enum": [
+              "480p",
+              "720p",
+              "original"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^/api/media/",
+            "description": "本地 fixture 交付地址；quality query 仅用于稳定变体键。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShowcasePlaybackManifest": {
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "media",
+          "initialQuality",
+          "variants",
+          "fallbackOrder"
+        ],
+        "properties": {
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "media": {
+            "$ref": "#/components/schemas/ShowcaseMedia"
+          },
+          "initialQuality": {
+            "type": "string",
+            "enum": [
+              "480p",
+              "720p",
+              "original"
+            ]
+          },
+          "variants": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ShowcasePlaybackVariant"
+            }
+          },
+          "fallbackOrder": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "480p",
+                "720p",
+                "original"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "Frontend-only local player manifest. initialQuality and fallbackOrder reference variants; the UI keeps explicit manual selection isolated from automatic fallback."
       }
     },
     "examples": {

@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.23.0-presence-playback-identity` · scope: 50 paths / 85 operations
+> Contract version: `1.24.0-showcase-engagement` · scope: 51 paths / 87 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -69,8 +69,8 @@ UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所�
 
 ## 后端授权与错误交接
 
-50 个 path、85 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
-14 个 public 读取明确为 `security: []`，其余 70 个 operation 使用 `bearerAuth`。后端以
+51 个 path、87 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
+15 个 public 读取明确为 `security: []`，其余 72 个 operation 使用 `bearerAuth`。后端以
 [`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
 和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。
 

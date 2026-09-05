@@ -317,7 +317,20 @@ export function PublicCanvasView({ snapshotId, onClose }: { snapshotId: string; 
       >
         <p className="text-[13px] leading-relaxed text-ink-600">将创建一个新的私有项目，并通过标准画布 mutation 复制当前公开快照的节点、连线、分组和视图；原作品不会被修改。</p>
         {cloneBusy && <p data-testid="showcase-clone-progress" className="mt-3 text-[12px] text-ink-600" role="status">正在复制冻结的工作流与故事板…</p>}
-        {cloneError && <p data-testid="showcase-clone-error" className="mt-3 text-[12px] text-danger" role="alert">{cloneError}</p>}
+        {cloneError && (
+          <div className="mt-3 flex items-center justify-between gap-3" role="alert">
+            <p data-testid="showcase-clone-error" className="text-[12px] text-danger">{cloneError}</p>
+            <button
+              type="button"
+              data-testid="showcase-clone-retry"
+              onClick={() => void confirmClone()}
+              disabled={cloneBusy}
+              className="shrink-0 rounded-lg bg-danger px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-85 disabled:opacity-50"
+            >
+              重试复制
+            </button>
+          </div>
+        )}
       </Dialog>
 
       <Dialog

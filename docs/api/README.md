@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；50 个 path、85 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；51 个 path、87 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/authenticated/owner/workspace 语义与后端授权交接边界 |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
@@ -31,7 +31,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`account-identity.md`](account-identity.md) | 首页与画布共用的 `LocalIdentity`、会话回跳、typed login continuation、主题/水印偏好与通知摘要 contract |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
-| [`showcase-directory.md`](showcase-directory.md) | TV Show 目录分页、搜索回退、显式 empty/error fixture 与登录后复制项目契约 |
+| [`showcase-directory.md`](showcase-directory.md) | TV Show 目录分页、搜索回退、互动反馈、显式 empty/error fixture 与登录后复制项目契约 |
 | [`src/contracts/skills.ts`](../../src/contracts/skills.ts) | Skill 市场卡片、分类/集合查询和幂等收藏动作 |
 | [`MATERIAL_CATALOG.md`](MATERIAL_CATALOG.md) | 风格/特效独立目录、分页 facets、详情和幂等收藏动作 |
 | [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
@@ -54,7 +54,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.23.0-presence-playback-identity
+Contract version: 1.24.0-showcase-engagement
 OpenAPI: 3.1.0
 ```
 

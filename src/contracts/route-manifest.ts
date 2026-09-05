@@ -307,6 +307,16 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
   route('GET', '/api/showcase/{snapshotId}/playback', 'Showcase', 'getShowcasePlaybackManifest', ['TV Show 播放器加载本地质量清单并按顺序回退'], [
     'public-showcase',
   ]),
+  route('GET', '/api/showcase/{snapshotId}/engagement', 'Showcase', 'getShowcaseEngagement', ['TV Show 读取本地确定性喜欢与分享反馈'], [
+    'anonymous',
+    'public-showcase',
+    'authenticated-empty',
+  ]),
+  route('POST', '/api/showcase/{snapshotId}/engagement', 'Showcase', 'updateShowcaseEngagement', ['TV Show 写入本地喜欢或分享反馈；互动需要登录'], [
+    'anonymous',
+    'public-showcase',
+    'authenticated-empty',
+  ]),
   route('GET', '/api/showcase', 'Showcase', 'listShowcaseEntries', ['TV Show 目录发现 projection'], [
     'anonymous',
     'public-showcase',

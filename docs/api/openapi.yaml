@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.23.0-presence-playback-identity",
+    "version": "1.24.0-showcase-engagement",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -3541,6 +3541,166 @@
         "security": []
       }
     },
+    "/api/showcase/{snapshotId}/engagement": {
+      "get": {
+        "tags": [
+          "Showcase"
+        ],
+        "summary": "TV Show 本地互动状态",
+        "description": "匿名可读的 deterministic viewer-local interaction projection。它位于 workspace fixture 状态旁，不写入公开快照、冻结 document、媒体或项目。",
+        "operationId": "getShowcaseEngagement",
+        "x-ui-triggers": [
+          "TV Show 读取本地确定性喜欢与分享反馈"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "public-showcase",
+          "authenticated-empty"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseEngagementResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标作品不存在或已下架",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地互动状态读取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "公开快照的稳定本地标识"
+          }
+        ],
+        "x-authorization": "public",
+        "security": []
+      },
+      "post": {
+        "tags": [
+          "Showcase"
+        ],
+        "summary": "TV Show 写入本地喜欢或分享反馈",
+        "description": "已登录 viewer 的确定性本地 interaction command。like/unlike 与 share 都只写入当前本地 fixture workspace；不修改公开快照或创建私有项目。",
+        "operationId": "updateShowcaseEngagement",
+        "x-ui-triggers": [
+          "TV Show 写入本地喜欢或分享反馈；互动需要登录"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "public-showcase",
+          "authenticated-empty"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShowcaseEngagementRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseEngagementResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "互动动作不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录后更新互动状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标作品不存在或已下架",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地互动状态写入失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "snapshotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "公开快照的稳定本地标识"
+          }
+        ],
+        "x-authorization": "authenticated",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/showcase": {
       "get": {
         "tags": [
@@ -6381,6 +6541,62 @@
       }
     },
     "schemas": {
+      "ShowcaseEngagementRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "like",
+              "unlike",
+              "share"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShowcaseEngagementResponse": {
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "liked",
+          "likeCount",
+          "shareCount",
+          "shareUrl",
+          "feedback"
+        ],
+        "properties": {
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "liked": {
+            "type": "boolean"
+          },
+          "likeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "shareCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "shareUrl": {
+            "type": "string",
+            "pattern": "^/showcase/",
+            "description": "站内公开作品相对路径"
+          },
+          "feedback": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "description": "本地 viewer interaction projection；不属于 PublicSnapshot。"
+      },
       "ErrorDetail": {
         "type": "object",
         "required": [

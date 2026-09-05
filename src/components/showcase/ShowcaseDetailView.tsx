@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type {
   ShowcaseDetailResponse,
+  ShowcaseEngagementResponse,
   ShowcaseEntryProjection,
   ShowcasePlaybackManifest,
   ShowcasePlaybackVariant,
@@ -11,10 +12,7 @@ import type {
 } from '@/contracts/showcase'
 export type { ShowcaseQuality } from '@/contracts/showcase'
 import { client } from '@/lib/api'
-import {
-  SHOWCASE_FAVOURITES_STORAGE_KEY,
-  toggleShowcaseFavourite,
-} from '@/api/showcase'
+import { getShowcaseEngagement, updateShowcaseEngagement } from '@/api/showcase'
 import { cn } from '@/lib/cn'
 import { Spinner } from '../ui/controls'
 import {
@@ -93,23 +91,10 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
   const [mode, setMode] = useState<'detail' | 'player'>('detail')
   const [processOpen, setProcessOpen] = useState(false)
   const [likeGateOpen, setLikeGateOpen] = useState(false)
-  const [shareLabel, setShareLabel] = useState('分享')
-  const [favouriteIds, setFavouriteIds] = useState<string[]>([])
-  const [favouriteBusy, setFavouriteBusy] = useState(false)
-  const [favouriteFeedback, setFavouriteFeedback] = useState<string | null>(null)
+  const [engagement, setEngagement] = useState<ShowcaseEngagementResponse | null>(null)
+  const [engagementBusy, setEngagementBusy] = useState(false)
+  const [engagementFeedback, setEngagementFeedback] = useState<string | null>(null)
   const sessionMode = useShowcaseSession()
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(SHOWCASE_FAVOURITES_STORAGE_KEY)
-      if (!stored) return
-      const parsed: unknown = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.every((id) => typeof id === 'string')) setFavouriteIds(parsed)
-    } catch {
-      // Storage is a convenience cache for the frontend-only mock, never a
-      // requirement for reading a public work.
-    }
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -131,34 +116,52 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
     }
   }, [snapshotId, reloadToken])
 
-  const requestState = getShowcaseDetailState({ loading, hasDetail: Boolean(detail), error })
-  const favourited = detail ? favouriteIds.includes(detail.entry.snapshotId) : false
+  useEffect(() => {
+    if (!detail) return
+    let cancelled = false
+    void getShowcaseEngagement(detail.entry.snapshotId)
+      .then((next) => {
+        if (!cancelled) setEngagement(next)
+      })
+      .catch(() => {
+        if (!cancelled) setEngagement(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [detail])
 
-  const toggleFavourite = () => {
-    if (!detail || favouriteBusy) return
+  const requestState = getShowcaseDetailState({ loading, hasDetail: Boolean(detail), error })
+  const liked = engagement?.liked ?? false
+  const displayedLikeCount = engagement?.likeCount ?? detail?.entry.likeCount ?? 0
+
+  const mutateEngagement = async (action: 'like' | 'unlike' | 'share') => {
+    if (!detail || engagementBusy) return
     if (sessionMode === 'anonymous') {
       setLikeGateOpen(true)
       return
     }
     if (sessionMode !== 'authenticated') {
-      setFavouriteFeedback(sessionMode === 'loading' ? '正在确认登录状态' : '收藏状态暂时无法更新')
+      setEngagementFeedback(sessionMode === 'loading' ? '正在确认登录状态' : '喜欢状态暂时无法更新')
       return
     }
-    setFavouriteBusy(true)
-    setFavouriteFeedback(null)
+    setEngagementBusy(true)
+    setEngagementFeedback(null)
     try {
-      const next = toggleShowcaseFavourite(favouriteIds, detail.entry.snapshotId)
-      setFavouriteIds(next)
-      try {
-        window.localStorage.setItem(SHOWCASE_FAVOURITES_STORAGE_KEY, JSON.stringify(next))
-      } catch {
-        // The in-memory mock state is still usable when browser storage is unavailable.
+      const next = await updateShowcaseEngagement(detail.entry.snapshotId, action)
+      setEngagement(next)
+      if (action === 'share') {
+        void navigator.clipboard?.writeText(new URL(next.shareUrl, window.location.origin).toString()).catch(() => undefined)
       }
-      setFavouriteFeedback(next.includes(detail.entry.snapshotId) ? '已收藏到我的喜欢' : '已取消收藏')
-    } catch {
-      setFavouriteFeedback('收藏状态暂时无法更新')
+      setEngagementFeedback(next.feedback)
+    } catch (cause) {
+      if (cause instanceof Error && /需要登录|UNAUTHENTICATED/i.test(cause.message)) {
+        setLikeGateOpen(true)
+      } else {
+        setEngagementFeedback(action === 'share' ? '分享状态暂时无法更新' : '喜欢状态暂时无法更新')
+      }
     } finally {
-      setFavouriteBusy(false)
+      setEngagementBusy(false)
     }
   }
 
@@ -265,32 +268,30 @@ export function ShowcaseDetailView({ snapshotId }: { snapshotId: string }) {
               <button
                 type="button"
                 data-testid="showcase-like"
-                aria-label={favourited ? '取消收藏作品' : '收藏作品'}
-                aria-pressed={favourited}
-                aria-busy={favouriteBusy || sessionMode === 'loading'}
-                disabled={sessionMode === 'loading'}
-                onClick={toggleFavourite}
+                aria-label={liked ? '取消喜欢作品' : '喜欢作品'}
+                aria-pressed={liked}
+                aria-busy={engagementBusy || sessionMode === 'loading'}
+                disabled={sessionMode === 'loading' || engagementBusy}
+                onClick={() => void mutateEngagement(liked ? 'unlike' : 'like')}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-black/48 text-[21px] text-white/90 ring-1 ring-white/12 backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                {favourited ? '♥' : '♡'}
+                {liked ? '♥' : '♡'}
               </button>
               <button
                 type="button"
                 data-testid="showcase-share"
                 aria-label="分享作品"
-                onClick={() => {
-                  void navigator.clipboard?.writeText(window.location.href).catch(() => undefined)
-                  setShareLabel('已复制链接')
-                  window.setTimeout(() => setShareLabel('分享'), 1800)
-                }}
+                disabled={engagementBusy}
+                aria-busy={engagementBusy}
+                onClick={() => void mutateEngagement('share')}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-black/48 text-white/90 ring-1 ring-white/12 backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 <IconShare size={16} />
-                <span className="sr-only">{shareLabel}</span>
+                <span className="sr-only">分享作品</span>
               </button>
             </div>
-            <div className="text-[11px] text-white/42">{detail.entry.likeCount.toLocaleString('zh-CN')} 人喜欢 · {detail.entry.category}</div>
-            {favouriteFeedback && <div data-testid="showcase-favourite-feedback" className="text-[11px] text-white/64" role="status">{favouriteFeedback}</div>}
+            <div className="text-[11px] text-white/42">{displayedLikeCount.toLocaleString('zh-CN')} 人喜欢 · {detail.entry.category}</div>
+            {engagementFeedback && <div data-testid="showcase-engagement-feedback" className="text-[11px] text-white/64" role="status"><span data-testid="showcase-favourite-feedback">{engagementFeedback}</span></div>}
           </div>
         </div>
 
@@ -716,8 +717,8 @@ function LoginGate({ open, onClose }: { open: boolean; onClose: () => void }) {
       <button type="button" aria-label="关闭登录弹层" onClick={onClose} className="absolute inset-0 bg-black/72 backdrop-blur-sm" />
       <div className="relative w-full max-w-[380px] rounded-2xl bg-[#1d1d1f] p-6 text-white shadow-2xl ring-1 ring-white/10">
         <button type="button" aria-label="关闭" onClick={onClose} className="absolute right-4 top-4 rounded-lg p-1 text-white/45 hover:bg-white/10 hover:text-white"><IconClose size={16} /></button>
-        <h2 id="showcase-login-title" className="text-[17px] font-semibold">登录后才能喜欢作品</h2>
-        <p className="mt-3 text-[13px] leading-relaxed text-white/55">登录后可以收藏喜欢的作品，也能在自己的空间里继续创作。</p>
+        <h2 id="showcase-login-title" className="text-[17px] font-semibold">登录后才能互动作品</h2>
+        <p className="mt-3 text-[13px] leading-relaxed text-white/55">登录后可以喜欢、分享公开作品，也能在自己的空间里继续创作。</p>
         <button type="button" onClick={onClose} className="mt-6 w-full rounded-xl bg-white px-4 py-2.5 text-[13px] font-medium text-black hover:bg-white/90">登录 / 注册</button>
       </div>
     </div>

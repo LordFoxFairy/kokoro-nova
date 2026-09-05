@@ -1,5 +1,7 @@
 import type {
   ShowcaseDetailResponse,
+  ShowcaseEngagementRequest,
+  ShowcaseEngagementResponse,
   ShowcaseEntryProjection,
   ShowcaseListQuery,
   ShowcaseListResponse,
@@ -11,7 +13,8 @@ import { HttpError } from './http'
 import { findViewableSnapshot as findSnapshotRecord, listPublishedSnapshots } from './publish'
 import { SHOWCASE_DISCOVERY_CATALOG, findShowcaseFixtureSnapshot } from '@/mocks/showcase'
 import type { PublishedSnapshot, SnapshotSummary } from '@/domain/publish'
-import { readState, type WorkspaceState } from './store'
+import { readState, withState, type WorkspaceState } from './store'
+import { requireLocalAuthentication } from './identity'
 
 type SnapshotCarrier = WorkspaceState & { publishedSnapshots?: PublishedSnapshot[] }
 
@@ -137,6 +140,65 @@ export async function findShowcaseDetail(snapshotId: string): Promise<ShowcaseDe
     entry,
     related: [entry, ...related.filter((fixture) => fixture.id !== entry.id)],
   }
+}
+
+type ShowcaseEngagementRecord = {
+  liked: boolean
+  shareCount: number
+}
+
+type ShowcaseEngagementState = WorkspaceState & {
+  showcaseEngagement?: Record<string, ShowcaseEngagementRecord>
+}
+
+function engagementRecord(state: ShowcaseEngagementState, snapshotId: string): ShowcaseEngagementRecord {
+  return state.showcaseEngagement?.[snapshotId] ?? { liked: false, shareCount: 0 }
+}
+
+function engagementProjection(entry: ShowcaseEntryProjection, record: ShowcaseEngagementRecord, feedback: string): ShowcaseEngagementResponse {
+  return {
+    snapshotId: entry.snapshotId,
+    liked: record.liked,
+    likeCount: entry.likeCount + (record.liked ? 1 : 0),
+    shareCount: record.shareCount,
+    shareUrl: `/showcase/${encodeURIComponent(entry.snapshotId)}`,
+    feedback,
+  }
+}
+
+/** Read the deterministic viewer-local state without mutating the public snapshot. */
+export async function getShowcaseEngagement(snapshotId: string): Promise<ShowcaseEngagementResponse> {
+  const detail = await findShowcaseDetail(snapshotId)
+  const state = await readState() as ShowcaseEngagementState
+  return engagementProjection(detail.entry, engagementRecord(state, snapshotId), '互动状态已同步')
+}
+
+/**
+ * Persist a local viewer reaction next to workspace state. The fixture account
+ * gates all interaction commands; likes and sharing only record deterministic
+ * local feedback. No public snapshot, document, media or project is mutated.
+ */
+export async function updateShowcaseEngagement(snapshotId: string, input: ShowcaseEngagementRequest): Promise<ShowcaseEngagementResponse> {
+  const detail = await findShowcaseDetail(snapshotId)
+  await requireLocalAuthentication()
+
+  return withState((state) => {
+    const engagementState = state as ShowcaseEngagementState
+    const records = engagementState.showcaseEngagement ?? (engagementState.showcaseEngagement = {})
+    const record = records[snapshotId] ?? (records[snapshotId] = { liked: false, shareCount: 0 })
+    let feedback: string
+    if (input.action === 'like') {
+      record.liked = true
+      feedback = '已喜欢，已收藏到我的喜欢'
+    } else if (input.action === 'unlike') {
+      record.liked = false
+      feedback = '已取消喜欢'
+    } else {
+      record.shareCount += 1
+      feedback = '已复制公开作品链接'
+    }
+    return engagementProjection(detail.entry, record, feedback)
+  })
 }
 
 function variantUrl(url: string, quality: '480p' | '720p' | 'original'): string {

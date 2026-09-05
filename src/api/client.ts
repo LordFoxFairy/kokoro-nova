@@ -65,6 +65,8 @@ import {
 } from '@/contracts/skills'
 import {
   ShowcaseDetailResponseSchema,
+  ShowcaseEngagementRequestSchema,
+  ShowcaseEngagementResponseSchema,
   ShowcaseListResponseSchema,
   ShowcasePlaybackManifestSchema,
 } from '@/contracts/showcase'
@@ -318,6 +320,16 @@ export function createApiClient(transport: JsonTransport = fetch, options: ApiCl
         requestTyped(ShowcaseDetailResponseSchema, `/api/showcase/${encodeURIComponent(snapshotId)}`),
       playback: (snapshotId: string) =>
         requestTyped(ShowcasePlaybackManifestSchema, `/api/showcase/${encodeURIComponent(snapshotId)}/playback`),
+      engagement: (snapshotId: string) =>
+        requestTyped(ShowcaseEngagementResponseSchema, `/api/showcase/${encodeURIComponent(snapshotId)}/engagement`),
+      updateEngagement: (snapshotId: string, input: z.input<typeof ShowcaseEngagementRequestSchema>) => {
+        const body = ShowcaseEngagementRequestSchema.parse(input)
+        return requestTyped(
+          ShowcaseEngagementResponseSchema,
+          `/api/showcase/${encodeURIComponent(snapshotId)}/engagement`,
+          jsonInit('POST', body),
+        )
+      },
     },
     jobs: {
       list: (canvasId?: string) =>

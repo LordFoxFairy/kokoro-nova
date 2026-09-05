@@ -36,3 +36,20 @@ source-selection 读取边界：`variants[].url` 必须以 `/api/media/` 开头�
 `480p`、`720p` 或 `original` 后只尝试该变体，绝不静默改变其选择。全部候选失败时显示错误和
 “重试播放”；重试从同一确定性候选顺序重新挂载媒体元素，不发起写操作，也不改变详情、目录或
 公开快照。
+
+## 本地喜欢、分享反馈与复制失败重试
+
+`GET /api/showcase/{snapshotId}/engagement` 返回当前 deterministic fixture viewer 对该公开快照的
+`liked`、投影 `likeCount`、`shareCount`、站内 `shareUrl` 与反馈文本。`POST` body 为
+`{ "action": "like" | "unlike" | "share" }`，要求本地登录态；它只写入 workspace 旁的
+viewer-local fixture state。`likeCount` 仅在基础公开投影上加当前 viewer 的一次喜欢，不会修改
+`PublishedSnapshot` 的冻结 document、媒体、作者数据或公开目录。重置 scenario 时互动状态随 workspace
+一起恢复默认值。
+
+分享动作返回站内相对 `shareUrl`，页面随后尽力写入浏览器剪贴板并展示反馈；剪贴板不可用不会改变
+已记录的本地分享反馈。未来后端将把此 projection 替换为按 subject 聚合的 interaction 数据，仍须保持
+公开快照不可变。
+
+复制公开快照失败时，确认框保留已加载的只读 workflow/storyboard 与明确的“重试复制”命令。失败响应
+在成功 transaction 前不创建 project/canvas；重试只重新请求 `POST /api/publish/{snapshotId}/clone`。
+因此网络失败、刷新或重试不能使原始公开快照变为私有副本，也不能留下半创建项目。

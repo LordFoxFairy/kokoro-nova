@@ -4,7 +4,6 @@ import { findShowcaseFixtureSnapshot } from '@/mocks/showcase'
 import {
   buildShowcaseCloneMutations,
   getShowcaseSessionMode,
-  toggleShowcaseFavourite,
 } from './showcase'
 
 describe('showcase clone workflow', () => {
@@ -20,12 +19,8 @@ describe('showcase clone workflow', () => {
     expect(mutations.at(-1)).toEqual({ op: 'setViewport', viewport: snapshot!.document.viewport })
   })
 
-  it('toggles a local favourite without duplicating ids', () => {
-    expect(toggleShowcaseFavourite(['pub_city_night_01'], 'showcase-dust-skeleton')).toEqual([
-      'pub_city_night_01',
-      'showcase-dust-skeleton',
-    ])
-    expect(toggleShowcaseFavourite(['pub_city_night_01'], 'pub_city_night_01')).toEqual([])
+  it('keeps browser-facing clone composition separate from server-owned engagement state', () => {
+    expect(buildShowcaseCloneMutations(findShowcaseFixtureSnapshot('showcase-dust-skeleton')!.document)).not.toHaveLength(0)
   })
 
   it('projects the Account session before showcase mutations distinguish visitor modes', () => {

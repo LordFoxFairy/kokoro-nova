@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { HomeDiscoveryResponseSchema, HomeShowcaseItemSchema } from '@/contracts/home'
-import { ShowcaseCategorySchema, ShowcaseListResponseSchema, ShowcasePlaybackManifestSchema } from '@/contracts/showcase'
+import { ShowcaseCategorySchema, ShowcaseEngagementResponseSchema, ShowcaseListResponseSchema, ShowcasePlaybackManifestSchema } from '@/contracts/showcase'
 import { HOME_DISCOVERY_CATALOG } from '@/mocks/home'
 import { SHOWCASE_CATEGORIES, SHOWCASE_DISCOVERY_CATALOG } from '@/mocks/showcase'
 
@@ -64,5 +64,21 @@ describe('showcase discovery contract', () => {
       variants: [{ quality: '720p', label: 'remote', url: 'https://media.example/video.mp4' }],
     }).success).toBe(false)
     expect(ShowcasePlaybackManifestSchema.safeParse({ ...manifest, fallbackOrder: ['original'] }).success).toBe(false)
+  })
+})
+
+
+describe('showcase engagement contract', () => {
+  it('keeps viewer-local likes and share feedback separate from public snapshot media', () => {
+    const response = ShowcaseEngagementResponseSchema.parse({
+      snapshotId: 'pub_city_night_01',
+      liked: true,
+      likeCount: 13,
+      shareCount: 1,
+      shareUrl: '/showcase/pub_city_night_01',
+      feedback: '已喜欢这份公开作品',
+    })
+    expect(response.liked).toBe(true)
+    expect(ShowcaseEngagementResponseSchema.safeParse({ ...response, shareUrl: 'https://example.com/showcase/x' }).success).toBe(false)
   })
 })

@@ -2,13 +2,21 @@ import type { AccountProfileResponse } from '@/contracts/account'
 import {
   ShowcaseCloneResponseSchema,
   ShowcaseListResponseSchema,
+  type ShowcaseEngagementAction,
   type ShowcaseListQuery,
 } from '@/contracts/showcase'
 import type { CanvasMutation } from '@/domain/types'
 import type { PublishedSnapshot } from '@/domain/publish'
 import { client } from '@/lib/api'
 
-export const SHOWCASE_FAVOURITES_STORAGE_KEY = 'kokoro-nova/showcase-favourites'
+/** Mutations always cross the local typed API boundary; browser storage is never authority. */
+export async function getShowcaseEngagement(snapshotId: string) {
+  return client.showcase.engagement(snapshotId)
+}
+
+export async function updateShowcaseEngagement(snapshotId: string, action: ShowcaseEngagementAction) {
+  return client.showcase.updateEngagement(snapshotId, { action })
+}
 
 /**
  * Retained as a pure workflow utility for future adapters. The live local clone
@@ -46,10 +54,6 @@ export function getShowcaseSessionMode({
   if (loading) return 'loading'
   if (error || !profile) return 'unavailable'
   return isShowcaseAuthenticated(profile) ? 'authenticated' : 'anonymous'
-}
-
-export function toggleShowcaseFavourite(ids: readonly string[], snapshotId: string): string[] {
-  return ids.includes(snapshotId) ? ids.filter((id) => id !== snapshotId) : [...ids, snapshotId]
 }
 
 export async function listShowcasePage(input: Partial<ShowcaseListQuery> = {}) {

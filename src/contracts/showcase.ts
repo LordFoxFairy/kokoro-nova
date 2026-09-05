@@ -111,6 +111,26 @@ export const ShowcaseDetailResponseSchema = z.object({
   related: z.array(ShowcaseEntryProjectionSchema),
 })
 
+/** Viewer-local interaction state. Public snapshot fields remain immutable. */
+export const ShowcaseEngagementActionSchema = z.enum(['like', 'unlike', 'share'])
+
+export const ShowcaseEngagementRequestSchema = z.object({
+  action: ShowcaseEngagementActionSchema,
+}).strict()
+
+/**
+ * Local engagement is a projection beside the frozen public snapshot. `likeCount`
+ * includes at most one contribution from the current deterministic viewer.
+ */
+export const ShowcaseEngagementResponseSchema = z.object({
+  snapshotId: z.string().trim().min(1),
+  liked: z.boolean(),
+  likeCount: z.number().int().nonnegative(),
+  shareCount: z.number().int().nonnegative(),
+  shareUrl: z.string().regex(/^\/showcase\//, '分享链接必须是站内公开作品路径'),
+  feedback: z.string().min(1),
+}).strict()
+
 export const ShowcaseListResponseSchema = z.object({
   entries: z.array(ShowcaseEntryProjectionSchema),
   page: ShowcasePageSchema,
@@ -132,5 +152,8 @@ export type ShowcaseEntryProjection = z.infer<typeof ShowcaseEntryProjectionSche
 export type ShowcaseListQuery = z.infer<typeof ShowcaseListQuerySchema>
 export type ShowcasePage = z.infer<typeof ShowcasePageSchema>
 export type ShowcaseDetailResponse = z.infer<typeof ShowcaseDetailResponseSchema>
+export type ShowcaseEngagementAction = z.infer<typeof ShowcaseEngagementActionSchema>
+export type ShowcaseEngagementRequest = z.infer<typeof ShowcaseEngagementRequestSchema>
+export type ShowcaseEngagementResponse = z.infer<typeof ShowcaseEngagementResponseSchema>
 export type ShowcaseListResponse = z.infer<typeof ShowcaseListResponseSchema>
 export type ShowcaseCloneResponse = z.infer<typeof ShowcaseCloneResponseSchema>

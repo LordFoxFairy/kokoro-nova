@@ -330,3 +330,77 @@ test('TV Show player exposes deterministic buffering, quality fallback, terminal
   await expect(page.getByTestId('showcase-player-buffering')).toHaveCount(0)
   expect(playbackRequests).toBe(manifestsBeforeRetry)
 })
+
+test('authenticated TV Show engagement persists deterministic like and share feedback through the local API', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-empty' } })
+  expect(selected.ok()).toBe(true)
+  const reset = await request.post('/api/dev/reset')
+  expect(reset.ok()).toBe(true)
+
+  await page.goto('/showcase/pub_city_night_01')
+  const like = page.getByTestId('showcase-like')
+  await expect(like).toBeEnabled()
+  await expect(like).toHaveAttribute('aria-pressed', 'false')
+
+  const liked = page.waitForResponse((response) => response.request().method() === 'POST'
+    && /\/api\/showcase\/pub_city_night_01\/engagement$/.test(new URL(response.url()).pathname)
+    && response.ok())
+  await like.click()
+  await liked
+  await expect(like).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('showcase-engagement-feedback')).toContainText('已喜欢')
+
+  const shared = page.waitForResponse((response) => response.request().method() === 'POST'
+    && /\/api\/showcase\/pub_city_night_01\/engagement$/.test(new URL(response.url()).pathname)
+    && response.ok())
+  await page.getByTestId('showcase-share').click()
+  await shared
+  await expect(page.getByTestId('showcase-engagement-feedback')).toContainText('已复制')
+
+  await page.reload()
+  await expect(like).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('authenticated clone failure keeps the frozen public snapshot and creates no private copy before retry succeeds', async ({ page, request }) => {
+  const selected = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-empty' } })
+  expect(selected.ok()).toBe(true)
+  const reset = await request.post('/api/dev/reset')
+  expect(reset.ok()).toBe(true)
+  const sourceBefore = await request.get('/api/publish/pub_city_night_01')
+  expect(sourceBefore.ok()).toBe(true)
+  const sourceDocument = (await sourceBefore.json()).snapshot.document
+
+  let cloneAttempts = 0
+  await page.route('**/api/publish/pub_city_night_01/clone', async (route) => {
+    cloneAttempts += 1
+    if (cloneAttempts === 1) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: '本地复制任务暂时不可用' }) })
+      return
+    }
+    await route.continue()
+  })
+
+  await page.goto('/showcase/pub_city_night_01')
+  await page.getByTestId('showcase-process').click()
+  await page.getByTestId('clone-project').click()
+  await page.getByTestId('showcase-clone-confirm').click()
+  await expect(page.getByTestId('showcase-clone-error')).toContainText('本地复制任务暂时不可用')
+  await expect(page.getByTestId('showcase-clone-retry')).toBeEnabled()
+
+  const projectsBeforeRetry = await request.get('/api/projects')
+  expect(projectsBeforeRetry.ok()).toBe(true)
+  await expect(projectsBeforeRetry.json()).resolves.toMatchObject({
+    projects: expect.not.arrayContaining([expect.objectContaining({ name: '雨夜霓虹城市 · 副本' })]),
+  })
+  const sourceAfterFailure = await request.get('/api/publish/pub_city_night_01')
+  expect(sourceAfterFailure.ok()).toBe(true)
+  expect((await sourceAfterFailure.json()).snapshot.document).toEqual(sourceDocument)
+
+  const copied = page.waitForResponse((response) => response.request().method() === 'POST'
+    && /\/api\/publish\/pub_city_night_01\/clone$/.test(new URL(response.url()).pathname)
+    && response.ok())
+  await page.getByTestId('showcase-clone-retry').click()
+  await copied
+  await expect(page.getByTestId('showcase-clone-success')).toBeVisible()
+  expect(cloneAttempts).toBe(2)
+})

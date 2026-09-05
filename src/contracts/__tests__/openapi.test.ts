@@ -231,10 +231,7 @@ type OpenApiOperation = {
   'x-mock-scenarios'?: string[]
   requestBody?: {
     required?: boolean
-    content?: Record<string, {
-      schema?: { $ref?: string }
-      examples?: Record<string, { $ref?: string; value?: unknown }>
-    }>
+    content?: Record<string, OpenApiMediaType>
   }
   parameters?: Array<{
     name?: string
@@ -243,11 +240,20 @@ type OpenApiOperation = {
     schema?: { type?: string; enum?: string[]; default?: unknown }
   }>
   responses?: Record<string, {
-    content?: Record<string, {
-      schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> }
-      examples?: Record<string, { $ref?: string; value?: unknown }>
-    }>
+    content?: Record<string, OpenApiMediaType>
   }>
+}
+type OpenApiExample = { $ref?: string; value?: unknown; externalValue?: string }
+type OpenApiMediaType = {
+  schema?: { $ref?: string; type?: string; format?: string; oneOf?: Array<{ $ref?: string }> }
+  example?: unknown
+  examples?: Record<string, OpenApiExample>
+  'x-example-policy'?: {
+    mode?: string
+    reason?: string
+    runtimeVerification?: string
+    failureContract?: string
+  }
 }
 type OpenApiDocument = {
   openapi?: string
@@ -337,6 +343,66 @@ function documentedOperations(document: OpenApiDocument): Array<[HttpMethod, str
 
 function readExampleFixture(filename: string): unknown {
   return JSON.parse(readFileSync(path.join(process.cwd(), 'docs/api/examples', filename), 'utf8'))
+}
+
+type MockExampleCoverage = {
+  operationId: string
+  payloadExampleBindings: string[]
+  explicitExemptionBindings: string[]
+}
+
+const EXPLICIT_MOCK_EXAMPLE_EXEMPTIONS = new Set([
+  'previewCharacterReference',
+  'previewStoryboardStitch',
+])
+
+function exampleBindings(
+  document: OpenApiDocument,
+  location: string,
+  content: Record<string, OpenApiMediaType> | undefined,
+): string[] {
+  return Object.entries(content ?? {}).flatMap(([mediaType, media]) => {
+    const binding = `${location} ${mediaType}`
+    const named = Object.entries(media.examples ?? {}).map(([name, example]) => {
+      expect(example, `${binding} example ${name}`).toSatisfy(
+        (candidate) => candidate.$ref !== undefined || candidate.value !== undefined || candidate.externalValue !== undefined,
+      )
+      if (example.$ref) {
+        expect(example.$ref, `${binding} example ${name}`).toMatch(/^#\/components\/examples\//)
+        const componentName = example.$ref.replace('#/components/examples/', '')
+        expect(document.components?.examples?.[componentName], `${binding} example ${name}`).toBeDefined()
+      }
+      if (example.externalValue) {
+        const examplePath = path.resolve(process.cwd(), 'docs/api', example.externalValue)
+        expect(examplePath, `${binding} example ${name}`).toMatch(/docs\/api\/examples\//)
+        expect(readFileSync(examplePath, 'utf8').length, `${binding} example ${name}`).toBeGreaterThan(0)
+      }
+      return `${binding}#${name}`
+    })
+
+    return media.example !== undefined ? [binding, ...named] : named
+  })
+}
+
+function mockExampleCoverageLedger(document: OpenApiDocument): MockExampleCoverage[] {
+  return LOCAL_API_ROUTES.map((route) => {
+    const operation = operationAt(document, route.method, route.path)
+    const payloadExampleBindings = [
+      ...exampleBindings(document, 'requestBody', operation.requestBody?.content),
+      ...Object.entries(operation.responses ?? {}).flatMap(([status, response]) =>
+        exampleBindings(document, `response ${status}`, response.content),
+      ),
+    ]
+    const explicitExemptionBindings = Object.entries(operation.responses ?? {}).flatMap(([status, response]) =>
+      Object.entries(response.content ?? {}).flatMap(([mediaType, media]) =>
+        media['x-example-policy']?.mode === 'explicit-exemption'
+          ? [`response ${status} ${mediaType}`]
+          : [],
+      ),
+    )
+
+    return { operationId: route.operationId, payloadExampleBindings, explicitExemptionBindings }
+  }).sort((left, right) => left.operationId.localeCompare(right.operationId))
 }
 
 const PUBLIC_OPERATIONS = new Set([
@@ -432,6 +498,43 @@ describe('local API manifest and OpenAPI', () => {
       if (route.transport === 'binary') {
         expect(contentTypes).toHaveLength(1)
         expect(contentTypes).not.toContain('application/json')
+      }
+    }
+  })
+
+  it('derives a complete mock-example coverage ledger for every manifest operation', () => {
+    const document = openApiDocument()
+    const ledger = mockExampleCoverageLedger(document)
+    const uncovered = ledger.filter(
+      (entry) => entry.payloadExampleBindings.length === 0 && entry.explicitExemptionBindings.length === 0,
+    )
+    const exemptions = ledger
+      .filter((entry) => entry.explicitExemptionBindings.length > 0)
+      .map((entry) => entry.operationId)
+    const payloadCoverageCount = ledger.filter((entry) => entry.payloadExampleBindings.length > 0).length
+    const plan = readFileSync(path.join(process.cwd(), 'docs/api/MOCK_CONTRACT_COMPLETENESS_PLAN.md'), 'utf8')
+
+    expect(ledger.map((entry) => entry.operationId)).toEqual(
+      LOCAL_API_ROUTES.map((route) => route.operationId).slice().sort(),
+    )
+    expect(uncovered, `Missing mock examples:\n${uncovered.map((entry) => entry.operationId).join('\n')}`).toEqual([])
+    expect(exemptions).toEqual([...EXPLICIT_MOCK_EXAMPLE_EXEMPTIONS].sort())
+    expect(payloadCoverageCount + exemptions.length + uncovered.length).toBe(ledger.length)
+    expect(plan).toContain(
+      `mock example coverage ledger 当前为 **${payloadCoverageCount}** 个 payload-level example 覆盖、**${exemptions.length}** 个显式 resource exemption、**${uncovered.length}** 个缺口`,
+    )
+    expect(plan).toContain(`**${payloadCoverageCount} payload + ${exemptions.length} exemption（${uncovered.length} gaps）**`)
+    expect(plan).toContain(
+      `当前真实结果为 **${payloadCoverageCount} payload / ${exemptions.length} explicit exemption / ${uncovered.length} gap**`,
+    )
+
+    for (const entry of ledger) {
+      if (EXPLICIT_MOCK_EXAMPLE_EXEMPTIONS.has(entry.operationId)) {
+        expect(entry.payloadExampleBindings, entry.operationId).toEqual([])
+        expect(entry.explicitExemptionBindings.length, entry.operationId).toBeGreaterThan(0)
+      } else {
+        expect(entry.payloadExampleBindings.length, entry.operationId).toBeGreaterThan(0)
+        expect(entry.explicitExemptionBindings, entry.operationId).toEqual([])
       }
     }
   })

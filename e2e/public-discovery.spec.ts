@@ -216,3 +216,72 @@ test('authenticated viewer clones a frozen TV Show into an independent editable 
     projects: expect.arrayContaining([expect.objectContaining({ name: '雨夜霓虹城市 · 副本' })]),
   })
 })
+
+test('TV Show auto-paginates after catalog scrolling and retries a failed media delivery', async ({ page }) => {
+  const catalogRequests: string[] = []
+  let mediaAttempts = 0
+  const media = {
+    url: '/api/media/fixtures/city-night.mp4',
+    posterUrl: '/fixtures/libtv/media/city-night-poster.webp',
+    durationSeconds: 15,
+    width: 1280,
+    height: 720,
+    originalQualityLabel: '720p 原画质',
+  }
+  const entry = (id: string, title: string, publishedAt: string) => ({
+    id,
+    snapshotId: id,
+    title,
+    summary: `${title} 的本地公开作品夹具。`,
+    coverUrl: '/fixtures/libtv/media/city-night-poster.webp',
+    publishedAt,
+    nodeCount: 4,
+    mediaCount: 2,
+    category: '专业影视',
+    author: '公开创作者',
+    authorTier: '先锋',
+    authorAvatarUrl: null,
+    likeCount: 12,
+    viewCount: 12846,
+    hasAiContent: true,
+    processAvailable: true,
+    media,
+  })
+  const first = entry('pub_city_night_01', '雨夜霓虹城市', '2026-09-03T11:30:00.000Z')
+  const second = entry('showcase-shanghai-chronicle', '《上海坊事录》', '2026-08-17T10:00:00.000Z')
+
+  await page.route('**/api/showcase?**', async (route) => {
+    const url = new URL(route.request().url())
+    const offset = url.searchParams.get('offset') ?? '0'
+    catalogRequests.push(route.request().url())
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(offset === '0'
+        ? { entries: [first], page: { offset: 0, limit: 4, total: 2, hasMore: true, nextOffset: 1, category: '全部', query: '', searchFallback: false } }
+        : { entries: [second], page: { offset: 1, limit: 4, total: 2, hasMore: false, nextOffset: null, category: '全部', query: '', searchFallback: false } }),
+    })
+  })
+  await page.route('**/api/media/fixtures/city-night.mp4', async (route) => {
+    mediaAttempts += 1
+    if (mediaAttempts === 1) {
+      await route.fulfill({ status: 503, contentType: 'video/mp4', body: '' })
+      return
+    }
+    await route.continue()
+  })
+
+  await page.goto('/showcase')
+  await expect(page.getByTestId('showcase-card-pub_city_night_01')).toBeVisible()
+  await expect(page.getByTestId('showcase-pagination-sentinel')).toBeVisible()
+  await page.evaluate(() => window.dispatchEvent(new Event('scroll')))
+  await expect(page.getByTestId('showcase-card-showcase-shanghai-chronicle')).toBeVisible()
+  expect(catalogRequests.some((url) => new URL(url).searchParams.get('offset') === '1')).toBe(true)
+
+  await page.getByTestId('showcase-card-pub_city_night_01').click()
+  await page.getByTestId('showcase-watch').click()
+  await expect(page.getByTestId('showcase-media-error')).toBeVisible()
+  await page.getByTestId('showcase-media-retry').click()
+  await expect(page.getByTestId('showcase-media-error')).toHaveCount(0)
+  await expect(page.getByTestId('showcase-player-video')).toBeVisible()
+  expect(mediaAttempts).toBeGreaterThanOrEqual(2)
+})

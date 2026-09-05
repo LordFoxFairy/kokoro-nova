@@ -3,7 +3,7 @@
 /* Public snapshots retain their original cover URLs, including arbitrary fixture URLs. */
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { SnapshotSummary } from '@/domain/publish'
 import type { ShowcaseEntryProjection, ShowcaseListResponse } from '@/contracts/showcase'
@@ -100,6 +100,7 @@ export function getShowcaseRequestState({ loading, hasData, error }: { loading: 
 }
 
 const PAGE_SIZE = 4
+type ShowcaseLoadRequest = { offset: number; append: boolean }
 
 /** Anonymous, paged public directory. Data is always served by local fixtures. */
 export function ShowcaseGallery() {
@@ -109,12 +110,16 @@ export function ShowcaseGallery() {
   const [query, setQuery] = useState('')
   const [loadingKind, setLoadingKind] = useState<'initial' | 'search' | 'more' | null>('initial')
   const [error, setError] = useState<string | null>(null)
+  const [failedRequest, setFailedRequest] = useState<ShowcaseLoadRequest | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
+  const [autoPaginationArmed, setAutoPaginationArmed] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
-  const load = useCallback(async ({ offset, append }: { offset: number; append: boolean }) => {
+  const load = useCallback(async ({ offset, append }: ShowcaseLoadRequest) => {
     const kind = append ? 'more' : query ? 'search' : 'initial'
     setLoadingKind(kind)
     setError(null)
+    setFailedRequest(null)
     try {
       const next = await listShowcasePage({ category, query, offset, limit: PAGE_SIZE })
       setResponse((previous) => append && previous
@@ -122,6 +127,7 @@ export function ShowcaseGallery() {
         : next)
     } catch (cause: unknown) {
       setError(cause instanceof ApiError ? cause.message : '公开作品加载失败，请稍后重试')
+      setFailedRequest({ offset, append })
     } finally {
       setLoadingKind(null)
     }
@@ -133,11 +139,15 @@ export function ShowcaseGallery() {
       const kind = query ? 'search' : 'initial'
       setLoadingKind(kind)
       setError(null)
+      setFailedRequest(null)
       try {
         const next = await listShowcasePage({ category, query, offset: 0, limit: PAGE_SIZE })
         if (active) setResponse(next)
       } catch (cause: unknown) {
-        if (active) setError(cause instanceof ApiError ? cause.message : '公开作品加载失败，请稍后重试')
+        if (active) {
+          setError(cause instanceof ApiError ? cause.message : '公开作品加载失败，请稍后重试')
+          setFailedRequest({ offset: 0, append: false })
+        }
       } finally {
         if (active) setLoadingKind(null)
       }
@@ -156,12 +166,42 @@ export function ShowcaseGallery() {
     resultCount: page?.total ?? 0,
     fallback: page?.searchFallback ?? false,
   }), [category, page?.searchFallback, page?.total, query])
-  const retry = () => setReloadToken((token) => token + 1)
+  const retry = () => {
+    if (failedRequest) {
+      void load(failedRequest)
+      return
+    }
+    setReloadToken((token) => token + 1)
+  }
   const clearFilters = () => { setCategory('全部'); setDraftQuery(''); setQuery('') }
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!page?.hasMore || page.nextOffset === null || loading) return
     void load({ offset: page.nextOffset, append: true })
-  }
+  }, [load, loading, page?.hasMore, page?.nextOffset])
+
+  // The catalogue keeps its explicit button as an accessible fallback, while
+  // the same deterministic offset continuation is requested when readers
+  // reach the end of the current page. We wait for a real scroll intent so a
+  // first paint (and its visual baseline) remains a stable first page.
+  useEffect(() => {
+    const onScroll = () => {
+      setAutoPaginationArmed(true)
+      const documentHeight = document.documentElement.scrollHeight
+      if (window.scrollY + window.innerHeight >= documentHeight - 160) loadMore()
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [loadMore])
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!autoPaginationArmed || !sentinel || !page?.hasMore || page.nextOffset === null || loading) return
+    const observer = new IntersectionObserver((records) => {
+      if (records.some((record) => record.isIntersecting)) loadMore()
+    }, { rootMargin: '160px 0px' })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [autoPaginationArmed, loadMore, loading, page?.hasMore, page?.nextOffset])
 
   return (
     <div className="min-h-screen bg-[#111] text-white" data-testid="showcase-gallery" aria-busy={loading}>
@@ -202,9 +242,9 @@ export function ShowcaseGallery() {
           <div data-testid="showcase-results" aria-busy={loading || undefined} className="mt-3">
             {loadingKind === 'initial' && entries.length === 0 ? <div data-testid="showcase-loading" className="flex justify-center py-20 text-white/50" role="status" aria-live="polite" aria-label="正在加载公开作品"><Spinner size={22} /></div>
             : error && entries.length === 0 ? <div data-testid="showcase-load-error"><EmptyState icon={<IconPlay size={30} />} title={query ? '搜索公开作品失败' : '公开作品暂时加载失败'} description={error} action={<button type="button" data-testid="showcase-retry" onClick={retry} disabled={loading} aria-busy={loading} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515] transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"><IconRefresh size={14} className={loading ? 'animate-spin' : undefined} />{loading ? '重试中…' : '重试'}</button>} /></div>
-            : error ? <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert"><span>{query ? '搜索失败，仍显示上次成功读取的作品：' : '刷新失败，仍显示上次成功读取的作品：'}{error}</span><button type="button" data-testid="showcase-retry" onClick={retry} disabled={loading} aria-busy={loading} className="rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">{loading ? '重试中…' : '重试'}</button></div>
+            : error ? <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger/8 px-3.5 py-2.5 text-[12px] text-danger" role="alert"><span>{failedRequest?.append ? '加载更多失败，仍显示已读取的作品：' : query ? '搜索失败，仍显示上次成功读取的作品：' : '刷新失败，仍显示上次成功读取的作品：'}{error}</span><button type="button" data-testid="showcase-retry" onClick={retry} disabled={loading} aria-busy={loading} className="rounded-lg bg-surface px-3 py-1.5 font-medium text-danger ring-1 ring-danger/20 hover:bg-danger/5 disabled:cursor-wait disabled:text-ink-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">{loading ? '重试中…' : '重试'}</button></div>
             : entries.length === 0 ? <div data-testid="showcase-empty-state"><EmptyState icon={<IconPlay size={30} />} title={category === '全部' ? '暂无公开作品' : `${category}暂无作品`} description={query ? `没有找到“${query}”对应的作品。` : '把画布发布之后，作品会出现在这里，任何人都可以浏览它的制作过程。'} action={query || category !== '全部' ? <button type="button" data-testid="showcase-clear-filters" onClick={clearFilters} className="rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515] transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">清除筛选</button> : <Link href="/project" className="rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-[#151515] transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">去我的项目</Link>} /></div>
-            : <><div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 xl:grid-cols-4" data-testid="showcase-grid">{entries.map((entry) => <ShowcaseCard key={entry.id} entry={entry} />)}</div><div className="pt-12 text-center">{page?.hasMore ? <button type="button" data-testid="showcase-load-more" onClick={loadMore} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] px-4 py-2 text-[12px] text-white/70 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-55">{loadingKind === 'more' && <Spinner size={14} />}{loadingKind === 'more' ? '正在加载更多…' : '加载更多'}</button> : <span data-testid="showcase-end-of-catalog" className="text-[13px] text-white/35">没有更多了</span>}</div></>}
+            : <><div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 xl:grid-cols-4" data-testid="showcase-grid">{entries.map((entry) => <ShowcaseCard key={entry.id} entry={entry} />)}</div><div className="relative pt-12 text-center">{page?.hasMore ? <><div ref={sentinelRef} data-testid="showcase-pagination-sentinel" role="status" aria-label="滚动到此处自动加载更多公开作品" className="absolute inset-x-0 top-12 h-px" /><button type="button" data-testid="showcase-load-more" onClick={loadMore} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] px-4 py-2 text-[12px] text-white/70 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-55">{loadingKind === 'more' && <Spinner size={14} />}{loadingKind === 'more' ? '正在加载更多…' : '加载更多'}</button></> : <span data-testid="showcase-end-of-catalog" className="text-[13px] text-white/35">没有更多了</span>}</div></>}
           </div>
         </div>
       </main>

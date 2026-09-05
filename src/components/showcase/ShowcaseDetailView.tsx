@@ -394,13 +394,22 @@ function ShowcasePlayer({
   const [qualityOpen, setQualityOpen] = useState(false)
   const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(1)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const [mediaAttempt, setMediaAttempt] = useState(0)
 
   useEffect(() => {
     const video = videoRef.current
     if (!video || !detail.entry.media.url) return
     void video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     return () => video.pause()
-  }, [detail.entry.id, detail.entry.media.url])
+  }, [detail.entry.id, detail.entry.media.url, mediaAttempt])
+
+  const retryMedia = () => {
+    setMediaError(null)
+    setCurrentTime(0)
+    setPlaying(false)
+    setMediaAttempt((attempt) => attempt + 1)
+  }
 
   const qualityLabel = useMemo(() => {
     if (quality === 'auto') return '自动'
@@ -459,24 +468,33 @@ function ShowcasePlayer({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center px-5 py-20 sm:px-12">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-5 py-20 sm:px-12">
         {detail.entry.media.url ? (
-          <video
-            ref={videoRef}
-            data-testid="showcase-player-video"
-            src={detail.entry.media.url}
-            poster={detail.entry.media.posterUrl ?? undefined}
-            playsInline
-            loop
-            preload="metadata"
-            aria-label={detail.entry.title}
-            className="max-h-full max-w-full object-contain"
-            onClick={togglePlay}
-            onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || detail.entry.media.durationSeconds)}
-            onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-          />
+          <>
+            <video
+              key={`${detail.entry.id}-${mediaAttempt}`}
+              ref={videoRef}
+              data-testid="showcase-player-video"
+              src={detail.entry.media.url}
+              poster={detail.entry.media.posterUrl ?? undefined}
+              playsInline
+              loop
+              preload="metadata"
+              aria-label={detail.entry.title}
+              className="max-h-full max-w-full object-contain"
+              onClick={togglePlay}
+              onLoadStart={() => setMediaError(null)}
+              onError={() => {
+                setPlaying(false)
+                setMediaError('媒体文件暂时不可用，请重试')
+              }}
+              onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || detail.entry.media.durationSeconds)}
+              onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+            />
+            {mediaError && <div data-testid="showcase-media-error" role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/68 px-6 text-center backdrop-blur-sm"><div className="text-[16px] font-semibold text-white">视频加载失败</div><p className="max-w-sm text-[12px] leading-relaxed text-white/60">{mediaError}</p><button type="button" data-testid="showcase-media-retry" onClick={retryMedia} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-medium text-black transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><IconRefresh size={14} /> 重试播放</button></div>}
+          </>
         ) : detail.entry.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={detail.entry.coverUrl} alt={detail.entry.title} className="max-h-full max-w-full object-contain" />

@@ -25,7 +25,7 @@
 | Storyboard | 同一文档的文本/音频/图片/视频投影、筛选/展开、详情、定位/副本、剪辑入口 | `projectStoryboard()`、`StoryboardView`、`MediaDetailDrawer`、`ClipEditor`；`e2e/canvas-parity.spec.ts` | `VERIFIED_LOCAL`（投影核心） | 官网有效输入、导出/失败/取消和媒体持久化边界未确认；需继续证明切换不产生第二份文档 |
 | Skills | 创作输入、Skill/收藏/我的、分类/搜索、卡片、详情、示例轮播、原图、添加/使用 | `SkillGallery`、`SkillDetail`、`SkillMarketComposer`、版本化 `SKILL_CATALOGUE`；`e2e/skills-parity.spec.ts`；四张 local 基线 | `PARTIAL`（创作入口 `VERIFIED_LOCAL`） | 官网实际入口是 `/skill`，local 为 `/skills`；作者创建/版本/审核/发布未实现 |
 | TV Show | 首页内容流、分类/搜索、作品详情、播放器、相邻作品、只读制作过程、复制登录门 | `ShowcaseGallery`、`ShowcaseDetailView`、`PublicCanvasView`；`e2e/public-discovery.spec.ts`；catalog/detail/player 基线 | `PARTIAL`（公共闭环已可演示） | 首页与目录需共用发现 projection；分页/加载失败/真实媒体变体/登录后复制归属/互动反馈未完成；官网稳定详情 URL 未公开确认 |
-| Account | 头像菜单、身份/UUID/Access key、会员/积分/存储、主题、水印、通知、个人中心、账本 | 官网头像菜单与账户截图；local `AccountPage`、`LedgerView`、`LocalIdentityMenu`、identity/preferences/notifications route tests | `PARTIAL` | 本地身份菜单、偏好和通知已存在；团队、共享资产、订阅/发票实际流及账户菜单的浏览器/视觉回归仍缺 |
+| Account | 头像菜单、身份/UUID/Access key、会员/积分/存储、主题、水印、通知、个人中心、账本 | 官网头像菜单与账户截图；local `AccountPage`、`LedgerView`、`LocalIdentityMenu`、account/identity Playwright 与视觉基线 | `PARTIAL` | 本地身份菜单、偏好、通知和账本已经过浏览器验证；团队、共享资产、订阅/发票实际流仍待后端域承接 |
 
 ## 分项验收矩阵
 
@@ -96,10 +96,10 @@
 
 | ID | 验收项 | 官网证据 | local 实现 / 测试 | 状态 |
 | --- | --- | --- | --- | --- |
-| A-01 | 头像菜单中的身份、脱敏 UUID、Access key、团队、会员、积分和存储摘要 | [账户菜单](pages/account/screenshots/profile-menu-authenticated-overview.png) | `LocalIdentityMenu`、`/api/identity`、`AccountPage` 的 identity/membership/wallet projection；`identity/route.test.ts`、`account/route.test.ts` | `PARTIAL`：脱敏身份、Access key 标签、会员/积分/存储已为 local fixture；团队入口与菜单级 E2E/视觉证据仍缺 |
+| A-01 | 头像菜单中的身份、脱敏 UUID、Access key、团队、会员、积分和存储摘要 | [账户菜单](pages/account/screenshots/profile-menu-authenticated-overview.png) | `LocalIdentityMenu`、`/api/identity`、`AccountPage` 的 identity/membership/wallet projection；route tests、`e2e/account-identity.spec.ts` 及菜单视觉基线 | `PARTIAL`：脱敏身份、Access key 标签、会员/积分/存储与键盘菜单均已验证；团队域仍未建模 |
 | A-02 | 余额池、消耗顺序、冻结/结算/返还和可解释明细 | [积分账本证据](pages/billing/README.md) | `LedgerView`、`projectLedger`、`/api/ledger`；account unit tests | `VERIFIED_LOCAL`（领域投影） |
-| A-03 | 主题切换、AI 水印设置、通知中心和个人中心跳转 | [暗色菜单](pages/account/screenshots/profile-menu-dark-mode.png)、[水印规则](pages/account/screenshots/ai-watermark-removal-rules-and-toggle.png)、[通知](pages/account/README.md) | `LocalIdentityMenu`、`PreferencesSection`、`NotificationsSection`；`/api/preferences`、`/api/notifications`、对应 Zod contract/route tests | `PARTIAL`：本地 theme、水印与全部已读会持久化并同步账户菜单；个人中心跳转和菜单浏览器回归仍缺 |
-| A-04 | 共享资产、订阅/开发票、模型超市、团队与 Access key 生命周期 | [账户外部域](pages/account/README.md) | `MembershipSection`、`CredentialsSection` 与 `AccountMembershipSchema`；身份接口只暴露脱敏 Access key 标签，不暴露/轮换真实凭据 | `PARTIAL`：会员/CLI&Skill local projection 可演示；共享资产、团队、订阅/发票真实流程及 Access key 生命周期仍未建模 |
+| A-03 | 主题切换、AI 水印设置、通知中心和个人中心跳转 | [暗色菜单](pages/account/screenshots/profile-menu-dark-mode.png)、[水印规则](pages/account/screenshots/ai-watermark-removal-rules-and-toggle.png)、[通知](pages/account/README.md) | `LocalIdentityMenu`、`PreferencesSection`、`NotificationsSection`；`/api/preferences`、`/api/notifications`、Zod/route tests、`e2e/account*.spec.ts` 与深浅菜单视觉基线 | `VERIFIED_LOCAL`：theme、水印、已读与个人中心跳转均在 local API + 浏览器旅程中闭环 |
+| A-04 | 共享资产、订阅/开发票、模型超市、团队与 Access key 生命周期 | [账户外部域](pages/account/README.md) | `MembershipSection`、`CredentialsSection` 与 `AccountMembershipSchema`；`e2e/account.spec.ts` 验证本地充值/订阅/发票反馈；身份接口只暴露脱敏 Access key 标签，不暴露/轮换真实凭据 | `PARTIAL`：会员/CLI&Skill 与确定性购买反馈可演示；共享资产、团队、真实订阅/发票流及 Access key 生命周期仍未建模 |
 | A-05 | 账本初次加载、刷新、陈旧数据保留和重试 | 官网账本状态未完整公开；local 需求由产品契约定义 | `getAccountRequestState`、`account-surfaces.test.ts` | `VERIFIED_LOCAL`（local failure state） |
 
 ## 统一放行门

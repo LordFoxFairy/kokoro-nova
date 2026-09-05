@@ -912,6 +912,15 @@ export function scriptV2BatchBlockedReason(
       ? `有 ${missingPrompts} 个镜头缺少分镜图提示词`
       : `有 ${missingPrompts} 个镜头缺少视频运动提示词`
   }
+  const stalePrompts = rows.filter((row) => {
+    const promptState = kind === 'image' ? row.imagePromptState : row.videoPromptState
+    return promptState !== 'synced' && promptState !== 'user_edited'
+  }).length
+  if (stalePrompts > 0) {
+    return kind === 'image'
+      ? `有 ${stalePrompts} 个镜头的分镜图提示词需要重新合成`
+      : `有 ${stalePrompts} 个镜头的视频运动提示词需要重新合成`
+  }
   if (kind === 'video') {
     const unfinishedAssets = [
       ...state.assets.characters,

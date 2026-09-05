@@ -551,6 +551,42 @@ export function createScriptV2BatchMutations(
   const reason = scriptV2BatchBlockedReason(state, kind, selectedIds)
   if (reason) return blocked(reason)
 
+  // A confirmed batch has stable provenance for every selected row.  This is
+  // the replay boundary for a response that was lost after the server applied
+  // its single canvas transaction: rebuilding the batch after a reload must
+  // select the original topology rather than append suffixed copies.
+  const replayedNodes = selectedRows.map((row) => document.nodes.find((node) => {
+    const provenance = node.data.extra?.scriptV2Source as {
+      scriptNodeId?: string
+      rowId?: string
+      track?: ScriptV2BatchKind
+    } | undefined
+    return provenance?.scriptNodeId === sourceNodeId
+      && provenance.rowId === row.id
+      && provenance.track === kind
+  }))
+  const replayGroupId = stableId(
+    'grp', sourceNodeId, state.identitySeed, kind, selectedRows.map((row) => row.id).join(','),
+  )
+  if (replayedNodes.every((node) => node !== undefined)) {
+    const replayedNodeIds = replayedNodes.map((node) => node.id)
+    const hasCompleteReplay = replayedNodeIds.every((nodeId) => document.edges.some(
+      (edge) => edge.source === sourceNodeId && edge.target === nodeId,
+    )) && document.groups.some((group) => group.id === replayGroupId
+      && group.nodeIds.length === replayedNodeIds.length
+      && group.nodeIds.every((nodeId, index) => nodeId === replayedNodeIds[index]))
+    if (hasCompleteReplay) {
+    return {
+      mutations: [],
+      // Callers use this list to focus the resulting topology.  On a replay
+      // it intentionally contains the pre-existing materialized nodes.
+      createdNodeIds: replayedNodeIds,
+      groupId: replayGroupId,
+      blockedReason: null,
+    }
+    }
+  }
+
   const usedNodeIds = new Set(document.nodes.map((node) => node.id))
   const usedEdgeIds = new Set(document.edges.map((edge) => edge.id))
   const usedGroupIds = new Set(document.groups.map((group) => group.id))

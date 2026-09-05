@@ -370,6 +370,7 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
       if (!request) return
       let createdNodeIds: string[] = []
       let blockedReason: string | null = null
+      let producedMutations = false
       const ok = await commitWith((current) => {
         const source = current.nodes.find((candidate) => candidate.id === request.nodeId)
         if (!source || source.type !== 'script') {
@@ -380,10 +381,14 @@ function WorkspaceInner({ projectId, canvasId }: { projectId: string; canvasId?:
         const result = createScriptV2BatchMutations(current, request.nodeId, state, request.kind, options)
         createdNodeIds = result.createdNodeIds
         blockedReason = result.blockedReason
+        producedMutations = result.mutations.length > 0
         return result.mutations
       }, request.kind === 'image' ? '批量生成分镜' : '批量生视频')
       if (blockedReason) throw new Error(blockedReason)
-      if (!ok || createdNodeIds.length === 0) throw new Error('批量生成没有创建节点')
+      // An empty mutation list with known output IDs is an idempotent replay:
+      // a previous request committed successfully but its response was lost.
+      // Do not turn that recovery path into a duplicate graph transaction.
+      if ((producedMutations && !ok) || createdNodeIds.length === 0) throw new Error('批量生成没有创建节点')
 
       setScriptBatchRequest(null)
       setStudioNodeId(null)

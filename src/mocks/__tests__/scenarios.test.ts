@@ -102,6 +102,34 @@ describe('buildScenario', () => {
     ).toBe(true)
   })
 
+  it('seeds the populated video workspace with a mixed-media composite timeline', () => {
+    const first = buildScenario('video-succeeded')
+    const second = buildScenario('video-succeeded')
+    const composite = first.canvases
+      .find((canvas) => canvas.id === 'can_video_main')
+      ?.document.nodes.find((node) => node.id === 'node_composite_01')
+      ?.data.extra?.composite as Record<string, unknown> | undefined
+    const secondComposite = second.canvases
+      .find((canvas) => canvas.id === 'can_video_main')
+      ?.document.nodes.find((node) => node.id === 'node_composite_01')
+      ?.data.extra?.composite
+
+    expect(composite).toMatchObject({
+      version: 1,
+      clips: [
+        expect.objectContaining({ artifactId: 'art_video_01', transitionAfter: { type: 'fade', durationSeconds: 0.75 } }),
+        expect.objectContaining({ artifactId: 'art_video_02' }),
+      ],
+      audioTracks: [expect.objectContaining({ artifactId: 'art_audio_bed', url: '/api/media/fixtures/compositor-bed.wav' })],
+      subtitles: [expect.objectContaining({ text: '雨夜城市', start: 4.5, end: 6.5 })],
+      playheadSeconds: 3.25,
+      zoom: 1.1,
+    })
+    expect(JSON.stringify(composite)).toBe(JSON.stringify(secondComposite))
+    expect(JSON.stringify(composite)).toMatch(/\/api\/media\/fixtures\/city-night\.mp4/)
+    expect(JSON.stringify(composite)).toMatch(/\/api\/media\/fixtures\/compositor-bed\.wav/)
+  })
+
   it('represents every video job state with stable project topology', () => {
     const states = [
       'video-awaiting-confirmation',

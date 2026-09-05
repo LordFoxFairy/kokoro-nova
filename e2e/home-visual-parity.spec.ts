@@ -33,6 +33,17 @@ async function waitForStableVisuals(page: Page) {
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' })
   await page.evaluate(async () => {
     await document.fonts.ready
+    // The official campaign source is an animated WebP. Pin the visual
+    // contract to its committed first frame so CI compares layout rather than
+    // whichever animation frame happened to be captured on the runner.
+    const campaign = document.querySelector<HTMLImageElement>('[data-testid="home-campaign-image"]')
+    if (campaign?.src.includes('/theatre-banner.webp')) {
+      campaign.src = '/fixtures/libtv/home/theatre-banner-static.webp'
+      await new Promise<void>((resolve) => {
+        if (campaign.complete) resolve()
+        else campaign.addEventListener('load', () => resolve(), { once: true })
+      })
+    }
     await Promise.all(
       Array.from(document.images).map((image) =>
         image.complete ? Promise.resolve() : new Promise<void>((resolve) => image.addEventListener('load', () => resolve(), { once: true })),

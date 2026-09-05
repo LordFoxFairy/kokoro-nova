@@ -77,7 +77,7 @@ export function buildScenario(id: ScenarioId): WorkspaceState {
     case 'video-running':
       return buildVideoWorkspace('running')
     case 'video-succeeded':
-      return buildVideoWorkspace('succeeded')
+      return buildVideoWorkspace('succeeded', 7, undefined, true)
     case 'video-failed':
       return buildVideoWorkspace('failed')
     case 'video-cancelled':

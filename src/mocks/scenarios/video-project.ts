@@ -1,3 +1,4 @@
+import { emptyCompositeDocument, seedCompositeDocument, type CompositeSource } from '@/domain/composite'
 import { WORKFLOW_SCHEMA_VERSION } from '@/domain/types'
 import type {
   AgentMessage,
@@ -49,9 +50,9 @@ function imageArtifact(): Artifact {
   }
 }
 
-function videoArtifact(): Artifact {
+function videoArtifact(id = 'art_video_01'): Artifact {
   return {
-    id: 'art_video_01',
+    id,
     jobId: VIDEO_JOB_ID,
     kind: 'video',
     url: '/api/media/fixtures/city-night.mp4',
@@ -59,6 +60,22 @@ function videoArtifact(): Artifact {
     width: 1280,
     height: 720,
     durationSeconds: 15,
+    createdAt: isoAt(-60),
+    modelId: 'seedance-2',
+    assetId: null,
+  }
+}
+
+function audioArtifact(): Artifact {
+  return {
+    id: 'art_audio_bed',
+    jobId: VIDEO_JOB_ID,
+    kind: 'audio',
+    url: '/api/media/fixtures/compositor-bed.wav',
+    thumbnailUrl: null,
+    width: null,
+    height: null,
+    durationSeconds: 3,
     createdAt: isoAt(-60),
     modelId: 'seedance-2',
     assetId: null,
@@ -146,8 +163,11 @@ function videoProgress(status: VideoScenarioStatus): number {
   return 58
 }
 
-function videoNode(status: VideoScenarioStatus): WorkflowNode {
+function videoNode(status: VideoScenarioStatus, includeMixedArtifacts = false): WorkflowNode {
   const isTerminal = terminal(status)
+  const artifacts = status === 'succeeded'
+    ? [videoArtifact(), ...(includeMixedArtifacts ? [videoArtifact('art_video_02'), audioArtifact()] : [])]
+    : []
   return node(
     VIDEO_NODE_ID,
     'video',
@@ -166,7 +186,7 @@ function videoNode(status: VideoScenarioStatus): WorkflowNode {
         mode: 'omni-reference',
       },
       references: [],
-      artifacts: status === 'succeeded' ? [videoArtifact()] : [],
+      artifacts,
       jobId: isTerminal ? null : VIDEO_JOB_ID,
       extra: {
         modeType: 'image2video',
@@ -215,7 +235,14 @@ function imageJob(): GenerationJob {
   }
 }
 
-function videoJob(status: VideoScenarioStatus, quoteExpiresAt = isoAt(600)): GenerationJob {
+function videoJob(
+  status: VideoScenarioStatus,
+  quoteExpiresAt = isoAt(600),
+  includeMixedArtifacts = false,
+): GenerationJob {
+  const artifacts = status === 'succeeded'
+    ? [videoArtifact(), ...(includeMixedArtifacts ? [videoArtifact('art_video_02'), audioArtifact()] : [])]
+    : []
   return {
     id: VIDEO_JOB_ID,
     spaceId: SPACE_ID,
@@ -255,7 +282,7 @@ function videoJob(status: VideoScenarioStatus, quoteExpiresAt = isoAt(600)): Gen
         { label: '10 秒', credits: 35 },
       ],
     },
-    artifacts: status === 'succeeded' ? [videoArtifact()] : [],
+    artifacts,
     error: videoError(status),
     createdAt: isoAt(-600),
     startedAt: status === 'awaiting_confirmation' ? null : isoAt(-540),
@@ -347,6 +374,7 @@ export function buildVideoWorkspace(
   status: VideoScenarioStatus,
   revision = 7,
   quoteExpiresAt?: string,
+  includeSeededComposite = false,
 ): WorkspaceState {
   const space: Space = { id: SPACE_ID, name: '我的空间', createdAt: isoAt(-7_200) }
   const project: Project = {
@@ -361,6 +389,16 @@ export function buildVideoWorkspace(
   }
 
   const image = imageArtifact()
+  const generatedVideo = videoNode(status, includeSeededComposite)
+  const compositeSources: CompositeSource[] = (generatedVideo.data.artifacts ?? []).map((artifact) => ({
+    artifact,
+    nodeId: generatedVideo.id,
+    nodeName: generatedVideo.name,
+    ...(artifact.kind === 'video' ? { nodeType: 'video' as const } : {}),
+  }))
+  const seededComposite = includeSeededComposite
+    ? seedCompositeDocument(compositeSources)
+    : emptyCompositeDocument()
   const nodes: WorkflowNode[] = [
     node(
       'node_text_01',
@@ -395,7 +433,7 @@ export function buildVideoWorkspace(
       },
       -1_300,
     ),
-    videoNode(status),
+    generatedVideo,
     node(
       'node_composite_01',
       'videoComposite',
@@ -411,13 +449,7 @@ export function buildVideoWorkspace(
         jobId: null,
         extra: {
           composite: {
-            version: 1,
-            clips: [],
-            audioTracks: [],
-            subtitles: [],
-            playheadSeconds: 0,
-            zoom: 1,
-            sourceAudioMuted: false,
+            ...seededComposite,
           },
         },
       },
@@ -522,7 +554,7 @@ export function buildVideoWorkspace(
     projects: [untitled.project, doro.project, project],
     canvases: [canvas, doro.canvas, untitled.canvas],
     assets: [asset],
-    jobs: [videoJob(status, quoteExpiresAt), imageJob()],
+    jobs: [videoJob(status, quoteExpiresAt, includeSeededComposite), imageJob()],
     ledger: entries,
     sessions: [session],
     messages,

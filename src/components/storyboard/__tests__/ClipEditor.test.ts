@@ -7,6 +7,7 @@ import {
 } from '@/domain/composite'
 import type { Artifact, WorkflowDocument } from '@/domain/types'
 import {
+  audioTimeForPlayhead,
   collectSources,
   isComposableMediaSource,
   isExcludedCompositeSource,
@@ -114,6 +115,29 @@ describe('ClipEditor timeline accessibility helpers', () => {
 })
 
 describe('ClipEditor source semantics', () => {
+  it('maps an independent audio track to source time only while it is active', () => {
+    const track = {
+      ...source('bed', 3).artifact,
+      kind: 'audio' as const,
+      artifactId: 'bed',
+      durationSeconds: 3,
+      inPoint: 0.25,
+      outPoint: 2.75,
+      start: 1.5,
+      volume: 0.65,
+      muted: false,
+      nodeId: 'node-bed',
+      nodeName: '配乐',
+      poster: null,
+    }
+
+    expect(audioTimeForPlayhead(track, 1.49)).toBeNull()
+    expect(audioTimeForPlayhead(track, 1.5)).toBe(0.25)
+    expect(audioTimeForPlayhead(track, 2.25)).toBe(1)
+    expect(audioTimeForPlayhead(track, 4)).toBe(2.75)
+    expect(audioTimeForPlayhead(track, 4.01)).toBeNull()
+  })
+
   it('admits only deterministic local media artifacts as compositor inputs', () => {
     const localVideo = {
       ...source('fixture-video'),

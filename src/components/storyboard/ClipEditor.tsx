@@ -182,6 +182,14 @@ function clipSeconds(clip: CompositeClip) {
   return (clip.outPoint - clip.inPoint) / clip.speed
 }
 
+/** Map a composed timeline position to an independent audio source position. */
+export function audioTimeForPlayhead(track: CompositeAudioTrack, playhead: number): number | null {
+  const relative = playhead - track.start
+  const duration = track.outPoint - track.inPoint
+  if (!Number.isFinite(relative) || relative < 0 || relative > duration) return null
+  return track.inPoint + relative
+}
+
 export type TrimEdge = 'in' | 'out'
 
 /** Convert a timeline drag into source-space trim points. */
@@ -359,6 +367,7 @@ export function ClipEditor({
   const [notes, setNotes] = useState<string[]>([])
   const [trackViewportWidth, setTrackViewportWidth] = useState(0)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
   const playheadRef = useRef(playhead)
   const trackViewportRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
@@ -595,6 +604,26 @@ export function ClipEditor({
   }, [activeClip, activeClipStart, playhead, playing])
 
   useEffect(() => {
+    for (const track of timeline.audioTracks) {
+      const audio = audioRefs.current.get(track.id)
+      if (!audio) continue
+      audio.volume = Math.max(0, Math.min(1, track.volume))
+      audio.muted = track.muted
+      const sourceTime = audioTimeForPlayhead(track, playhead)
+      if (sourceTime === null) {
+        if (!audio.paused) audio.pause()
+        continue
+      }
+      if (!playing || Math.abs(audio.currentTime - sourceTime) > 0.35) audio.currentTime = sourceTime
+      if (playing) {
+        if (audio.paused) void audio.play().catch(() => undefined)
+      } else {
+        audio.pause()
+      }
+    }
+  }, [playhead, playing, timeline.audioTracks])
+
+  useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (exportOpen && !exportRef.current?.contains(event.target as Node)) setExportOpen(false)
     }
@@ -829,14 +858,22 @@ export function ClipEditor({
 
   const cancelCompose = async () => {
     if (!composeTask || (composeTask.status !== 'queued' && composeTask.status !== 'rendering')) return
-    const task = ComposeTaskResponseSchema.parse(
-      await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'cancel' }),
-    ).task
-    if (!aliveRef.current) return
-    rememberComposeTask(task)
-    setRendering(false)
-    setFailure(null)
-    setSuccess('已取消合成，时间线保持不变。')
+    try {
+      const task = ComposeTaskResponseSchema.parse(
+        await api.post<unknown>(`/api/compose/${encodeURIComponent(composeTask.id)}`, { action: 'cancel' }),
+      ).task
+      if (!aliveRef.current) return
+      rememberComposeTask(task)
+      setFailure(null)
+      setSuccess('已取消合成，时间线保持不变。')
+    } catch (error) {
+      if (!aliveRef.current) return
+      const message = error instanceof Error ? error.message : '取消合成失败'
+      setFailure(message)
+      toast(message, 'error')
+    } finally {
+      if (aliveRef.current) setRendering(false)
+    }
   }
 
   const retryCompose = async () => {
@@ -991,6 +1028,8 @@ export function ClipEditor({
             aspectRatio={activeAspectRatio}
             subtitle={activeSubtitle}
             videoRef={videoRef}
+            audioRefs={audioRefs}
+            audioTracks={timeline.audioTracks}
             playing={playing}
           />
           {tool === 'clip' && (selectedClip || selectedAudio) && (
@@ -1381,16 +1420,33 @@ function Preview({
   aspectRatio,
   subtitle,
   videoRef,
+  audioRefs,
+  audioTracks,
   playing,
 }: {
   active: ReturnType<typeof activeClipAt>
   aspectRatio: string
   subtitle: CompositeSubtitle | undefined
   videoRef: RefObject<HTMLVideoElement | null>
+  audioRefs: RefObject<Map<string, HTMLAudioElement>>
+  audioTracks: CompositeAudioTrack[]
   playing: boolean
 }) {
   return (
     <div className="absolute inset-x-0 top-0 flex items-center justify-center px-8" style={{ bottom: TIMELINE_HEIGHT + 16 }}>
+      {audioTracks.map((track) => (
+        <audio
+          key={track.id}
+          ref={(element) => {
+            if (element) audioRefs.current.set(track.id, element)
+            else audioRefs.current.delete(track.id)
+          }}
+          src={track.url}
+          preload="metadata"
+          data-testid={`audio-preview-${track.id}`}
+          aria-label="独立音轨预览"
+        />
+      ))}
       {active ? (
         <div
           data-testid="clip-preview-frame"

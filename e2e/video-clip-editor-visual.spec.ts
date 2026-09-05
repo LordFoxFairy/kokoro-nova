@@ -93,3 +93,24 @@ test('selected clip exposes stable trim and speed edit controls at desktop basel
   await expect(page.getByTestId('trim-handle-in-' + (await clip.getAttribute('data-testid'))!.replace('timeline-clip-', ''))).toHaveAttribute('aria-valuenow', '0')
   await expectVisualBaseline(page, 'video-clip-editor-selected-clip-1440x900.png')
 })
+
+test('succeeded video fixture reopens a seeded mixed-media composite timeline', async ({ page, request }) => {
+  const scenario = await request.post('/api/dev/scenario', { data: { scenarioId: 'video-succeeded' } })
+  expect(scenario.ok()).toBe(true)
+
+  await page.goto(PROJECT_URL)
+  await page.getByTestId('view-storyboard').click()
+  await page.getByTestId('open-clip-editor').click()
+  await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(2)
+  await expect(page.locator('[data-testid^="timeline-audio-"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid^="audio-preview-"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid^="audio-preview-"]')).toHaveAttribute('src', '/api/media/fixtures/compositor-bed.wav')
+  await page.getByTestId('clip-tool-subtitle').click()
+  await expect(page.getByTestId('subtitle-track')).toContainText('雨夜城市')
+
+  await page.reload()
+  await page.getByTestId('view-storyboard').click()
+  await page.getByTestId('open-clip-editor').click()
+  await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(2)
+  await expect(page.locator('[data-testid^="timeline-audio-"]')).toHaveCount(1)
+})

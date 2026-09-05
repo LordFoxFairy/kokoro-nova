@@ -359,6 +359,48 @@ export function appendAudioTrack(document: CompositeDocument, source: CompositeS
   return { ...document, audioTracks: [...document.audioTracks, track] }
 }
 
+/**
+ * Build the deterministic mixed-media fixture used by the local video demo.
+ * Keeping this composition on the same mutation path as the editor means the
+ * seeded state exercises the exact trim, transition, audio and subtitle
+ * semantics that a user gets after interacting with the timeline.
+ */
+export function seedCompositeDocument(sources: CompositeSource[]): CompositeDocument {
+  const videos = sources.filter(
+    (source) => source.nodeType !== 'videoComposite' && source.artifact.kind === 'video',
+  )
+  const audio = sources.find((source) => source.artifact.kind === 'audio')
+
+  let document = emptyCompositeDocument()
+  for (const source of videos.slice(0, 2)) document = appendClip(document, source)
+
+  const firstClip = document.clips[0]
+  if (firstClip) {
+    document = setClipTrim(document, firstClip.id, 1.25, 11.5)
+    document = setTransition(document, firstClip.id, 'fade', 0.75)
+  }
+
+  const secondClip = document.clips[1]
+  if (secondClip) document = setClipTrim(document, secondClip.id, 2.25, 13.25)
+
+  if (audio) {
+    document = appendAudioTrack(document, audio)
+    const track = document.audioTracks.at(-1)
+    if (track) {
+      document = setAudioTrackTiming(document, track.id, 0.25, 2.75, 1.5)
+      document = setAudioTrackVolume(document, track.id, 0.65)
+    }
+  }
+
+  document = createSubtitle(document, 4.5, '雨夜城市')
+  return {
+    ...document,
+    playheadSeconds: Math.min(3.25, compositeDuration(document)),
+    zoom: 1.1,
+    sourceAudioMuted: false,
+  }
+}
+
 function clipDuration(clip: CompositeClip): number {
   return (clip.outPoint - clip.inPoint) / clip.speed
 }

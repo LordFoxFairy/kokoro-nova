@@ -15,6 +15,7 @@ import {
   setClipSpeed,
   setClipTrim,
   setTransition,
+  seedCompositeDocument,
   splitClip,
   toComposeRequest,
   type CompositeSource,
@@ -131,6 +132,38 @@ describe('readCompositeDocument', () => {
 })
 
 describe('composite timeline edits', () => {
+  it('seeds a deterministic mixed-media document from local sources', () => {
+    const firstVideo = source('video-a', 'video', 15)
+    const secondVideo = source('video-b', 'video', 15)
+    const audio = source('audio-bed', 'audio', 3)
+
+    const document = seedCompositeDocument([firstVideo, secondVideo, audio])
+
+    expect(document).toMatchObject({
+      clips: [
+        expect.objectContaining({
+          artifactId: 'video-a',
+          inPoint: 1.25,
+          outPoint: 11.5,
+          transitionAfter: { type: 'fade', durationSeconds: 0.75 },
+        }),
+        expect.objectContaining({ artifactId: 'video-b', inPoint: 2.25, outPoint: 13.25 }),
+      ],
+      audioTracks: [
+        expect.objectContaining({
+          artifactId: 'audio-bed',
+          inPoint: 0.25,
+          outPoint: 2.75,
+          start: 1.5,
+          volume: 0.65,
+        }),
+      ],
+      subtitles: [{ id: 'subtitle-1', text: '雨夜城市', start: 4.5, end: 6.5, visible: true }],
+      playheadSeconds: 3.25,
+      zoom: 1.1,
+    })
+  })
+
   it('appends clips and audio with deterministic ids', () => {
     let document = emptyCompositeDocument()
     document = appendClip(document, source('video-a', 'video', 10))

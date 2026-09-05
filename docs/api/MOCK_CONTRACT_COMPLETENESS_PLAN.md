@@ -14,7 +14,7 @@
 | Payload example metadata | OpenAPI operation 的 `requestBody.content.*.example(s)` 或 `responses.*.content.*.example(s)` 有 payload-level example/ref。response header 的 `example` 不计为 payload 样本。 | 仅有 schema、仅有 README/专题文档中的示意 JSON、或未接到 operation 的 `components.examples`。 |
 | Special transport | `LOCAL_API_ROUTES.transport` 为 `sse` 或 `binary`；此外 Presence POST 是与 SSE room 共享状态机的 JSON companion，单列其 room/lease 约束。 | 通用 `application/json` 的 schema existence。 |
 
-按这个口径解析现有 manifest/OpenAPI：**55 paths / 92 operations**；**30** 个 operation 没有 direct-success runtime smoke；**44** 个 operation 没有 payload-level example metadata；成功 transport 为 SSE/binary 的 operation 有 **4** 个。该数字是当前代码快照，不把工作区的其他未提交并行改动纳入依据。
+按这个口径解析现有 manifest/OpenAPI：**55 paths / 92 operations**；**28** 个 operation 没有 direct-success runtime smoke；**44** 个 operation 没有 payload-level example metadata；成功 transport 为 SSE/binary 的 operation 有 **4** 个。该数字是当前代码快照，不把工作区的其他未提交并行改动纳入依据。
 
 ### 自动核对规则（后续实现必须遵守）
 
@@ -40,7 +40,7 @@
 | Ledger | 1 | — | `listLedgerEntries` | scenario balance/entries 排序须作为 success schema 断言。 |
 | Materials | 3 | — | — | — |
 | Models | 1 | — | — | — |
-| Presence | 2 | `getCanvasPresence`, `updateCanvasPresence` | `getCanvasPresence` | `getCanvasPresence` 是 SSE；`updateCanvasPresence` 是其 heartbeat/lease JSON companion。 |
+| Presence | 2 | — | `getCanvasPresence` | `getCanvasPresence` 是 SSE；`updateCanvasPresence` 是其 heartbeat/lease JSON companion。 |
 | Projects | 7 | — | `getProject`, `updateProject`, `deleteProject`, `duplicateProject`, `listProjects`, `getHomeDiscovery` | — |
 | Publish | 5 | `revokePublishedSnapshot`, `listPublishedSnapshots`, `publishCanvas` | `getPublishedSnapshot`, `revokePublishedSnapshot`, `listPublishedSnapshots`, `publishCanvas` | frozen snapshot、private clone 和 revoke 的可见性必须分开覆盖。 |
 | Recycle Bin | 3 | — | `listRecycleBin`, `restoreRecycledProject`, `permanentlyDeleteRecycledProject` | — |
@@ -49,7 +49,7 @@
 | Skills | 8 | `getSkill`, `toggleSkillFavorite` | `getSkill`, `toggleSkillFavorite`, `listSkills`, `listAuthoredSkills`, `createAuthoredSkill`, `getAuthoredSkill`, `updateAuthoredSkill`, `transitionAuthoredSkill` | author lifecycle 已有 direct route flow；缺 operation-bound OpenAPI payload examples。 |
 | Video | 3 | — | — | compose 已有主 lifecycle smoke；后续矩阵仍须覆盖所有声明的 failure status。 |
 | Workflow | 1 | `mutateCanvas` | — | revision conflict、atomic mutation 与 document projection 是一个 operation 的同一 contract。 |
-| **Total** | **92** | **30** | **44** | **4 SSE/binary success transports** |
+| **Total** | **92** | **28** | **44** | **4 SSE/binary success transports** |
 
 ### 已有但仍属 partial 的 direct evidence
 
@@ -59,8 +59,8 @@
 
 | operationId | 实际 transport | 已有证据 | 未关闭的 wire 任务 | 下一测试落点 |
 | --- | --- | --- | --- | --- |
-| `getCanvasPresence` | `text/event-stream` | handler 仅验证过建流前 invalid input 400；OpenAPI 成功 body 没有 payload sample。 | 断言 200 headers、首个业务 event 必为 `snapshot`、frame schema、listener-limit 429；已建流失败只能 close/reconnect，不能伪造 JSON response。 | 扩展 `src/app/api/presence/[canvasId]/route.test.ts`，单独解析 SSE text frames。 |
-| `updateCanvasPresence` | JSON（Presence companion） | 建流前/POST error envelope 有路径证据。 | 覆盖 heartbeat success、lease acquire/renew/release、`EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 与 requestId。 | 同一 presence route test；`src/server/__tests__/presence-lease.test.ts` 只作为状态机辅助，不替代 handler test。 |
+| `getCanvasPresence` | `text/event-stream` | handler test 解析 `200` 的 SSE headers、连接注释后的第一个业务 `snapshot` frame，并以 participant schema 验证其数据。建流前 invalid input `400` 仍解析完整 ErrorResponse。 | listener 上限是 stream 初始化期的资源边界；已建流失败只能 close/reconnect，不能伪造 JSON response。 | `src/app/api/presence/[canvasId]/route.test.ts`，单独解析 SSE text frames。 |
+| `updateCanvasPresence` | JSON（Presence companion） | handler test 覆盖 heartbeat 与 lease acquire/renew/release success schema，以及 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` / requestId / details。 | 后续可补 participant/connection limit 的完整压测；`src/server/__tests__/presence-lease.test.ts` 只作为状态机辅助，不替代 handler test。 | 同一 presence route test。 |
 | `readLocalMedia` | binary + plain-text error | `media-route-traversal.test.ts` 已验证 200/403/404、containment、CSP/nosniff/cache；403/404 的 plain-text payload samples 已使其不属于当前 44 个 example 缺口。 | 维持 Range 未实现的明确断言；如未来需要成功 binary specimen，另加 fixture/external-value，但不能伪造 JSON payload 或把该可选增强记作当前缺口。 | 扩展现有 media test 与 OpenAPI contract test。 |
 | `previewCharacterReference` | SVG binary | preview route test 验证成功 SVG、缓存、参数归一化/escape。 | 无受控 failure branch；明确该 policy 或先新增 resource-safe failure 设计后再写 4xx assertions。增加 SVG fixture/external-value 或 exemption。 | `src/app/api/preview/preview-route.test.ts` 与 `SPECIAL_TRANSPORT_CONTRACT_AUDIT.md`。 |
 | `previewStoryboardStitch` | SVG binary | preview route test 验证 rows/cols、`seq`、缓存。 | 同 character preview：当前只承诺 200；不得把不存在的 JSON error 标成已覆盖。 | 同上。 |

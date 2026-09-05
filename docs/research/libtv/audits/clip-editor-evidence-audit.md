@@ -47,6 +47,18 @@
 | 1440×900 回归 | 空态、转场、字幕、有效时间线、裁切五张 compositor 截图基线；画布/故事板另有基线 | `e2e/video-compositor.spec.ts-snapshots/`；`visual/video-compositor-comparison.md` | 仅空态三组与导出门槛有官网配对 |
 | 响应式与可访问性 | 800px 宽度改为上下堆叠；trim handle 为 slider，播放头有数值和键盘支持 | compositor E2E compact/trim 场景；ClipEditor unit tests | 未证实 |
 
+### 2026-09-05 本地可执行复核
+
+在独立的 `:3210` / `.data-e2e` / `.next-e2e` 运行环境中执行：
+
+```bash
+pnpm exec playwright test e2e/video-compositor.spec.ts e2e/compositor-reliability.spec.ts
+```
+
+结果为 **11 passed（50.8s）**。覆盖嵌入式空态、转场/字幕面板、加入/分割/变速/重排、trim
+滑杆键盘操作、独立音轨、关闭/刷新持久化、undo/redo、导出到画布、真实 local MP4 fixture、
+取消、失败后 retry 以及窄视口堆叠。该结果是 local mock 质量证据，不增加任何官网行为宣称。
+
 ## 4. 官网未证实、不得写入“真实 LibTV 契约”的项目
 
 1. **网络与任务接口**：`/api/compose*`、`ComposeRequest` 字段、task ID、HTTP 状态、轮询频率、localStorage 恢复键与错误 envelope 全为本地后端交接设计；没有官网 payload 证据。

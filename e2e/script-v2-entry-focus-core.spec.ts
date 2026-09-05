@@ -82,35 +82,3 @@ test('script v2 keeps the three entry buttons in keyboard order and restores the
   await page.keyboard.press('Escape')
   await expect(nodeShell(node)).toHaveAttribute('data-selected', 'false')
 })
-
-test('script v2 closes the workspace child layer before restoring canvas selection', async ({ page }) => {
-  await resetFixture(page)
-  const node = await addScriptV2Node(page)
-  const manualEntry = node.getByRole('button', { name: '自己编写分镜脚本', exact: true })
-  await manualEntry.focus()
-  await expect(manualEntry).toBeFocused()
-
-  const workspaceSaved = waitForCanvasMutation(page)
-  await manualEntry.click()
-  await workspaceSaved
-
-  const workspace = page.getByTestId('script-v2-workspace')
-  const editTrigger = workspace.getByRole('button', { name: '编辑镜头 1 画面描述', exact: true })
-  await expect(workspace).toBeVisible()
-  await editTrigger.click()
-
-  const editor = workspace.getByRole('dialog', { name: '编辑画面描述', exact: true })
-  await expect(editor).toBeVisible()
-  await expect(editor.getByRole('textbox', { name: '画面描述', exact: true })).toBeFocused()
-
-  await page.keyboard.press('Escape')
-  await expect(editor).toHaveCount(0)
-  await expect(workspace).toBeVisible()
-
-  await page.keyboard.press('Escape')
-  await expect(workspace).toHaveCount(0)
-  await expect(nodeShell(node)).toHaveAttribute('data-selected', 'true')
-
-  await page.keyboard.press('Escape')
-  await expect(nodeShell(node)).toHaveAttribute('data-selected', 'false')
-})

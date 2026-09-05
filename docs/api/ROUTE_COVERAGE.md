@@ -26,7 +26,8 @@ transport 的一一对应。
 ### 本轮 API-AUD-07 运行时 smoke 进度
 
 - 资产库的低耦合主切片已由 `src/app/api/assets/route.test.ts` 直接执行：活跃/不可用 lifecycle 列表、资产文件夹创建与计数、元数据移动、软删除、恢复，以及缺失资产的标准 `404 ErrorResponse`。成功响应分别由 `AssetLifecycleListResponseSchema` / `AssetLifecycleViewSchema` 解析，避免只断言 HTTP status。
-- 这只是 API-AUD-07 的一个可重复 route smoke 切片；尚未替代 92 个 operation 的 manifest 驱动 matrix，上传、生成产物注册及其余 domain 仍需按 operation 补 success/error wire 断言。
+- 视频合成主切片也已由 `src/app/api/compose/route.test.ts` 直接执行：创建返回严格 `ComposeTaskResponse`，以受控 renderer 到达 `rendering` 后取消，重复 `cancel` 返回同一 terminal projection，并在后续 GET 中保持；非法 clips 与未知 task action 分别返回 schema-valid `400` / `404 ErrorResponse`。该测试不依赖 ffmpeg 或实际媒体输出。
+- 这些仍只是 API-AUD-07 的可重复 route smoke 切片；尚未替代 92 个 operation 的 manifest 驱动 matrix，上传、生成产物注册及其余 domain 仍需按 operation 补 success/error wire 断言。
 
 ### 本轮补齐项
 

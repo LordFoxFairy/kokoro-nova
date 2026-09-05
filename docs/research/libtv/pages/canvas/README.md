@@ -300,7 +300,8 @@ operation、轮询和取消/重试的本地契约见 [`SCRIPT_V2_STATE.md`](../.
 Storyboard 没有独立的持久化 route：它是 `GET /api/canvases/{canvasId}` 返回的同一份
 `WorkflowDocument`（`groups`、`nodes`、`artifacts`）的投影。列、镜头详情和再生成面板
 通过 `POST /api/canvases/{canvasId}` 的 `expectedRevision` mutation 写回；生成进度从
-`/api/jobs` 轮询，导出由 `/api/compose` 同步登记本地 video artifact/asset。分组缩略图
+`/api/jobs` 轮询，导出由 `POST /api/compose` 创建持久化 task，再由
+`GET /api/compose/{taskId}` 轮询；只有 succeeded task 登记本地 video artifact/asset。分组缩略图
 使用 `/api/preview/stitch`，角色参考预览使用 `/api/preview/character`；两者都返回本地
 SVG 字节流，不返回 JSON envelope。
 
@@ -308,7 +309,7 @@ SVG 字节流，不返回 JSON envelope。
 |---|---|---|
 | Storyboard bootstrap | `CanvasDetailResponse` | [`openapi.yaml`](../../../../api/openapi.yaml) |
 | Storyboard / Video job | `ListJobsResponse`、`GetJobResponse`、`TransitionJobResponse` | [`jobs-get.response.json`](../../../../api/examples/jobs-get.response.json) |
-| Video compose | `ComposeRequest` → `ComposeResponse` | [`compose.request.json`](../../../../api/examples/compose.request.json)、[`compose.response.json`](../../../../api/examples/compose.response.json) |
+| Video compose | `ComposeRequest` → `ComposeTaskResponse`（异步） | [`compose.request.json`](../../../../api/examples/compose.request.json)、[`compose.task-succeeded.response.json`](../../../../api/examples/compose.task-succeeded.response.json) |
 | Script V2 state/result | `ScriptV2State`、四种 operation-discriminated run | [`SCRIPT_V2_STATE.md`](../../../../api/SCRIPT_V2_STATE.md)、[Script V2 capture](../../api/captures/2026-09-03-script-v2.md) |
 
 以上均属于 frontend-only local mock：媒体 URL 只允许本地 `/api/media/*` 或 fixture 路径，

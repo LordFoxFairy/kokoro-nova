@@ -440,7 +440,10 @@ export async function planTurn(input: TurnInput): Promise<TurnResult> {
 
 ## 4. HTTP 接口全表
 
-全部路由都是 `export const dynamic = 'force-dynamic'`，无缓存。错误统一是 `{ "error": string }`（`src/server/http.ts`）。
+JSON Route Handler 均以 `dynamic = 'force-dynamic'` 运行；缓存按 transport 区分：媒体命中为
+immutable 长缓存、SVG preview 与 Presence SSE 有各自的响应策略，不能把它们概括为“全站无缓存”。
+JSON 错误统一为 `{ error: { code, message, details? }, requestId }`（`src/server/http.ts`）；SSE 已建立后、
+SVG preview 与 binary media 是独立 transport，不使用该 JSON envelope。
 
 ### 项目与文件夹
 
@@ -540,12 +543,15 @@ export async function planTurn(input: TurnInput): Promise<TurnResult> {
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `POST` | `/api/compose` | 请求体 `{ clips[], audioTracks[], subtitles[] }`。用 ffmpeg 真实渲染成 MP4，并返回 `{ artifact, assetId, subtitleMode, notes }` |
+| `POST` | `/api/compose` | 请求体 `{ clips[], audioTracks[], subtitles[] }`。持久化合成任务并立即返回 `{ task }`；初始状态为 `queued`，不包含成片 |
+| `GET` | `/api/compose/[taskId]` | 读取/轮询同一持久化任务；仅 `succeeded` 的 `{ task }` 含 `artifact`、`assetId`、`subtitleMode` |
+| `POST` | `/api/compose/[taskId]` | `{ action: "cancel" \| "retry" }`。取消 active task，或将 failed task 以相同 task id 重新排队 |
 
 `clips[]` 每项含 `url / inPoint / outPoint / speed / muted / transitionAfter /
 transitionDurationSeconds`；`audioTracks[]` 含裁切区间、成片起点、增益和静音。校验在调用
 ffmpeg **之前**完成（空时间线、`out <= in`、离谱倍速、20 分钟/片段/音轨/字幕上限、
-字幕越界都会先 400）。
+字幕越界都会让创建请求先返回 400）。创建成功后的文件消失、解码器缺失、超时和渲染失败
+只会写入同一 task 的 `failed + failure`，不会把时间线回滚为同步 HTTP 失败。
 素材地址会解析回 `MEDIA_DIR` 之内，**并做 realpath 解引用**——只做文本 `startsWith` 会被
 目录内的软链穿出去。ffmpeg 缺失时返回结构化失败而不是抛异常。
 
@@ -617,8 +623,8 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 
 ### 状态码约定
 
-- `HttpError` 抛出什么状态码就是什么（404 / 400 / 409）；
-- 其它异常由 `src/server/http.ts:26` 的一条中文正则决定：消息里含「不存在 / 已存在 / 不接受 / 循环 / 不能 / 需要 / 未选择 / 已过期 / 积分不足 / 冲突」→ 400，否则 500。
+- `HttpError` 或带 `status` 的领域错误保留其原始状态和稳定 `code`；
+- 其它异常由 `src/server/http.ts` 的本地 guard 判定：消息含「不存在 / 已存在 / 不接受 / 循环 / 不能 / 需要 / 未选择 / 已过期 / 积分不足 / 冲突」→ 400，否则 500。错误始终附带 deterministic `requestId`。
 
   > 这是个可以工作但很脆的机制。加新的领域错误时，**用 `HttpError` 显式给状态码**，不要指望这条正则能匹配上；重构时也要留意它是靠中文文案在分类。
 
@@ -634,7 +640,7 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 
 ### 身份与多租户
 
-- **没有鉴权、没有用户、没有登录。** 任何人访问 `http://localhost:3200` 就是全部数据的所有者。
+- **没有真实认证或远端账号体系。** 但本地有可重放的 identity/session fixture：`GET/POST /api/identity` 切换匿名与 authenticated projection，项目、文件夹、回收站等受保护 route 会调用 `requireLocalAuthentication()`。这只是前端演示门，不可作为真实身份或授权实现。
 - **实际是单空间的。** `DEFAULT_SPACE_ID = 'sp_default'` 硬编码在 5 个路由文件里，没有创建 space 的接口。`Space` 类型没有 owner / member 字段。
 - 没有权限模型、没有分享链接。`AgentSession.shared` 只是一个布尔字段，没有任何依据它做访问控制的代码。
 - 协作 presence **是有的**（见第 4 节 `/api/presence/[canvasId]`），但它**不是访问控制**：
@@ -689,9 +695,9 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 
 ### 工程
 
-- **测试规模**：35 个文件、559 条用例（`pnpm test`，2026-09-03 本批次实跑）。其中新增
-  generation adapter、Jobs schema、route validation 与 typed client 契约测试；
-  `src/server/` 整层没有单测的说法已经不成立。
+- **测试规模会持续变化，禁止在交接文档硬编码历史计数。** 以 `pnpm test`、`pnpm typecheck`、
+  `pnpm lint` 与 `node scripts/verify-api-contract.mjs` 的当前输出为准。generation adapter、Jobs schema、
+  route validation、typed client、Agent 与 server generation 均有针对性测试；`src/server/` 整层没有单测的说法已经不成立。
 - **但覆盖是偏的，而且恰好偏在本文要你动的地方。** 实测哪些模块被测试引用过：
 
   | 模块 | 引用它的测试文件数 |
@@ -699,8 +705,8 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
   | `src/server/store.ts` | 7 |
   | `src/server/assets.ts` / `svg-sanitize.ts` | 4 / 3 |
   | `ledger.ts` / `compose.ts` / `presence.ts` / `publish.ts` / `skills.ts` | 各 1 |
-  | **`src/server/generation/`（`runner` / `provider` / `mock-provider`）** | **0** |
-  | **`src/server/agent.ts`（`planTurn`）** | **0** |
+  | `src/server/generation/`（`runner` / `provider` / `mock-provider`） | 有 runner 与可靠性测试，仍需在改动时增补具体状态迁移覆盖 |
+  | `src/server/agent.ts`（`planTurn`） | 有 Agent server 测试，仍需覆盖新增 payload / 恢复分支 |
 
   也就是说：**第 1 节（换 provider）和第 3 节（换 LLM）要改的两个模块，一条单测都没有。**
   runner 的终态副作用（结算 / 返还 / 产物写回节点 / `revision += 1`）、重启后的重挂接路径、
@@ -712,5 +718,6 @@ settle/release 折叠成一个结果，这样"生成失败、积分已退回"在
 - 已有 GitHub Actions、Dockerfile 与容器运行文档：`main`/PR 会执行 typecheck、lint、单测和生产构建，`v*` tag 会发布 GHCR 镜像。当前仍不需要 `.env.example`；接入真实 provider 时需新增受控的 provider 配置与密钥注入说明。
 - 没有结构化日志、没有 tracing、没有指标。
 - 没有速率限制；`POST /api/jobs` 每次调用都会新建一个 job，HTTP 层没有幂等键。
-- `src/server/store.ts` 导出的 `resetStore()` / `invalidateCache()` / `balanceOf()` 目前没有任何调用方。
+- `resetStore()` 由 `/api/dev/reset`、`/api/dev/scenario` 与测试调用；`invalidateCache()` 和 `balanceOf()`
+  也有测试/服务调用。它们是 local fixture 支撑，不是未来后端的接口。
 - 界面只在 1440×900 桌面视口下验证过（见 `playwright.config.ts`），没有做移动端适配。

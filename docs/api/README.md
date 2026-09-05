@@ -352,14 +352,16 @@ type ComposeRequest = {
   `start` 放置、按 `volume` 混音；
 - 转场时长会根据相邻片段有效长度收缩；字幕优先烧录，缺少文字渲染能力时封装为
   `mov_text`，响应的 `subtitleMode` 明确返回 `burned`、`muxed` 或 `none`；
-- 成功响应为 `{ artifact, assetId, subtitleMode, notes }`，其中 Artifact 同步登记进个人
-  资产库。`notes` 用于展示裁切、几何或字幕降级，不代表请求失败；
+- `POST /api/compose` 成功响应为 `{ task }`，初始 task 为 `queued`，不会同步创建 Artifact 或
+  Asset；随后轮询 `GET /api/compose/{taskId}`。仅 `task.status === 'succeeded'` 时，task 内才有
+  `artifact`、`assetId`、`subtitleMode` 和 `notes`；`notes` 用于展示裁切、几何或字幕降级，
+  不代表请求失败；
 - `POST /api/compose` 的 `400` 只表示同步契约/时间线无效；任务创建后发现源文件消失、ffmpeg
   缺失、超过 90 秒预算或渲染失败，都会由同一 task 的 `failed + failure` 返回。失败不会清空或改写前端时间线。
 
 完整样本见 [`compose.request.json`](examples/compose.request.json) 与
-[`compose.response.json`](examples/compose.response.json)，运行时 Schema 位于
-`src/contracts/compose.ts`，OpenAPI 对应 `ComposeRequest` / `ComposeResponse`。
+[`compose.task-succeeded.response.json`](examples/compose.task-succeeded.response.json)，运行时 Schema 位于
+`src/contracts/compose.ts`，OpenAPI 对应 `ComposeRequest` / `ComposeTaskResponse`。
 
 ## 分页、排序和查询
 

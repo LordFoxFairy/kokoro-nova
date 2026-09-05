@@ -1,0 +1,25 @@
+{
+  "task": {
+    "id": "compose_task_fixture_001",
+    "status": "succeeded",
+    "artifact": {
+      "id": "art_composite_demo",
+      "jobId": "compose",
+      "kind": "video",
+      "url": "/api/media/composites/cmp_demo/composite.mp4",
+      "thumbnailUrl": "/api/media/composites/cmp_demo/poster.jpg",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 9.2,
+      "createdAt": "2026-09-03T12:00:00.000Z",
+      "modelId": "local-compose",
+      "assetId": "asset_composite_demo"
+    },
+    "assetId": "asset_composite_demo",
+    "subtitleMode": "burned",
+    "notes": [],
+    "failure": null,
+    "createdAt": "2026-09-04T00:00:00.000Z",
+    "updatedAt": "2026-09-04T00:01:12.000Z"
+  }
+}

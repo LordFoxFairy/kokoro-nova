@@ -3,13 +3,13 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import requestExample from '../../../docs/api/examples/compose.request.json'
-import responseExample from '../../../docs/api/examples/compose.response.json'
-import { ComposeRequestSchema, ComposeResponseSchema } from '@/contracts/compose'
+import responseExample from '../../../docs/api/examples/compose.task-succeeded.response.json'
+import { ComposeRequestSchema, ComposeTaskResponseSchema } from '@/contracts/compose'
 
 describe('video compose contract', () => {
-  it('accepts the documented multitrack request and exact success response', () => {
+  it('accepts the documented multitrack request and asynchronous success task response', () => {
     const request = ComposeRequestSchema.parse(requestExample)
-    const response = ComposeResponseSchema.parse(responseExample)
+    const response = ComposeTaskResponseSchema.parse(responseExample)
 
     expect(request.clips).toHaveLength(2)
     expect(request.clips[0]).toMatchObject({
@@ -20,8 +20,11 @@ describe('video compose contract', () => {
     expect(request.audioTracks[0]).toMatchObject({ start: 0, volume: 0.65, muted: false })
     expect(request.subtitles[0]).toEqual({ text: '雨夜，故事开始。', start: 0.5, end: 2.8 })
     expect(response).toMatchObject({
-      artifact: { kind: 'video', modelId: 'local-compose' },
-      subtitleMode: 'burned',
+      task: {
+        status: 'succeeded',
+        artifact: { kind: 'video', modelId: 'local-compose' },
+        subtitleMode: 'burned',
+      },
     })
   })
 
@@ -65,7 +68,7 @@ describe('video compose contract', () => {
     ) as {
       components: {
         schemas: { ComposeRequest: { required: string[]; properties: Record<string, unknown> } }
-        examples: Record<string, { value: unknown }>
+        examples: Record<string, { value?: unknown; externalValue?: string }>
       }
     }
 
@@ -78,8 +81,14 @@ describe('video compose contract', () => {
     expect(ComposeRequestSchema.parse(openapi.components.examples.ComposeRequestExample.value)).toEqual(
       ComposeRequestSchema.parse(requestExample),
     )
-    expect(ComposeResponseSchema.parse(openapi.components.examples.ComposeResponseExample.value)).toEqual(
-      ComposeResponseSchema.parse(responseExample),
+    const succeededExample = openapi.components.examples.ComposeTaskSucceededExample
+    expect(succeededExample.externalValue).toBe('./examples/compose.task-succeeded.response.json')
+    const succeededExampleValue = JSON.parse(readFileSync(
+      path.join(process.cwd(), 'docs/api', succeededExample.externalValue!),
+      'utf8',
+    ))
+    expect(ComposeTaskResponseSchema.parse(succeededExampleValue)).toEqual(
+      ComposeTaskResponseSchema.parse(responseExample),
     )
   })
 

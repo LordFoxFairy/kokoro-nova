@@ -82,7 +82,7 @@ mutation 写回。
 |---|---|---|---|
 | Script V2 | `/api/script-v2/quotes`、`/runs`、`/runs/{runId}` | `quote` 或 `{ run }`，operation discriminator 严格配对 | `400` JSON、`404` run、`409` 幂等/transition、`422` Schema、`500` mock 异常 |
 | Jobs / Video | `/api/jobs`、`/api/jobs/{jobId}` | `ListJobsResponse`、`CreateJobResponse`、`GetJobResponse`、`TransitionJobResponse` | `400` body/业务前置、`404` poll 的未知 job、`500` mock/provider 异常 |
-| Storyboard | `/api/canvases/{canvasId}`、`/api/preview/stitch`、`/api/compose` | `CanvasDetailResponse`、本地 SVG、`ComposeResponse` | canvas `404`、mutation `409`、compose `400/404/503/504/500` |
+| Storyboard | `/api/canvases/{canvasId}`、`/api/preview/stitch`、`/api/compose`、`/api/compose/{taskId}` | `CanvasDetailResponse`、本地 SVG、`ComposeTaskResponse` | canvas `404`、mutation `409`、compose create `400/500`、task `404/500` |
 | Asset | `/api/assets*`、`/api/media/{path}` | `Asset`、`AssetListResponse`、upload result、本地媒体字节流 | asset `400/404/410/500`；upload `400/404/409/500`；media `403/404` |
 | Agent | `/api/agent/sessions*` | `AgentSession`、session/message wrappers、delete result | `400` 输入/业务、`404` 会话/消息、`500` mock 异常 |
 

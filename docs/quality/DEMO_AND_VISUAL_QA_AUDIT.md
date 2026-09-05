@@ -8,7 +8,11 @@
 
 仓库已经具备可分离的交互开发（`:3200`）、产品 demo（默认 `:3300`）和 Playwright 隔离测试（默认 `:3210`）三条运行路径；三者各自拥有数据目录与 Next 输出目录，设计上避免互相污染。核心优势是 fixture service 本身可被 E2E preflight 验证，且大量关键交互已在浏览器中被覆盖。
 
-当前可靠性缺口集中在**自动化验收闭环而非产品缺少测试**：GitHub CI 只跑类型、Lint、Vitest 与生产构建；没有运行 `pnpm demo:smoke`、默认 E2E、视觉基线或已发布 GHCR 镜像的启动验收。视觉基线文件主要带有 `-darwin` 后缀，因此直接增加 Ubuntu 截图 job 前需要先确定跨平台截图策略。
+当前可靠性缺口集中在**剩余的自动化验收闭环而非产品缺少测试**：GitHub CI 已在独立 Ubuntu runner
+执行 `pnpm e2e:ci` 的隔离核心 browser suite，并在失败时保存 Playwright diagnostics；`v*` 镜像发布同时依赖 verify
+和 browser suite。完整 `pnpm e2e` 仍保留为本地/受控平台回归：它含 Darwin screenshot baseline，不能直接在
+Ubuntu runner 上作为视觉结论。尚未纳入 CI 的是 `pnpm demo:smoke`、视觉基线与已发布 GHCR 镜像的启动验收。视觉
+基线文件主要带有 `-darwin` 后缀，因此直接增加 Ubuntu 截图 job 前需要先确定跨平台截图策略。
 
 本审计使用下列状态词：
 
@@ -30,7 +34,7 @@
 | 可观测性 | 失败 reporter 输出 runner mode、base URL、数据目录与本地 dist；Playwright 保留失败 trace。 | 有利于将失败关联到实际 fixture 服务。 |
 | 截图机制 | 多个 spec 使用 `toHaveScreenshot`，1440×900 为主基准；部分调用 `waitForStableVisuals`，关闭动画、等待字体和图片解码，并采用 `maxDiffPixelRatio: 0.0001`。 | 已有首页/项目、画布、故事板、编辑器、Script V2、账户、公开展示等基线。 |
 | 视觉运行入口 | `home-visual-parity.spec.ts` 要求显式 `REGRESSION_BASE_URL`，未提供时跳过。 | 这使视觉首页/项目基线不会在默认 `pnpm e2e` 中运行。 |
-| 当前 GitHub CI | `verify` job 在 main/PR/tag 上运行 frozen install、typecheck、lint、Vitest、production build。 | 能防止基础编译与单测回归；未执行 demo smoke、E2E、截图或镜像运行验证。 |
+| 当前 GitHub CI | `verify` job 在 main/PR/tag 上运行 frozen install、typecheck、lint、Vitest、production build；独立 `e2e` job 安装 Chromium 后以 `:3210/.data-e2e/.next-e2e` 运行 `pnpm e2e:ci`，失败保存 diagnostics。 | 能防止基础编译、单测与核心浏览器交互回归；尚未执行 demo smoke、跨平台截图或镜像运行验证。 |
 | GHCR 发布 | 仅在 `v*` tag 且 `verify` 成功后，workflow 使用 Buildx、metadata-action 与 GITHUB_TOKEN 推送 `ghcr.io/lordfoxfairy/kokoro-nova`。 | 有 tag、semver、latest、sha 标签和 GHA cache；发布路径目前没有容器启动/健康检查步骤。 |
 
 ## 3. 可执行的本地验收流程
@@ -113,15 +117,16 @@
 
 | 事件 | 当前执行 | 当前未覆盖 |
 | --- | --- | --- |
-| Pull request | frozen install、typecheck、lint、Vitest、production build | demo smoke、E2E、视觉回归、Docker build/run。 |
+| Pull request | frozen install、typecheck、lint、Vitest、production build、隔离 Chromium core E2E | demo smoke、视觉回归、Docker build/run。 |
 | push main | 与 PR 相同 | 同上。 |
-| `v*` tag | 先完成 verify，再 Buildx 构建并推送 GHCR | 已发布镜像的 pull/run/HTTP smoke、容器内 fixture 验证、镜像 digest 级别的生产 E2E。 |
+| `v*` tag | verify 与隔离 Chromium E2E 通过后，Buildx 构建并推送 GHCR | 已发布镜像的 pull/run/HTTP smoke、容器内 fixture 验证、镜像 digest 级别的生产 E2E。 |
 
 ### 6.2 建议目标工作流
 
 | Job | 触发 | 前置 | 步骤 | 通过条件 | 失败产物 |
 | --- | --- | --- | --- | --- | --- |
 | `verify` | PR/main/tag | 无 | 保持现有 frozen install、typecheck、lint、Vitest、build | 现有四项均为 0 | test log。 |
+| `e2e` | PR/main/tag | 独立 Ubuntu runner | 安装 Chromium，以 `pnpm e2e:ci` 启动 :3210 的隔离 fixture server；涵盖账户、登录回跳、项目、生成/账本、合成、presence 与公开互动 | preflight 和 core browser suite 均为 0；失败保存 trace/report | `test-results`、`playwright-report`。 |
 | `demo-smoke` | PR/main/tag | dependencies install | `pnpm demo:smoke` | demo 子进程正常退出且 fixture envelope 合法 | server stdout/stderr、环境摘要。 |
 | `e2e-core` | PR/main/tag | build 或隔离 dev service | 默认 `pnpm e2e`，可先显式限定核心 spec 后再扩展 | preflight 和所有未跳过用例通过 | Playwright trace、report、screenshots。 |
 | `e2e-production` | main/tag；PR 可按变更路径触发 | production build | 以非 3200 端口运行 `.next-prod` 后执行 `pnpm e2e:prod` | 核心生产路径通过且 dev reset 拒绝 | trace 与 server log。 |
@@ -143,7 +148,7 @@
 
 ## 7. 建议的落地顺序
 
-1. **P0：** 将 `pnpm demo:smoke` 与默认隔离 `pnpm e2e` 加入 PR/main CI，上传失败 trace/log。
+1. **P0（部分完成）：** 隔离 `pnpm e2e:ci` 已加入 PR/main/tag CI，且上传失败 trace/report；继续将 `pnpm demo:smoke` 纳入 CI，并在确定截图平台后纳入完整 visual suite。
 2. **P0：** 为 demo 建立显式、范围受限的 reset 命令和“reset → smoke → demo”主持人检查表。
 3. **P1：** 决定视觉平台，建立独立 `e2e:visual` 入口和一次性服务编排；先迁移首页/项目与 canvas，再扩展全部既有基线。
 4. **P1：** 让 tag 发布在 push 前完成 container-smoke，在 push 后执行 digest pull-smoke；将 publish 依赖链写入 workflow。

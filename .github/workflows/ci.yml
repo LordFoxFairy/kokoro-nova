@@ -57,10 +57,50 @@ jobs:
       - name: Production build
         run: pnpm build
 
+  e2e:
+    name: Browser interaction suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Enable pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run isolated browser interaction suite
+        run: pnpm e2e:ci
+
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics-${{ github.run_id }}
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   publish:
     name: Publish GHCR image
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: verify
+    needs: [verify, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

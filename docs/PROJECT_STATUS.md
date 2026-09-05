@@ -1,6 +1,6 @@
 # Kokoro Nova 项目对齐与并行工作板
 
-更新时间：2026-09-04
+更新时间：2026-09-05
 
 ## 1. 当前项目做了什么
 
@@ -54,6 +54,9 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
 | Video / Script V2 / Storyboard | 视频任务、报价确认、分镜状态、脚本批量生成与剪辑 | OpenAPI 对齐、状态机测试与隔离 Playwright |
 
 最近质量记录：
+
+- `36d78eb` / `f028257` / `5304cd3`：补齐账户外部命令 mock、TV Show 喜欢/分享与 clone 失败重试，并新增 Skill 作者、团队资产、播放器质量菜单、协作租约四张 `1440×900` 像素基线；
+- `6068841` / `6cc8e58` / `2ff5c46` / `c92f6dc`：生成账本幂等链、双客户端编辑租约、Home/Project returnTo 恢复、播放器 quality fallback 均由独立 Playwright 旅程验证；全量 Vitest 为 **110 files / 909 tests**。
 
 - `6493f62`：资产 API 成功响应统一为 `AssetLifecycleView`，将 lifecycle view 的 Zod、runtime client、OpenAPI、示例和 contract test 对齐；全量 Vitest 通过 **105 files / 887 tests**；
 - `0813121` / `552fd93`：隔离浏览器覆盖画布切换生命周期，以及导演台新增角色、捕获机位、保存、刷新、重新打开后仍可恢复；

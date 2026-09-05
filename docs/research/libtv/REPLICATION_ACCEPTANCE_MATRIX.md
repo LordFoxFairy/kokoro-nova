@@ -19,13 +19,13 @@
 
 | Surface | 官网验收范围 | 当前 main 证据 | 当前判定 | 主要缺口 / 下一道门 |
 | --- | --- | --- | --- | --- |
-| 首页 Home | 活动条、侧栏、新建画布、六个快捷工具、最近项目、Agent 起始器、TV Show 首层 | `HomePage`、`HomeAgentComposer`、`AuthenticatedShell`、`TvShowFeed`；`e2e/home-project.spec.ts`；`docs/screenshots/libtv-home-local-1440x900.png` | `PARTIAL`（布局与 Agent 创作入口 `VERIFIED_LOCAL`） | 登录只是假门；会话恢复/回跳仍是后端接手 seam |
-| Project | 全部项目、搜索、文件夹、回收站、项目卡菜单与空态 | `ProjectListPage`、项目/文件夹 API；`e2e/home-project.spec.ts`；两张项目基线 | `PARTIAL`（管理核心 `VERIFIED_LOCAL`） | `/account` 被当作登录落点但实际是积分账本；文件夹封面/移动/副本完整 E2E 和公开权限边界仍缺 |
+| 首页 Home | 活动条、侧栏、新建画布、六个快捷工具、最近项目、Agent 起始器、TV Show 首层 | `HomePage`、`HomeAgentComposer`、`AuthenticatedShell`、`TvShowFeed`；`e2e/home-project.spec.ts`、`e2e/home-project-return-to.spec.ts`；`docs/screenshots/libtv-home-local-1440x900.png` | `VERIFIED_LOCAL` | public creative intent 在登录后恢复 prompt、CreationContext 与快捷 intent；真实会话仍由后端替换 seam 承接 |
+| Project | 全部项目、搜索、文件夹、回收站、项目卡菜单与空态 | `ProjectListPage`、项目/文件夹 API；`e2e/home-project.spec.ts`、`e2e/project-lifecycle.spec.ts`、`e2e/home-project-return-to.spec.ts`；两张项目基线 | `VERIFIED_LOCAL` | 身份 mock 保护项目/文件夹/回收站并保留 returnTo 路由；生产鉴权由后端 seam 接管 |
 | Canvas / Workflow | 独立全屏 chrome、画布切换、节点/连线、工具箱、资产、生成状态、协作 | `CanvasWorkspace`、`WorkflowCanvas`、`BottomToolbar`；`e2e/canvas-parity.spec.ts`、`e2e/kokoro-nova-parity.spec.ts` | `VERIFIED_LOCAL`（编辑核心） | 官网真实长任务、取消/失败/重试、协同冲突和动态模型权限仍未观察；本地生成仍是 deterministic mock |
 | Storyboard | 同一文档的文本/音频/图片/视频投影、筛选/展开、详情、定位/副本、剪辑入口 | `projectStoryboard()`、`StoryboardView`、`MediaDetailDrawer`、`ClipEditor`；`e2e/canvas-parity.spec.ts` | `VERIFIED_LOCAL`（投影核心） | 官网有效输入、导出/失败/取消和媒体持久化边界未确认；需继续证明切换不产生第二份文档 |
-| Skills | 创作输入、Skill/收藏/我的、分类/搜索、卡片、详情、示例轮播、原图、添加/使用 | `SkillGallery`、`SkillDetail`、`SkillMarketComposer`、版本化 `SKILL_CATALOGUE`；`e2e/skills-parity.spec.ts`；四张 local 基线 | `PARTIAL`（创作入口 `VERIFIED_LOCAL`） | 官网实际入口是 `/skill`，local 为 `/skills`；作者创建/版本/审核/发布未实现 |
-| TV Show | 首页内容流、分类/搜索、作品详情、播放器、相邻作品、只读制作过程、复制登录门 | `ShowcaseGallery`、`ShowcaseDetailView`、`PublicCanvasView`；`e2e/public-discovery.spec.ts`；catalog/detail/player 基线 | `PARTIAL`（公共闭环已可演示） | 首页与目录需共用发现 projection；分页/加载失败/真实媒体变体/登录后复制归属/互动反馈未完成；官网稳定详情 URL 未公开确认 |
-| Account | 头像菜单、身份/UUID/Access key、会员/积分/存储、主题、水印、通知、个人中心、账本 | 官网头像菜单与账户截图；local `AccountPage`、`LedgerView`、`LocalIdentityMenu`、account/identity Playwright 与视觉基线 | `PARTIAL` | 本地身份菜单、偏好、通知和账本已经过浏览器验证；团队、共享资产、订阅/发票实际流仍待后端域承接 |
+| Skills | 创作输入、Skill/收藏/我的、分类/搜索、卡片、详情、示例轮播、原图、添加/使用 | `SkillGallery`、`SkillDetail`、`SkillMarketComposer`、`SkillAuthorStudio`；`e2e/skills-parity.spec.ts`、`e2e/skills-authoring.spec.ts`；五张 local 基线 | `VERIFIED_LOCAL` | `/skill`、`/skill/[skillId]`、`/skill/create` 原位兼容并保留 `/skills`；真实审核服务仍为后端 seam |
+| TV Show | 首页内容流、分类/搜索、作品详情、播放器、相邻作品、只读制作过程、复制登录门 | `ShowcaseGallery`、`ShowcaseDetailView`、`PublicCanvasView`；`e2e/public-discovery.spec.ts`；catalog/detail/player 基线 | `VERIFIED_LOCAL` | discovery、分页、播放 manifest/回退、互动和 clone success/failure 均由本地 fixture 固定；官网稳定详情 URL 与真实媒体 CDN 仍待观察 |
+| Account | 头像菜单、身份/UUID/Access key、会员/积分/存储、主题、水印、通知、个人中心、账本 | 官网头像菜单与账户截图；local `AccountPage`、`LedgerView`、`LocalIdentityMenu`、account/identity Playwright 与视觉基线 | `VERIFIED_LOCAL` | 脱敏 Access Key 生命周期、团队邀请/成员状态和订阅/发票/模型市场 handoff 均为确定性命令 mock；真实外部域由后端 seam 承接 |
 
 ## 分项验收矩阵
 
@@ -90,7 +90,7 @@
 | V-03 | 详情沉浸背景、观看、倍速、清晰度、音量、全屏、相邻作品带 | [播放器截图](pages/showcase/screenshots/player-controls-speed-quality-volume-fullscreen.png) | `ShowcaseDetailView`、typed playback manifest；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（loading/buffering、720p→480p→original 自动回退、手选质量隔离、失败重试；媒体只来自 `/api/media/` fixture） |
 | V-04 | 查看制作过程保持作品上下文，Workflow/Storyboard 只读，复制触发认证门 | [公开工作流](pages/showcase/screenshots/public-production-process-readonly-workflow.png)、[公开故事板](pages/showcase/screenshots/public-production-process-readonly-storyboard.png) | `PublicCanvasView`；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（未登录门） |
 | V-05 | 公开快照与作者/分类/统计/播放器 projection 分层 | [public product 研究](references/public-product/README.md) | `PublishedSnapshot` + `ShowcaseEntryProjection` + `/api/showcase`；`HomeShowcaseItem` 从同一基础 projection 挑选首页字段，并强制 `id === snapshotId` | `VERIFIED_LOCAL`（公开 discovery projection） |
-| V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | `public-discovery.spec.ts` 覆盖目录 retry、滚动自动续页、媒体失败重试、匿名登录门，以及已登录确认 → 原子 clone → 新私有项目/画布 → 打开副本 | `PARTIAL`（local pagination 与目录/媒体 retry、clone 成功已验证；喜欢/分享反馈和 clone 失败仍待补） |
+| V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | `public-discovery.spec.ts` 覆盖目录 retry、滚动自动续页、媒体失败重试、喜欢/取消喜欢、分享反馈、匿名登录门和 clone success/failure retry | `VERIFIED_LOCAL`（互动只持久化本地 engagement，不修改公开快照或冻结 workflow） |
 
 ### A — Account
 
@@ -99,7 +99,7 @@
 | A-01 | 头像菜单中的身份、脱敏 UUID、Access key、团队、会员、积分和存储摘要 | [账户菜单](pages/account/screenshots/profile-menu-authenticated-overview.png) | `LocalIdentityMenu`、`/api/identity`、`AccountPage` 的 identity/membership/wallet/team projection；`GET /api/team`、`GET /api/shared-assets`、route/contract tests 与 `e2e/account-identity.spec.ts`、`e2e/account.spec.ts` | `VERIFIED_LOCAL`：脱敏身份、Access key 标签、会员/积分/存储、键盘菜单，以及团队成员/席位与共享资产权限 projection 都由确定性 fixture 验证 |
 | A-02 | 余额池、消耗顺序、冻结/结算/返还和可解释明细 | [积分账本证据](pages/billing/README.md) | `LedgerView`、`projectLedger`、`/api/ledger`；account unit tests | `VERIFIED_LOCAL`（领域投影） |
 | A-03 | 主题切换、AI 水印设置、通知中心和个人中心跳转 | [暗色菜单](pages/account/screenshots/profile-menu-dark-mode.png)、[水印规则](pages/account/screenshots/ai-watermark-removal-rules-and-toggle.png)、[通知](pages/account/README.md) | `LocalIdentityMenu`、`PreferencesSection`、`NotificationsSection`；`/api/preferences`、`/api/notifications`、Zod/route tests、`e2e/account*.spec.ts` 与深浅菜单视觉基线 | `VERIFIED_LOCAL`：theme、水印、已读与个人中心跳转均在 local API + 浏览器旅程中闭环 |
-| A-04 | 共享资产、订阅/开发票、模型超市、团队与 Access key 生命周期 | [账户外部域](pages/account/README.md) | `TeamResponseSchema`、`SharedAssetsResponseSchema`、`TeamAndSharedAssetsSection`、`GET /api/team`、`GET /api/shared-assets`、[`TEAM_AND_SHARED_ASSETS.md`](../../../api/TEAM_AND_SHARED_ASSETS.md)；`e2e/account.spec.ts` 覆盖 loading/ready/error retry，route tests 覆盖 empty/permission | `PARTIAL`：共享资产和团队已按 local typed projection 闭环；真实订阅/发票、模型超市、邀请/成员写入和 Access key 轮换仍留给后端命令域 |
+| A-04 | 共享资产、订阅/开发票、模型超市、团队与 Access key 生命周期 | [账户外部域](pages/account/README.md) | `account-external` contract、`GET/POST /api/access-key`、团队 invite/member routes、`GET /api/account/handoffs`、[`ACCOUNT_EXTERNAL_COMMANDS.md`](../../../api/ACCOUNT_EXTERNAL_COMMANDS.md)；`e2e/account.spec.ts` 与 route tests | `VERIFIED_LOCAL`：脱敏 key 创建/轮换/撤销与幂等重放、团队邀请/角色、订阅/发票/模型市场 handoff 状态均闭环；真实外部命令由后端承接 |
 | A-05 | 账本初次加载、刷新、陈旧数据保留和重试 | 官网账本状态未完整公开；local 需求由产品契约定义 | `getAccountRequestState`、`account-surfaces.test.ts` | `VERIFIED_LOCAL`（local failure state） |
 
 ## 统一放行门

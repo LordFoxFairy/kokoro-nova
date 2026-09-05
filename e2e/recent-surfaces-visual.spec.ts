@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { POPULATED_CANVAS, openCanvasFixture, selectCanvasScenario } from './helpers/canvas-fixtures'
+import { openCanvasFixture, selectCanvasScenario } from './helpers/canvas-fixtures'
 import { waitForStableVisuals } from './helpers/visual-stability'
 
 /**

@@ -107,6 +107,7 @@ test('succeeded video fixture reopens a seeded mixed-media composite timeline', 
   await expect(page.locator('[data-testid^="audio-preview-"]')).toHaveAttribute('src', '/api/media/fixtures/compositor-bed.wav')
   await page.getByTestId('clip-tool-subtitle').click()
   await expect(page.getByTestId('subtitle-track')).toContainText('雨夜城市')
+  await expectVisualBaseline(page, 'video-clip-editor-seeded-mixed-media-1440x900.png')
 
   await page.reload()
   await page.getByTestId('view-storyboard').click()

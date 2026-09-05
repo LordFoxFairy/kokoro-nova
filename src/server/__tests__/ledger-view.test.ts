@@ -177,6 +177,20 @@ describe('reserve → release', () => {
 })
 
 describe('duplicate logicalChargeId', () => {
+  it('treats a replayed reservation as a no-op even after later charges consumed the balance', () => {
+    const state = fixture()
+    reserve(state, SPACE, 'job_a', 80, '生成任务 A')
+    reserve(state, SPACE, 'job_b', 20, '生成任务 B')
+
+    // A delivery retry may arrive after other valid reservations have consumed
+    // the available balance. It still identifies the already-recorded charge
+    // before checking funds; otherwise a harmless replay becomes an
+    // insufficient-credit error despite being idempotent.
+    expect(() => reserve(state, SPACE, 'job_a', 80, '生成任务 A')).not.toThrow()
+    expect(state.ledger.filter((entry) => entry.logicalChargeId === 'reserve:job_a')).toHaveLength(1)
+    expect(state.balances[SPACE]).toBe(0)
+  })
+
   it('charges a repeated reservation exactly once', () => {
     const state = fixture()
     expect(reserve(state, SPACE, 'job_a', 18, '生成任务')).not.toBeNull()

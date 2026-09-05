@@ -49,6 +49,10 @@ function append(
   return entry
 }
 
+function hasLogicalCharge(state: WorkspaceState, logicalChargeId: string): boolean {
+  return state.ledger.some((entry) => entry.logicalChargeId === logicalChargeId)
+}
+
 /** Hold credits for a quoted job. Throws if the balance cannot cover it. */
 export function reserve(
   state: WorkspaceState,
@@ -57,6 +61,11 @@ export function reserve(
   credits: number,
   note: string,
 ): LedgerEntry | null {
+  // This check deliberately precedes the available-credit check. A replayed
+  // confirm/webhook is already accounted for, even if other jobs have since
+  // depleted the visible balance. Treating it as insufficient credit would
+  // turn an idempotent delivery retry into a false user-facing failure.
+  if (hasLogicalCharge(state, `reserve:${jobId}`)) return null
   const available = state.balances[spaceId] ?? 0
   if (credits > available) throw new InsufficientCreditsError(credits, available)
   return append(state, spaceId, 'reserve', -credits, `reserve:${jobId}`, jobId, note)

@@ -59,6 +59,10 @@ safe reattachment with that same invocation rather than a second reservation.
 - every ledger row uses a `logicalChargeId`: `reserve:JOB_ID`, `settle:JOB_ID`,
   or `release:JOB_ID`.
 
+`reserve` 的 idempotency lookup 先于余额检查：已经写入 `reserve:JOB_ID` 的重放确认直接
+返回 no-op，不会因为其他正在运行的任务后来冻结了剩余余额而返回“积分不足”。这使 browser retry、
+HTTP 重送和未来 provider webhook 的重复投递保持同一条账本链。
+
 A retry always receives a new 15-minute local quote and starts with `attempt: 0`;
 its counter becomes `1` only after its own confirmation. It never resurrects the
 source job's reservation or artifacts.

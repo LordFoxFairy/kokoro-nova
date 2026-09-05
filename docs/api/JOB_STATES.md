@@ -76,9 +76,10 @@ Content-Type: application/json
 
 {"action":"confirm"}
 {"action":"cancel"}
+{"action":"retry"}
 ```
 
-POST body 是严格判别联合，只接受 `confirm` / `cancel`；缺失 action、`poll` 或未知 action
+POST body 是严格判别联合，只接受 `confirm` / `cancel` / `retry`；缺失 action、`poll` 或未知 action
 返回 `400`，不会隐式确认任务。
 
 轮询固定使用：
@@ -127,6 +128,8 @@ GET /api/jobs/{jobId}
 10. 终态 job 不再被后续 poll 改写。
 11. fixture outcome 从 `invocationId` 重建；清空进程内 handle 后只会用同一 invocation 重挂接。
 12. `retry` 创建独立 job，旧 job 的 reservation、产物和终态永不回写。
+13. `reserve:jobId` 已存在时必须先返回幂等 no-op，再检查当前可用积分；后续任务即使已耗尽余额，
+    confirm/webhook 的重放也不得变成一次虚假的“积分不足”。
 
 ## 确定性场景
 

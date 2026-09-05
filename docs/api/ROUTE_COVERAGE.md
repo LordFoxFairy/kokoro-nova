@@ -1,6 +1,6 @@
 # Route 覆盖审计与后端替换边界
 
-> Contract version: `1.24.0-showcase-engagement` · scope: 51 paths / 87 operations
+> Contract version: `1.25.0-showcase-account-commands` · scope: 55 paths / 92 operations
 
 此文档是 `route-manifest.ts`、`openapi.yaml` 与现有 Next.js Route Handler 的人工审计结果。
 它只描述当前前端子仓库的确定性 mock 边界：不传递真实 LibTV URL、Cookie、token 或任何上游
@@ -19,7 +19,7 @@ transport 的一一对应。
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
 | Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
 | Public discovery / publish | 7 / 9 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
-| Account / ledger / team | 7 / 10 | 已精确 | identity、会话、钱包、偏好、通知、团队与共享资产 projection | shared account domain + billing/ledger/team service |
+| Account / ledger / team | 11 / 15 | 已精确 | identity、会话、钱包、偏好、通知、Access Key、团队命令、共享资产与外部 handoff projection | shared account domain + billing/ledger/team service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |
 
@@ -37,6 +37,7 @@ transport 的一一对应。
 - `Creation Context` 用同一路径的 GET / PUT / POST 表示恢复、保存和发送前冻结，Skill 作者流用独立 `/api/skills/author` 路径表达草稿、审核、发布和下架；
 - identity、preferences、notifications、account 与 ledger 保持独立读取/写入 operation，避免账户菜单把会话、偏好和账本折叠为一个无类型聚合。
 - `GET /api/team` 与 `GET /api/shared-assets` 以 `ready|empty|permission-denied` 显式投影团队和共享素材；它们是只读、scenario 驱动的 local fixture，不读取真实成员或远端素材。
+- `GET/POST /api/access-key` 只投影掩码 lifecycle；create/rotate/revoke 均要求 idempotency key，任何响应均没有 secret/reveal 字段。`POST /api/team/invites` 与 `PATCH /api/team/members/{memberId}` 只接收 local alias/role；owner 角色不可变更。`GET /api/account/handoffs` 显式标记订阅、发票和模型市场的未来 owner，不触发支付、开票或外部目录调用。
 - `PATCH /api/folders/{folderId}` 同时承载项目文件夹重命名和封面更新；请求体是至少包含一个字段的 `UpdateFolderRequest`，不再错误复用只允许 `name` 的 `RenameRequest`。
 - 上传边界单独记录在 [`ASSET_INGESTION.md`](ASSET_INGESTION.md)：`multipart/form-data` 的 `files[]`、50 MiB/文件、50 文件/请求、可选 `uploadToken` 取消票据、逐文件 `rejected` 与资产文件夹归属都必须由后端保留。
 
@@ -60,6 +61,9 @@ transport 的一一对应。
 | `GET /api/agent/sessions/{id}` | `afterSeq=0` | 没有新增消息时 `messages: []` | 无随机生成 | gateway 以 cursor 提供同一增量语义 |
 | `GET /api/ledger` | `limit=1..200` | `entries: []` 和 totals/counts | scenario 驱动账本 | billing service 保留整数积分和排序 |
 | `GET /api/team`, `GET /api/shared-assets` | 无请求参数 | `state=empty` 或 `assets: []` | anonymous 返回 `permission-denied`，登录空账户返回 `empty` | membership/ACL + asset index 保留 state 与 permission union |
+| `GET/POST /api/access-key` | GET 无 body；POST `{ action, idempotencyKey }` | 不适用 | `not-created → active → revoked`、掩码唯一 | credential issuer + audit log 保留 generation/replay 语义 |
+| `POST /api/team/invites`, `PATCH /api/team/members/{memberId}` | local alias/role + idempotency key | `409` 无团队或无空席；`403` owner 更新 | pending invite 与非 owner role 切换 | directory, ACL, invitation delivery + audit |
+| `GET /api/account/handoffs` | 无请求参数 | `permission-denied` | subscription/invoice/model-market owner 与 empty/handoff state | billing, invoice, catalogue adapter |
 | `GET /api/presence/{canvasId}` | subscriber query：`participantId`, `name`, `color`, `x/y/zoom?` | 首帧 `snapshot` 可含空 participants | `400` 形状错误；`429` 房间上限 | SSE 可改 WebSocket，但需 adapter 保留事件 union |
 | `POST /api/dev/scenario`, `/reset` | scenarioId / 无 body | 不适用 | production 恒为 `403` | production 服务不得暴露这两个 route |
 
@@ -69,7 +73,7 @@ UI 测试入口，其他 endpoint 不得暗藏随机空态或失败开关。所�
 
 ## 后端授权与错误交接
 
-51 个 path、87 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
+55 个 path、92 个 operation 均在 OpenAPI operation 级别标记 `x-authorization` 和 `security`：
 15 个 public 读取明确为 `security: []`，其余 72 个 operation 使用 `bearerAuth`。后端以
 [`AUTHORIZATION.md`](AUTHORIZATION.md) 的 public/authenticated/owner/workspace 语义在业务查询
 和副作用前完成认证/授权；本地 fixture 不验证 bearer，也不持久化真实凭证。

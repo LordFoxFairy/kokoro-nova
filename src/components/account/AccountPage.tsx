@@ -12,6 +12,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import type { AccountProfileResponse } from "@/contracts/account";
+import type {
+  AccessKeyProjection,
+  AccountExternalHandoffsResponse,
+} from "@/contracts/account-external";
 import type { NotificationsResponse } from "@/contracts/notifications";
 import type { PreferencesResponse } from "@/contracts/preferences";
 import type { SharedAssetsResponse, TeamResponse } from "@/contracts/team";
@@ -147,6 +151,16 @@ export function AccountPage() {
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
   const [teamReloadToken, setTeamReloadToken] = useState(0);
+  const [accessKey, setAccessKey] = useState<AccessKeyProjection | null>(null);
+  const [accessKeyLoading, setAccessKeyLoading] = useState(false);
+  const [accessKeyError, setAccessKeyError] = useState<string | null>(null);
+  const [accessKeyReloadToken, setAccessKeyReloadToken] = useState(0);
+  const [handoffs, setHandoffs] = useState<AccountExternalHandoffsResponse | null>(null);
+  const [handoffsLoading, setHandoffsLoading] = useState(false);
+  const [handoffsError, setHandoffsError] = useState<string | null>(null);
+  const [handoffsReloadToken, setHandoffsReloadToken] = useState(0);
+  const [boundaryBusy, setBoundaryBusy] = useState(false);
+  const boundarySequence = useRef(0);
   const navRefs = useRef<
     Partial<Record<(typeof ACCOUNT_SECTIONS)[number]["id"], HTMLButtonElement>>
   >({});
@@ -215,6 +229,46 @@ export function AccountPage() {
     };
   }, [section, teamReloadToken]);
 
+  useEffect(() => {
+    if (section !== "credentials") return;
+    let cancelled = false;
+    setAccessKeyLoading(true);
+    setAccessKeyError(null);
+    void client.account.accessKey.get()
+      .then((response) => {
+        if (!cancelled) setAccessKey(response.key);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setAccessKeyError(cause instanceof Error ? cause.message : "Access Key 状态暂时不可用");
+      })
+      .finally(() => {
+        if (!cancelled) setAccessKeyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessKeyReloadToken, section]);
+
+  useEffect(() => {
+    if (section !== "membership") return;
+    let cancelled = false;
+    setHandoffsLoading(true);
+    setHandoffsError(null);
+    void client.account.handoffs()
+      .then((response) => {
+        if (!cancelled) setHandoffs(response);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setHandoffsError(cause instanceof Error ? cause.message : "账户外部服务状态暂时不可用");
+      })
+      .finally(() => {
+        if (!cancelled) setHandoffsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [handoffsReloadToken, section]);
+
   const requestState = getAccountRequestState({
     loading,
     hasData: Boolean(profile && ledger),
@@ -222,6 +276,67 @@ export function AccountPage() {
   });
   const retry = () => setReloadToken((token) => token + 1);
   const retryTeam = () => setTeamReloadToken((token) => token + 1);
+  const retryAccessKey = () => setAccessKeyReloadToken((token) => token + 1);
+  const retryHandoffs = () => setHandoffsReloadToken((token) => token + 1);
+  const nextBoundaryIdempotencyKey = (scope: string) => {
+    boundarySequence.current += 1;
+    return `account-${scope}-${boundarySequence.current}`;
+  };
+
+  const commandAccessKey = async (action: "create" | "rotate" | "revoke") => {
+    if (boundaryBusy) return;
+    setBoundaryBusy(true);
+    setAccessKeyError(null);
+    try {
+      const response = await client.account.accessKey.command({
+        action,
+        idempotencyKey: nextBoundaryIdempotencyKey(`key-${action}`),
+      });
+      setAccessKey(response.key);
+      setActionFeedback(response.message);
+    } catch (cause) {
+      setAccessKeyError(cause instanceof Error ? cause.message : "Access Key 命令失败");
+    } finally {
+      setBoundaryBusy(false);
+    }
+  };
+
+  const inviteTeamMember = async (inviteeAlias: string, role: "admin" | "member") => {
+    if (boundaryBusy) return;
+    setBoundaryBusy(true);
+    setTeamError(null);
+    try {
+      const response = await client.team.invite({
+        inviteeAlias,
+        role,
+        idempotencyKey: nextBoundaryIdempotencyKey("team-invite"),
+      });
+      setTeam(response.team);
+      setActionFeedback(response.message);
+    } catch (cause) {
+      setTeamError(cause instanceof Error ? cause.message : "团队邀请命令失败");
+    } finally {
+      setBoundaryBusy(false);
+    }
+  };
+
+  const updateTeamMember = async (memberId: string, role: "admin" | "member") => {
+    if (boundaryBusy) return;
+    setBoundaryBusy(true);
+    setTeamError(null);
+    try {
+      const response = await client.team.updateMember(memberId, {
+        role,
+        idempotencyKey: nextBoundaryIdempotencyKey("team-member"),
+      });
+      setTeam(response.team);
+      setActionFeedback(response.message);
+    } catch (cause) {
+      setTeamError(cause instanceof Error ? cause.message : "成员更新命令失败");
+    } finally {
+      setBoundaryBusy(false);
+    }
+  };
   const theme = profile?.preferences.theme ?? "dark";
   const accountVars = theme === "dark" ? DARK_ACCOUNT_VARS : LIGHT_ACCOUNT_VARS;
   const selected =
@@ -522,6 +637,10 @@ export function AccountPage() {
                   <MembershipSection
                     profile={profile}
                     onAction={setActionFeedback}
+                    handoffs={handoffs}
+                    loading={handoffsLoading}
+                    error={handoffsError}
+                    onRetry={retryHandoffs}
                   />
                 )}
                 {section === "notifications" && (
@@ -547,7 +666,12 @@ export function AccountPage() {
                 {section === "credentials" && (
                   <CredentialsSection
                     profile={profile}
-                    onAction={setActionFeedback}
+                    accessKey={accessKey}
+                    loading={accessKeyLoading}
+                    error={accessKeyError}
+                    busy={boundaryBusy}
+                    onRetry={retryAccessKey}
+                    onCommand={(action) => void commandAccessKey(action)}
                   />
                 )}
                 {section === "team" && (
@@ -557,6 +681,9 @@ export function AccountPage() {
                     loading={teamLoading}
                     error={teamError}
                     onRetry={retryTeam}
+                    commandBusy={boundaryBusy}
+                    onInvite={(alias, role) => void inviteTeamMember(alias, role)}
+                    onUpdateMember={(memberId, role) => void updateTeamMember(memberId, role)}
                   />
                 )}
               </div>
@@ -1033,9 +1160,17 @@ function WalletSection({
 function MembershipSection({
   profile,
   onAction,
+  handoffs,
+  loading,
+  error,
+  onRetry,
 }: {
   profile: AccountProfileResponse;
   onAction: (message: string) => void;
+  handoffs: AccountExternalHandoffsResponse | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
 }) {
   return (
     <div className="max-w-3xl space-y-5">
@@ -1058,7 +1193,7 @@ function MembershipSection({
           <button
             type="button"
             onClick={() =>
-              onAction("本地订阅方案已准备就绪；该确定性样本不会创建订阅订单。")
+              onAction(handoffs?.subscription.message ?? "正在读取订阅服务 handoff 状态。")
             }
             className="rounded-lg bg-[#e7b758] px-3.5 py-2 text-[12px] font-medium text-[#261d0d] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
@@ -1079,18 +1214,35 @@ function MembershipSection({
           <h2 className="text-[14px] font-medium text-ink-900">订阅与开发票</h2>
           <span className="text-[11px] text-ink-500">本地样本状态</span>
         </div>
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-600">
-          购买记录、订阅计划和发票入口会与共享账户保持同一登录态。
-        </p>
-        <button
-          type="button"
-          onClick={() =>
-            onAction("暂无本地购买记录或可开具发票；此样本不会请求支付服务。")
-          }
-          className="mt-4 rounded-lg border border-ink-200 px-3 py-2 text-[12px] text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          查看购买记录
-        </button>
+        {loading && !handoffs ? (
+          <p role="status" aria-label="正在加载账户外部服务状态" className="mt-4 text-[12px] text-ink-500">正在加载账户外部服务状态…</p>
+        ) : error && !handoffs ? (
+          <div className="mt-4 rounded-xl bg-danger/10 px-3 py-3 text-[12px] text-danger" role="alert">
+            外部服务状态暂时不可用：{error}
+            <button type="button" onClick={onRetry} className="ml-3 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">重试</button>
+          </div>
+        ) : handoffs ? (
+          <div className="mt-4 space-y-2" data-testid="account-external-handoffs">
+            {error && <div role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-[11px] text-danger">仍显示上次成功读取的 handoff：{error}</div>}
+            {[handoffs.subscription, handoffs.invoices, handoffs.modelMarket].map((service) => (
+              <div key={service.owner} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-ink-50 px-3.5 py-3">
+                <div>
+                  <p className="text-[12px] font-medium text-ink-900">{service.title}</p>
+                  <p className="mt-1 text-[11px] text-ink-500">{service.message}</p>
+                </div>
+                <button
+                  type="button"
+                  data-testid={`account-handoff-${service.owner}`}
+                  disabled={!service.action}
+                  onClick={() => onAction(service.message)}
+                  className="rounded-lg border border-ink-200 px-2.5 py-1.5 text-[11px] text-ink-700 hover:bg-surface disabled:cursor-not-allowed disabled:text-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  {service.actionLabel}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
     </div>
   );
@@ -1307,11 +1459,22 @@ function ThemeButton({
 
 function CredentialsSection({
   profile,
-  onAction,
+  accessKey,
+  loading,
+  error,
+  busy,
+  onRetry,
+  onCommand,
 }: {
   profile: AccountProfileResponse;
-  onAction: (message: string) => void;
+  accessKey: AccessKeyProjection | null;
+  loading: boolean;
+  error: string | null;
+  busy: boolean;
+  onRetry: () => void;
+  onCommand: (action: "create" | "rotate" | "revoke") => void;
 }) {
+  const key = accessKey;
   return (
     <div className="max-w-3xl space-y-5">
       <section
@@ -1335,21 +1498,19 @@ function CredentialsSection({
         <div className="mt-5 rounded-xl border border-dashed border-ink-200 px-4 py-4">
           <div className="flex items-center justify-between gap-3">
             <span className="font-mono text-[12px] text-ink-600">
-              •••• •••• •••• ••••
+              {key?.maskedValue ?? (loading ? "正在读取生命周期…" : "•••• •••• •••• ••••")}
             </span>
-            <button
-              type="button"
-              onClick={() =>
-                onAction("Access Key 仅提供脱敏本地入口，不会生成或保存真实凭据。")
-              }
-              className="rounded-lg border border-ink-200 px-3 py-1.5 text-[11px] text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              创建 Access Key
-            </button>
+            {key?.state === "active" ? (
+              <span className="flex gap-2">
+                <button type="button" data-testid="access-key-rotate" onClick={() => onCommand("rotate")} disabled={busy} className="rounded-lg border border-ink-200 px-3 py-1.5 text-[11px] text-ink-700 hover:bg-ink-50 disabled:cursor-wait disabled:text-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">轮换 Access Key</button>
+                <button type="button" data-testid="access-key-revoke" onClick={() => onCommand("revoke")} disabled={busy} className="rounded-lg border border-danger/30 px-3 py-1.5 text-[11px] text-danger hover:bg-danger/10 disabled:cursor-wait disabled:text-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">撤销</button>
+              </span>
+            ) : (
+              <button type="button" data-testid="access-key-create" onClick={() => onCommand("create")} disabled={busy || loading} className="rounded-lg border border-ink-200 px-3 py-1.5 text-[11px] text-ink-700 hover:bg-ink-50 disabled:cursor-wait disabled:text-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">{key?.state === "revoked" ? "重新创建 Access Key" : "创建 Access Key"}</button>
+            )}
           </div>
-          <p className="mt-2 text-[11px] text-ink-500">
-            本地样本只展示脱敏入口，不写入真实凭据。
-          </p>
+          <p className="mt-2 text-[11px] text-ink-500">{key ? `状态：${key.state} · generation ${key.generation}。本地样本只展示脱敏生命周期，不写入真实凭据。` : "本地样本只展示脱敏入口，不写入真实凭据。"}</p>
+          {error && <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-danger/10 px-3 py-2 text-[11px] text-danger">{error}<button type="button" onClick={onRetry} className="underline">重试</button></div>}
         </div>
       </section>
       <section className="rounded-2xl border border-ink-100 bg-surface p-5">
@@ -1493,13 +1654,21 @@ function TeamAndSharedAssetsSection({
   loading,
   error,
   onRetry,
+  commandBusy,
+  onInvite,
+  onUpdateMember,
 }: {
   team: TeamResponse | null;
   sharedAssets: SharedAssetsResponse | null;
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  commandBusy: boolean;
+  onInvite: (alias: string, role: "admin" | "member") => void;
+  onUpdateMember: (memberId: string, role: "admin" | "member") => void;
 }) {
+  const [inviteeAlias, setInviteeAlias] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const requestState = getTeamSurfaceRequestState({
     loading,
     hasData: Boolean(team && sharedAssets),
@@ -1592,10 +1761,25 @@ function TeamAndSharedAssetsSection({
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {team.team?.members.map((member) => (
-              <span key={member.id} className="rounded-full bg-ink-50 px-2.5 py-1 text-[11px] text-ink-600">
+              <span key={member.id} className="inline-flex items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-[11px] text-ink-600">
                 {member.avatarInitial} · {member.displayName} · {member.role === "owner" ? "所有者" : member.role === "admin" ? "管理员" : "成员"}
+                {member.role !== "owner" && (
+                  <button type="button" data-testid={`team-member-toggle-${member.id}`} disabled={commandBusy} onClick={() => onUpdateMember(member.id, member.role === "admin" ? "member" : "admin")} className="text-accent-ink underline disabled:text-ink-400">
+                    {member.role === "admin" ? "设为成员" : "设为管理员"}
+                  </button>
+                )}
               </span>
             ))}
+          </div>
+          <div className="mt-4 rounded-xl border border-ink-100 bg-ink-50 p-3" data-testid="account-team-commands">
+            <p className="text-[12px] font-medium text-ink-900">邀请协作者</p>
+            <p className="mt-1 text-[11px] text-ink-500">仅接受本地显示别名；未来成员目录和投递由后端接手。</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input data-testid="team-invite-alias" value={inviteeAlias} onChange={(event) => setInviteeAlias(event.target.value)} placeholder="本地协作者别名" className="min-w-40 rounded-lg border border-ink-200 bg-surface px-2.5 py-1.5 text-[12px] text-ink-900 outline-none focus:border-accent" />
+              <select data-testid="team-invite-role" value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "admin" | "member")} className="rounded-lg border border-ink-200 bg-surface px-2 py-1.5 text-[12px] text-ink-700"><option value="member">成员</option><option value="admin">管理员</option></select>
+              <button type="button" data-testid="team-invite-submit" disabled={commandBusy || !inviteeAlias.trim()} onClick={() => { onInvite(inviteeAlias.trim(), inviteRole); setInviteeAlias(""); }} className="rounded-lg bg-ink-900 px-3 py-1.5 text-[12px] text-white disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500">发送本地邀请</button>
+            </div>
+            {team.team?.pendingInvites.length ? <p data-testid="team-pending-invites" className="mt-3 text-[11px] text-ink-600">待处理：{team.team.pendingInvites.map((invite) => `${invite.inviteeAlias}（${invite.role === "admin" ? "管理员" : "成员"}）`).join("、")}</p> : null}
           </div>
         </section>
       )}

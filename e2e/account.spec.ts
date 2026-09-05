@@ -134,10 +134,11 @@ test("account purchase and subscription actions report their deterministic local
   await expect(page.getByTestId("account-action-feedback")).toContainText("本地充值入口已准备就绪");
 
   await page.getByRole("tab", { name: "会员与发票", exact: true }).click();
+  await expect(page.getByTestId("account-external-handoffs")).toBeVisible();
   await page.getByRole("button", { name: "开通会员" }).click();
-  await expect(page.getByTestId("account-action-feedback")).toContainText("本地订阅方案已准备就绪");
-  await page.getByRole("button", { name: "查看购买记录" }).click();
-  await expect(page.getByTestId("account-action-feedback")).toContainText("暂无本地购买记录或可开具发票");
+  await expect(page.getByTestId("account-action-feedback")).toContainText("账单服务接手");
+  await page.getByTestId("account-handoff-invoice").click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText("当前确定性 fixture 没有购买记录");
 });
 
 test('account team workspace projects loading, shared assets and retryable error states', async ({ page, request }) => {
@@ -194,4 +195,39 @@ test('account team workspace distinguishes empty membership from the local permi
   await page.getByTestId('account-team-reload').click();
   await expect(page.getByTestId('account-team-permission')).toContainText('需要登录后查看团队');
   await expect(page.getByTestId('account-shared-assets')).toHaveCount(0);
+});
+
+
+test("account exposes masked Access Key lifecycle and deterministic external-service handoffs", async ({ page }) => {
+  await page.goto("/account?tab=credentials");
+  await page.getByTestId("access-key-create").click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText("已创建脱敏 Access Key");
+  await expect(page.getByTestId("account-credentials")).toContainText("lvtk_••••••••01");
+  await page.getByTestId("access-key-rotate").click();
+  await expect(page.getByTestId("account-credentials")).toContainText("generation 2");
+  await page.getByTestId("access-key-revoke").click();
+  await expect(page.getByTestId("account-credentials")).toContainText("状态：revoked");
+  await expect(page.getByTestId("account-credentials")).not.toContainText("sk-");
+
+  await page.getByRole("tab", { name: "会员与发票", exact: true }).click();
+  await expect(page.getByTestId("account-external-handoffs")).toContainText("账单服务接手");
+  await expect(page.getByTestId("account-external-handoffs")).toContainText("模型目录服务负责");
+  await page.getByTestId("account-handoff-invoice").click();
+  await expect(page.getByTestId("account-action-feedback")).toContainText("当前确定性 fixture 没有购买记录");
+});
+
+test("account team commands create a local alias invitation and update a non-owner role", async ({ page, request }) => {
+  const selected = await request.post("/api/dev/scenario", { data: { scenarioId: "authenticated-populated" } });
+  expect(selected.ok()).toBe(true);
+  const reset = await request.post("/api/dev/reset");
+  expect(reset.ok()).toBe(true);
+  const signIn = await request.post("/api/identity", { data: { action: "signIn", returnTo: "/" } });
+  expect(signIn.ok()).toBe(true);
+
+  await page.goto("/account?tab=team");
+  await page.getByTestId("team-invite-alias").fill("本地协作者");
+  await page.getByTestId("team-invite-submit").click();
+  await expect(page.getByTestId("team-pending-invites")).toContainText("本地协作者（成员）");
+  await page.getByTestId("team-member-toggle-member_liu").click();
+  await expect(page.getByTestId("account-team-ready")).toContainText("刘 · 刘同学 · 成员");
 });

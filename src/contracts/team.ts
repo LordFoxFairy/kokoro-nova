@@ -14,6 +14,19 @@ export const TeamMemberSchema = z.object({
   role: TeamRoleSchema,
 }).strict()
 
+/**
+ * Local invitations deliberately use an alias, rather than an email address
+ * or an external principal. The future membership service owns resolution and
+ * delivery; this fixture only captures the UI command boundary.
+ */
+export const TeamInviteSchema = z.object({
+  id: z.string().min(1).max(120),
+  inviteeAlias: z.string().min(1).max(80),
+  role: z.enum(['admin', 'member']),
+  state: z.literal('pending'),
+  createdAt: z.string().datetime(),
+}).strict()
+
 export const TeamWorkspaceSchema = z.object({
   id: z.string().min(1).max(120),
   name: z.string().min(1).max(120),
@@ -22,6 +35,7 @@ export const TeamWorkspaceSchema = z.object({
   seatLimit: z.number().int().positive(),
   sharedAssetCount: z.number().int().nonnegative(),
   members: z.array(TeamMemberSchema).min(1).max(50),
+  pendingInvites: z.array(TeamInviteSchema).max(50),
 }).strict()
 
 export const TeamResponseSchema = z.object({
@@ -58,9 +72,44 @@ export const SharedAssetsResponseSchema = z.object({
   }
 })
 
+export const LocalIdempotencyKeySchema = z.string().min(1).max(120).regex(/^[a-zA-Z0-9_-]+$/, '幂等键只能包含字母、数字、_ 或 -')
+
+export const CreateTeamInviteRequestSchema = z.object({
+  inviteeAlias: z.string().trim().min(1).max(80),
+  role: z.enum(['admin', 'member']),
+  idempotencyKey: LocalIdempotencyKeySchema,
+}).strict()
+
+export const CreateTeamInviteResponseSchema = z.object({
+  invite: TeamInviteSchema,
+  team: TeamResponseSchema,
+  message: z.string().min(1).max(240),
+}).strict()
+
+export const UpdateTeamMemberRequestSchema = z.object({
+  role: z.enum(['admin', 'member']),
+  idempotencyKey: LocalIdempotencyKeySchema,
+}).strict()
+
+export const TeamMemberUpdateResponseSchema = z.object({
+  member: TeamMemberSchema.nullable(),
+  team: TeamResponseSchema,
+  message: z.string().min(1).max(240),
+}).strict().superRefine((value, context) => {
+  if (!value.member || value.team.state !== 'ready') {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: '成员更新必须返回 ready 团队和更新后的成员', path: ['member'] })
+  }
+})
+
 export type TeamProjectionState = z.infer<typeof TeamProjectionStateSchema>
 export type TeamResponse = z.infer<typeof TeamResponseSchema>
 export type SharedAssetsResponse = z.infer<typeof SharedAssetsResponseSchema>
+export type TeamRole = z.infer<typeof TeamRoleSchema>
+export type TeamInvite = z.infer<typeof TeamInviteSchema>
+export type CreateTeamInviteRequest = z.infer<typeof CreateTeamInviteRequestSchema>
+export type CreateTeamInviteResponse = z.infer<typeof CreateTeamInviteResponseSchema>
+export type UpdateTeamMemberRequest = z.infer<typeof UpdateTeamMemberRequestSchema>
+export type TeamMemberUpdateResponse = z.infer<typeof TeamMemberUpdateResponseSchema>
 
 type TeamFixtureBundle = {
   team: TeamResponse
@@ -78,6 +127,7 @@ const populatedFixture: TeamFixtureBundle = {
       seatCount: 3,
       seatLimit: 5,
       sharedAssetCount: 2,
+      pendingInvites: [],
       members: [
         { id: 'member_local_cd385d', displayName: '微信用户cd385d', avatarInitial: '微', role: 'owner' },
         { id: 'member_liu', displayName: '刘同学', avatarInitial: '刘', role: 'admin' },

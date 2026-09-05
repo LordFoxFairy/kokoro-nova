@@ -8,10 +8,12 @@ LibTV 账户数据。
 
 | Operation | Path | 成功体 | UI 用途 |
 |---|---|---|---|
-| `getLocalTeam` | `GET /api/team` | `TeamResponse` | 团队名称、当前角色、席位、成员摘要。 |
+| `getLocalTeam` | `GET /api/team` | `TeamResponse` | 团队名称、当前角色、席位、成员摘要和 pending invite。 |
 | `getLocalSharedAssets` | `GET /api/shared-assets` | `SharedAssetsResponse` | 共享素材名称、媒介种类、来源成员、最后更新时间和局部权限。 |
+| `createLocalTeamInvite` | `POST /api/team/invites` | `CreateTeamInviteResponse` | 以 local alias 创建确定性的 pending invite。 |
+| `updateLocalTeamMember` | `PATCH /api/team/members/{memberId}` | `TeamMemberUpdateResponse` | 将非 owner 成员在 `admin` / `member` 间切换。 |
 
-两条 operation 都没有请求体、分页 cursor 或写入副作用。`/api/assets` 仍然是个人/Agent 资产库的
+两个读取 operation 都没有请求体、分页 cursor 或写入副作用；命令 operation 均要求 `idempotencyKey`，不会解析邮箱、真实成员 ID 或外部 URL。`/api/assets` 仍然是个人/Agent 资产库的
 可变生命周期边界；共享资产不复用其编辑、上传或删除 endpoint。
 
 ## State machine
@@ -41,8 +43,7 @@ fixture-relative 资产：`shared_asset_city_board`（`edit`）与 `shared_asset
    可空不变量，不让组件根据 401/404 猜测空态。
 2. 使用 ACL-aware asset index 替换 `SharedAssetsResponse.assets`；每个资产应在 query 内完成成员权限
    过滤，响应只返回调用者已可见的 `permission`。
-3. 上传、移动、邀请、席位购买和成员管理是未来独立命令；加入前需定义 idempotency、审计和
-   optimistic revision，不能悄悄扩展这两个只读 operation。
+3. 本地邀请和成员角色命令只覆盖 UI 边界；真实服务需将 alias 换为 principal/directory lookup，并补充投递、接受、撤回、审计和 optimistic revision。详细命令状态见 [`ACCOUNT_EXTERNAL_COMMANDS.md`](ACCOUNT_EXTERNAL_COMMANDS.md)。
 4. 真实认证失败可在 transport adapter 标准化为 `permission-denied` view state；服务端仍按
    OpenAPI operation 的 bearer/owner 语义记录 401/403。
 5. 后端替换后继续通过 `TeamResponseSchema`、`SharedAssetsResponseSchema`、route tests、账户 E2E 和

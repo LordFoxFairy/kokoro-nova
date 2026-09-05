@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.24.0-showcase-engagement",
+    "version": "1.25.0-showcase-account-commands",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -4823,6 +4823,270 @@
         ]
       }
     },
+    "/api/access-key": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取脱敏 Access Key 生命周期",
+        "operationId": "getLocalAccessKey",
+        "description": "只返回掩码、state、generation 和固定 scope；没有 secret、reveal 或 copy 字段。",
+        "x-ui-triggers": [
+          "CLI & Skill 页读取脱敏 Access Key 生命周期"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "确定性的本地 mock 响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求字段不符合契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "本地会话未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "命令状态或幂等键冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "创建、轮换或撤销脱敏 Access Key",
+        "operationId": "commandLocalAccessKey",
+        "description": "命令由 idempotencyKey 去重；本地 fixture 不生成或保存真实凭据。",
+        "x-ui-triggers": [
+          "创建、轮换或撤销脱敏 Access Key"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessKeyCommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "确定性的本地 mock 响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求字段不符合契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "本地会话未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "命令状态或幂等键冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/account/handoffs": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取账户外部服务 handoff",
+        "operationId": "getAccountExternalHandoffs",
+        "description": "为 billing、invoice、model-market 明确返回 handoff、empty 或 authentication-required；不会发起支付或外部目录请求。",
+        "x-ui-triggers": [
+          "会员与发票页读取订阅、发票和模型市场 handoff 状态"
+        ],
+        "x-mock-scenarios": [
+          "anonymous",
+          "authenticated-empty",
+          "authenticated-populated"
+        ],
+        "responses": {
+          "200": {
+            "description": "确定性的本地 mock 响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountExternalHandoffsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求字段不符合契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "本地会话未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "命令状态或幂等键冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/account": {
       "get": {
         "tags": [
@@ -6439,6 +6703,206 @@
         ]
       }
     },
+    "/api/team/invites": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "创建本地团队邀请",
+        "operationId": "createLocalTeamInvite",
+        "description": "只接受 local alias；未来后端负责 principal lookup 与邀请投递。",
+        "x-ui-triggers": [
+          "团队页邀请本地显示别名"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeamInviteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "确定性的本地 mock 响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTeamInviteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求字段不符合契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "本地会话未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "命令状态或幂等键冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/team/members/{memberId}": {
+      "patch": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "更新本地团队成员角色",
+        "operationId": "updateLocalTeamMember",
+        "description": "仅 admin/member 互换；owner 角色保持不可变。",
+        "x-ui-triggers": [
+          "团队页更新非 owner 成员角色"
+        ],
+        "x-mock-scenarios": [
+          "authenticated-populated"
+        ],
+        "parameters": [
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeamMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "确定性的本地 mock 响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMemberUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求字段不符合契约",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "本地会话未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "命令状态或幂等键冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "本地 mock 执行异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-authorization": "owner",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/team": {
       "get": {
         "tags": [
@@ -6541,6 +7005,360 @@
       }
     },
     "schemas": {
+    "AccessKeyState": {
+      "type": "string",
+      "enum": [
+        "not-created",
+        "active",
+        "revoked"
+      ]
+    },
+    "AccessKeyProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "maskedValue",
+        "state",
+        "generation",
+        "createdAt",
+        "revokedAt",
+        "scopes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "label": {
+          "const": "Access key"
+        },
+        "maskedValue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "固定脱敏字面量；绝不是可用凭据。"
+        },
+        "state": {
+          "$ref": "#/components/schemas/AccessKeyState"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "createdAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "revokedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "enum": [
+              "account:read",
+              "jobs:create",
+              "assets:read"
+            ]
+          }
+        }
+      }
+    },
+    "AccessKeyResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "message"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/components/schemas/AccessKeyProjection"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      }
+    },
+    "AccessKeyCommandRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "idempotencyKey"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "create",
+            "rotate",
+            "revoke"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    "AccountHandoffState": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "permission-denied"
+      ]
+    },
+    "ExternalServiceState": {
+      "type": "string",
+      "enum": [
+        "handoff-ready",
+        "empty",
+        "authentication-required"
+      ]
+    },
+    "ExternalServiceHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "owner",
+        "title",
+        "message",
+        "actionLabel",
+        "action"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/components/schemas/ExternalServiceState"
+        },
+        "owner": {
+          "type": "string",
+          "enum": [
+            "billing",
+            "invoice",
+            "model-market"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "actionLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "action": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "open-subscription",
+            "view-invoices",
+            "browse-model-market",
+            null
+          ]
+        }
+      }
+    },
+    "AccountExternalHandoffsResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "message",
+        "subscription",
+        "invoices",
+        "modelMarket"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/components/schemas/AccountHandoffState"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "subscription": {
+          "$ref": "#/components/schemas/ExternalServiceHandoff"
+        },
+        "invoices": {
+          "$ref": "#/components/schemas/ExternalServiceHandoff"
+        },
+        "modelMarket": {
+          "$ref": "#/components/schemas/ExternalServiceHandoff"
+        }
+      }
+    },
+    "TeamInvite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "inviteeAlias",
+        "role",
+        "state",
+        "createdAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "inviteeAlias": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "仅本地显示别名；不接受邮箱或真实 principal。"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "member"
+          ]
+        },
+        "state": {
+          "const": "pending"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CreateTeamInviteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inviteeAlias",
+        "role",
+        "idempotencyKey"
+      ],
+      "properties": {
+        "inviteeAlias": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "member"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    "CreateTeamInviteResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invite",
+        "team",
+        "message"
+      ],
+      "properties": {
+        "invite": {
+          "$ref": "#/components/schemas/TeamInvite"
+        },
+        "team": {
+          "$ref": "#/components/schemas/TeamResponse"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      }
+    },
+    "UpdateTeamMemberRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "idempotencyKey"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "member"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    "TeamMemberUpdateResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member",
+        "team",
+        "message"
+      ],
+      "properties": {
+        "member": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/TeamMember"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "team": {
+          "$ref": "#/components/schemas/TeamResponse"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      },
+      "description": "成功时 member 非空且 team.state=ready。"
+    },
       "ShowcaseEngagementRequest": {
         "type": "object",
         "required": [
@@ -16273,7 +17091,8 @@
           "seatCount",
           "seatLimit",
           "sharedAssetCount",
-          "members"
+          "members",
+          "pendingInvites"
         ],
         "properties": {
           "id": {
@@ -16307,6 +17126,13 @@
             "maxItems": 50,
             "items": {
               "$ref": "#/components/schemas/TeamMember"
+            }
+          },
+          "pendingInvites": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/TeamInvite"
             }
           }
         },

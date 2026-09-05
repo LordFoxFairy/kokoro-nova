@@ -14,7 +14,7 @@ projection 提供，避免账户导航或会员展示改写积分事实源。
 | 会员 | `membership` | 展示当前权益、折扣和订阅/开发票入口 |
 | 通知 | `notifications`、`unreadCount` | 官方通知/收到的喜欢两个集合和一键已读入口 |
 | 偏好 | `preferences` | 主题即时切换；水印与个性化推荐为本地浏览器状态 |
-| CLI & Skill | `identity.accessKeyLabel` | 只展示脱敏 Access Key 入口和本地作用域说明 |
+| CLI & Skill | `GET/POST /api/access-key` | 创建、轮换、撤销的脱敏 Access Key 生命周期与固定作用域 |
 
 账户导航使用垂直 `tablist` 的 roving tabindex：`ArrowUp/ArrowDown` 循环移动，`Home/End`
 跳到首尾，焦点始终留在当前 tab。`?tab=store` 和 `?tab=membership` 保留已有入口兼容性。
@@ -25,4 +25,4 @@ projection 提供，避免账户导航或会员展示改写积分事实源。
 - 会员、通知和存储值固定；已登录钱包余额读取当前 scenario 的 ledger tail。
 - 偏好保存到当前浏览器的 `libtv.account.theme`、`libtv.account.watermark` 和
   `libtv.account.recommendations`，没有写入真实凭据或远端账户。
-- Access Key 只展示入口和脱敏占位，不读取 Cookie、Token 或真实密钥。
+- Access Key 命令、团队邀请/成员角色更新与订阅/发票/模型市场 handoff 见 [`ACCOUNT_EXTERNAL_COMMANDS.md`](ACCOUNT_EXTERNAL_COMMANDS.md)；它们均为确定性本地 projection，不读取 Cookie、Token、真实密钥、支付资料或外部目录 URL。

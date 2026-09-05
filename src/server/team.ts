@@ -6,6 +6,7 @@ import {
   type SharedAssetsResponse,
   type TeamResponse,
 } from '@/contracts/team'
+import { readLocalTeamProjection } from '@/server/account-boundaries'
 import { activeScenarioId } from '@/server/store'
 import { readLocalIdentity } from '@/server/identity'
 
@@ -16,7 +17,7 @@ async function fixtureScenario(): Promise<ScenarioId> {
 
 /** Read-only local projection. Future membership/storage services replace this seam. */
 export async function readLocalTeam(): Promise<TeamResponse> {
-  return TeamResponseSchema.parse(teamFixtureForScenario(await fixtureScenario()).team)
+  return TeamResponseSchema.parse(await readLocalTeamProjection())
 }
 
 /** Read-only local projection. It deliberately contains only fixture-relative URLs. */

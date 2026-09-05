@@ -154,9 +154,28 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     'authenticated-empty',
     'authenticated-populated',
   ]),
+  route('GET', '/api/account/handoffs', 'Account', 'getAccountExternalHandoffs', ['会员与发票页读取订阅、发票和模型市场 handoff 状态'], [
+    'anonymous',
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('GET', '/api/access-key', 'Account', 'getLocalAccessKey', ['CLI & Skill 页读取脱敏 Access Key 生命周期'], [
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('POST', '/api/access-key', 'Account', 'commandLocalAccessKey', ['创建、轮换或撤销脱敏 Access Key'], [
+    'authenticated-empty',
+    'authenticated-populated',
+  ]),
   route('GET', '/api/team', 'Account', 'getLocalTeam', ['账户中心团队与共享资产页'], [
     'anonymous',
     'authenticated-empty',
+    'authenticated-populated',
+  ]),
+  route('POST', '/api/team/invites', 'Account', 'createLocalTeamInvite', ['团队页邀请本地显示别名'], [
+    'authenticated-populated',
+  ]),
+  route('PATCH', '/api/team/members/{memberId}', 'Account', 'updateLocalTeamMember', ['团队页更新非 owner 成员角色'], [
     'authenticated-populated',
   ]),
   route('GET', '/api/shared-assets', 'Account', 'getLocalSharedAssets', ['账户中心团队共享资产列表'], [

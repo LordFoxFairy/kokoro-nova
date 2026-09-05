@@ -262,6 +262,7 @@ async function resetVolatileFixtureState(scenarioId: ScenarioId) {
   __resetScriptV2Runs()
   const [
     creationContext,
+    accountBoundaries,
     identity,
     presence,
     generationRunner,
@@ -269,6 +270,7 @@ async function resetVolatileFixtureState(scenarioId: ScenarioId) {
     compose,
   ] = await Promise.all([
     import('./creation-context'),
+    import('./account-boundaries'),
     import('./identity'),
     import('./presence'),
     import('./generation/runner'),
@@ -277,6 +279,7 @@ async function resetVolatileFixtureState(scenarioId: ScenarioId) {
   ])
 
   creationContext.resetCreationContextStore()
+  await accountBoundaries.resetLocalAccountBoundaryStore(scenarioId)
   presence.resetPresence()
   generationRunner.__resetGenerationRunnerForTests()
   mockProvider.__resetMockProvider()

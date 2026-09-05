@@ -13,7 +13,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 | 文件 | 作用 |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；51 个 path、87 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
+| [`openapi.yaml`](openapi.yaml) | OpenAPI 3.1；55 个 path、92 个 operation（JSON、binary 与 SSE transport 均有明确成功体） |
 | [`AUTHORIZATION.md`](AUTHORIZATION.md) | Bearer scheme、public/authenticated/owner/workspace 语义与后端授权交接边界 |
 | [`ERRORS.md`](ERRORS.md) | HTTP 状态、稳定错误码和 UI 映射 |
 | [`JOB_STATES.md`](JOB_STATES.md) | 生成任务状态机、积分和产物不变量 |
@@ -29,6 +29,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`SCRIPT_V2_STATE.md`](SCRIPT_V2_STATE.md) | Script V2 状态、四个 operation、批量/幂等/stale writeback 与后端 handoff |
 | [`src/contracts/account.ts`](../../src/contracts/account.ts) | `GET /api/account` 的既有账户中心身份、钱包、会员、偏好和通知投影 |
 | [`account-identity.md`](account-identity.md) | 首页与画布共用的 `LocalIdentity`、会话回跳、typed login continuation、主题/水印偏好与通知摘要 contract |
+| [`ACCOUNT_EXTERNAL_COMMANDS.md`](ACCOUNT_EXTERNAL_COMMANDS.md) | Access Key 生命周期、团队邀请/成员更新及订阅、发票、模型市场 handoff |
 | [`src/contracts/ledger.ts`](../../src/contracts/ledger.ts) | `GET /api/ledger` 的 `LedgerViewProjection`；账户余额、账本行、reserve/settle/release 折叠结果与任务链接 |
 | [`src/contracts/publish.ts`](../../src/contracts/publish.ts) | TV Show 公开快照的发布、列表、详情与下架响应；列表只返回摘要，详情返回冻结工作流文档 |
 | [`showcase-directory.md`](showcase-directory.md) | TV Show 目录分页、搜索回退、互动反馈、显式 empty/error fixture 与登录后复制项目契约 |
@@ -54,7 +55,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.24.0-showcase-engagement
+Contract version: 1.25.0-showcase-account-commands
 OpenAPI: 3.1.0
 ```
 

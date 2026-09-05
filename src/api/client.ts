@@ -1,7 +1,19 @@
 import type { z, ZodType } from 'zod'
 
 import { AccountProfileResponseSchema } from '@/contracts/account'
-import { SharedAssetsResponseSchema, TeamResponseSchema } from '@/contracts/team'
+import {
+  AccessKeyCommandRequestSchema,
+  AccessKeyResponseSchema,
+  AccountExternalHandoffsResponseSchema,
+} from '@/contracts/account-external'
+import {
+  CreateTeamInviteRequestSchema,
+  CreateTeamInviteResponseSchema,
+  SharedAssetsResponseSchema,
+  TeamMemberUpdateResponseSchema,
+  TeamResponseSchema,
+  UpdateTeamMemberRequestSchema,
+} from '@/contracts/team'
 import { HomeDiscoveryResponseSchema } from '@/contracts/home'
 import { LedgerViewProjectionSchema } from '@/contracts/ledger'
 import { ModelCatalogResponseSchema } from '@/contracts/models'
@@ -202,10 +214,30 @@ export function createApiClient(transport: JsonTransport = fetch, options: ApiCl
   return {
     account: {
       get: () => requestTyped(AccountProfileResponseSchema, '/api/account'),
+      accessKey: {
+        get: () => requestTyped(AccessKeyResponseSchema, '/api/access-key'),
+        command: (input: z.input<typeof AccessKeyCommandRequestSchema>) => {
+          const body = AccessKeyCommandRequestSchema.parse(input)
+          return requestTyped(AccessKeyResponseSchema, '/api/access-key', jsonInit('POST', body))
+        },
+      },
+      handoffs: () => requestTyped(AccountExternalHandoffsResponseSchema, '/api/account/handoffs'),
     },
     team: {
       get: () => requestTyped(TeamResponseSchema, '/api/team'),
       getSharedAssets: () => requestTyped(SharedAssetsResponseSchema, '/api/shared-assets'),
+      invite: (input: z.input<typeof CreateTeamInviteRequestSchema>) => {
+        const body = CreateTeamInviteRequestSchema.parse(input)
+        return requestTyped(CreateTeamInviteResponseSchema, '/api/team/invites', jsonInit('POST', body))
+      },
+      updateMember: (memberId: string, input: z.input<typeof UpdateTeamMemberRequestSchema>) => {
+        const body = UpdateTeamMemberRequestSchema.parse(input)
+        return requestTyped(
+          TeamMemberUpdateResponseSchema,
+          `/api/team/members/${encodeURIComponent(memberId)}`,
+          jsonInit('PATCH', body),
+        )
+      },
     },
     home: {
       get: () => requestTyped(HomeDiscoveryResponseSchema, '/api/home'),

@@ -18,8 +18,7 @@
 审计后，`1.25.1-account-member-not-found` 已将
 `PATCH /api/team/members/{memberId}` 的运行时 `404` 明确写入 OpenAPI；API-AUD-04 的**文档
 缺项**已关闭。随后通用 `handle()` 也已收敛到 `ErrorResponse`，使 87 个 JSON operation 的
-runtime 成功/错误主路径与 OpenAPI 同向；Presence、media 和 SVG preview 的专门 transport 仍是
-API-AUD-03 的剩余范围，因此 wire contract 仍不能判定为完全交付。
+runtime 成功/错误主路径与 OpenAPI 同向；Presence 的 JSON errors 与 media 的 plain-text resource errors 也已对齐。SVG preview 的无受控 failure 和 SSE 已建流后的生命周期仍使 wire contract 不能判定为完全交付。
 
 ## 已验证的基线
 
@@ -36,7 +35,7 @@ API-AUD-03 的剩余范围，因此 wire contract 仍不能判定为完全交付
 |---|---|---|---|---|
 | API-AUD-01 | P1 | `docs/api/README.md:41,128` | README 同时保留 `47 个 path / 82 个 operation` 和“所有 82 个 operation”的旧数字，与封面处 55/92 冲突。当前校验只断言 README *包含* 55/92，因此会产生通过但文档自相矛盾的假阳性。 | 更新旧数字，并让 verifier 断言 README 中没有其他 `N path/M operation` 总量声明。 |
 | API-AUD-02 | P1 | `docs/api/ROUTE_COVERAGE.md` 的“覆盖结论”表 | 分域计数未随新路由更新：Project/Folder/Recycle Bin 实际 **7/13**（文档 6/12）；Jobs/Script V2/compose 实际 **7/11**（文档 6/11）；Public discovery/publish 实际 **8/11**（文档 7/9）。三项按现有 tag/path 合并后均与正文总量冲突。 | 从 `LOCAL_API_ROUTES` 或 OpenAPI tags 自动生成分域统计，避免人工计数漂移。 |
-| API-AUD-03 | P0（部分关闭） | `src/server/http.ts`、`src/app/api/presence/[canvasId]/route.ts`、`src/api/client.ts`；`docs/api/ERRORS.md` 与 OpenAPI 的 `ErrorResponse` | 通用 `handle()` 的 87 个 JSON operation、Presence 握手前/POST JSON error 已输出规范化 `ErrorResponse { error: { code, message, details? }, requestId }`，且 `ApiError.requestId` 已保留关联值。剩余 wire 差异是 media 的纯文本 `Forbidden`/`Not found` 与 SVG preview 无受控 failure；SSE 已建立后也不存在 JSON error body。 | 保持 JSON route/runtime tests；为 media 修订 OpenAPI content type 并增加 headers/body contract test，明确 SSE 建连后重连语义与 SVG resource failure 策略。 |
+| API-AUD-03 | P0（部分关闭） | `src/server/http.ts`、`src/app/api/presence/[canvasId]/route.ts`、`src/api/client.ts`；`docs/api/ERRORS.md` 与 OpenAPI 的 `ErrorResponse` | 通用 `handle()` 的 87 个 JSON operation、Presence 握手前/POST JSON error 已输出规范化 `ErrorResponse { error: { code, message, details? }, requestId }`，且 `ApiError.requestId` 已保留关联值。剩余 wire 边界是 SVG preview 无受控 failure 与 SSE 已建立后不存在 JSON error body；media 的 plain-text `Forbidden`/`Not found`、关键 cache/security headers 已与 OpenAPI 和 route tests 对齐。 | 保持 JSON/media route runtime tests；明确 SSE 建连后重连语义与 SVG resource failure 策略。 |
 | API-AUD-04 | P1 | `src/server/account-boundaries.ts:226`；`/api/team/members/{memberId}` OpenAPI responses | `PATCH /api/team/members/{memberId}` 当成员不存在时实际抛出 **404**，OpenAPI 仅声明 200/400/401/403/409/500，漏掉 404。 | 增补 404 `ErrorResponse` 并为不存在成员增加 route-level contract test。 |
 | API-AUD-05 | P1 | `src/app/api/account/route.ts`、`account/handoffs/route.ts`、`team/route.ts`、`shared-assets/route.ts`、`identity/route.ts`、`preferences/route.ts`、`notifications/route.ts`；这些 GET operation 的 OpenAPI security | 以上 7 个 GET 在匿名 fixture 下实际返回 **200 projection**（如 `permission-denied`、`authentication-required`、公开浏览者或空通知），但 OpenAPI 标为 `x-authorization: owner` + `bearerAuth`。`ACCOUNT_EXTERNAL_COMMANDS.md` 也明确把匿名 handoff 写为 200 projection。未来服务无法同时“Bearer 必需”与“匿名拿到该 200 body”。 | 为每个 route 明确二选一：将读取 projection 作为 public/local-display contract，或让真实 API 返回 401 并把 projection 转换留在前端 adapter；随后使 OpenAPI、场景和文档同向。 |
 | API-AUD-06 | P1 | OpenAPI operation example metadata 审计 | 92 个 operation 中 **52 个没有 request/response example metadata**。新近账户命令（`GET/POST /api/access-key`、`GET /api/account/handoffs`、`POST /api/team/invites`、`PATCH /api/team/members/{memberId}`）和 TV Show engagement（`GET/POST /api/showcase/{snapshotId}/engagement`）均无样本。它们正包含状态机、匿名门或幂等语义，是后端交接风险最高的一组。 | 为这些 operation 至少提供 success、认证/权限失败、幂等 replay/冲突（写命令）样本，并将 examples 接入 OpenAPI `components.examples` 或 operation examples。 |

@@ -279,11 +279,28 @@ describe('local API manifest and OpenAPI', () => {
       const operation = operationAt(document, method, routePath)
       for (const [status, response] of Object.entries(operation.responses ?? {})) {
         if (Number(status) < 400) continue
+        if (`${method} ${routePath}` === 'GET /api/media/{path}') {
+          expect(response.content?.['text/plain; charset=utf-8']?.schema, `${method} ${routePath} ${status}`).toMatchObject({
+            type: 'string',
+          })
+          continue
+        }
         expect(response.content?.['application/json']?.schema?.$ref, `${method} ${routePath} ${status}`).toBe(
           '#/components/schemas/ErrorResponse',
         )
       }
     }
+
+    const media = operationAt(document, 'GET', '/api/media/{path}')
+    expect(media.responses?.['200']).toMatchObject({
+      headers: expect.objectContaining({
+        'Content-Length': expect.any(Object),
+        'Cache-Control': expect.any(Object),
+        'Accept-Ranges': expect.any(Object),
+        'Content-Security-Policy': expect.any(Object),
+        'X-Content-Type-Options': expect.any(Object),
+      }),
+    })
   })
 
   it('keeps the standalone documentation audit executable', () => {

@@ -52,6 +52,10 @@ describe('media route containment', () => {
   it('serves a file that genuinely lives inside the media directory', async () => {
     const response = await request(['inside.txt'])
     expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+    expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(response.headers.get('content-security-policy')).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(await response.text()).toBe('legitimate')
   })
 
@@ -59,23 +63,31 @@ describe('media route containment', () => {
     for (const segments of [['..', 'secret.txt'], ['..', '..', 'etc', 'passwd'], ['a', '..', '..', 'secret.txt']]) {
       const response = await request(segments)
       expect(response.status, segments.join('/')).toBe(403)
+      expect(response.headers.get('content-type'), segments.join('/')).toContain('text/plain')
+      expect(await response.text(), segments.join('/')).toBe('Forbidden')
     }
   })
 
   it('refuses a symlink that points outside, and never leaks its contents', async () => {
     const response = await request(['escape.txt'])
     expect(response.status).toBe(403)
+    expect(response.headers.get('content-type')).toContain('text/plain')
+    expect(await response.clone().text()).toBe('Forbidden')
     expect(await response.text()).not.toContain('SECRET')
   })
 
   it('refuses a file reached through a symlinked directory', async () => {
     const response = await request(['linkdir', 'other.txt'])
     expect(response.status).toBe(403)
+    expect(response.headers.get('content-type')).toContain('text/plain')
+    expect(await response.clone().text()).toBe('Forbidden')
     expect(await response.text()).not.toContain('SECRET')
   })
 
   it('404s a missing file rather than reporting it as forbidden', async () => {
     const response = await request(['nope.txt'])
     expect(response.status).toBe(404)
+    expect(response.headers.get('content-type')).toContain('text/plain')
+    expect(await response.text()).toBe('Not found')
   })
 })

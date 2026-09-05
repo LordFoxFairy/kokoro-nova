@@ -2586,7 +2586,29 @@
         ],
         "responses": {
           "200": {
-            "description": "本地媒体字节流",
+            "description": "本地媒体字节流。类型由文件扩展名决定；当前整文件返回 200，不实现 Range/206。",
+            "headers": {
+              "Content-Length": {
+                "description": "媒体字节长度。",
+                "schema": { "type": "integer", "minimum": 0 }
+              },
+              "Cache-Control": {
+                "description": "内容寻址 fixture 的长期不可变缓存策略。",
+                "schema": { "type": "string", "example": "public, max-age=31536000, immutable" }
+              },
+              "Accept-Ranges": {
+                "description": "当前固定为 bytes；实现仍只返回完整 200 响应。",
+                "schema": { "type": "string", "enum": ["bytes"] }
+              },
+              "Content-Security-Policy": {
+                "description": "用户上传字节的 sandbox/CSP 边界。",
+                "schema": { "type": "string" }
+              },
+              "X-Content-Type-Options": {
+                "description": "阻止浏览器 MIME sniffing。",
+                "schema": { "type": "string", "enum": ["nosniff"] }
+              }
+            },
             "content": {
               "*/*": {
                 "schema": {
@@ -2599,20 +2621,22 @@
           "403": {
             "description": "路径越界或符号链接越界",
             "content": {
-              "application/json": {
+              "text/plain; charset=utf-8": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
+                  "type": "string"
+                },
+                "example": "Forbidden"
               }
             }
           },
           "404": {
             "description": "媒体文件不存在",
             "content": {
-              "application/json": {
+              "text/plain; charset=utf-8": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
+                  "type": "string"
+                },
+                "example": "Not found"
               }
             }
           }

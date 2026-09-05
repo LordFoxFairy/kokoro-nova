@@ -60,6 +60,9 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
 - `0c0fe49` / `cd30e84`：视觉断言等待字体与媒体解码、连续绘制帧后再截图；新增导演台 `1440×900` 已审阅基线，定向 Playwright 通过；
 - `97a0f7f`：状态恢复和三档响应式回归加入默认 `pnpm e2e` 的隔离 runner，不再依赖外部 `REGRESSION_BASE_URL`；
 - `cba80f2`：项目文件夹创建/改名、文件夹内建项目、项目改名、刷新恢复和精确名称删除已用隔离浏览器旅程验证；
+- `e936de5`：Script V2 三阶段的可访问选择器与视觉稳定等待收敛，已重新审阅脚本/素材/提示词/批量生成及 Audio 基线；
+- `d238b3d`：`createApiClient` 新增可注入 header seam，保证未来真实 transport 仅替换鉴权读取；路径校验先于凭据读取，显式调用 header 可覆盖注入 header；全量 Vitest 通过 **105 files / 888 tests**；
+- `da79537`：公开 TV Show 已验证“匿名复制门 → 登录确认 → 原子 clone → 打开独立私有项目/画布”的本地闭环；
 
 - `3c2218a`：补齐有效报价 fixture，覆盖确认期间 busy/disabled、积分预留和运行态收敛；
 - `703a7f3`：按官网项目空态确认回收站与新建文件夹在空账户仍为 enabled；
@@ -85,7 +88,7 @@ Kokoro Nova 是一个**纯前端子仓库 + 确定性本地 mock**，目标是�
 - `229ca51` / `706835c`：首页与 Skill 市场的创作输入均补齐可访问的本地上下文选择；后者含附件、
   参考、固定 Skill 版本与生成模式 drawer，以及 local empty/error fixture。主仓隔离 `1440×900`
   Playwright 已验证 Skill 市场、详情、上下文选择和恢复状态 4/4 通过；
-- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（105 files / 887 tests），并以隔离服务复跑导演台视觉、项目/文件夹刷新恢复、画布切换、状态恢复与三档响应式旅程；生产构建应在具有充足磁盘空间的 CI runner 中作为发布门复跑。用户已有 `.gitignore` 始终不修改、不暂存。
+- 当前主仓库已重新验证 typecheck、lint、完整 Vitest（105 files / 888 tests），并以隔离服务复跑导演台视觉、项目/文件夹刷新恢复、画布切换、状态恢复与三档响应式旅程；生产构建应在具有充足磁盘空间的 CI runner 中作为发布门复跑。用户已有 `.gitignore` 始终不修改、不暂存。
 
 主控职责：检查跨 surface 契约、在主仓库复跑验证、把官网新观察转为本地 fixture/API docs
 约束，并只在有明确证据时更新 parity 结论。

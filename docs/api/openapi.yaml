@@ -2863,6 +2863,11 @@
                 },
                 "x-sse-event-schema": {
                   "$ref": "#/components/schemas/PresenceStreamEvent"
+                },
+                "examples": {
+                  "openingSnapshot": {
+                    "$ref": "#/components/examples/PresenceSnapshotSseFrameExample"
+                  }
                 }
               }
             }
@@ -3116,6 +3121,12 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                },
+                "x-example-policy": {
+                  "mode": "explicit-exemption",
+                  "reason": "The local character reference response is deterministic SVG bytes derived from query parameters. The contract intentionally does not commit a rendered byte fixture or invent a JSON error payload.",
+                  "runtimeVerification": "src/app/api/preview/preview-route.test.ts",
+                  "failureContract": "No controlled failure response is declared; image consumers handle resource load failure."
                 }
               }
             }
@@ -3173,6 +3184,12 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                },
+                "x-example-policy": {
+                  "mode": "explicit-exemption",
+                  "reason": "The local storyboard stitch response is deterministic SVG bytes derived from query parameters. The contract intentionally does not commit a rendered byte fixture or invent a JSON error payload.",
+                  "runtimeVerification": "src/app/api/preview/preview-route.test.ts",
+                  "failureContract": "No controlled failure response is declared; image consumers handle resource load failure."
                 }
               }
             }
@@ -19033,6 +19050,10 @@
       },
       "FolderDeleteResponseExample": {
         "externalValue": "./examples/folder-delete.response.json"
+      },
+      "PresenceSnapshotSseFrameExample": {
+        "summary": "SSE opening comment followed by the first snapshot event",
+        "externalValue": "./examples/presence-snapshot.sse.json"
       },
       "PresenceHeartbeatRequestExample": {
         "externalValue": "./examples/presence-heartbeat.request.json"

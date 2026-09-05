@@ -152,6 +152,7 @@ import {
   AccountExternalHandoffsResponseSchema,
 } from '@/contracts/account-external'
 import { LocalErrorEnvelopeSchema } from '@/contracts/http'
+import { PresenceParticipantSchema } from '@/contracts/presence'
 import {
   AssetLifecycleActionRequestSchema,
   AssetLifecycleListResponseSchema,
@@ -597,6 +598,57 @@ describe('local API manifest and OpenAPI', () => {
 
     expect(sequence).toMatchObject({ in: 'query', required: false, schema: { type: 'string', default: '0' } })
     expect(sequence?.schema?.enum).toBeUndefined()
+  })
+
+
+  it('attaches a schema-valid, file-backed opening snapshot to the Presence SSE contract', () => {
+    const document = openApiDocument()
+    const presence = operationAt(document, 'GET', '/api/presence/{canvasId}')
+    const stream = presence.responses?.['200']?.content?.['text/event-stream']
+    const fixture = readExampleFixture('presence-snapshot.sse.json')
+
+    expect(stream?.examples?.openingSnapshot?.$ref).toBe('#/components/examples/PresenceSnapshotSseFrameExample')
+    expect(document.components?.examples?.PresenceSnapshotSseFrameExample?.externalValue).toBe(
+      './examples/presence-snapshot.sse.json',
+    )
+    expect(typeof fixture).toBe('string')
+
+    const frames = (fixture as string).split('\n\n').filter(Boolean)
+    expect(frames[0]).toBe(': connected cvs_presence_example')
+    expect(frames[1]).toMatch(/^event: snapshot\ndata: /)
+    const data = frames[1]?.split('\n').find((line) => line.startsWith('data: '))?.slice('data: '.length)
+    expect(data).toBeDefined()
+    const snapshot = JSON.parse(data!) as { type: unknown; participants: unknown }
+    expect(snapshot.type).toBe('snapshot')
+    expect(PresenceParticipantSchema.array().parse(snapshot.participants)).toEqual([
+      {
+        id: 'alice',
+        name: 'Alice',
+        color: '#4c7ef3',
+        cursor: { x: 12, y: -4 },
+        viewport: { x: 0, y: 0, zoom: 1 },
+        lastSeenAt: 1_788_436_800_000,
+      },
+    ])
+  })
+
+  it('records the SVG preview byte-fixture exemption without inventing an error payload', () => {
+    const document = openApiDocument()
+
+    for (const previewPath of ['/api/preview/character', '/api/preview/stitch']) {
+      const preview = operationAt(document, 'GET', previewPath)
+      const svg = preview.responses?.['200']?.content?.['image/svg+xml'] as
+        | { 'x-example-policy'?: Record<string, string> }
+        | undefined
+
+      expect(Object.keys(preview.responses ?? {})).toEqual(['200'])
+      expect(svg?.['x-example-policy']).toEqual({
+        mode: 'explicit-exemption',
+        reason: expect.stringContaining('deterministic SVG bytes'),
+        runtimeVerification: 'src/app/api/preview/preview-route.test.ts',
+        failureContract: 'No controlled failure response is declared; image consumers handle resource load failure.',
+      })
+    }
   })
 
   it('provides executable Access Key lifecycle, replay and error examples without exposing a credential', () => {

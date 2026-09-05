@@ -1,0 +1,1 @@
+": connected cvs_presence_example\n\nevent: snapshot\ndata: {\"type\":\"snapshot\",\"participants\":[{\"id\":\"alice\",\"name\":\"Alice\",\"color\":\"#4c7ef3\",\"cursor\":{\"x\":12,\"y\":-4},\"viewport\":{\"x\":0,\"y\":0,\"zoom\":1},\"lastSeenAt\":1788436800000}]}\n\n"

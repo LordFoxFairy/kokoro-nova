@@ -16,6 +16,11 @@ LibTV 账户数据。
 两个读取 operation 都没有请求体、分页 cursor 或写入副作用；命令 operation 均要求 `idempotencyKey`，不会解析邮箱、真实成员 ID 或外部 URL。`/api/assets` 仍然是个人/Agent 资产库的
 可变生命周期边界；共享资产不复用其编辑、上传或删除 endpoint。
 
+成员更新的资源级失败使用 `404 ErrorResponse`（稳定 code 为 `NOT_FOUND`）：它表示路径中的
+`memberId` 不属于当前本地 team；`403` 仍专用于尝试修改 owner，`409` 专用于团队/幂等状态冲突。
+当前 mock 兼容层仍可能发送 legacy error shape；这里的 `ErrorResponse` 是未来服务端与 adapter 的
+规范化交接目标，详见 [`ERRORS.md`](ERRORS.md)。
+
 ## State machine
 
 `state` 是 UI 和后端之间的稳定联合：

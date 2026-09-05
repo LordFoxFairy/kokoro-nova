@@ -55,7 +55,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 
 ```text
 Base URL: http://localhost:3200
-Contract version: 1.25.0-showcase-account-commands
+Contract version: 1.25.1-account-member-not-found
 OpenAPI: 3.1.0
 ```
 

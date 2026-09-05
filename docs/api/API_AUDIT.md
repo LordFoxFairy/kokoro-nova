@@ -13,6 +13,13 @@
 但这不是完整的 wire-contract 一致性证明。下面的缺口会使未来后端或 SDK 虽能从 OpenAPI 生成
 55/92 个端点，却在错误 envelope、匿名读取、状态码和可执行示例上与当前 mock/UI 出现分歧。
 
+### 后续修订
+
+审计后，`1.25.1-account-member-not-found` 已将
+`PATCH /api/team/members/{memberId}` 的运行时 `404` 明确写入 OpenAPI；API-AUD-04 的**文档
+缺项**已关闭。它不消除 API-AUD-03 的 legacy error-envelope 运行时差异，因此不能据此把 wire
+contract 判定为已完全交付。
+
 ## 已验证的基线
 
 | 检查 | 结果 | 说明 |

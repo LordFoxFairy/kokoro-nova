@@ -29,6 +29,10 @@ type ErrorResponse = {
 fixture-stable requestId）。`src/api/client.ts` 在兼容期仍接受旧/新 envelope，以便 future adapter
 或未迁移的专门 transport 保持 `ApiError.status/message` 兼容。
 
+兼容输入 `{ "error": "message" }` 在 OpenAPI components 中仍命名为
+`LegacyErrorResponse` 并标记 deprecated；它只用于读取旧 adapter/专门 transport 的响应，
+不得重新加入新的 operation response。
+
 专门 transport 仍是单独边界：媒体的 403/404 是浏览器资源加载用的纯文本，Presence 保留其
 SSE/JSON 专有错误分支，SVG preview 尚无受控 error response。它们不能被泛化 JSON handler 的
 迁移结果掩盖；完整剩余范围见 [`ERROR_ENVELOPE_MIGRATION_MATRIX.md`](ERROR_ENVELOPE_MIGRATION_MATRIX.md)。

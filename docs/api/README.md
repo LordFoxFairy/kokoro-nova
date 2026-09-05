@@ -38,7 +38,7 @@ LibTV 官网原始请求不会直接成为本地业务模型。官网证据记�
 | [`creation-context.md`](creation-context.md) | 首页发送前的可恢复 CreationContext、版本冲突与提交冻结边界 |
 | [`skills-authoring.md`](skills-authoring.md) | Skill 草稿、文件树、审核、发布与下架的作者工作流 |
 | [`agent-skill-execution.md`](agent-skill-execution.md) | Agent 固定版本 Skill、确定性计划、确认门、工具轨迹与失败降级 |
-| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 47 个 path / 82 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
+| [`ROUTE_COVERAGE.md`](ROUTE_COVERAGE.md) | 55 个 path / 92 个 operation 的审计、fixture/空态/分页约定与后端替换边界 |
 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) | 项目软删除、30 天保留、恢复、永久删除与画布保留边界 |
 | [`SURFACE_MATRIX.md`](SURFACE_MATRIX.md) | 页面 surface、可见动作、本地 operation、场景与未来后端 seam 的总索引 |
 | [`examples/`](examples/) | 脱敏且确定性的请求/响应样本 |
@@ -125,7 +125,7 @@ fixture、组件 state、Route Handler body 和文档样本都不保存该 token
 
 ### 后端交接授权
 
-OpenAPI 为所有 82 个 operation 显式声明 operation-level `security` 与
+OpenAPI 为所有 92 个 operation 显式声明 operation-level `security` 与
 `x-authorization`：公开读取使用 `security: []`，其余 operation 使用 `bearerAuth`。Bearer
 由 transport adapter 注入，页面和 fixture 不读取或持久化凭证。public、authenticated、owner 和
 workspace 的资源边界，以及 `401`/`403`/`404` 的交接规则见 [`AUTHORIZATION.md`](AUTHORIZATION.md)。

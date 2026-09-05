@@ -23,6 +23,11 @@ transport 的一一对应。
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
 | Development fixtures | 2 / 3 | 已补强 | dev-only scenario/reset | 不部署到 production |
 
+### 本轮 API-AUD-07 运行时 smoke 进度
+
+- 资产库的低耦合主切片已由 `src/app/api/assets/route.test.ts` 直接执行：活跃/不可用 lifecycle 列表、资产文件夹创建与计数、元数据移动、软删除、恢复，以及缺失资产的标准 `404 ErrorResponse`。成功响应分别由 `AssetLifecycleListResponseSchema` / `AssetLifecycleViewSchema` 解析，避免只断言 HTTP status。
+- 这只是 API-AUD-07 的一个可重复 route smoke 切片；尚未替代 92 个 operation 的 manifest 驱动 matrix，上传、生成产物注册及其余 domain 仍需按 operation 补 success/error wire 断言。
+
 ### 本轮补齐项
 
 本轮新增的账号、首页上下文和 Skill 作者 operation 也已纳入同一审计；此前 `POST /api/folders`、项目写操作、Presence 和 `POST /api/dev/reset` 使用了泛型成功体或

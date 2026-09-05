@@ -53,9 +53,9 @@ Storyboard 都可渲染，`复制项目` enabled 后会打开本地登录门。�
 
 | Surface | 官网已观察的事实 | 当前本地实现 | Fidelity 缺口 | 进入 `VERIFIED_LOCAL` 的最小验收 |
 | --- | --- | --- | --- | --- |
-| TV Show 目录与详情 | 分类/搜索、媒体卡、详情沉浸背景、播放控制、相邻作品带、只读制作过程、登录后复制门槛；见 [`pages/showcase/README.md`](../pages/showcase/README.md) | 深色 TV Show 目录与详情共用 `/api/showcase` projection；详情覆盖沉浸背景、播放器、质量/倍速/音量/全屏、喜欢登录门、过程覆盖层和只读快照卡 | 首页的 `HomeShowcaseItem` 仍是独立首页摘要，登录后复制、真正后端媒体变体与分页仍待补 | 版本化 `ShowcaseEntry` fixture；详情/播放器、只读 Workflow/Storyboard、认证复制门分别有确定性 mock 状态、API operation、1440×900 快照与键盘流程 |
+| TV Show 目录与详情 | 分类/搜索、媒体卡、详情沉浸背景、播放控制、相邻作品带、只读制作过程、登录后复制门槛；见 [`pages/showcase/README.md`](../pages/showcase/README.md) | 深色 TV Show 目录与详情共用 `/api/showcase` projection；首页与目录也共用 `ShowcaseEntryProjectionBaseSchema`、`SHOWCASE_DISCOVERY_CATALOG` 和稳定 `id === snapshotId`；详情覆盖沉浸背景、播放器、质量/倍速/音量/全屏、喜欢登录门、过程覆盖层和只读快照卡 | 登录后复制、真正后端媒体变体、动态分页/缓冲/失败状态仍待补 | 版本化 `ShowcaseEntry` fixture；详情/播放器、只读 Workflow/Storyboard、认证复制门分别有确定性 mock 状态、API operation、1440×900 快照与键盘流程 |
 | Skill 广场与详情 | 顶部创作输入、全部/收藏/我的、分类、卡片、详情四图轮播/原图层、添加 Skill/收藏/分享语义；见 [`pages/skills/README.md`](../pages/skills/README.md) | `/skills` 提供浅色列表、搜索、分类、收藏和结构化详情；首页与画布已分别有 Skill 上下文 | 页面 shell、详情媒体轮播/原图层、未登录与登录的收藏/我的门、详情“添加”到 composer 的回流没有按官网链路实现 | Skill 目录与详情共用版本化 mock；收藏、添加、认证门、轮播/lightbox、返回 composer 上下文各有 E2E；目录和详情各有桌面视觉基线 |
-| 账户与共享账户域 | 深色头像菜单内有身份、会员、积分/余额池、存储、主题、水印、通知和个人中心入口；钱包/资产/订阅跨 LibTV 与主站共享；见 [`pages/account/README.md`](../pages/account/README.md) | `/account` 是浅色本地 ledger；编辑器/首页有积分余额但没有官网账户菜单投影 | ledger 的预留/返还领域正确，但外层导航、主题偏好、通知/水印/存储入口及共享账户边界没有被表达 | 深色账户菜单以显式的 local identity fixture 驱动；余额池、ledger、偏好和入口状态写入契约；菜单键盘、余额刷新/错误、积分账本各有 E2E 与桌面基线 |
+| 账户与共享账户域 | 深色头像菜单内有身份、会员、积分/余额池、存储、主题、水印、通知和个人中心入口；钱包/资产/订阅跨 LibTV 与主站共享；见 [`pages/account/README.md`](../pages/account/README.md) | `LocalIdentityMenu` 驱动首页/编辑器的脱敏身份、会员、积分、存储、主题、水印、通知与个人中心；`/account` 补充 wallet、membership、notifications、preferences、credentials 的 local projection | 团队、共享资产、真实订阅/发票与 Access key 生命周期仍是未来后端域；不把这些 fixture 误称为真实账户同步 | 菜单键盘/登出回跳、主题水印通知同步、余额刷新/错误、积分账本及深浅色菜单基线均由 local contract + E2E 覆盖 |
 
 ## 当前路由与契约边界
 

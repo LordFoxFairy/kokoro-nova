@@ -19,7 +19,7 @@
 
 - [ ] `HomeAgentComposer` 的附件按钮没有来源菜单；首页没有官网 Skill 页可见的模型/参考/生成模式完整上下文层。
 - [ ] 登录门只导航到 local `/account`，而 `/account` 当前是积分账本，不是登录/注册或会话恢复页面。
-- [ ] `HomeShowcaseItem` 与 `/showcase` 的 `ShowcaseEntryProjection` 仍是两套摘要类型；分类、作者、统计和播放/过程能力不能从同一条发现记录推导。
+- [x] `HomeShowcaseItem` 与 `/showcase` 共用 `ShowcaseEntryProjectionBaseSchema`、`SHOWCASE_DISCOVERY_CATALOG` 和稳定 `id === snapshotId`；分类、作者、统计和 process gate 可从同一条发现记录推导。动态后端分页和媒体状态仍是独立缺口。
 - [ ] 官网活动和模型组合会变化；需要保留版本化 campaign/tool fixture 与捕获日期，避免把一次首页文案当作永久产品枚举。
 - [ ] 首屏网络失败、活动局部失败、TV Show 局部失败的降级体验尚未有单独视觉基线。
 
@@ -144,7 +144,7 @@
 
 ### 差距
 
-- [ ] 首页 `HomeShowcaseItem` 与目录 projection 仍可能出现内容数量、字段和入口不同步。
+- [x] 首页与目录已通过共享 discovery fixture/projection 对齐内容 id、分类、作者、统计和 process gate；动态目录分页、媒体状态和认证复制仍待补。
 - [ ] `/showcase` 当前是本地产品自有路由；官网公开首页没有在 HTML 中暴露稳定目录/详情 URL，真实链接规则待确认。
 - [ ] 目录分页/无限滚动、搜索加载态、后端空集合、播放缓冲、媒体失败、字幕/多音轨未覆盖。
 - [ ] 认证后的复制没有目标 workspace、成功副本、进度、错误和资源归属状态；喜欢/分享没有登录后反馈。

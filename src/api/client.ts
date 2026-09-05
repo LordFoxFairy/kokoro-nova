@@ -43,6 +43,12 @@ import {
   ProjectListLocalResponseSchema,
   ScenarioResponseSchema,
 } from '@/contracts/local'
+import {
+  PresenceHeartbeatRequestSchema,
+  PresenceHeartbeatResponseSchema,
+  PresenceLeaseRequestSchema,
+  PresenceLeaseResponseSchema,
+} from '@/contracts/presence'
 import type { ScenarioId } from '@/contracts/scenario'
 import {
   CreateScriptV2RunRequestSchema,
@@ -80,6 +86,8 @@ export type ApiErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'REVISION_CONFLICT'
+  | 'EDIT_LEASE_CONFLICT'
+  | 'SESSION_EXPIRED'
   | 'RATE_LIMITED'
   | 'HTTP_ERROR'
   | 'INVALID_JSON'
@@ -230,6 +238,24 @@ export function createApiClient(transport: JsonTransport = fetch, options: ApiCl
         return requestTyped(
           MutationResultSchema,
           `/api/canvases/${encodeURIComponent(canvasId)}`,
+          jsonInit('POST', body),
+        )
+      },
+    },
+    presence: {
+      heartbeat: (canvasId: string, input: z.input<typeof PresenceHeartbeatRequestSchema>) => {
+        const body = PresenceHeartbeatRequestSchema.parse(input)
+        return requestTyped(
+          PresenceHeartbeatResponseSchema,
+          `/api/presence/${encodeURIComponent(canvasId)}`,
+          jsonInit('POST', body),
+        )
+      },
+      lease: (canvasId: string, input: z.input<typeof PresenceLeaseRequestSchema>) => {
+        const body = PresenceLeaseRequestSchema.parse(input)
+        return requestTyped(
+          PresenceLeaseResponseSchema,
+          `/api/presence/${encodeURIComponent(canvasId)}`,
           jsonInit('POST', body),
         )
       },

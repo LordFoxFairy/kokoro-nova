@@ -1,7 +1,15 @@
 import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { DATA_DIR, DEFAULT_SPACE_ID, MEDIA_DIR, withState, withWorkspaceLock } from './store'
+import {
+  activeWorkspaceGeneration,
+  activeWorkspaceGenerationWhileLocked,
+  DATA_DIR,
+  DEFAULT_SPACE_ID,
+  MEDIA_DIR,
+  withState,
+  withWorkspaceLock,
+} from './store'
 import { ids, newId } from '@/domain/ids'
 import type { Asset } from '@/domain/types'
 import { ComposeRequestSchema, type ComposeTask } from '@/contracts/compose'
@@ -1099,6 +1107,8 @@ export type ComposeTaskStatus = ComposeTask['status']
 
 interface StoredComposeTask extends ComposeTask {
   spec: TimelineSpec
+  /** Invalidated whenever the local mock workspace switches scenario. */
+  workspaceGeneration?: string
   /** Prevents duplicate asset commits when route graphs observe one task. */
   committing?: boolean
 }
@@ -1115,7 +1125,12 @@ const COMPOSE_MODEL_ID = 'local-compose'
 let composeRendererForTests: ComposeRenderer | null = null
 
 function publicTask(task: StoredComposeTask): ComposeTask {
-  const { spec: _spec, committing: _committing, ...publicValue } = task
+  const {
+    spec: _spec,
+    committing: _committing,
+    workspaceGeneration: _workspaceGeneration,
+    ...publicValue
+  } = task
   return publicValue
 }
 
@@ -1161,20 +1176,22 @@ export async function startComposeTask(spec: TimelineSpec): Promise<ComposeTask>
   // for deterministic fixtures and future workers. Re-parse here so no caller
   // can enqueue a remote or malformed source by bypassing the route layer.
   const normalizedSpec = ComposeRequestSchema.parse(spec)
-  const now = new Date().toISOString()
-  const task: StoredComposeTask = {
-    id: newId('compose_task'),
-    status: 'queued',
-    artifact: null,
-    assetId: null,
-    subtitleMode: null,
-    notes: [],
-    failure: null,
-    createdAt: now,
-    updatedAt: now,
-    spec: structuredClone(normalizedSpec),
-  }
+  let task!: StoredComposeTask
   await withWorkspaceLock(async () => {
+    const now = new Date().toISOString()
+    task = {
+      id: newId('compose_task'),
+      status: 'queued',
+      artifact: null,
+      assetId: null,
+      subtitleMode: null,
+      notes: [],
+      failure: null,
+      createdAt: now,
+      updatedAt: now,
+      spec: structuredClone(normalizedSpec),
+      workspaceGeneration: await activeWorkspaceGenerationWhileLocked(),
+    }
     const tasks = await readComposeTasksUnlocked()
     tasks.push(task)
     await writeComposeTasksUnlocked(tasks)
@@ -1250,6 +1267,14 @@ async function runComposeTask(taskId: string) {
     }
   }
 
+  // A scenario reset deletes the task file and rotates the generation while a
+  // renderer may still be blocked. Never let that old worker reach the new
+  // workspace state or leave a stale composite behind.
+  if (task.workspaceGeneration !== await activeWorkspaceGeneration()) {
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+    return
+  }
+
   const afterRender = await getComposeTask(taskId)
   if (!afterRender || afterRender.status === 'cancelled') {
     await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
@@ -1316,9 +1341,15 @@ async function runComposeTask(taskId: string) {
     return
   }
 
-  await withState((state) => {
+  const committed = await withState(async (state) => {
+    if (task.workspaceGeneration !== await activeWorkspaceGenerationWhileLocked()) return false
     if (!state.assets.some((existing) => existing.id === assetId)) state.assets.push(asset)
+    return true
   })
+  if (!committed) {
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+    return
+  }
 
   const finalTask = await mutateComposeTask(taskId, (current) => {
     if (current.status === 'cancelled') return publicTask(current)
@@ -1346,7 +1377,13 @@ export function __setComposeRendererForTests(renderer: ComposeRenderer | null) {
 
 export async function __resetComposeTasksForTests() {
   await withWorkspaceLock(async () => {
-    await fs.rm(COMPOSE_TASK_FILE, { force: true })
+    await __resetComposeTasksWhileLocked()
   })
+}
+
+/** Called by resetStore while its workspace lock is already held. */
+export async function __resetComposeTasksWhileLocked() {
+  await fs.rm(COMPOSE_TASK_FILE, { force: true })
+  await fs.rm(path.join(MEDIA_DIR, COMPOSITE_ROOT), { recursive: true, force: true })
   composeRendererForTests = null
 }

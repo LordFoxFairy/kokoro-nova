@@ -117,9 +117,9 @@ async function persist(state: WorkspaceState) {
   await writeAtomically(STATE_FILE, JSON.stringify(state, null, 2))
 }
 
-async function persistScenarioId(scenarioId: ScenarioId) {
+async function persistScenarioId(scenarioId: ScenarioId, generationId = randomUUID()) {
   await ensureDirs()
-  await writeAtomically(SCENARIO_FILE, JSON.stringify({ scenarioId }, null, 2))
+  await writeAtomically(SCENARIO_FILE, JSON.stringify({ scenarioId, generationId }, null, 2))
 }
 
 export async function activeScenarioId(): Promise<ScenarioId> {
@@ -136,6 +136,33 @@ export async function activeScenarioId(): Promise<ScenarioId> {
  */
 export async function activeScenarioIdWhileLocked(): Promise<ScenarioId> {
   return readActiveScenarioId()
+}
+
+/**
+ * Every scenario reset starts a new local workspace generation. Volatile
+ * workers use this token to avoid writing an old render into the new fixture.
+ * The caller must already own the workspace lock.
+ */
+export async function activeWorkspaceGenerationWhileLocked(): Promise<string> {
+  await ensureDirs()
+  try {
+    const raw = JSON.parse(await fs.readFile(SCENARIO_FILE, 'utf8')) as unknown
+    const generationId = raw && typeof raw === 'object' && 'generationId' in raw
+      ? (raw as { generationId: unknown }).generationId
+      : undefined
+    if (typeof generationId === 'string' && generationId.length > 0) return generationId
+  } catch {
+    // Missing or malformed metadata gets a fresh generation below.
+  }
+
+  const scenarioId = await readActiveScenarioId()
+  const generationId = randomUUID()
+  await persistScenarioId(scenarioId, generationId)
+  return generationId
+}
+
+export async function activeWorkspaceGeneration(): Promise<string> {
+  return enqueueWrite(activeWorkspaceGenerationWhileLocked)
 }
 
 async function readActiveScenarioId(): Promise<ScenarioId> {
@@ -242,9 +269,11 @@ export async function resetStore(scenarioId?: ScenarioId) {
     const selected = scenarioId === undefined ? await readActiveScenarioId() : ScenarioIdSchema.parse(scenarioId)
     const next = buildScenario(selected)
     await ensureDirs()
+    // Rotate before replacing the workspace so in-flight workers can observe
+    // the new generation and stop before committing stale assets.
+    await persistScenarioId(selected)
     await seedFixtureMedia(true)
     await persist(next)
-    await persistScenarioId(selected)
     await resetVolatileFixtureState(selected)
     return next
   })
@@ -284,6 +313,7 @@ async function resetVolatileFixtureState(scenarioId: ScenarioId) {
   generationRunner.__resetGenerationRunnerForTests()
   mockProvider.__resetMockProvider()
   compose.__resetComposeCapabilities()
+  await compose.__resetComposeTasksWhileLocked()
   await identity.resetLocalIdentityStore(scenarioId)
 }
 

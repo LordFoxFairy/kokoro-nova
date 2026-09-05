@@ -8,7 +8,7 @@ import {
   __setComposeRendererForTests,
   type ComposeResult,
 } from '@/server/compose'
-import { resetStore } from '@/server/store'
+import { readState, resetStore } from '@/server/store'
 import { GET as getTask, POST as transitionTask } from './[taskId]/route'
 import { POST as createTask } from './route'
 
@@ -191,6 +191,37 @@ describe.sequential('compose route smoke', () => {
     const succeeded = await waitForTaskStatus(created.task.id, 'succeeded')
     expect(succeeded.id).toBe(created.task.id)
     expect(succeeded.artifact).not.toBeNull()
+  })
+
+  it('invalidates a blocked render when the mock workspace switches scenario', async () => {
+    let releaseRender!: () => void
+    const renderBlocked = new Promise<void>((resolve) => { releaseRender = resolve })
+    __setComposeRendererForTests(async (): Promise<ComposeResult> => {
+      await renderBlocked
+      return {
+        ok: true,
+        outputPath: 'stale/composite.mp4',
+        posterPath: null,
+        durationSeconds: 1,
+        width: 320,
+        height: 180,
+        byteSize: 12,
+        subtitleMode: 'none',
+        notes: ['stale render must be discarded'],
+      }
+    })
+
+    const createdResponse = await createTask(request('http://localhost/api/compose', composeRequest()))
+    const created = ComposeTaskResponseSchema.parse(await createdResponse.json())
+    await waitForTaskStatus(created.task.id, 'rendering')
+
+    await resetStore('authenticated-empty')
+    releaseRender()
+    await new Promise((resolve) => setTimeout(resolve, 25))
+
+    const staleResponse = await getTask(new Request(taskUrl(created.task.id)), params(created.task.id))
+    expect(staleResponse.status).toBe(404)
+    expect((await readState()).assets).toHaveLength(0)
   })
 
   it('normalizes invalid compose input and missing-task actions as ErrorResponse envelopes', async () => {

@@ -7276,8 +7276,17 @@
                   "queued": {
                     "$ref": "#/components/examples/ComposeTaskQueuedExample"
                   },
+                  "rendering": {
+                    "$ref": "#/components/examples/ComposeTaskRenderingExample"
+                  },
                   "succeeded": {
                     "$ref": "#/components/examples/ComposeTaskSucceededExample"
+                  },
+                  "failed": {
+                    "$ref": "#/components/examples/ComposeTaskFailedExample"
+                  },
+                  "cancelled": {
+                    "$ref": "#/components/examples/ComposeTaskCancelledExample"
                   }
                 }
               }
@@ -19058,19 +19067,16 @@
         "externalValue": "./examples/showcase-clone.response.json"
       },
       "ComposeTaskQueuedExample": {
-        "value": {
-          "task": {
-            "id": "compose_task_fixture_001",
-            "status": "queued",
-            "artifact": null,
-            "assetId": null,
-            "subtitleMode": null,
-            "notes": [],
-            "failure": null,
-            "createdAt": "2026-09-04T00:00:00.000Z",
-            "updatedAt": "2026-09-04T00:00:00.000Z"
-          }
-        }
+        "externalValue": "./examples/compose.task-queued.response.json"
+      },
+      "ComposeTaskRenderingExample": {
+        "externalValue": "./examples/compose.task-rendering.response.json"
+      },
+      "ComposeTaskFailedExample": {
+        "externalValue": "./examples/compose.task-failed.response.json"
+      },
+      "ComposeTaskCancelledExample": {
+        "externalValue": "./examples/compose.task-cancelled.response.json"
       },
       "PresenceLeaseAcquireRequestExample": {
         "externalValue": "./examples/presence-lease-acquire.request.json"

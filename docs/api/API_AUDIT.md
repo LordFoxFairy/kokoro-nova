@@ -14,6 +14,14 @@
 但这不是完整的 wire-contract 一致性证明。下面的缺口会使未来后端或 SDK 虽能从 OpenAPI 生成
 55/92 个端点，却在错误 envelope、匿名读取、状态码和可执行示例上与当前 mock/UI 出现分歧。
 
+## 本轮闭环（2026-09-05）
+
+- `src/app/api/assets/folders/route.test.ts` 新增资产文件夹的 GET 空列表/计数、POST 创建、持久化回读、Zod schema、状态码和 JSON content-type smoke。
+- `src/app/api/compose/route.test.ts` 新增 succeeded 终态 artifact/assetId/subtitleMode/notes 校验，以及 renderer failure → failed → retry → succeeded 状态链。
+- `openapi.yaml` 为 compose task 增加 queued、rendering、failed、cancelled 的可执行 external examples；与现有 succeeded 示例一起覆盖完整终态投影。
+
+上述闭环降低了 API-AUD-06/API-AUD-07 的 Video/Assets 缺口，但不改变“尚未覆盖全部 92 个 operation 的运行时矩阵”这一结论。
+
 ### 后续修订
 
 审计后，`1.25.1-account-member-not-found` 已将

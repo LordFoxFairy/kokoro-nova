@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ComposeTaskResponseSchema } from '@/contracts/compose'
+import { ComposeResponseSchema, ComposeTaskResponseSchema } from '@/contracts/compose'
 import { LocalErrorEnvelopeSchema } from '@/contracts/http'
 import { DEFAULT_SCENARIO_ID } from '@/mocks/scenarios/catalog'
 import {
@@ -38,7 +38,7 @@ function composeRequest() {
 
 async function waitForTaskStatus(
   taskId: string,
-  status: 'rendering' | 'cancelled',
+  status: 'rendering' | 'succeeded' | 'failed' | 'cancelled',
 ) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const response = await getTask(new Request(taskUrl(taskId)), params(taskId))
@@ -115,6 +115,82 @@ describe.sequential('compose route smoke', () => {
     releaseRender()
     const persisted = await waitForTaskStatus(created.task.id, 'cancelled')
     expect(persisted).toEqual(cancelled.task)
+  })
+
+  it('projects a succeeded task with a schema-valid artifact contract', async () => {
+    __setComposeRendererForTests(async (_spec, outputDir): Promise<ComposeResult> => ({
+      ok: true,
+      outputPath: `${outputDir}/composite.mp4`,
+      posterPath: null,
+      durationSeconds: 1,
+      width: 320,
+      height: 180,
+      byteSize: 12,
+      subtitleMode: 'none',
+      notes: ['deterministic fixture render'],
+    }))
+
+    const createdResponse = await createTask(request('http://localhost/api/compose', composeRequest()))
+    const created = ComposeTaskResponseSchema.parse(await createdResponse.json())
+    const succeeded = await waitForTaskStatus(created.task.id, 'succeeded')
+
+    const terminal = ComposeTaskResponseSchema.parse({ task: succeeded })
+    const response = ComposeResponseSchema.parse({
+      artifact: terminal.task.artifact,
+      assetId: terminal.task.assetId,
+      subtitleMode: terminal.task.subtitleMode,
+      notes: terminal.task.notes,
+    })
+    expect(response).toMatchObject({
+      artifact: { kind: 'video', assetId: response.assetId },
+      assetId: expect.stringMatching(/^ast_/),
+      subtitleMode: 'none',
+      notes: ['deterministic fixture render'],
+    })
+  })
+
+  it('exposes renderer failure and retries the same task to succeeded', async () => {
+    let shouldFail = true
+    __setComposeRendererForTests(async (_spec, outputDir): Promise<ComposeResult> => {
+      if (shouldFail) return { ok: false, code: 'render_failed', reason: 'deterministic renderer failure' }
+      return {
+        ok: true,
+        outputPath: `${outputDir}/composite.mp4`,
+        posterPath: null,
+        durationSeconds: 1,
+        width: 320,
+        height: 180,
+        byteSize: 12,
+        subtitleMode: 'none',
+        notes: [],
+      }
+    })
+
+    const createdResponse = await createTask(request('http://localhost/api/compose', composeRequest()))
+    const created = ComposeTaskResponseSchema.parse(await createdResponse.json())
+    const failed = await waitForTaskStatus(created.task.id, 'failed')
+    expect(failed).toMatchObject({
+      id: created.task.id,
+      status: 'failed',
+      artifact: null,
+      assetId: null,
+      subtitleMode: null,
+      notes: [],
+      failure: 'deterministic renderer failure',
+    })
+
+    shouldFail = false
+    const retryResponse = await transitionTask(
+      request(taskUrl(created.task.id), { action: 'retry' }),
+      params(created.task.id),
+    )
+    const retry = ComposeTaskResponseSchema.parse(await retryResponse.json())
+    expect(retryResponse.status).toBe(200)
+    expect(retry.task).toMatchObject({ id: created.task.id, status: 'queued', failure: null })
+
+    const succeeded = await waitForTaskStatus(created.task.id, 'succeeded')
+    expect(succeeded.id).toBe(created.task.id)
+    expect(succeeded.artifact).not.toBeNull()
   })
 
   it('normalizes invalid compose input and missing-task actions as ErrorResponse envelopes', async () => {

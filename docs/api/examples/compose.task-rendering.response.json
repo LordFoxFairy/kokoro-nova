@@ -1,0 +1,13 @@
+{
+  "task": {
+    "id": "compose_task_fixture_001",
+    "status": "rendering",
+    "artifact": null,
+    "assetId": null,
+    "subtitleMode": null,
+    "notes": ["正在生成本地成片"],
+    "failure": null,
+    "createdAt": "2026-09-04T00:00:00.000Z",
+    "updatedAt": "2026-09-04T00:00:04.000Z"
+  }
+}

@@ -3469,7 +3469,7 @@
           "Showcase"
         ],
         "summary": "TV Show 目录发现 projection",
-        "description": "匿名可读的确定性公开目录，支持分类、提交式搜索与 offset 分页。没有精确搜索命中时以 page.searchFallback=true 返回当前分类推荐；fixture=empty|error 仅供本地 UI 验证。",
+        "description": "匿名可读的确定性公开目录，支持分类、提交式搜索与 offset 分页。客户端仅以 page.nextOffset 续页，滚动触发与“加载更多”共用同一命令；失败时保留已读取目录并重试同一 offset。没有精确搜索命中时以 page.searchFallback=true 返回当前分类推荐；fixture=empty|error 仅供本地 UI 验证。媒体交付失败属于播放器本地状态，可按原 ShowcaseMedia.url 重试，不会改变公开快照。",
         "operationId": "listShowcaseEntries",
         "x-ui-triggers": [
           "TV Show 目录发现 projection"

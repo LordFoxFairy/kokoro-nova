@@ -37,7 +37,7 @@
 | H-02 | 新建画布和六个快捷创作入口能携带稳定 intent | [官方首页](https://www.liblib.tv/) | `HomePage`、`CreatorToolGrid`；`home creator tool carries deterministic intent` | `VERIFIED_LOCAL` |
 | H-03 | Agent 空态禁用发送，合法草稿可创建并保留附件/Skill/模型/生成模式上下文 | [首页创作控件基线](pages/home/screenshots/home-composer-focused-empty-desktop-1440x900-hires.png)、[有效草稿](pages/home/screenshots/home-composer-valid-draft-send-enabled-desktop-1440x900-hires.png) | `HomeAgentComposer`、`HomeAgentComposer.test.ts`；`home Agent composer selects context...`、`home Agent composer keeps context controls local...` | `VERIFIED_LOCAL` |
 | H-04 | TV Show 分类轨、左右滚动、提交式搜索、推荐回退 | [公开首页观察](pages/home/2026-09-04-public-surface.md) | `TvShowFeed.filterTvShowItems`、`resolveTvShowSearch`；`home-project.spec.ts`；与 `/api/showcase` 共用基础发现 projection | `VERIFIED_LOCAL`（冻结目录） |
-| H-05 | 公开浏览与私有创作并置，登录门不清空当前上下文 | 官网登录入口与本地公开 fixture | `publicMode`、`home-login-dialog`；`e2e/home-project.spec.ts` | `PARTIAL`：本地登录落点仍是 mock `/account`，没有会话恢复/回跳契约 |
+| H-05 | 公开浏览与私有创作并置，登录门不清空当前上下文 | 官网登录入口与本地公开 fixture | `LocalReturnToSchema`、`HomeAgentComposer`、`home-login-dialog`；`e2e/home-project-return-to.spec.ts` | `VERIFIED_LOCAL`（登录、失败重试与 returnTo 后的 prompt/CreationContext/快捷 intent 恢复） |
 
 ### P — Project
 
@@ -47,7 +47,7 @@
 | P-02 | 四列项目/文件夹卡，空态、搜索空态、回收站空态 | [官方项目页](https://www.liblib.tv/project) | `filterProjectRows`、`getProjectListEmptyState`、`RecycleBinDialog` | `VERIFIED_LOCAL` |
 | P-03 | 项目/文件夹打开、重命名、封面、副本、移动、删除确认 | [项目卡菜单基线](pages/canvas/screenshots/project-card-actions-menu-desktop-1440x900-hires.png)、[删除确认](pages/canvas/screenshots/project-delete-confirmation-dialog-desktop-1440x900-hires.png) | `ProjectCard`、`FolderCard`、`Menu`、确认门；`e2e/project-manager.spec.ts`、`e2e/project-lifecycle.spec.ts` 覆盖菜单、文件夹生命周期、示例封面、副本、移动与刷新恢复 | `VERIFIED_LOCAL`（deterministic mock；测试结束恢复 `authenticated-empty` fixture） |
 | P-04 | 空 workspace 中二级动作保持 enabled | [项目空态观察](pages/home/2026-09-04-project-empty-surface.md) | `ProjectToolbar`、空态按钮 | `VERIFIED_LOCAL` |
-| P-05 | 私有项目的认证、刷新恢复和错误反馈 | 官网登录态与权限提示观察 | `useHomeDiscoveryState`、`project-load-error`、`project-refresh-error` | `PARTIAL`：登录/会话是 local fixture，缺独立 `Identity` contract |
+| P-05 | 私有项目的认证、刷新恢复和错误反馈 | 官网登录态与权限提示观察 | `LocalReturnToSchema`、项目/文件夹/回收站 route 身份校验；`e2e/home-project-return-to.spec.ts` | `VERIFIED_LOCAL`（fixture Identity contract；保留项目路径与查询上下文） |
 
 ### C — Canvas / Workflow
 
@@ -58,8 +58,8 @@
 | C-03 | 添加节点菜单 taxonomy、四类 starter、节点/边几何与可访问选择 | [添加节点基线](pages/canvas/screenshots/canvas-add-node-current-dark-desktop-1440x900-2026-09-03.png) | `WorkflowCanvas`、`NodeCard`、`BottomToolbar`；`e2e/canvas-parity.spec.ts` | `VERIFIED_LOCAL` |
 | C-04 | 文档 reducer、revision、撤销/重做、保存 viewport 与刷新恢复 | 官方 CLI/只读混合节点观察；[工作流 README](pages/canvas/README.md) | `src/domain/mutations.ts`、`editor-store.ts`；domain tests、`e2e/workflow.spec.ts` | `VERIFIED_LOCAL`（本地持久语义） |
 | C-05 | 图片/视频/音频/文本/脚本/导演台/工具箱的可演示节点状态 | 官网当前混合节点只读复核、节点分段截图 | `NodeCard` 与各 editor；audio/image/text/video/script/director E2E | `VERIFIED_LOCAL`（deterministic mock） |
-| C-06 | 运行中、成功、失败、取消、重试和计费冻结/返还 | [计费/生成研究](FEATURE_MATRIX.md) | Jobs、confirm gate、ledger projection 与单测 | `PARTIAL` / `COST_GATED`：官网真实运行和结算未做付费操作 |
-| C-07 | 多画布管理、协作跟随、并发编辑驱逐 | [多画布/协作截图](pages/canvas/README.md) | `presence-client`、canvas routes；`e2e/kokoro-nova-parity.spec.ts` | `PARTIAL`：本地单用户/租约 mock 已有，真正多用户冲突未确认 |
+| C-06 | 运行中、成功、失败、取消、重试和计费冻结/返还 | [计费/生成研究](FEATURE_MATRIX.md) | Jobs、confirm gate、幂等 ledger reserve/settle/release；`e2e/generation-ledger-lifecycle.spec.ts` | `VERIFIED_LOCAL`（失败→重试成功、取消、刷新恢复及独立账本链）；官网付费真实结算仍待观察 |
+| C-07 | 多画布管理、协作跟随、并发编辑驱逐 | [多画布/协作截图](pages/canvas/README.md) | typed presence editor lease、`PresenceLayer`；`e2e/presence-concurrency.spec.ts` | `VERIFIED_LOCAL`（双客户端冲突、跟随、释放后接管、旧 token 防驱逐；不写入 WorkflowDocument） |
 
 ### S — Storyboard
 
@@ -68,7 +68,7 @@
 | S-01 | 工作流与故事板消费同一 `WorkflowDocument`，切换不写 revision | [故事板映射截图](pages/canvas/screenshots/storyboard-populated-text-image-video-columns.png) | `projectStoryboard()`、`StoryboardView`；`e2e/canvas-parity.spec.ts` | `VERIFIED_LOCAL` |
 | S-02 | 音频/文本复合左轨、图片/视频动态列、视频全部/成片/片段筛选 | [故事板当前基线](pages/canvas/screenshots/storyboard-authenticated-current-dark-desktop-1440x900-2026-09-03.png)、[筛选菜单](pages/canvas/screenshots/storyboard-video-filter-menu-all-final-clips-desktop-1440x900-hires.png) | `StoryboardView`；`responsive-layout.test.ts`、`canvas-parity.spec.ts` | `VERIFIED_LOCAL` |
 | S-03 | 卡片详情、源节点定位、副本、Agent 引用、剪辑入口 | [故事板与 Agent](pages/canvas/screenshots/storyboard-with-agent-ask-human-desktop-1440x900-hires.png) | `MediaDetailDrawer`、`ClipEditor`、`editor-store`；`canvas-parity.spec.ts` | `VERIFIED_LOCAL` |
-| S-04 | 有效媒体输入、剪辑持久化、导出成功/失败/取消 | 官网空时间线/导出门槛证据；[canvas README](pages/canvas/README.md) | `ClipEditor`、`compose` local renderer；`video-compositor.spec.ts` | `PARTIAL`：官网有效输入和真实导出状态待观察 |
+| S-04 | 有效媒体输入、剪辑持久化、导出成功/失败/取消 | 官网空时间线/导出门槛证据；[canvas README](pages/canvas/README.md) | `ClipEditor`、strict local-media `compose` renderer；`video-compositor.spec.ts`、`compositor-reliability.spec.ts` | `VERIFIED_LOCAL`（有效本地媒体、持久化编辑、成功/失败/取消与刷新重试）；官网真实导出服务仍待观察 |
 
 ### K — Skills
 
@@ -87,10 +87,10 @@
 | --- | --- | --- | --- | --- |
 | V-01 | 首页 TV Show 内容流、分类轨、搜索按钮、作品卡和部分 disabled 过程入口 | [官方首页](https://www.liblib.tv/)、[首页公开观察](pages/home/2026-09-04-public-surface.md) | `TvShowFeed`、`HOME_DISCOVERY_CATALOG`；`home-project.spec.ts` | `VERIFIED_LOCAL`（首页冻结投影） |
 | V-02 | 独立目录的分类/搜索/作者/统计/节点数和推荐/空态 | [目录证据](pages/showcase/README.md) | `ShowcaseGallery`、`ShowcaseEntryProjection`；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（local mock） |
-| V-03 | 详情沉浸背景、观看、倍速、清晰度、音量、全屏、相邻作品带 | [播放器截图](pages/showcase/screenshots/player-controls-speed-quality-volume-fullscreen.png) | `ShowcaseDetailView`；`public-discovery.spec.ts` | `PARTIAL`：local 控件有，真实媒体变体/缓冲/失败态没有官网网络证据 |
+| V-03 | 详情沉浸背景、观看、倍速、清晰度、音量、全屏、相邻作品带 | [播放器截图](pages/showcase/screenshots/player-controls-speed-quality-volume-fullscreen.png) | `ShowcaseDetailView`、typed playback manifest；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（loading/buffering、720p→480p→original 自动回退、手选质量隔离、失败重试；媒体只来自 `/api/media/` fixture） |
 | V-04 | 查看制作过程保持作品上下文，Workflow/Storyboard 只读，复制触发认证门 | [公开工作流](pages/showcase/screenshots/public-production-process-readonly-workflow.png)、[公开故事板](pages/showcase/screenshots/public-production-process-readonly-storyboard.png) | `PublicCanvasView`；`public-discovery.spec.ts` | `VERIFIED_LOCAL`（未登录门） |
 | V-05 | 公开快照与作者/分类/统计/播放器 projection 分层 | [public product 研究](references/public-product/README.md) | `PublishedSnapshot` + `ShowcaseEntryProjection` + `/api/showcase`；`HomeShowcaseItem` 从同一基础 projection 挑选首页字段，并强制 `id === snapshotId` | `VERIFIED_LOCAL`（公开 discovery projection） |
-| V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | `public-discovery.spec.ts` 覆盖目录 retry、匿名登录门，以及已登录确认 → 原子 clone → 新私有项目/画布 → 打开副本；分页、喜欢与 clone 失败仍待补 | `PARTIAL`（local clone 成功态已验证） |
+| V-06 | 分页/无限滚动、目录/媒体加载失败、喜欢/分享反馈、登录后复制归属与失败 | [TV Show 待补清单](pages/showcase/README.md) | `public-discovery.spec.ts` 覆盖目录 retry、滚动自动续页、媒体失败重试、匿名登录门，以及已登录确认 → 原子 clone → 新私有项目/画布 → 打开副本 | `PARTIAL`（local pagination 与目录/媒体 retry、clone 成功已验证；喜欢/分享反馈和 clone 失败仍待补） |
 
 ### A — Account
 

@@ -267,6 +267,35 @@ describe('createApiClient', () => {
     ).toThrow()
   })
 
+  it('serializes editor-seat lease actions through the typed local presence boundary', async () => {
+    const seen: Array<{ url: string; body?: string }> = []
+    const transport: JsonTransport = async (input, init) => {
+      seen.push({ url: String(input), body: typeof init?.body === 'string' ? init.body : undefined })
+      return json({
+        ok: true,
+        action: 'acquire',
+        lease: {
+          canvasId: 'can_fixture',
+          clientId: 'alice',
+          leaseId: 'lease_1',
+          acquiredAt: '2026-09-05T00:00:00.000Z',
+          heartbeatAt: '2026-09-05T00:00:00.000Z',
+          expiresAt: '2026-09-05T00:00:15.000Z',
+          state: 'active',
+        },
+      })
+    }
+
+    await expect(createApiClient(transport).presence.lease('can_fixture', {
+      action: 'acquire',
+      participantId: 'alice',
+    })).resolves.toMatchObject({ lease: { clientId: 'alice', leaseId: 'lease_1' } })
+    expect(seen).toEqual([{
+      url: '/api/presence/can_fixture',
+      body: '{"action":"acquire","participantId":"alice"}',
+    }])
+  })
+
   it('exposes exact typed Script V2 quote/create/get/transition methods', async () => {
     const seen: Array<{ url: string; method?: string; body?: string }> = []
     const transport: JsonTransport = async (input, init) => {

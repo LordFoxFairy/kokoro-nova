@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LibTV Frontend Replica Mock API",
-    "version": "1.21.0-team-shared-assets",
+    "version": "1.22.0-presence-editor-lease",
     "description": "Frontend-only LibTV replica contract backed by a deterministic local mock. It never reads real LibTV credentials and never calls the LibTV backend; official observations are sanitized evidence only."
   },
   "servers": [
@@ -2776,10 +2776,10 @@
         "tags": [
           "Presence"
         ],
-        "summary": "光标、视口、跟随和编辑租约心跳",
+        "summary": "光标、视口、跟随和编辑租约",
         "operationId": "updateCanvasPresence",
         "x-ui-triggers": [
-          "光标、视口、跟随和编辑租约心跳"
+          "光标、视口、跟随、获取/续约/释放编辑租约"
         ],
         "x-mock-scenarios": [
           "authenticated-populated",
@@ -2787,15 +2787,18 @@
         ],
         "responses": {
           "200": {
-            "description": "接受的最新协作者状态",
+            "description": "接受的最新协作者状态或编辑租约结果",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PresenceHeartbeatResponse"
+                  "$ref": "#/components/schemas/PresenceUpdateResponse"
                 },
                 "examples": {
-                  "fixture": {
+                  "heartbeat": {
                     "$ref": "#/components/examples/PresenceHeartbeatResponseExample"
+                  },
+                  "leaseAcquire": {
+                    "$ref": "#/components/examples/PresenceLeaseAcquireResponseExample"
                   }
                 }
               }
@@ -2830,6 +2833,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "编辑席位被占用或租约已经失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -2848,17 +2861,20 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PresenceHeartbeatRequest"
+                "$ref": "#/components/schemas/PresenceUpdateRequest"
               },
               "examples": {
-                "fixture": {
+                "heartbeat": {
                   "$ref": "#/components/examples/PresenceHeartbeatRequestExample"
+                },
+                "leaseAcquire": {
+                  "$ref": "#/components/examples/PresenceLeaseAcquireRequestExample"
                 }
               }
             }
           }
         },
-        "description": "上报协作者的最新光标与视口。服务端按 participantId upsert，并向同画布 SSE 订阅者广播 join/move；15 秒无心跳会以 leave/expired 结束。",
+        "description": "同一 endpoint 承载严格的 cursor heartbeat 与编辑租约 action。`acquire` 冲突返回 `409 EDIT_LEASE_CONFLICT`，但不会断开 SSE，因此客户端仍可跟随；`heartbeat`/`release` 必须携带当前 leaseId，过期或旧 token 返回 `409 SESSION_EXPIRED`。所有状态进程内、可丢失，绝不写入 WorkflowDocument 或 workspace。",
         "x-authorization": "workspace",
         "security": [
           {
@@ -8038,29 +8054,14 @@
         "additionalProperties": false
       },
       "PresenceUpdateRequest": {
-        "type": "object",
-        "required": [
-          "clientId"
-        ],
-        "properties": {
-          "clientId": {
-            "type": "string"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PresenceHeartbeatRequest"
           },
-          "cursor": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "viewport": {
-            "$ref": "#/components/schemas/Viewport"
-          },
-          "followingClientId": {
-            "type": [
-              "string",
-              "null"
-            ]
+          {
+            "$ref": "#/components/schemas/PresenceLeaseRequest"
           }
-        },
-        "additionalProperties": false
+        ]
       },
       "ShowcaseMedia": {
         "type": "object",
@@ -14375,35 +14376,75 @@
       },
       "LocalHomeCreativeContinuation": {
         "type": "object",
-        "required": ["kind", "source", "prompt", "context"],
+        "required": [
+          "kind",
+          "source",
+          "prompt",
+          "context"
+        ],
         "properties": {
-          "kind": { "const": "home-creative" },
-          "source": { "type": "string", "enum": ["blank-canvas", "creator-tool", "composer"] },
-          "prompt": { "type": "string", "maxLength": 20000 },
-          "context": { "$ref": "#/components/schemas/CreationContext" }
+          "kind": {
+            "const": "home-creative"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "blank-canvas",
+              "creator-tool",
+              "composer"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "context": {
+            "$ref": "#/components/schemas/CreationContext"
+          }
         },
         "additionalProperties": false
       },
       "LocalProjectRouteContinuation": {
         "type": "object",
-        "required": ["kind", "route"],
+        "required": [
+          "kind",
+          "route"
+        ],
         "properties": {
-          "kind": { "const": "project-route" },
-          "route": { "type": "string", "pattern": "^/project(?:\\?.*)?$", "description": "保留私有项目列表的站内 route 与 query" }
+          "kind": {
+            "const": "project-route"
+          },
+          "route": {
+            "type": "string",
+            "pattern": "^/project(?:\\?.*)?$",
+            "description": "保留私有项目列表的站内 route 与 query"
+          }
         },
         "additionalProperties": false
       },
       "LocalNoContinuation": {
         "type": "object",
-        "required": ["kind"],
-        "properties": { "kind": { "const": "none" } },
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "const": "none"
+          }
+        },
         "additionalProperties": false
       },
       "LocalLoginContinuation": {
         "oneOf": [
-          { "$ref": "#/components/schemas/LocalNoContinuation" },
-          { "$ref": "#/components/schemas/LocalHomeCreativeContinuation" },
-          { "$ref": "#/components/schemas/LocalProjectRouteContinuation" }
+          {
+            "$ref": "#/components/schemas/LocalNoContinuation"
+          },
+          {
+            "$ref": "#/components/schemas/LocalHomeCreativeContinuation"
+          },
+          {
+            "$ref": "#/components/schemas/LocalProjectRouteContinuation"
+          }
         ],
         "description": "returnTo 对应的本地 UI 恢复状态；不包含真实登录凭据。"
       },
@@ -16118,6 +16159,118 @@
         },
         "additionalProperties": false,
         "description": "state 不为 ready 时 assets 必须为空数组。"
+      },
+      "PresenceLeaseRequest": {
+        "type": "object",
+        "required": [
+          "action",
+          "participantId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "acquire",
+              "heartbeat",
+              "release"
+            ]
+          },
+          "participantId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "leaseId": {
+            "type": "string",
+            "pattern": "^lease_[A-Za-z0-9_-]{1,64}$"
+          }
+        },
+        "description": "acquire 不带 leaseId；heartbeat/release 必须携带当前 leaseId。"
+      },
+      "EditorLease": {
+        "type": "object",
+        "required": [
+          "canvasId",
+          "clientId",
+          "leaseId",
+          "acquiredAt",
+          "heartbeatAt",
+          "expiresAt",
+          "state"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "canvasId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "clientId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "leaseId": {
+            "type": "string",
+            "pattern": "^lease_[A-Za-z0-9_-]{1,64}$"
+          },
+          "acquiredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "heartbeatAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "const": "active"
+          }
+        },
+        "description": "进程内编辑席位；不可写入 WorkflowDocument 或 workspace。"
+      },
+      "PresenceLeaseResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "action",
+          "lease"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "acquire",
+              "heartbeat",
+              "release"
+            ]
+          },
+          "lease": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EditorLease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PresenceUpdateResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PresenceHeartbeatResponse"
+          },
+          {
+            "$ref": "#/components/schemas/PresenceLeaseResponse"
+          }
+        ]
       }
     },
     "examples": {
@@ -16822,6 +16975,12 @@
             "updatedAt": "2026-09-04T00:00:00.000Z"
           }
         }
+      },
+      "PresenceLeaseAcquireRequestExample": {
+        "externalValue": "./examples/presence-lease-acquire.request.json"
+      },
+      "PresenceLeaseAcquireResponseExample": {
+        "externalValue": "./examples/presence-lease-acquire.response.json"
       }
     }
   },

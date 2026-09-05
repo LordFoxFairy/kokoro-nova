@@ -43,6 +43,7 @@ schema，也不得新增到 operation response 中。
 | 403 | `FORBIDDEN` | 权限不足或 production 调用 dev route | 禁用动作并说明权限 | 否 |
 | 404 | `NOT_FOUND` | 项目、画布、节点、任务、资产或快照不存在 | 返回上一层并刷新集合 | 刷新后 |
 | 409 | `REVISION_CONFLICT` | `expectedRevision` 落后 | 拉取最新文档并重放一次 mutation | 是，最多一次 |
+| 409 | `EDIT_LEASE_CONFLICT` | 同画布已有未过期 editor lease | 保留 presence/follow，显示“获取编辑权”重试 | 对方释放或 TTL 后 |
 | 409 | `SESSION_EXPIRED` | 编辑租约失效或被另一会话接管 | 阻断编辑并要求刷新 | 刷新后 |
 | 409 | `ALREADY_TERMINAL` | 对终态任务执行不兼容动作 | 使用服务端终态覆盖本地 | 否 |
 | 410 | `QUOTE_EXPIRED` | 报价超出 `expiresAt` | 关闭旧确认门并重新报价 | 是，重新创建报价 |

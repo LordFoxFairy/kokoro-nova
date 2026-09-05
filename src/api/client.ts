@@ -60,6 +60,7 @@ import {
 import {
   ShowcaseDetailResponseSchema,
   ShowcaseListResponseSchema,
+  ShowcasePlaybackManifestSchema,
 } from '@/contracts/showcase'
 
 export type JsonTransport = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -289,6 +290,8 @@ export function createApiClient(transport: JsonTransport = fetch, options: ApiCl
       list: () => requestTyped(ShowcaseListResponseSchema, '/api/showcase'),
       detail: (snapshotId: string) =>
         requestTyped(ShowcaseDetailResponseSchema, `/api/showcase/${encodeURIComponent(snapshotId)}`),
+      playback: (snapshotId: string) =>
+        requestTyped(ShowcasePlaybackManifestSchema, `/api/showcase/${encodeURIComponent(snapshotId)}/playback`),
     },
     jobs: {
       list: (canvasId?: string) =>

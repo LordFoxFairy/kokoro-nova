@@ -550,10 +550,10 @@ describe('local API manifest and OpenAPI', () => {
     )
     const heartbeat = operationAt(document, 'POST', '/api/presence/{canvasId}')
     expect(heartbeat.requestBody?.content?.['application/json']?.schema?.$ref).toBe(
-      '#/components/schemas/PresenceHeartbeatRequest',
+      '#/components/schemas/PresenceUpdateRequest',
     )
-    expect(responseSchemaRef(heartbeat, '200')).toBe('#/components/schemas/PresenceHeartbeatResponse')
-    expect(Object.keys(heartbeat.responses ?? {}).filter((status) => status !== '200').sort()).toEqual(['400', '429', '500'])
+    expect(responseSchemaRef(heartbeat, '200')).toBe('#/components/schemas/PresenceUpdateResponse')
+    expect(Object.keys(heartbeat.responses ?? {}).filter((status) => status !== '200').sort()).toEqual(['400', '409', '429', '500'])
 
     expect(responseSchemaRef(operationAt(document, 'POST', '/api/dev/reset'), '200')).toBe(
       '#/components/schemas/ResetScenarioResponse',

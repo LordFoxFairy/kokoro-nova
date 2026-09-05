@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "action": "acquire",
+  "lease": {
+    "canvasId": "can_video_main",
+    "clientId": "fixture_alice",
+    "leaseId": "lease_901",
+    "acquiredAt": "2026-09-05T00:00:00.000Z",
+    "heartbeatAt": "2026-09-05T00:00:00.000Z",
+    "expiresAt": "2026-09-05T00:00:15.000Z",
+    "state": "active"
+  }
+}

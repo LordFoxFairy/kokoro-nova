@@ -17,16 +17,15 @@
  * participant map from it; the exported interface below can stay as it is.
  */
 
-export interface PresencePoint {
-  x: number
-  y: number
-}
+import type {
+  EditorLease,
+  PresencePointContract,
+  PresenceViewportContract,
+} from '@/contracts/presence'
 
-export interface PresenceViewport {
-  x: number
-  y: number
-  zoom: number
-}
+export type PresencePoint = PresencePointContract
+export type PresenceViewport = PresenceViewportContract
+export type { EditorLease }
 
 export interface Participant {
   id: string
@@ -61,6 +60,8 @@ export class PresenceError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code?: 'EDIT_LEASE_CONFLICT' | 'SESSION_EXPIRED',
+    readonly details?: Record<string, unknown>,
   ) {
     super(message)
     this.name = 'PresenceError'
@@ -99,6 +100,9 @@ export const PRESENCE_LIMITS = {
  */
 export const PRESENCE_TTL_MS = 15_000
 
+/** The editor seat uses the same deterministic expiry window as presence. */
+export const EDITOR_LEASE_TTL_MS = PRESENCE_TTL_MS
+
 /**
  * How often a room re-checks its own participants. Worst-case detection
  * latency is therefore TTL + SWEEP; 5s keeps that under 20s while costing one
@@ -118,6 +122,8 @@ interface Room {
    * until their next heartbeat.
    */
   owners: Map<string, number>
+  /** Exactly one mutable editor at a time; followers still remain present. */
+  editorLease: EditorLease | null
   listeners: Set<PresenceListener>
   sweeper: ReturnType<typeof setInterval>
 }
@@ -188,6 +194,7 @@ function ensureRoom(canvasId: string): Room {
   const room: Room = {
     participants: new Map(),
     owners: new Map(),
+    editorLease: null,
     listeners: new Set(),
     sweeper: startSweeper(canvasId),
   }
@@ -201,6 +208,7 @@ function destroyRoom(canvasId: string, room: Room) {
   room.listeners.clear()
   room.participants.clear()
   room.owners.clear()
+  room.editorLease = null
   rooms.delete(canvasId)
 }
 
@@ -209,7 +217,7 @@ function collect(canvasId: string, room: Room) {
   // Identity check: a stale closure must never tear down a room that was
   // already recycled and re-created under the same id.
   if (rooms.get(canvasId) !== room) return
-  if (room.listeners.size > 0 || room.participants.size > 0) return
+  if (room.listeners.size > 0 || room.participants.size > 0 || room.editorLease !== null) return
   destroyRoom(canvasId, room)
 }
 
@@ -332,6 +340,7 @@ export function leave(
   const room = rooms.get(canvasId)
   if (!room) return false
   room.owners.delete(participantId)
+  if (room.editorLease?.clientId === participantId) room.editorLease = null
   if (!room.participants.delete(participantId)) {
     // Still collect: this may have been the last thing keeping the room alive.
     collect(canvasId, room)
@@ -372,6 +381,125 @@ export function detachStream(canvasId: string, participantId: string, token: num
   return leave(canvasId, participantId, 'closed')
 }
 
+/* ------------------------------------------------------------------ *
+ * Editor lease
+ * ------------------------------------------------------------------ */
+
+function dateAt(now: number) {
+  return new Date(now).toISOString()
+}
+
+function leaseExpiry(now: number) {
+  return dateAt(now + EDITOR_LEASE_TTL_MS)
+}
+
+function leaseExpired(lease: EditorLease, now: number) {
+  return Date.parse(lease.expiresAt) <= now
+}
+
+function expireEditorLease(room: Room, now: number) {
+  if (room.editorLease && leaseExpired(room.editorLease, now)) room.editorLease = null
+}
+
+function conflict(canvasId: string, lease: EditorLease): PresenceError {
+  return new PresenceError(
+    409,
+    '当前画布正在由另一位协作者编辑；你仍可跟随查看，待对方释放后再获取编辑权',
+    'EDIT_LEASE_CONFLICT',
+    {
+      canvasId,
+      ownerClientId: lease.clientId,
+      expiresAt: lease.expiresAt,
+    },
+  )
+}
+
+/**
+ * Claim the one mutable editor seat for a canvas.
+ *
+ * This does not gate presence or follow: rejected clients deliberately stay
+ * in the room as viewers. The lease only describes a future write boundary;
+ * it is process-local and never included in a workflow document.
+ */
+export function acquireEditorLease(canvasId: string, clientId: string, now = Date.now()): EditorLease {
+  if (!PRESENCE_LIMITS.idPattern.test(clientId)) {
+    throw new PresenceError(400, '参与者标识不合法')
+  }
+
+  const room = ensureRoom(canvasId)
+  expireEditorLease(room, now)
+  const current = room.editorLease
+  if (current && current.clientId !== clientId) throw conflict(canvasId, current)
+
+  if (current) {
+    const renewed: EditorLease = {
+      ...current,
+      heartbeatAt: dateAt(now),
+      expiresAt: leaseExpiry(now),
+    }
+    room.editorLease = renewed
+    return renewed
+  }
+
+  const token = repository.nextStreamToken
+  repository.nextStreamToken += 1
+  const lease: EditorLease = {
+    canvasId,
+    clientId,
+    leaseId: `lease_${token}`,
+    acquiredAt: dateAt(now),
+    heartbeatAt: dateAt(now),
+    expiresAt: leaseExpiry(now),
+    state: 'active',
+  }
+  room.editorLease = lease
+  return lease
+}
+
+/** Renew only the live claim; a stale tab cannot revive itself into editor. */
+export function heartbeatEditorLease(
+  canvasId: string,
+  clientId: string,
+  leaseId: string,
+  now = Date.now(),
+): EditorLease {
+  const room = rooms.get(canvasId)
+  if (!room) {
+    throw new PresenceError(409, '编辑会话已过期，请刷新页面后重试', 'SESSION_EXPIRED', { canvasId })
+  }
+  expireEditorLease(room, now)
+  const current = room.editorLease
+  if (!current || current.clientId !== clientId || current.leaseId !== leaseId) {
+    collect(canvasId, room)
+    throw new PresenceError(409, '编辑会话已过期，请刷新页面后重试', 'SESSION_EXPIRED', { canvasId })
+  }
+  const renewed: EditorLease = {
+    ...current,
+    heartbeatAt: dateAt(now),
+    expiresAt: leaseExpiry(now),
+  }
+  room.editorLease = renewed
+  return renewed
+}
+
+/**
+ * Release is deliberately token guarded. A late cleanup from Alice must never
+ * delete Bob's replacement lease after the canvas has been handed over.
+ */
+export function releaseEditorLease(canvasId: string, clientId: string, leaseId: string): boolean {
+  const room = rooms.get(canvasId)
+  if (!room) {
+    throw new PresenceError(409, '编辑会话已过期，请刷新页面后重试', 'SESSION_EXPIRED', { canvasId })
+  }
+  const current = room.editorLease
+  if (!current || current.clientId !== clientId || current.leaseId !== leaseId) {
+    throw new PresenceError(409, '编辑会话已过期，请刷新页面后重试', 'SESSION_EXPIRED', { canvasId })
+  }
+  room.editorLease = null
+  collect(canvasId, room)
+  return true
+}
+
 /** Current participants of one canvas, for the opening snapshot frame. */
 export function snapshot(canvasId: string): Participant[] {
   const room = rooms.get(canvasId)
@@ -387,6 +515,7 @@ export function sweepRoom(canvasId: string, now = Date.now()): string[] {
   if (!room) return []
 
   const expired: string[] = []
+  expireEditorLease(room, now)
   for (const [id, participant] of room.participants) {
     if (now - participant.lastSeenAt > PRESENCE_TTL_MS) expired.push(id)
   }
@@ -420,6 +549,7 @@ export function presenceDebug() {
       id,
       listeners: room.listeners.size,
       participants: room.participants.size,
+      editorLease: room.editorLease,
     })),
   }
 }

@@ -131,6 +131,22 @@ type EditorLease = {
 `session-expired` 场景固定重放阻断层；`revision-conflict` 场景固定让服务端画布为 revision 8，
 客户端基准为 revision 7。
 
+### 本地 C-07 编辑席位 fixture
+
+当前 `/api/presence/{canvasId}` 的 POST body 是严格 Zod union：既可发送原有
+`{ participantId, name, color, cursor, viewport }` heartbeat，也可发送
+`{ action: 'acquire' | 'heartbeat' | 'release', participantId, leaseId? }`。
+
+- `acquire` 成功时返回当前 `EditorLease`；另一 client 的获取返回
+  `409 EDIT_LEASE_CONFLICT`，但不关闭其 presence SSE，因此它仍可跟随当前 editor；
+- `heartbeat` / `release` 按 `clientId + leaseId` 双重比较。旧 tab 迟到释放不会删除接管者的
+  lease，返回 `409 SESSION_EXPIRED`；
+- 正常 stream abort、显式 release 或 15 秒 TTL 都会释放/回收 editor seat；
+- 该 lease 是进程内本地 fixture 状态，不修改 revision 或 `WorkflowDocument`。
+
+完整 request/response、错误 details 与未来 shared-store 原子接管要求见
+[`PRESENCE_EDITOR_LEASE.md`](PRESENCE_EDITOR_LEASE.md)。
+
 ## Agent 与任务写入
 
 Agent 的 mutation proposal 必须在用户确认后转换为同一 `CanvasMutation[]`，并经过同一

@@ -227,7 +227,7 @@ export const LOCAL_API_ROUTES: readonly LocalApiRoute[] = [
     ['authenticated-populated'],
     'sse',
   ),
-  route('POST', '/api/presence/{canvasId}', 'Presence', 'updateCanvasPresence', ['光标、视口、跟随和编辑租约心跳'], [
+  route('POST', '/api/presence/{canvasId}', 'Presence', 'updateCanvasPresence', ['光标、视口、跟随、获取/续约/释放编辑租约'], [
     'authenticated-populated',
     'session-expired',
   ]),

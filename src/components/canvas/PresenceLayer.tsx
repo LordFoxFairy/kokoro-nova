@@ -9,6 +9,7 @@ import {
   loadPresenceSelf,
   reportCursor,
   reportViewport,
+  retryPresenceEditorLease,
   usePresence,
   type Participant,
   type PresenceSelf,
@@ -215,7 +216,60 @@ export function PresenceLayer({ canvasId, self }: { canvasId: string | null; sel
       <RemoteCursors />
       <PresenceAvatars />
       <FollowBanner />
+      <EditorLeaseStatus />
     </>
+  )
+}
+
+/**
+ * A compact seat indicator makes the concurrency boundary visible without
+ * turning a rejected collaborator into a disconnected spectator. They can
+ * still follow remote camera/cursor state and explicitly retry after release.
+ */
+function EditorLeaseStatus() {
+  const state = usePresence((s) => s.editorLeaseState)
+  const message = usePresence((s) => s.editorLeaseMessage)
+
+  if (state === 'idle') return null
+  if (state === 'active') {
+    return (
+      <div
+        data-testid="presence-lease-active"
+        role="status"
+        className="pointer-events-none absolute right-4 top-[62px] z-40 rounded-full bg-surface px-2.5 py-1.5 text-[11px] font-medium text-ink-500 shadow-[var(--shadow-float)]"
+      >
+        正在编辑
+      </div>
+    )
+  }
+  if (state === 'acquiring') {
+    return (
+      <div
+        data-testid="presence-lease-acquiring"
+        role="status"
+        className="pointer-events-none absolute right-4 top-[62px] z-40 rounded-full bg-surface px-2.5 py-1.5 text-[11px] text-ink-400 shadow-[var(--shadow-float)]"
+      >
+        正在获取编辑权…
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-testid="presence-lease-blocked"
+      role="status"
+      className="pointer-events-auto absolute right-4 top-[62px] z-40 flex max-w-[360px] items-center gap-2 rounded-[10px] bg-ink-900 px-2.5 py-2 text-[11px] text-white shadow-[var(--shadow-panel)]"
+    >
+      <span className="min-w-0 leading-4">{message ?? '当前为跟随查看模式，编辑席位已被占用'}</span>
+      <button
+        type="button"
+        data-testid="presence-lease-retry"
+        onClick={() => void retryPresenceEditorLease()}
+        className="shrink-0 rounded-md bg-white/15 px-2 py-1 font-medium transition-colors hover:bg-white/25"
+      >
+        获取编辑权
+      </button>
+    </div>
   )
 }
 

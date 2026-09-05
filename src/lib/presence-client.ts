@@ -1,6 +1,8 @@
 'use client'
 
 import { create } from 'zustand'
+import { ApiError, client } from '@/lib/api'
+import type { EditorLease } from '@/contracts/presence'
 import type { Participant, PresenceEvent, PresencePoint, PresenceViewport } from '@/server/presence'
 
 /**
@@ -47,6 +49,10 @@ interface PresenceState {
   /** Remote participants only; the local user is never in this list. */
   participants: Participant[]
   followingId: string | null
+  /** The one editable seat is independent of read-only follow presence. */
+  editorLease: EditorLease | null
+  editorLeaseState: 'idle' | 'acquiring' | 'active' | 'blocked'
+  editorLeaseMessage: string | null
 }
 
 interface PresenceActions {
@@ -61,6 +67,9 @@ export const usePresence = create<PresenceState & PresenceActions>((set) => ({
   connected: false,
   participants: [],
   followingId: null,
+  editorLease: null,
+  editorLeaseState: 'idle',
+  editorLeaseMessage: null,
 
   follow: (followingId) => set({ followingId }),
   breakFollow: () => set((state) => (state.followingId === null ? state : { followingId: null })),
@@ -147,6 +156,7 @@ interface Connection {
   cursor: PresencePoint | null
   viewport: PresenceViewport
   lastSentAt: number
+  leaseId: string | null
 }
 
 let active: Connection | null = null
@@ -276,23 +286,98 @@ async function sendHeartbeat(conn: Connection) {
   if (conn.closed) return
   conn.lastSentAt = Date.now()
   try {
-    await fetch(`/api/presence/${encodeURIComponent(conn.canvasId)}`, {
-      method: 'POST',
-      cache: 'no-store',
-      signal: conn.abort.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        participantId: conn.self.id,
-        name: conn.self.name,
-        color: conn.self.color,
-        cursor: conn.cursor,
-        viewport: conn.viewport,
-      }),
+    await client.presence.heartbeat(conn.canvasId, {
+      participantId: conn.self.id,
+      name: conn.self.name,
+      color: conn.self.color,
+      cursor: conn.cursor,
+      viewport: conn.viewport,
     })
   } catch {
     // A dropped heartbeat is recoverable: the next one lands, or the TTL
     // removes us and the stream reconnect re-announces us.
   }
+}
+
+function isCurrent(conn: Connection) {
+  return active === conn && !conn.closed
+}
+
+/** Lease acquisition never blocks the SSE stream: rejected peers can follow. */
+async function acquireEditingLease(conn: Connection) {
+  if (!isCurrent(conn)) return
+  usePresence.setState({ editorLeaseState: 'acquiring', editorLeaseMessage: null })
+  try {
+    const response = await client.presence.lease(conn.canvasId, {
+      action: 'acquire',
+      participantId: conn.self.id,
+    })
+    const lease = response.lease
+    if (!lease) return
+    if (!isCurrent(conn)) {
+      // A route unmounted while the request was in flight. Do not leave a
+      // phantom editor seat behind for its former participant.
+      await client.presence.lease(conn.canvasId, {
+        action: 'release',
+        participantId: conn.self.id,
+        leaseId: lease.leaseId,
+      }).catch(() => undefined)
+      return
+    }
+    conn.leaseId = lease.leaseId
+    usePresence.setState({ editorLease: lease, editorLeaseState: 'active', editorLeaseMessage: null })
+  } catch (error) {
+    if (!isCurrent(conn)) return
+    const message = error instanceof Error ? error.message : '编辑会话暂时不可用'
+    usePresence.setState({
+      editorLease: null,
+      editorLeaseState: error instanceof ApiError && error.code === 'EDIT_LEASE_CONFLICT' ? 'blocked' : 'idle',
+      editorLeaseMessage: message,
+    })
+  }
+}
+
+async function renewEditingLease(conn: Connection) {
+  const leaseId = conn.leaseId
+  if (!isCurrent(conn) || !leaseId) return
+  try {
+    const response = await client.presence.lease(conn.canvasId, {
+      action: 'heartbeat',
+      participantId: conn.self.id,
+      leaseId,
+    })
+    if (!isCurrent(conn) || !response.lease) return
+    usePresence.setState({ editorLease: response.lease, editorLeaseState: 'active', editorLeaseMessage: null })
+  } catch (error) {
+    if (!isCurrent(conn)) return
+    conn.leaseId = null
+    usePresence.setState({
+      editorLease: null,
+      editorLeaseState: 'blocked',
+      editorLeaseMessage: error instanceof Error ? error.message : '编辑会话已过期',
+    })
+  }
+}
+
+async function releaseEditingLease(conn: Connection) {
+  const leaseId = conn.leaseId
+  conn.leaseId = null
+  if (!leaseId) return
+  try {
+    await client.presence.lease(conn.canvasId, {
+      action: 'release',
+      participantId: conn.self.id,
+      leaseId,
+    })
+  } catch {
+    // Stream teardown is a second, token-guarded release path.
+  }
+}
+
+/** Explicit retry is used after the current editor closes or releases. */
+export function retryPresenceEditorLease() {
+  if (!active) return Promise.resolve()
+  return acquireEditingLease(active)
 }
 
 /**
@@ -344,12 +429,26 @@ export function connectPresence(canvasId: string, self: PresenceSelf) {
     cursor: null,
     viewport: { x: 0, y: 0, zoom: 1 },
     lastSentAt: 0,
+    leaseId: null,
   }
   active = conn
 
-  usePresence.setState({ canvasId, self, connected: false, participants: [], followingId: null })
+  usePresence.setState({
+    canvasId,
+    self,
+    connected: false,
+    participants: [],
+    followingId: null,
+    editorLease: null,
+    editorLeaseState: 'acquiring',
+    editorLeaseMessage: null,
+  })
 
-  conn.idleTimer = setInterval(() => scheduleHeartbeat(conn), IDLE_HEARTBEAT_MS)
+  conn.idleTimer = setInterval(() => {
+    scheduleHeartbeat(conn)
+    void renewEditingLease(conn)
+  }, IDLE_HEARTBEAT_MS)
+  void acquireEditingLease(conn)
   void openStream(conn)
 }
 
@@ -365,6 +464,8 @@ export function disconnectPresence() {
   conn.flushTimer = null
   conn.idleTimer = null
 
+  void releaseEditingLease(conn)
+
   // Aborting the stream *is* the departure: the server tears the participant
   // down on the request abort. No separate "goodbye" call, because that would
   // race a remount and delete the connection that just replaced this one.
@@ -376,6 +477,9 @@ export function disconnectPresence() {
     connected: false,
     participants: [],
     followingId: null,
+    editorLease: null,
+    editorLeaseState: 'idle',
+    editorLeaseMessage: null,
   })
 }
 

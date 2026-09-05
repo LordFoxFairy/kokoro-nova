@@ -8,7 +8,7 @@ import {
 } from '@/domain/libraries'
 import type { MaterialCatalogItem, MaterialKind, MaterialScope } from '@/contracts/materials'
 import { PRESET_CATEGORIES, TOOLBOX_PRESETS, type ToolboxPreset } from '@/domain/presets'
-import type { Artifact, WorkflowNode } from '@/domain/types'
+import type { Artifact, GenerationJob, WorkflowNode } from '@/domain/types'
 import { ApiError, client } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useEditor } from '@/lib/editor-store'
@@ -17,6 +17,8 @@ import { EmptyState, SegmentedControl, Spinner } from '../ui/controls'
 import { IconCheck, IconHistory, IconSearch } from '../icons'
 
 export type MaterialTab = 'market' | 'favorites' | 'recent'
+export type HistoryScope = 'canvas' | 'image' | 'video' | 'audio'
+export type HistorySort = 'newest' | 'oldest'
 
 type MaterialPresetLike = {
   id: string
@@ -58,6 +60,30 @@ export function filterMaterialPresets<T extends MaterialPresetLike>(
     if (query && !`${item.name}\n${item.author}\n${item.id}`.toLocaleLowerCase('zh-CN').includes(query)) return false
     return true
   })
+}
+
+/**
+ * History is a projection of completed media artifacts, not a second
+ * WorkflowDocument collection. Text output intentionally stays out of this
+ * insertable media panel because the canvas insertion flow only has visual
+ * and audio node representations.
+ */
+export function projectHistoryArtifacts(
+  jobs: readonly Pick<GenerationJob, 'artifacts'>[],
+  options: { scope: HistoryScope; sort: HistorySort },
+): Artifact[] {
+  const artifacts = jobs
+    .flatMap((job) => job.artifacts)
+    .filter((artifact): artifact is Artifact & { kind: 'image' | 'video' | 'audio' } =>
+      artifact.kind === 'image' || artifact.kind === 'video' || artifact.kind === 'audio',
+    )
+    .filter((artifact) => options.scope === 'canvas' || artifact.kind === options.scope)
+
+  return artifacts.sort((left, right) =>
+    options.sort === 'newest'
+      ? right.createdAt.localeCompare(left.createdAt)
+      : left.createdAt.localeCompare(right.createdAt),
+  )
 }
 
 /* ------------------------------------------------------------------ *
@@ -740,15 +766,12 @@ export function HistoryPanel({
   onInsert: (artifact: Artifact) => void
 }) {
   const jobs = useEditor((s) => s.jobs)
-  const [tab, setTab] = useState<'image' | 'video' | 'audio'>('image')
-  const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
+  const [scope, setScope] = useState<HistoryScope>('canvas')
+  const [sort, setSort] = useState<HistorySort>('newest')
 
   const artifacts = useMemo(() => {
-    const all = jobs.flatMap((job) => job.artifacts).filter((a) => a.kind === tab)
-    return all.sort((a, b) =>
-      sort === 'newest' ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt),
-    )
-  }, [jobs, tab, sort])
+    return projectHistoryArtifacts(jobs, { scope, sort })
+  }, [jobs, scope, sort])
 
   return (
     <Dialog open={open} onClose={onClose} variant="panel" width={900} hideHeader testId="history-panel">
@@ -757,9 +780,10 @@ export function HistoryPanel({
           <h2 className="text-[15px] font-semibold text-ink-900">生成历史</h2>
           <SegmentedControl
             size="sm"
-            value={tab}
-            onChange={setTab}
+            value={scope}
+            onChange={setScope}
             options={[
+              { value: 'canvas', label: '本画布', testId: 'history-scope-canvas' },
               { value: 'image', label: '图片' },
               { value: 'video', label: '视频' },
               { value: 'audio', label: '音频' },
@@ -768,6 +792,7 @@ export function HistoryPanel({
         </div>
         <button
           type="button"
+          data-testid="history-sort-toggle"
           onClick={() => setSort(sort === 'newest' ? 'oldest' : 'newest')}
           className="rounded-lg bg-ink-100 px-2.5 py-1.5 text-[12px] text-ink-600"
         >
@@ -788,6 +813,7 @@ export function HistoryPanel({
               <button
                 key={artifact.id}
                 type="button"
+                data-testid={`history-artifact-${artifact.id}`}
                 onClick={() => {
                   onInsert(artifact)
                   onClose()

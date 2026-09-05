@@ -17,7 +17,7 @@ transport 的一一对应。
 | Jobs / Script V2 / compose | 7 / 11 | 已精确 | quote、poll、幂等、终态、取消/重试与 fixture | queue/provider/render adapter |
 | Asset / media / preview | 7 / 11 | 已精确 | local fixture media、upload 暂存、soft delete | object storage + asset index |
 | Catalogue | 7 / 12 | 已精确 | models、materials、市场/作者 Skill 的本地 catalogue | registry/catalogue service |
-| Agent | 3 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
+| Agent | 7 / 7 | 已精确 | 按 `afterSeq` 增量读取、固定版本 Skill、确认门与本地 fallback trace | agent gateway |
 | Public discovery / publish | 8 / 11 | 已精确 | 首页、showcase、分页发现与冻结 public snapshot 私有复制 | discovery/publish service |
 | Account / ledger / team | 11 / 15 | 已精确 | identity、会话、钱包、偏好、通知、Access Key、团队命令、共享资产与外部 handoff projection | shared account domain + billing/ledger/team service |
 | Presence | 1 / 2 | 已补强 | SSE、heartbeat、TTL、连接上限 | shared realtime bus |
@@ -29,6 +29,7 @@ transport 的一一对应。
 - 上传主切片已由 `src/app/api/assets/upload/route.test.ts` 直接执行：同一次 `multipart/form-data` ingress 的 committed 文件与逐文件拒绝项、随后 active listing、同一 `uploadToken` 的二次 ingress `409`，以及 cancel 后 `revoked: 1` / replay `revoked: 0`。上传/取消成功体由严格 Zod schema 解析，非法 cancel token 与冲突均解析标准 `ErrorResponse`。
 - Canvas/workflow 主切片已由 `src/app/api/canvases/route.test.ts` 与 `src/app/api/canvases/[canvasId]/route.test.ts` 直接执行：新建/深拷贝画布、完整 canvas/project/jobs/balance 读取投影、重命名、非最后画布删除、revisioned mutation 回读与 stale revision `409`。同一切片还以 `setViewport` 后接无效 edge 的 batch 验证失败不提交任何 document/revision 变化；成功体经 `CanvasSchema` / `CanvasDetailLocalResponseSchema` / `MutationResultSchema` 解析，错误经 `LocalErrorEnvelopeSchema` 解析。
 - 视频合成主切片也已由 `src/app/api/compose/route.test.ts` 直接执行：创建返回严格 `ComposeTaskResponse`，以受控 renderer 到达 `rendering` 后取消，重复 `cancel` 返回同一 terminal projection，并在后续 GET 中保持；非法 clips 与未知 task action 分别返回 schema-valid `400` / `404 ErrorResponse`。该测试不依赖 ffmpeg 或实际媒体输出。
+- Agent session 的全部 7 个 operation 已由 `src/app/api/agent/sessions/route.test.ts` 与 `src/app/api/agent/sessions/[sessionId]/route.test.ts` 直接执行：新建/按项目列表返回严格 session schema；短提示词产生按 `seq` 递增的 `ask_human`，`afterSeq` cursor 只投影后续消息，回答后保留已回答的 question 与连续 follow-up trace；有内容的会话可更新分享/模式；未知 session 的 detail 与 message 写入均返回标准 `404 ErrorResponse`；删除后 detail 与 collection projection 都不再包含该 session。
 - 这些仍只是 API-AUD-07 的可重复 route smoke 切片；尚未替代 92 个 operation 的 manifest 驱动 matrix，生成产物注册及其余 domain 仍需按 operation 补 success/error wire 断言。
 
 ### 本轮补齐项

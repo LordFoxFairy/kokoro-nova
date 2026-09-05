@@ -1,0 +1,56 @@
+{
+  "project": {
+    "id": "prj_example_canvas",
+    "spaceId": "sp_default",
+    "folderId": null,
+    "name": "雨夜城市短片",
+    "coverUrl": "/fixtures/libtv/media/city-night-poster.webp",
+    "createdAt": "2026-09-05T12:00:00.000Z",
+    "updatedAt": "2026-09-05T12:05:00.000Z",
+    "canvasIds": [
+      "cvs_example_main",
+      "cvs_example_alt"
+    ]
+  },
+  "canvases": [
+    {
+      "id": "cvs_example_main",
+      "projectId": "prj_example_canvas",
+      "name": "主画布（已同步 r7）",
+      "revision": 7,
+      "createdAt": "2026-09-05T12:00:00.000Z",
+      "updatedAt": "2026-09-05T12:05:00.000Z",
+      "document": {
+        "schemaVersion": 1,
+        "nodes": [],
+        "edges": [],
+        "groups": [],
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      }
+    },
+    {
+      "id": "cvs_example_alt",
+      "projectId": "prj_example_canvas",
+      "name": "分镜备选",
+      "revision": 3,
+      "createdAt": "2026-09-05T12:00:00.000Z",
+      "updatedAt": "2026-09-05T12:05:00.000Z",
+      "document": {
+        "schemaVersion": 1,
+        "nodes": [],
+        "edges": [],
+        "groups": [],
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      }
+    }
+  ],
+  "balance": 168.0
+}

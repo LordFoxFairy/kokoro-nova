@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "项目至少需要保留一个画布"
+  },
+  "requestId": "req_local_canvas_last"
+}

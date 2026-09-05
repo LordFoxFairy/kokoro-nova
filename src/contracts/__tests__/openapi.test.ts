@@ -84,6 +84,53 @@ import scriptTransitionRetryRequestExample from '../../../docs/api/examples/scri
 import scriptRunRetryResponseExample from '../../../docs/api/examples/script-v2-run-retry.response.json'
 import scriptTransitionConflictErrorExample from '../../../docs/api/examples/script-v2-transition-conflict.error.response.json'
 import scriptTransitionInvalidInputErrorExample from '../../../docs/api/examples/script-v2-transition-invalid-input.error.response.json'
+import canvasDetailResponseExample from '../../../docs/api/examples/canvas-detail.response.json'
+import canvasRenameRequestExample from '../../../docs/api/examples/canvas-rename.request.json'
+import canvasRenameResponseExample from '../../../docs/api/examples/canvas-rename.response.json'
+import canvasCreateRequestExample from '../../../docs/api/examples/canvas-create.request.json'
+import canvasCreateResponseExample from '../../../docs/api/examples/canvas-create.response.json'
+import canvasDeleteResponseExample from '../../../docs/api/examples/canvas-delete.response.json'
+import canvasNotFoundErrorExample from '../../../docs/api/examples/canvas-not-found.error.response.json'
+import canvasLastDeleteErrorExample from '../../../docs/api/examples/canvas-last-delete.error.response.json'
+import creationContextReadResponseExample from '../../../docs/api/examples/creation-context-read.response.json'
+import creationContextWriteRequestExample from '../../../docs/api/examples/creation-context-write.request.json'
+import creationContextWriteResponseExample from '../../../docs/api/examples/creation-context-write.response.json'
+import creationContextSubmitRequestExample from '../../../docs/api/examples/creation-context-submit.request.json'
+import creationContextSubmitResponseExample from '../../../docs/api/examples/creation-context-submit.response.json'
+import creationContextInvalidErrorExample from '../../../docs/api/examples/creation-context-invalid.error.response.json'
+import projectDetailResponseExample from '../../../docs/api/examples/project-detail.response.json'
+import projectUpdateRequestExample from '../../../docs/api/examples/project-update.request.json'
+import projectUpdateResponseExample from '../../../docs/api/examples/project-update.response.json'
+import projectListResponseExample from '../../../docs/api/examples/project-list-local.response.json'
+import homeDiscoveryResponseExample from '../../../docs/api/examples/home-discovery.response.json'
+import projectRecycleResponseExample from '../../../docs/api/examples/project-lifecycle-recycle.response.json'
+import projectNotFoundErrorExample from '../../../docs/api/examples/project-not-found.error.response.json'
+import projectInvalidCoverErrorExample from '../../../docs/api/examples/project-invalid-cover.error.response.json'
+import projectSessionExpiredErrorExample from '../../../docs/api/examples/project-session-expired.error.response.json'
+import projectDuplicateResponseExample from '../../../docs/api/examples/project-duplicate.response.json'
+import recycleBinListResponseExample from '../../../docs/api/examples/recycle-bin-retention.response.json'
+import recycleBinRestoreResponseExample from '../../../docs/api/examples/recycle-bin-restore-local.response.json'
+import recycleBinPermanentDeleteResponseExample from '../../../docs/api/examples/recycle-bin-permanent-local.response.json'
+import recycleBinNotFoundErrorExample from '../../../docs/api/examples/recycle-bin-not-found.error.response.json'
+import {
+  CanvasDetailLocalResponseSchema,
+  CanvasSchema,
+  ProjectListLocalResponseSchema,
+  ProjectSchema,
+} from '@/contracts/local'
+import {
+  CreateCreationAgentRequestSchema,
+  CreateCreationAgentResponseSchema,
+  CreationContextReadResponseSchema,
+  CreationContextWriteRequestSchema,
+  CreationContextWriteResponseSchema,
+} from '@/contracts/creation-context'
+import { HomeDiscoveryResponseSchema } from '@/contracts/home'
+import {
+  ListRecycleBinResponseSchema,
+  PermanentlyDeleteRecycledProjectResponseSchema,
+  RestoreRecycledProjectResponseSchema,
+} from '@/contracts/recycle-bin'
 import {
   CreateScriptV2RunRequestSchema,
   OfficialPromptRecomputeEnvelopeSchema,
@@ -1156,6 +1203,96 @@ describe('local API manifest and OpenAPI', () => {
       ShowcaseDetailPublicResponseExample: 'showcase-detail-public.response.json',
       ShowcasePlaybackManifestResponseExample: 'showcase-playback-public.response.json',
       ShowcaseListPublicResponseExample: 'showcase-list-public.response.json',
+    })) {
+      expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
+    }
+  })
+
+  it('keeps EX-02 canvas, creation-context, project and recycle examples schema-valid, file-backed and revision-aware', () => {
+    const document = openApiDocument()
+    const getCanvas = operationAt(document, 'GET', '/api/canvases/{canvasId}')
+    const renameCanvas = operationAt(document, 'PATCH', '/api/canvases/{canvasId}')
+    const deleteCanvas = operationAt(document, 'DELETE', '/api/canvases/{canvasId}')
+    const createCanvas = operationAt(document, 'POST', '/api/canvases')
+    const getContext = operationAt(document, 'GET', '/api/creation-context')
+    const saveContext = operationAt(document, 'PUT', '/api/creation-context')
+    const submitContext = operationAt(document, 'POST', '/api/creation-context')
+    const projectDetail = operationAt(document, 'GET', '/api/projects/{projectId}')
+    const updateProject = operationAt(document, 'PATCH', '/api/projects/{projectId}')
+    const deleteProject = operationAt(document, 'DELETE', '/api/projects/{projectId}')
+    const duplicateProject = operationAt(document, 'PUT', '/api/projects/{projectId}')
+    const listProjects = operationAt(document, 'GET', '/api/projects')
+    const homeDiscovery = operationAt(document, 'GET', '/api/home')
+    const recycleBin = operationAt(document, 'GET', '/api/recycle-bin')
+    const restoreProject = operationAt(document, 'POST', '/api/recycle-bin/{projectId}')
+    const permanentlyDeleteProject = operationAt(document, 'DELETE', '/api/recycle-bin/{projectId}')
+
+    expect(getCanvas.responses?.['200']?.content?.['application/json']?.examples?.revision7Document?.$ref).toBe('#/components/examples/CanvasDetailResponseExample')
+    expect(renameCanvas.requestBody?.content?.['application/json']?.examples?.renameAtRevision7?.$ref).toBe('#/components/examples/CanvasRenameRequestExample')
+    expect(renameCanvas.responses?.['200']?.content?.['application/json']?.examples?.renamedAtRevision7?.$ref).toBe('#/components/examples/CanvasRenameResponseExample')
+    expect(deleteCanvas.responses?.['200']?.content?.['application/json']?.examples?.removedFromRevisionAwareProject?.$ref).toBe('#/components/examples/CanvasDeleteResponseExample')
+    expect(deleteCanvas.responses?.['400']?.content?.['application/json']?.examples?.lastCanvasGuard?.$ref).toBe('#/components/examples/CanvasLastDeleteErrorExample')
+    expect(createCanvas.requestBody?.content?.['application/json']?.examples?.copyRevision7Document?.$ref).toBe('#/components/examples/CanvasCreateRequestExample')
+    expect(createCanvas.responses?.['200']?.content?.['application/json']?.examples?.copiedFromRevision7Document?.$ref).toBe('#/components/examples/CanvasCreateResponseExample')
+
+    expect(getContext.responses?.['200']?.content?.['application/json']?.examples?.restoredDraft?.$ref).toBe('#/components/examples/CreationContextReadResponseExample')
+    expect(saveContext.requestBody?.content?.['application/json']?.examples?.fullDraftReplacement?.$ref).toBe('#/components/examples/CreationContextWriteRequestExample')
+    expect(saveContext.responses?.['200']?.content?.['application/json']?.examples?.savedDraft?.$ref).toBe('#/components/examples/CreationContextWriteResponseExample')
+    expect(submitContext.requestBody?.content?.['application/json']?.examples?.freezeAgentInput?.$ref).toBe('#/components/examples/CreationContextSubmitRequestExample')
+    expect(submitContext.responses?.['200']?.content?.['application/json']?.examples?.frozenRequest?.$ref).toBe('#/components/examples/CreationContextSubmitResponseExample')
+
+    expect(projectDetail.responses?.['200']?.content?.['application/json']?.examples?.projectWithRevisionAwareCanvases?.$ref).toBe('#/components/examples/ProjectDetailResponseExample')
+    expect(updateProject.requestBody?.content?.['application/json']?.examples?.renameMoveAndFixtureCover?.$ref).toBe('#/components/examples/ProjectUpdateRequestExample')
+    expect(updateProject.responses?.['200']?.content?.['application/json']?.examples?.updatedProject?.$ref).toBe('#/components/examples/ProjectUpdateResponseExample')
+    expect(deleteProject.responses?.['200']?.content?.['application/json']?.examples?.movedToRecycleBin?.$ref).toBe('#/components/examples/ProjectRecycleResponseExample')
+    expect(duplicateProject.responses?.['200']?.content?.['application/json']?.examples?.deepCopyCreated?.$ref).toBe('#/components/examples/ProjectDuplicateResponseExample')
+    expect(listProjects.responses?.['200']?.content?.['application/json']?.examples?.activeProjectRows?.$ref).toBe('#/components/examples/ProjectListResponseExample')
+    expect(homeDiscovery.responses?.['200']?.content?.['application/json']?.examples?.localDiscovery?.$ref).toBe('#/components/examples/HomeDiscoveryResponseExample')
+
+    expect(recycleBin.responses?.['200']?.content?.['application/json']?.examples?.retentionAndPurge?.$ref).toBe('#/components/examples/RecycleBinListResponseExample')
+    expect(restoreProject.responses?.['200']?.content?.['application/json']?.examples?.restoredProject?.$ref).toBe('#/components/examples/RecycleBinRestoreResponseExample')
+    expect(permanentlyDeleteProject.responses?.['200']?.content?.['application/json']?.examples?.permanentlyDeleted?.$ref).toBe('#/components/examples/RecycleBinPermanentDeleteResponseExample')
+
+    expect(CanvasDetailLocalResponseSchema.parse(canvasDetailResponseExample).canvas.revision).toBe(7)
+    expect(canvasRenameRequestExample).toEqual({ name: '主画布（已同步 r7）' })
+    expect(CanvasSchema.parse(canvasRenameResponseExample).revision).toBe(7)
+    expect(canvasCreateRequestExample).toEqual({ projectId: 'prj_example_canvas', name: '主画布副本', copyOf: 'cvs_example_main' })
+    expect(CanvasSchema.parse(canvasCreateResponseExample)).toMatchObject({ id: 'cvs_example_copy', revision: 1 })
+    expect(canvasDeleteResponseExample).toEqual({ deleted: 'cvs_example_alt', canvasIds: ['cvs_example_main'] })
+    expect(CreationContextReadResponseSchema.parse(creationContextReadResponseExample)).toEqual(creationContextReadResponseExample)
+    expect(CreationContextWriteRequestSchema.parse(creationContextWriteRequestExample)).toEqual(creationContextWriteRequestExample)
+    expect(CreationContextWriteResponseSchema.parse(creationContextWriteResponseExample)).toEqual(creationContextWriteResponseExample)
+    expect(CreateCreationAgentRequestSchema.parse(creationContextSubmitRequestExample)).toEqual(creationContextSubmitRequestExample)
+    expect(CreateCreationAgentResponseSchema.parse(creationContextSubmitResponseExample)).toEqual(creationContextSubmitResponseExample)
+    expect(ProjectSchema.parse(projectDetailResponseExample.project)).toEqual(projectDetailResponseExample.project)
+    expect(projectDetailResponseExample.canvases.map((canvas) => CanvasSchema.parse(canvas).revision)).toEqual([7, 3])
+    expect(projectUpdateRequestExample).toMatchObject({ folderId: 'fld_example_campaign', coverUrl: '/fixtures/libtv/media/city-night-poster.webp' })
+    expect(ProjectSchema.parse(projectUpdateResponseExample).name).toBe('雨夜城市短片 · 定稿')
+    expect(ProjectListLocalResponseSchema.parse(projectListResponseExample)).toEqual(projectListResponseExample)
+    expect(HomeDiscoveryResponseSchema.parse(homeDiscoveryResponseExample).showcase[0]).toMatchObject({ id: 'pub_example_city', snapshotId: 'pub_example_city' })
+    expect(projectRecycleResponseExample).toEqual({ deleted: 'prj_example_canvas', recycled: true })
+    expect(ProjectSchema.parse(projectDuplicateResponseExample).canvasIds).toEqual(['cvs_example_copy'])
+    expect(ListRecycleBinResponseSchema.parse(recycleBinListResponseExample).purgedProjectIds).toEqual(['prj_expired_example'])
+    expect(RestoreRecycledProjectResponseSchema.parse(recycleBinRestoreResponseExample)).toMatchObject({ restoredToRoot: true, canvasCount: 2 })
+    expect(PermanentlyDeleteRecycledProjectResponseSchema.parse(recycleBinPermanentDeleteResponseExample)).toEqual(recycleBinPermanentDeleteResponseExample)
+
+    for (const [example, code, message] of [
+      [canvasNotFoundErrorExample, 'NOT_FOUND', '画布不存在'],
+      [canvasLastDeleteErrorExample, 'INVALID_INPUT', '项目至少需要保留一个画布'],
+      [creationContextInvalidErrorExample, 'INVALID_INPUT', '请求体不合法'],
+      [projectNotFoundErrorExample, 'NOT_FOUND', '项目不存在'],
+      [projectInvalidCoverErrorExample, 'INVALID_INPUT', 'coverUrl 必须是本地示例封面'],
+      [projectSessionExpiredErrorExample, 'UNAUTHENTICATED', '会话已过期，请刷新页面'],
+      [recycleBinNotFoundErrorExample, 'NOT_FOUND', '回收站中不存在该项目'],
+    ] as const) {
+      expect(LocalErrorEnvelopeSchema.parse(example).error).toEqual({ code, message })
+    }
+
+    for (const [name, filename] of Object.entries({
+      CanvasDetailResponseExample: 'canvas-detail.response.json', CanvasRenameRequestExample: 'canvas-rename.request.json', CanvasRenameResponseExample: 'canvas-rename.response.json', CanvasCreateRequestExample: 'canvas-create.request.json', CanvasCreateResponseExample: 'canvas-create.response.json', CanvasDeleteResponseExample: 'canvas-delete.response.json', CanvasNotFoundErrorExample: 'canvas-not-found.error.response.json', CanvasLastDeleteErrorExample: 'canvas-last-delete.error.response.json',
+      CreationContextReadResponseExample: 'creation-context-read.response.json', CreationContextWriteRequestExample: 'creation-context-write.request.json', CreationContextWriteResponseExample: 'creation-context-write.response.json', CreationContextSubmitRequestExample: 'creation-context-submit.request.json', CreationContextSubmitResponseExample: 'creation-context-submit.response.json', CreationContextInvalidErrorExample: 'creation-context-invalid.error.response.json',
+      ProjectDetailResponseExample: 'project-detail.response.json', ProjectUpdateRequestExample: 'project-update.request.json', ProjectUpdateResponseExample: 'project-update.response.json', ProjectListResponseExample: 'project-list-local.response.json', HomeDiscoveryResponseExample: 'home-discovery.response.json', ProjectRecycleResponseExample: 'project-lifecycle-recycle.response.json', ProjectNotFoundErrorExample: 'project-not-found.error.response.json', ProjectInvalidCoverErrorExample: 'project-invalid-cover.error.response.json', ProjectSessionExpiredErrorExample: 'project-session-expired.error.response.json', ProjectDuplicateResponseExample: 'project-duplicate.response.json',
+      RecycleBinListResponseExample: 'recycle-bin-retention.response.json', RecycleBinRestoreResponseExample: 'recycle-bin-restore-local.response.json', RecycleBinPermanentDeleteResponseExample: 'recycle-bin-permanent-local.response.json', RecycleBinNotFoundErrorExample: 'recycle-bin-not-found.error.response.json',
     })) {
       expect(document.components?.examples?.[name]?.externalValue).toBe(`./examples/${filename}`)
     }

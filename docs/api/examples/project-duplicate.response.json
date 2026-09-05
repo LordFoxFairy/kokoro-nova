@@ -1,0 +1,12 @@
+{
+  "id": "prj_example_canvas_copy",
+  "spaceId": "sp_default",
+  "folderId": null,
+  "name": "雨夜城市短片副本",
+  "coverUrl": "/fixtures/libtv/media/city-night-poster.webp",
+  "createdAt": "2026-09-05T12:10:00.000Z",
+  "updatedAt": "2026-09-05T12:10:00.000Z",
+  "canvasIds": [
+    "cvs_example_copy"
+  ]
+}

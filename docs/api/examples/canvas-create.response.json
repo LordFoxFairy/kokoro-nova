@@ -1,0 +1,19 @@
+{
+  "id": "cvs_example_copy",
+  "projectId": "prj_example_canvas",
+  "name": "主画布副本",
+  "revision": 1,
+  "createdAt": "2026-09-05T12:06:00.000Z",
+  "updatedAt": "2026-09-05T12:06:00.000Z",
+  "document": {
+    "schemaVersion": 1,
+    "nodes": [],
+    "edges": [],
+    "groups": [],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  }
+}

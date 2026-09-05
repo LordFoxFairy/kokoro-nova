@@ -1380,6 +1380,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CanvasDetailResponse"
+                },
+                "examples": {
+                  "revision7Document": {
+                    "$ref": "#/components/examples/CanvasDetailResponseExample"
+                  }
                 }
               }
             }
@@ -1390,6 +1395,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "canvasMissing": {
+                    "$ref": "#/components/examples/CanvasNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -1553,6 +1563,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Canvas"
+                },
+                "examples": {
+                  "renamedAtRevision7": {
+                    "$ref": "#/components/examples/CanvasRenameResponseExample"
+                  }
                 }
               }
             }
@@ -1563,6 +1578,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "canvasMissing": {
+                    "$ref": "#/components/examples/CanvasNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -1595,6 +1615,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RenameRequest"
+              },
+              "examples": {
+                "renameAtRevision7": {
+                  "$ref": "#/components/examples/CanvasRenameRequestExample"
+                }
               }
             }
           }
@@ -1625,6 +1650,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CanvasDeleteResponse"
+                },
+                "examples": {
+                  "removedFromRevisionAwareProject": {
+                    "$ref": "#/components/examples/CanvasDeleteResponseExample"
+                  }
                 }
               }
             }
@@ -1635,6 +1665,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "lastCanvasGuard": {
+                    "$ref": "#/components/examples/CanvasLastDeleteErrorExample"
+                  }
                 }
               }
             }
@@ -1645,6 +1680,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "canvasMissing": {
+                    "$ref": "#/components/examples/CanvasNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -1699,6 +1739,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Canvas"
+                },
+                "examples": {
+                  "copiedFromRevision7Document": {
+                    "$ref": "#/components/examples/CanvasCreateResponseExample"
+                  }
                 }
               }
             }
@@ -1719,6 +1764,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "projectOrSourceMissing": {
+                    "$ref": "#/components/examples/CanvasNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -1750,6 +1800,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateCanvasRequest"
+              },
+              "examples": {
+                "copyRevision7Document": {
+                  "$ref": "#/components/examples/CanvasCreateRequestExample"
+                }
               }
             }
           }
@@ -3192,6 +3247,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectDetailResponse"
+                },
+                "examples": {
+                  "projectWithRevisionAwareCanvases": {
+                    "$ref": "#/components/examples/ProjectDetailResponseExample"
+                  }
                 }
               }
             }
@@ -3202,6 +3262,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "sessionExpired": {
+                    "$ref": "#/components/examples/ProjectSessionExpiredErrorExample"
+                  }
                 }
               }
             }
@@ -3212,6 +3277,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "projectMissing": {
+                    "$ref": "#/components/examples/ProjectNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -3265,6 +3335,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                },
+                "examples": {
+                  "updatedProject": {
+                    "$ref": "#/components/examples/ProjectUpdateResponseExample"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "项目更新参数不合法",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "nonFixtureCover": {
+                    "$ref": "#/components/examples/ProjectInvalidCoverErrorExample"
+                  }
                 }
               }
             }
@@ -3275,6 +3365,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "projectMissing": {
+                    "$ref": "#/components/examples/ProjectNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -3307,6 +3402,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateProjectRequest"
+              },
+              "examples": {
+                "renameMoveAndFixtureCover": {
+                  "$ref": "#/components/examples/ProjectUpdateRequestExample"
+                }
               }
             }
           }
@@ -3337,6 +3437,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectRecycleResponse"
+                },
+                "examples": {
+                  "movedToRecycleBin": {
+                    "$ref": "#/components/examples/ProjectRecycleResponseExample"
+                  }
                 }
               }
             }
@@ -3347,6 +3452,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "projectMissing": {
+                    "$ref": "#/components/examples/ProjectNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -3399,6 +3509,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Project"
+                },
+                "examples": {
+                  "deepCopyCreated": {
+                    "$ref": "#/components/examples/ProjectDuplicateResponseExample"
+                  }
                 }
               }
             }
@@ -3409,6 +3524,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "projectMissing": {
+                    "$ref": "#/components/examples/ProjectNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -3465,6 +3585,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectListResponse"
+                },
+                "examples": {
+                  "activeProjectRows": {
+                    "$ref": "#/components/examples/ProjectListResponseExample"
+                  }
                 }
               }
             }
@@ -4612,6 +4737,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HomeDiscoveryResponse"
+                },
+                "examples": {
+                  "localDiscovery": {
+                    "$ref": "#/components/examples/HomeDiscoveryResponseExample"
+                  }
                 }
               }
             }
@@ -5870,6 +6000,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListRecycleBinResponse"
+                },
+                "examples": {
+                  "retentionAndPurge": {
+                    "$ref": "#/components/examples/RecycleBinListResponseExample"
+                  }
                 }
               }
             }
@@ -5924,6 +6059,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RestoreRecycledProjectResponse"
+                },
+                "examples": {
+                  "restoredProject": {
+                    "$ref": "#/components/examples/RecycleBinRestoreResponseExample"
+                  }
                 }
               }
             }
@@ -5934,6 +6074,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "recycleEntryMissing": {
+                    "$ref": "#/components/examples/RecycleBinNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -5986,6 +6131,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PermanentlyDeleteRecycledProjectResponse"
+                },
+                "examples": {
+                  "permanentlyDeleted": {
+                    "$ref": "#/components/examples/RecycleBinPermanentDeleteResponseExample"
+                  }
                 }
               }
             }
@@ -5996,6 +6146,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "recycleEntryMissing": {
+                    "$ref": "#/components/examples/RecycleBinNotFoundErrorExample"
+                  }
                 }
               }
             }
@@ -6441,6 +6596,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreationContextReadResponse"
+                },
+                "examples": {
+                  "restoredDraft": {
+                    "$ref": "#/components/examples/CreationContextReadResponseExample"
+                  }
                 }
               }
             }
@@ -6482,6 +6642,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreationContextWriteResponse"
+                },
+                "examples": {
+                  "savedDraft": {
+                    "$ref": "#/components/examples/CreationContextWriteResponseExample"
+                  }
                 }
               }
             }
@@ -6492,6 +6657,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidContext": {
+                    "$ref": "#/components/examples/CreationContextInvalidErrorExample"
+                  }
                 }
               }
             }
@@ -6503,6 +6673,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreationContextWriteRequest"
+              },
+              "examples": {
+                "fullDraftReplacement": {
+                  "$ref": "#/components/examples/CreationContextWriteRequestExample"
+                }
               }
             }
           }
@@ -6533,6 +6708,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateCreationAgentResponse"
+                },
+                "examples": {
+                  "frozenRequest": {
+                    "$ref": "#/components/examples/CreationContextSubmitResponseExample"
+                  }
                 }
               }
             }
@@ -6543,6 +6723,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidContext": {
+                    "$ref": "#/components/examples/CreationContextInvalidErrorExample"
+                  }
                 }
               }
             }
@@ -6554,6 +6739,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateCreationAgentRequest"
+              },
+              "examples": {
+                "freezeAgentInput": {
+                  "$ref": "#/components/examples/CreationContextSubmitRequestExample"
+                }
               }
             }
           }
@@ -10074,6 +10264,7 @@
         "type": "object",
         "required": [
           "id",
+          "snapshotId",
           "title",
           "author",
           "authorTier",
@@ -10110,6 +10301,9 @@
             "type": "boolean"
           },
           "category": {
+            "type": "string"
+          },
+          "snapshotId": {
             "type": "string"
           }
         },
@@ -19007,6 +19201,90 @@
     "AuthoredSkillReviewErrorExample": {
       "summary": "审核字段不足时发布被拒绝",
       "externalValue": "./examples/authored-skill-review-error.response.json"
+    },
+    "CanvasDetailResponseExample": {
+      "externalValue": "./examples/canvas-detail.response.json"
+    },
+    "CanvasRenameRequestExample": {
+      "externalValue": "./examples/canvas-rename.request.json"
+    },
+    "CanvasRenameResponseExample": {
+      "externalValue": "./examples/canvas-rename.response.json"
+    },
+    "CanvasCreateRequestExample": {
+      "externalValue": "./examples/canvas-create.request.json"
+    },
+    "CanvasCreateResponseExample": {
+      "externalValue": "./examples/canvas-create.response.json"
+    },
+    "CanvasDeleteResponseExample": {
+      "externalValue": "./examples/canvas-delete.response.json"
+    },
+    "CanvasNotFoundErrorExample": {
+      "externalValue": "./examples/canvas-not-found.error.response.json"
+    },
+    "CanvasLastDeleteErrorExample": {
+      "externalValue": "./examples/canvas-last-delete.error.response.json"
+    },
+    "CreationContextReadResponseExample": {
+      "externalValue": "./examples/creation-context-read.response.json"
+    },
+    "CreationContextWriteRequestExample": {
+      "externalValue": "./examples/creation-context-write.request.json"
+    },
+    "CreationContextWriteResponseExample": {
+      "externalValue": "./examples/creation-context-write.response.json"
+    },
+    "CreationContextSubmitRequestExample": {
+      "externalValue": "./examples/creation-context-submit.request.json"
+    },
+    "CreationContextSubmitResponseExample": {
+      "externalValue": "./examples/creation-context-submit.response.json"
+    },
+    "CreationContextInvalidErrorExample": {
+      "externalValue": "./examples/creation-context-invalid.error.response.json"
+    },
+    "ProjectDetailResponseExample": {
+      "externalValue": "./examples/project-detail.response.json"
+    },
+    "ProjectUpdateRequestExample": {
+      "externalValue": "./examples/project-update.request.json"
+    },
+    "ProjectUpdateResponseExample": {
+      "externalValue": "./examples/project-update.response.json"
+    },
+    "ProjectListResponseExample": {
+      "externalValue": "./examples/project-list-local.response.json"
+    },
+    "HomeDiscoveryResponseExample": {
+      "externalValue": "./examples/home-discovery.response.json"
+    },
+    "ProjectRecycleResponseExample": {
+      "externalValue": "./examples/project-lifecycle-recycle.response.json"
+    },
+    "ProjectNotFoundErrorExample": {
+      "externalValue": "./examples/project-not-found.error.response.json"
+    },
+    "ProjectInvalidCoverErrorExample": {
+      "externalValue": "./examples/project-invalid-cover.error.response.json"
+    },
+    "ProjectSessionExpiredErrorExample": {
+      "externalValue": "./examples/project-session-expired.error.response.json"
+    },
+    "ProjectDuplicateResponseExample": {
+      "externalValue": "./examples/project-duplicate.response.json"
+    },
+    "RecycleBinListResponseExample": {
+      "externalValue": "./examples/recycle-bin-retention.response.json"
+    },
+    "RecycleBinRestoreResponseExample": {
+      "externalValue": "./examples/recycle-bin-restore-local.response.json"
+    },
+    "RecycleBinPermanentDeleteResponseExample": {
+      "externalValue": "./examples/recycle-bin-permanent-local.response.json"
+    },
+    "RecycleBinNotFoundErrorExample": {
+      "externalValue": "./examples/recycle-bin-not-found.error.response.json"
     }
   }
   },

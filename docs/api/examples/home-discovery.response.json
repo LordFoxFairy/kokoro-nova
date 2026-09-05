@@ -1,0 +1,55 @@
+{
+  "campaign": {
+    "id": "campaign_example_fall",
+    "message": "从灵感到成片",
+    "cta": "开始创作",
+    "imageUrl": "/fixtures/libtv/media/city-night-poster.webp"
+  },
+  "account": {
+    "credits": 168.0,
+    "unreadCount": 2,
+    "membershipLabel": "体验会员"
+  },
+  "creatorTools": [
+    {
+      "id": "video-model",
+      "title": "视频生成",
+      "badge": "热门",
+      "description": "基于文本和参考素材生成视频",
+      "intent": "video-model"
+    }
+  ],
+  "recentProjects": [
+    {
+      "id": "prj_example_canvas",
+      "name": "雨夜城市短片",
+      "coverUrl": "/fixtures/libtv/media/city-night-poster.webp",
+      "updatedAt": "2026-09-05T12:05:00.000Z"
+    }
+  ],
+  "featuredSkills": [
+    {
+      "id": "skill_storyboard",
+      "name": "分镜导演",
+      "summary": "将故事描述组织为可执行镜头",
+      "coverUrl": "/fixtures/libtv/media/first-frame.webp"
+    }
+  ],
+  "showcase": [
+    {
+      "id": "pub_example_city",
+      "snapshotId": "pub_example_city",
+      "title": "雨夜霓虹",
+      "author": "本地演示创作者",
+      "authorTier": null,
+      "coverUrl": "/fixtures/libtv/media/city-night-poster.webp",
+      "likeCount": 12,
+      "processAvailable": true,
+      "category": "精选画布"
+    }
+  ],
+  "showcaseCategories": [
+    "全部",
+    "精选画布"
+  ]
+}

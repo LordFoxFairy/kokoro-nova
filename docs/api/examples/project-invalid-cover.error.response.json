@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "coverUrl 必须是本地示例封面"
+  },
+  "requestId": "req_local_project_cover"
+}

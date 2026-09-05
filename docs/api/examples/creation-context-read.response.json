@@ -1,0 +1,38 @@
+{
+  "scope": "home",
+  "context": {
+    "version": "2026-09-04.1",
+    "attachments": [
+      {
+        "id": "att_example_first_frame",
+        "source": "local-upload",
+        "assetId": null,
+        "label": "雨夜首帧",
+        "mediaKind": "image",
+        "thumbnailUrl": "/fixtures/libtv/media/first-frame.webp"
+      }
+    ],
+    "model": {
+      "id": "seedance-2.5",
+      "label": "Seedance 2.5",
+      "media": "video",
+      "catalogVersion": "fixture-2026-09"
+    },
+    "skill": {
+      "id": "skill_storyboard",
+      "label": "分镜导演",
+      "version": "1.0.0"
+    },
+    "references": [
+      {
+        "id": "ref_example_city",
+        "source": "personal-asset",
+        "assetId": "ast_example_city",
+        "label": "城市霓虹参考",
+        "mediaKind": "image",
+        "thumbnailUrl": "/fixtures/libtv/media/city-night-poster.webp"
+      }
+    ],
+    "generationMode": "manual"
+  }
+}

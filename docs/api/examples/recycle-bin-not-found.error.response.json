@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "回收站中不存在该项目"
+  },
+  "requestId": "req_local_recycle_missing"
+}

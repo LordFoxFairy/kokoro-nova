@@ -61,7 +61,7 @@ Presence heartbeat 要求 workspace editor。后端可实现更细粒度角色�
 | `workspace` | `/api/projects*`、`/api/folders*`、`/api/recycle-bin*`、`/api/canvases*`、`/api/assets*`、`/api/jobs*`、`/api/compose*`、`/api/presence*`、`/api/script-v2/**`。 |
 
 `*` 仅表示同一路径族中已在 OpenAPI 列出的 operation；具体 method 的 authoritative 标注始终是
-`openapi.yaml` 的 `x-authorization`。公开的 `GET /api/publish*` 只返回已发布投影；`POST`、`DELETE` 仍为 owner operation。`GET /api/media/{path}` 仅可返回已授权的公开投影或 bearer 所属 workspace 媒体，后端不得把本地 fixture 的相对路径模型照搬为跨租户文件系统访问。
+`openapi.yaml` 的 `x-authorization`。公开的 `GET /api/publish*` 只返回已发布投影；`POST`、`DELETE` 仍为 owner operation。当前 `GET /api/media/{path}` 只返回公开 local fixture 字节，并使用 public immutable cache；未来私有媒体必须以独立 protected operation 或签名 URL 表达，不能把本地 fixture 的相对路径模型或 public cache 策略照搬为跨租户媒体访问。
 
 ## 401、403、404 的交接规则
 

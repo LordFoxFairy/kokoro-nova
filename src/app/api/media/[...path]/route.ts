@@ -53,7 +53,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pat
         'Content-Length': String(file.byteLength),
         // Artifact URLs are content-addressed by job id, so they never change.
         'Cache-Control': 'public, max-age=31536000, immutable',
-        'Accept-Ranges': 'bytes',
         // This route serves user-uploaded bytes. An SVG opened as a document
         // runs its own script in this origin, so every response is sandboxed
         // into a unique origin and denied any subresource it might reach for.

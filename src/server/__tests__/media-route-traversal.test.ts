@@ -54,6 +54,7 @@ describe('media route containment', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8')
     expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(response.headers.get('accept-ranges')).toBeNull()
     expect(response.headers.get('content-security-policy')).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox")
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(await response.text()).toBe('legitimate')

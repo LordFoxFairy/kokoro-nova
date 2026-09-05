@@ -325,7 +325,6 @@ describe('local API manifest and OpenAPI', () => {
       headers: expect.objectContaining({
         'Content-Length': expect.any(Object),
         'Cache-Control': expect.any(Object),
-        'Accept-Ranges': expect.any(Object),
         'Content-Security-Policy': expect.any(Object),
         'X-Content-Type-Options': expect.any(Object),
       }),

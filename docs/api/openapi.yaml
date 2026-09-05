@@ -2605,7 +2605,7 @@
         ],
         "responses": {
           "200": {
-            "description": "本地媒体字节流。类型由文件扩展名决定；当前整文件返回 200，不实现 Range/206。",
+            "description": "仅供 frontend-only fixture 使用的公开本地媒体字节流。类型由文件扩展名决定；当前整文件返回 200，不实现或声明 Range/206。未来私有媒体不得复用本 operation。",
             "headers": {
               "Content-Length": {
                 "description": "媒体字节长度。",
@@ -2614,10 +2614,6 @@
               "Cache-Control": {
                 "description": "内容寻址 fixture 的长期不可变缓存策略。",
                 "schema": { "type": "string", "example": "public, max-age=31536000, immutable" }
-              },
-              "Accept-Ranges": {
-                "description": "当前固定为 bytes；实现仍只返回完整 200 响应。",
-                "schema": { "type": "string", "enum": ["bytes"] }
               },
               "Content-Security-Policy": {
                 "description": "用户上传字节的 sandbox/CSP 边界。",

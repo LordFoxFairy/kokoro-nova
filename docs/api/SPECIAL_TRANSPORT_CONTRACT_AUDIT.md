@@ -77,10 +77,10 @@
 | --- | --- |
 | 成功 status | `200`。 |
 | 成功 content type | 按扩展名：`image/svg+xml`、`image/png`、`image/jpeg`、`image/webp`、`video/mp4`、`video/webm`、`audio/wav`、`audio/mpeg`、`text/plain; charset=utf-8`；未知扩展名为 `application/octet-stream`。 |
-| 成功 headers | `Content-Length`、`Cache-Control: public, max-age=31536000, immutable`、`Accept-Ranges: bytes`、`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`、`X-Content-Type-Options: nosniff`。实现当前直接整文件读取并返回 `200`，未解析 `Range` request，未实现 `206` / `Content-Range`。 |
+| 成功 headers | `Content-Length`、`Cache-Control: public, max-age=31536000, immutable`、`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`、`X-Content-Type-Options: nosniff`。实现当前直接整文件读取并返回 `200`，不声明 `Accept-Ranges`、不解析 `Range` request，也不实现 `206` / `Content-Range`。 |
 | 路径/符号链接越界 | `403 text/plain; charset=utf-8`，body 为 `Forbidden`。无 JSON envelope、code、details、requestId。 |
 | 找不到或读取失败 | `404 text/plain; charset=utf-8`，body 为 `Not found`。catch 覆盖所有读取/realpath 失败，故当前不区分“文件缺失”与其他 I/O 失败。无 JSON envelope、code、details、requestId。 |
-| OpenAPI 声明 | `200 */*` binary 与实际成功类别兼容；403/404 已声明 `text/plain; charset=utf-8` string 与 `Forbidden` / `Not found` examples。成功 response 还枚举 Content-Length、Cache-Control、Accept-Ranges、CSP 与 nosniff headers，并明确当前不实现 Range/206；扩展名映射仍为实现级说明。 |
+| OpenAPI 声明 | `200 */*` binary 与实际成功类别兼容；403/404 已声明 `text/plain; charset=utf-8` string 与 `Forbidden` / `Not found` examples。成功 response 枚举 Content-Length、Cache-Control、CSP 与 nosniff headers，并明确当前不声明/实现 Range/206；扩展名映射仍为实现级说明。 |
 
 ### Media 客户端消费边界
 
@@ -118,7 +118,7 @@
 
 1. **P0：保持 Presence requestId 的客户端可观测性。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；`ApiError` 已保留 `requestId`，后续 telemetry 可安全采集该关联值。对已建立 SSE，不把 JSON response 写进流内；文档应明确“连接期异常以连接关闭/重连处理”，或新增版本化的 `event: error` schema 后再由客户端实现该事件。
 2. **已关闭：media 403/404 OpenAPI content type。** 文档现以 `text/plain; charset=utf-8` string 与 `Forbidden` / `Not found` examples 描述实际 runtime。若未来选择 JSON error，先为资源消费者定义不依赖 body 的 error UX，并改写 runtime 与测试。
-3. **P1：持续验证 binary response headers。** media OpenAPI 已列出 `Content-Length`、`Cache-Control`、`Accept-Ranges`、`Content-Security-Policy`、`X-Content-Type-Options`，并明确当前不实现 `206` / `Content-Range`。未来若实现 Range，需同步增加 runtime、OpenAPI 与测试。
+3. **P1：持续验证 binary response headers。** media OpenAPI 已列出 `Content-Length`、`Cache-Control`、`Content-Security-Policy`、`X-Content-Type-Options`，并明确当前不声明或实现 `Range` / `206` / `Content-Range`。未来若实现 Range，需同步增加 runtime、OpenAPI 与测试。
 4. **P1：明确 preview failure 策略。** 可保持“仅 200、无受控错误”的 fixture 声明，并在 OpenAPI description 写明其限制；若生产 adapter 可能失败，应另定义 resource-safe 4xx/5xx（建议 text/plain 或 SVG fallback，而非无消费者的 JSON），同时增加图像加载失败 UI 契约。将 stitch `seq` 的文档改为接受任意 string 并说明仅 `1` 启用，或让 runtime 拒绝非 `0|1`，二者择一。
 5. **P1：增加 transport-aware runtime contract suite。** 现有 OpenAPI test 主要验证 operation 集合、成功 transport 和文档 response ref；新增 route-level test 应同时断言 status、content type、body shape、requestId 和关键 headers。最低集：Presence GET invalid query / listener limit / successful snapshot；Presence POST malformed body / lease conflict / expired lease；media 200/403/404 headers；两个 preview 的默认、边界参数与 SVG content type。
 6. **P2：补足特殊 transport 的可观测边界。** JSON client 已保留 `requestId`；SSE client 应记录握手前 HTTP status/body 中的 requestId（若已迁移）并把已建连异常和 HTTP rejection 分为不同诊断事件；media/preview 仅记录 URL、HTTP status 和安全的 response metadata，避免读取或暴露资源字节。

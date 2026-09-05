@@ -35,7 +35,7 @@ function requestIdFor(status: number, message: string): string {
   return `req_local_${(hash >>> 0).toString(36)}`
 }
 
-function errorResponse(status: number, message: string, code?: string, details?: unknown) {
+function jsonErrorResponse(status: number, message: string, code?: string, details?: unknown) {
   return NextResponse.json(
     {
       error: {
@@ -47,6 +47,36 @@ function errorResponse(status: number, message: string, code?: string, details?:
     },
     { status },
   )
+}
+
+/**
+ * Normalize a JSON-transport failure without erasing domain-specific codes.
+ * SSE/binary handlers call this only before their special transport begins.
+ */
+export function errorResponseFor(error: unknown) {
+  if (error instanceof HttpError) {
+    return jsonErrorResponse(error.status, error.message, error.code, error.details)
+  }
+
+  if (
+    error instanceof Error &&
+    typeof (error as { status?: unknown }).status === 'number'
+  ) {
+    const domainError = error as Error & { status: number; code?: unknown; details?: unknown }
+    return jsonErrorResponse(
+      domainError.status,
+      domainError.message,
+      typeof domainError.code === 'string' ? domainError.code : undefined,
+      domainError.details,
+    )
+  }
+
+  const message = error instanceof Error ? error.message : String(error)
+  // Domain guards (validation, optimistic lock, insufficient credits) are
+  // client-correctable, so they are 4xx rather than 500.
+  const status =
+    /不存在|已存在|不接受|循环|不能|需要|未选择|已过期|积分不足|冲突/.test(message) ? 400 : 500
+  return jsonErrorResponse(status, message)
 }
 
 export function ok<T>(data: T, init?: ResponseInit) {
@@ -81,14 +111,6 @@ export async function handle<T>(fn: () => Promise<T>) {
   try {
     return NextResponse.json(await fn())
   } catch (error) {
-    if (error instanceof HttpError) {
-      return errorResponse(error.status, error.message, error.code, error.details)
-    }
-    const message = error instanceof Error ? error.message : String(error)
-    // Domain guards (validation, optimistic lock, insufficient credits) are
-    // client-correctable, so they are 4xx rather than 500.
-    const status =
-      /不存在|已存在|不接受|循环|不能|需要|未选择|已过期|积分不足|冲突/.test(message) ? 400 : 500
-    return errorResponse(status, message)
+    return errorResponseFor(error)
   }
 }

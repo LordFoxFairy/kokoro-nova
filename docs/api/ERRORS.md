@@ -33,8 +33,8 @@ fixture-stable requestId）。`src/api/client.ts` 在兼容期仍接受旧/新 e
 `LegacyErrorResponse` 并标记 deprecated；它只用于读取旧 adapter/专门 transport 的响应，
 不得重新加入新的 operation response。
 
-专门 transport 仍是单独边界：媒体的 403/404 是浏览器资源加载用的纯文本，Presence 保留其
-SSE/JSON 专有错误分支，SVG preview 尚无受控 error response。它们不能被泛化 JSON handler 的
+专门 transport 仍是单独边界：Presence 的握手前和 POST JSON 错误已归一化为完整
+`ErrorResponse`，但成功 GET 始终为 SSE，建流后的异常以关闭/重连处理；媒体的 403/404 是浏览器资源加载用的纯文本，SVG preview 尚无受控 error response。它们不能被泛化 JSON handler 的
 迁移结果掩盖；完整剩余范围见 [`ERROR_ENVELOPE_MIGRATION_MATRIX.md`](ERROR_ENVELOPE_MIGRATION_MATRIX.md)。
 
 后端切换时先在 adapter 或服务端把上游错误归一化为 `ErrorResponse`，再逐 route 删除旧形状；

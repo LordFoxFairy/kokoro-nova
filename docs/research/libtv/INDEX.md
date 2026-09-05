@@ -30,7 +30,12 @@
     [`audits/clip-editor-evidence-audit.md`](audits/clip-editor-evidence-audit.md) 和
     [`audits/text-script-evidence-audit.md`](audits/text-script-evidence-audit.md)；运行时错误
     envelope 的跨 transport 迁移矩阵见
-    [`../api/ERROR_ENVELOPE_MIGRATION_MATRIX.md`](../api/ERROR_ENVELOPE_MIGRATION_MATRIX.md)。
+    [`../../api/ERROR_ENVELOPE_MIGRATION_MATRIX.md`](../../api/ERROR_ENVELOPE_MIGRATION_MATRIX.md)。
+12. frontend-only/mock 的 P0/P1/P2 能力缺口、官网证据等级和逐项验收方法见
+    [`audits/frontend-capability-gap-audit.md`](audits/frontend-capability-gap-audit.md)；特殊 transport
+    的运行时/文档边界见 [`../../api/SPECIAL_TRANSPORT_CONTRACT_AUDIT.md`](../../api/SPECIAL_TRANSPORT_CONTRACT_AUDIT.md)，
+    演示、视觉回归与 CI/GHCR 的质量门见
+    [`../../quality/DEMO_AND_VISUAL_QA_AUDIT.md`](../../quality/DEMO_AND_VISUAL_QA_AUDIT.md)。
 
 完整覆盖状态统一查看 [FEATURE_MATRIX.md](FEATURE_MATRIX.md)，不要仅凭页面有截图就判断能力已完成。
 

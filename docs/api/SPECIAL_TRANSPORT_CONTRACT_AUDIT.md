@@ -1,0 +1,134 @@
+# Special Transport Contract Audit
+
+- 审计日期：2026-09-05
+- 审计范围：`docs/CODEBASE_MAP.md`、`docs/api/openapi.yaml`、`docs/api/ERRORS.md`、`src/app/api/**`，以及直接消费者 `src/lib/presence-client.ts`、`src/components/**`。
+- 审计口径：本文描述的是当前本地 mock 的**实际 wire 行为**，并把它与 OpenAPI `1.25.1-account-member-not-found` 的声明分开。没有修改 route、既有文档或 OpenAPI。
+
+## 结论
+
+通用 JSON handler 已稳定输出完整 `ErrorResponse`，特殊 transport 的成功/异常语义仍需按资源类型消费：
+
+1. Presence 在**握手前**和 POST 失败时返回完整 JSON `ErrorResponse`；成功 GET 仍是 SSE，已建流后的异常仍以连接关闭/重连处理。
+2. media 是浏览器资源 URL；403/404 返回 `text/plain; charset=utf-8` 的 `Forbidden` / `Not found`，而 OpenAPI 声明 JSON `ErrorResponse`。
+3. 两个 SVG preview 只声明成功字节流；代码没有受控 error branch，因此框架级失败没有稳定的 status、content type、envelope 或 `requestId` 契约。
+
+这些端点不应被 `src/api/client.ts` 的 JSON-only transport 当作同一类请求。特别是，已建立的 SSE 和 `<img>/<video>/<audio>` 资源加载不具备把 JSON body 转为页面级 `ApiError` 的位置。
+
+## 统一目标与当前实现
+
+`docs/api/ERRORS.md` 的目标错误体是：
+
+```json
+{
+  "error": {
+    "code": "STABLE_CODE",
+    "message": "面向用户的安全文案",
+    "details": {}
+  },
+  "requestId": "req_local_..."
+}
+```
+
+`src/server/http.ts` 的通用 `handle()` 确实生成该形状及 fixture-stable `requestId`。以下 special routes 没有进入该 handler：
+
+| Route / method | 成功 transport | 当前错误 transport | 完整 `ErrorResponse` / `requestId` |
+| --- | --- | --- | --- |
+| `GET /api/presence/{canvasId}` | SSE | 握手前 JSON；已建流内无 JSON error channel | 是（仅握手前） |
+| `POST /api/presence/{canvasId}` | JSON | JSON | 是 |
+| `GET /api/media/{path}` | binary | plain text | 否 |
+| `GET /api/preview/character` | `image/svg+xml` | 无受控 branch | 未承诺 |
+| `GET /api/preview/stitch` | `image/svg+xml` | 无受控 branch | 未承诺 |
+
+## Presence：SSE 与 JSON mutation 的双 transport
+
+### `GET /api/presence/{canvasId}` — SSE subscription
+
+| 项 | 当前实现 |
+| --- | --- |
+| 成功 status / content type | `200`，`text/event-stream; charset=utf-8`。额外头为 `Cache-Control: no-cache, no-store, no-transform`、`Connection: keep-alive`、`X-Accel-Buffering: no`。 |
+| 首帧与事件 | 先写 `: connected {canvasId}` 注释，再写 `event: snapshot` + `data: {"type":"snapshot","participants":[...]}`；后续为 `join` / `move` / `leave` JSON data 帧。每 20 秒写 `: keepalive` 注释。 |
+| 建连前的输入错误 | `canvasId`、`participantId`、`name`、`color`、视口参数不合法时，`HttpError` 由共享 `errorResponseFor()` 返回 `400 application/json` 的完整 `ErrorResponse`，含 `INVALID_INPUT` 与 fixture-stable `requestId`。 |
+| 建连前的容量错误 | `subscribe()` 的 listener 上限会抛 `PresenceError(429, ...)`；该错误未提供 domain code，因而返回 `RATE_LIMITED` 与 `requestId` 的完整 `ErrorResponse`。 |
+| SSE 初始化/连接期异常 | route 没有定义 `event: error`、`retry:` 或带 `requestId` 的 SSE error event。流一旦作为 `200 text/event-stream` 建立，不能再改写为 HTTP JSON error；stream start / 写入失败的可观察结果是连接关闭或客户端重连，而不是受控 `500 ErrorResponse`。 |
+| OpenAPI 声明 | `200 text/event-stream` 正确标注了 `PresenceStreamEvent` 与 20 秒 keepalive；但列出的 400/429/500 都声明 `application/json` 的完整 `ErrorResponse`，与当前 runtime body 不符。 |
+
+### `POST /api/presence/{canvasId}` — heartbeat / editor lease
+
+| 项 | 当前实现 |
+| --- | --- |
+| 成功 status / content type | `200 application/json`。heartbeat 为 `{ ok: true, participant }`；lease acquire/heartbeat/release 为 `{ ok: true, action, lease }`。 |
+| `HttpError` / 未分类错误 | `400` 或 `500 application/json` 完整 `ErrorResponse`，分别带 status-derived stable code（例如 `INVALID_INPUT` / `INTERNAL_ERROR`）和 requestId。 |
+| 容量 domain error | participant/connection 上限经 `PresenceError(429, ...)`；返回 `RATE_LIMITED`、可选 details 与 requestId。 |
+| 编辑席位冲突 | `409 application/json` 完整 `ErrorResponse`：`{ "error": { "code": "EDIT_LEASE_CONFLICT", "message": "...", "details": { "canvasId", "ownerClientId", "expiresAt" } }, "requestId": "req_local_..." }`。保留可消费的 domain code/details。 |
+| 失效或旧租约 | `409 application/json` 完整 `ErrorResponse`：`{ "error": { "code": "SESSION_EXPIRED", "message": "...", "details": { "canvasId" } }, "requestId": "req_local_..." }`。 |
+| OpenAPI 声明 | 成功 `PresenceUpdateResponse` 与 request union 已对齐；400/409/429/500 的 JSON 错误现与完整 `ErrorResponse` 对齐。 |
+
+### Presence 客户端消费边界
+
+- `src/lib/presence-client.ts` 用 `fetch(..., Accept: text/event-stream)` 和手写 frame parser 读取 GET，不使用 `EventSource`。当 status 非 2xx 或无 `body` 时，它只抛 `Error("presence stream {status}")`；不会解析 JSON error body、`error.code`、`details` 或 `requestId`。随后以指数退避重连。
+- Presence POST 通过 typed `client.presence.*` 进入 `src/api/client.ts`。该 client 可兼容 legacy string 与 object-shaped error，并让 `EDIT_LEASE_CONFLICT` / `SESSION_EXPIRED` 到达 `ApiError.code`；但 `ApiError` 当前没有 `requestId` 字段，因此 requestId 仍会在 JSON transport 层丢失。
+- 获取 lease 的 UI 仅以 `EDIT_LEASE_CONFLICT` 进入 blocked 状态；其他错误回到 idle。续约错误则显示为 blocked。任何 envelope 收敛都必须保持这两个 409 code，而不是仅按 status 归为 `REVISION_CONFLICT`。
+
+## Media：浏览器资源字节流
+
+### `GET /api/media/{path}`
+
+| 项 | 当前实现 |
+| --- | --- |
+| 成功 status | `200`。 |
+| 成功 content type | 按扩展名：`image/svg+xml`、`image/png`、`image/jpeg`、`image/webp`、`video/mp4`、`video/webm`、`audio/wav`、`audio/mpeg`、`text/plain; charset=utf-8`；未知扩展名为 `application/octet-stream`。 |
+| 成功 headers | `Content-Length`、`Cache-Control: public, max-age=31536000, immutable`、`Accept-Ranges: bytes`、`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`、`X-Content-Type-Options: nosniff`。实现当前直接整文件读取并返回 `200`，未解析 `Range` request，未实现 `206` / `Content-Range`。 |
+| 路径/符号链接越界 | `403 text/plain; charset=utf-8`，body 为 `Forbidden`。无 JSON envelope、code、details、requestId。 |
+| 找不到或读取失败 | `404 text/plain; charset=utf-8`，body 为 `Not found`。catch 覆盖所有读取/realpath 失败，故当前不区分“文件缺失”与其他 I/O 失败。无 JSON envelope、code、details、requestId。 |
+| OpenAPI 声明 | `200 */*` binary 与实际成功类别兼容；但 403/404 声明 `application/json` 的 `ErrorResponse`，与实际 plain-text error 不符。也没有描述 cache/security headers、返回类型映射或实际不存在的 range response。 |
+
+### Media 客户端消费边界
+
+- 这些地址由 artifact、`<img>`、`<video>`、`<audio>`、native player 和 showcase playback 直接消费；`ClipEditor` 还明确只允许有时长的本地 `/api/media/` source。它们不是 `createApiClient()` 的 JSON request。
+- 元素加载失败通常通过媒体/图片的 `error` event 或播放器 fallback 表现给 UI；元素不会将 `Forbidden` / `Not found` 文本转成 `ApiError`。把 body 改成 JSON 并不能令 typed client 获得 code，反而会改变浏览器资源加载和降级表象。
+- 现有 `src/server/__tests__/media-route-traversal.test.ts` 已验证 realpath containment、403/404 status 和不泄露路径外内容；尚未锁定 error content type/body、success security/cache headers、扩展名映射或任何 Range 行为。
+
+## SVG preview：动态二进制资源
+
+### `GET /api/preview/character`
+
+| 项 | 当前实现 |
+| --- | --- |
+| 成功 | `200 image/svg+xml`，`Cache-Control: public, max-age=86400`。`hue` 缺省为 210；非有限值回退 210。`label` 进入 deterministic SVG seed 和转义/截断后的 caption。 |
+| 错误 | route 没有显式参数拒绝或 try/catch。渲染异常只会走框架默认 failure 行为；不存在稳定 status、content type、error body 或 requestId 承诺。 |
+| OpenAPI | 仅声明 200 `image/svg+xml`，与“当前无受控 error contract”一致；`hue` / `label` 的默认值已声明。 |
+
+### `GET /api/preview/stitch`
+
+| 项 | 当前实现 |
+| --- | --- |
+| 成功 | `200 image/svg+xml`，`Cache-Control: public, max-age=86400`；输出固定为 2048×1152。 |
+| 参数归一化 | `rows` / `cols` 对缺省、非有限和越界数值归一化到 1..5；`seq` 只有精确值 `1` 显示序号，其他任意值按无序号处理。 |
+| 错误 | 无显式 error branch；同样没有稳定 failure envelope 或 requestId。 |
+| OpenAPI | 只声明 200；description 已说明 rows/cols 归一化。`seq` 的 schema 枚举为 `0|1`，但 runtime 实际容忍任意其他值并按 `0` 处理，属于参数语义比文档更宽的轻微漂移。 |
+
+### Preview 客户端消费边界
+
+- `CanvasWorkspace` 将 character/stitch URL 直接写入 artifact 的 `url` / `thumbnailUrl`；后续由图像资源消费者加载。没有 preview-specific JSON client、错误 parser 或 requestId 展示位点。
+- 因而若未来必须提供可操作 failure，应先定义调用方在图片 `onerror` 时的占位/重试体验；不要假设向 image URL 返回 JSON 会自动进入 `ApiError`。
+
+## OpenAPI 改进建议
+
+按风险和不改变既有页面语义的优先级：
+
+1. **P0：完成 Presence requestId 的客户端可观测性。** route 已让握手前 GET 与 POST 的受控 JSON errors 使用完整 `ErrorResponse`，并保留 `EDIT_LEASE_CONFLICT`、`SESSION_EXPIRED` 和 details；下一步把 `requestId` 纳入 `ApiError` 或 transport telemetry。对已建立 SSE，不把 JSON response 写进流内；文档应明确“连接期异常以连接关闭/重连处理”，或新增版本化的 `event: error` schema 后再由客户端实现该事件。
+2. **P0：修正 media 403/404 的 OpenAPI content type。** 在实际仍返回文本时，把 403/404 改为 `text/plain; charset=utf-8`（schema `string`，并给 `Forbidden` / `Not found` examples），而非 `application/json` / `ErrorResponse`。若未来选择 JSON error，先为资源消费者定义不依赖 body 的 error UX，并改写 runtime 与测试；不要仅改 YAML。
+3. **P1：把 binary response headers 作为显式契约。** media 应在 OpenAPI `headers` 中列出 `Content-Length`、`Cache-Control`、`Accept-Ranges`、`Content-Security-Policy`、`X-Content-Type-Options`，并说明 extension-to-content-type map。二选一处理 range：实现并文档化 `206` / `Content-Range`，或移除目前暗示 capability 的 `Accept-Ranges: bytes`。
+4. **P1：明确 preview failure 策略。** 可保持“仅 200、无受控错误”的 fixture 声明，并在 OpenAPI description 写明其限制；若生产 adapter 可能失败，应另定义 resource-safe 4xx/5xx（建议 text/plain 或 SVG fallback，而非无消费者的 JSON），同时增加图像加载失败 UI 契约。将 stitch `seq` 的文档改为接受任意 string 并说明仅 `1` 启用，或让 runtime 拒绝非 `0|1`，二者择一。
+5. **P1：增加 transport-aware runtime contract suite。** 现有 OpenAPI test 主要验证 operation 集合、成功 transport 和文档 response ref；新增 route-level test 应同时断言 status、content type、body shape、requestId 和关键 headers。最低集：Presence GET invalid query / listener limit / successful snapshot；Presence POST malformed body / lease conflict / expired lease；media 200/403/404 headers；两个 preview 的默认、边界参数与 SVG content type。
+6. **P2：将错误 body 的可观测边界写入 SDK。** JSON client 应保留 `requestId`；SSE client 应记录握手前 HTTP status/body 中的 requestId（若已迁移）并把已建连异常和 HTTP rejection 分为不同诊断事件；media/preview 仅记录 URL、HTTP status 和安全的 response metadata，避免读取或暴露资源字节。
+
+## 验收基线
+
+以下是后端接入前可执行的最小断言，而不是本次审计已修改的实现：
+
+- Presence 的每个**握手前或 POST**受控错误可按 OpenAPI schema 解析，并有 `requestId`；GET `200` 始终是 SSE，首个业务事件是 snapshot。
+- Presence 的 lease conflict 与 expired lease 分别保留 `EDIT_LEASE_CONFLICT` 与 `SESSION_EXPIRED`，客户端的 blocked/retry/follow 状态不回归。
+- media 403/404 的实际 OpenAPI content type、body 与 runtime 完全一致；成功资源不丢失 containment、CSP、nosniff 与 immutable cache 防护。
+- preview 的 success SVG 和缓存策略有稳定测试；若声明 failure response，则页面级 image failure 行为也有测试。
+- 特殊 transport 的 error 表不得被 generic JSON handler 的覆盖率或 `ErrorResponse` schema existence 误判为已交付。

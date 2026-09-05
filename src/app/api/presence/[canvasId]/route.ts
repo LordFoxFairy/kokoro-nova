@@ -4,9 +4,8 @@ import {
   PresenceUpdateRequestSchema,
   type PresenceHeartbeatRequest,
 } from '@/contracts/presence'
-import { HttpError, parseJsonBody } from '@/server/http'
+import { HttpError, errorResponseFor, parseJsonBody } from '@/server/http'
 import {
-  PresenceError,
   acquireEditorLease,
   attachStream,
   detachStream,
@@ -65,22 +64,6 @@ function parseStreamSelf(url: URL): PresenceHeartbeatRequest {
 
 function assertCanvasId(canvasId: string) {
   if (!CANVAS_ID_PATTERN.test(canvasId)) throw new HttpError(400, '画布标识不合法')
-}
-
-function errorResponse(error: unknown) {
-  if (error instanceof HttpError) {
-    return NextResponse.json({ error: error.message }, { status: error.status })
-  }
-  if (error instanceof PresenceError) {
-    return NextResponse.json(
-      error.code
-        ? { error: { code: error.code, message: error.message, details: error.details ?? null } }
-        : { error: error.message },
-      { status: error.status },
-    )
-  }
-  const message = error instanceof Error ? error.message : String(error)
-  return NextResponse.json({ error: message }, { status: 500 })
 }
 
 /** Build one SSE stream; its teardown owns both listener and participant. */
@@ -170,7 +153,7 @@ export async function GET(request: Request, { params }: Params) {
       },
     })
   } catch (error) {
-    return errorResponse(error)
+    return errorResponseFor(error)
   }
 }
 
@@ -203,6 +186,6 @@ export async function POST(request: Request, { params }: Params) {
     releaseEditorLease(canvasId, input.participantId, input.leaseId!)
     return NextResponse.json({ ok: true, action: input.action, lease: null })
   } catch (error) {
-    return errorResponse(error)
+    return errorResponseFor(error)
   }
 }

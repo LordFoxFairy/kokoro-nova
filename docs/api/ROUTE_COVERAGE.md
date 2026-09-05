@@ -27,6 +27,7 @@ transport 的一一对应。
 
 - 资产库的低耦合主切片已由 `src/app/api/assets/route.test.ts` 直接执行：活跃/不可用 lifecycle 列表、资产文件夹创建与计数、元数据移动、软删除、恢复，以及缺失资产的标准 `404 ErrorResponse`。成功响应分别由 `AssetLifecycleListResponseSchema` / `AssetLifecycleViewSchema` 解析，避免只断言 HTTP status。
 - 上传主切片已由 `src/app/api/assets/upload/route.test.ts` 直接执行：同一次 `multipart/form-data` ingress 的 committed 文件与逐文件拒绝项、随后 active listing、同一 `uploadToken` 的二次 ingress `409`，以及 cancel 后 `revoked: 1` / replay `revoked: 0`。上传/取消成功体由严格 Zod schema 解析，非法 cancel token 与冲突均解析标准 `ErrorResponse`。
+- Canvas/workflow 主切片已由 `src/app/api/canvases/route.test.ts` 与 `src/app/api/canvases/[canvasId]/route.test.ts` 直接执行：新建/深拷贝画布、完整 canvas/project/jobs/balance 读取投影、重命名、非最后画布删除、revisioned mutation 回读与 stale revision `409`。同一切片还以 `setViewport` 后接无效 edge 的 batch 验证失败不提交任何 document/revision 变化；成功体经 `CanvasSchema` / `CanvasDetailLocalResponseSchema` / `MutationResultSchema` 解析，错误经 `LocalErrorEnvelopeSchema` 解析。
 - 视频合成主切片也已由 `src/app/api/compose/route.test.ts` 直接执行：创建返回严格 `ComposeTaskResponse`，以受控 renderer 到达 `rendering` 后取消，重复 `cancel` 返回同一 terminal projection，并在后续 GET 中保持；非法 clips 与未知 task action 分别返回 schema-valid `400` / `404 ErrorResponse`。该测试不依赖 ffmpeg 或实际媒体输出。
 - 这些仍只是 API-AUD-07 的可重复 route smoke 切片；尚未替代 92 个 operation 的 manifest 驱动 matrix，生成产物注册及其余 domain 仍需按 operation 补 success/error wire 断言。
 

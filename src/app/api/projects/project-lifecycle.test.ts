@@ -69,7 +69,7 @@ describe.sequential('project lifecycle persistence', () => {
       }),
     )
     expect(created.status).toBe(400)
-    expect((await created.json())).toEqual({ error: '目标文件夹不存在' })
+    expect((await created.json())).toMatchObject({ error: { code: 'INVALID_INPUT', message: '目标文件夹不存在' }, requestId: expect.any(String) })
 
     const moved = await PATCH(
       new Request('http://localhost/api/projects/prj_video_demo', {
@@ -79,7 +79,7 @@ describe.sequential('project lifecycle persistence', () => {
       params('prj_video_demo'),
     )
     expect(moved.status).toBe(400)
-    expect((await moved.json())).toEqual({ error: '目标文件夹不存在' })
+    expect((await moved.json())).toMatchObject({ error: { code: 'INVALID_INPUT', message: '目标文件夹不存在' }, requestId: expect.any(String) })
   })
 
   it('keeps folder cover updates in the documented PATCH contract', async () => {
@@ -114,6 +114,6 @@ describe.sequential('project lifecycle persistence', () => {
     }))
     const response = await listProjects()
     expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: '需要登录后访问私有项目' })
+    expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHENTICATED', message: '需要登录后访问私有项目' }, requestId: expect.any(String) })
   })
 })

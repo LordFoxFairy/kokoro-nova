@@ -42,7 +42,7 @@ describe.sequential('/api/dev/scenario', () => {
     const missing = await POST(postRequest({}))
 
     expect(unknown.status).toBe(400)
-    expect(await unknown.json()).toEqual({ error: '未知的 mock scenario' })
+    expect(await unknown.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: '未知的 mock scenario' }, requestId: expect.any(String) })
     expect(missing.status).toBe(400)
   })
 
@@ -54,7 +54,7 @@ describe.sequential('/api/dev/scenario', () => {
 
     expect(read.status).toBe(403)
     expect(write.status).toBe(403)
-    expect(await read.json()).toEqual({ error: '该接口仅在开发环境可用' })
+    expect(await read.json()).toMatchObject({ error: { code: 'FORBIDDEN', message: '该接口仅在开发环境可用' }, requestId: expect.any(String) })
   })
 
   it('never combines a scenario marker with another generation of workspace data', async () => {

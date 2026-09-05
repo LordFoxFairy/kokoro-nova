@@ -48,7 +48,7 @@ describe.sequential('GET /api/skills composer context', () => {
     expect(empty.status).toBe(200)
     expect(await empty.json()).toEqual({ kind: 'references', items: [] })
     expect(error.status).toBe(503)
-    expect(await error.json()).toEqual({ error: '本地上下文暂时不可用' })
+    expect(await error.json()).toMatchObject({ error: { code: 'SERVICE_UNAVAILABLE', message: '本地上下文暂时不可用' }, requestId: expect.any(String) })
     expect(invalid.status).toBe(400)
   })
 })

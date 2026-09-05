@@ -16,7 +16,7 @@ describe.sequential('Skill authoring detail lifecycle route', () => {
     await create(new Request('http://localhost/api/skills/author', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }))
     const invalidPublish = await POST(request('POST', { action: 'publish' }), params)
     expect(invalidPublish.status).toBe(422)
-    expect((await invalidPublish.json()).error).toContain('简介')
+    expect((await invalidPublish.json()).error.message).toContain('简介')
 
     const saved = await PATCH(request('PATCH', {
       name: '镜头节奏助手',

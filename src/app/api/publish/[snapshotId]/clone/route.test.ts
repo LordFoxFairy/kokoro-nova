@@ -30,6 +30,6 @@ describe.sequential('POST /api/publish/[snapshotId]/clone', () => {
     const response = await POST(new Request('http://localhost/api/publish/showcase-dust-skeleton/clone', { method: 'POST' }), context)
 
     expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: '复制项目需要先登录' })
+    expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHENTICATED', message: '复制项目需要先登录' }, requestId: expect.any(String) })
   })
 })

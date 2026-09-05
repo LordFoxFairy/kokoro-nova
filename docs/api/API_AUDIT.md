@@ -17,8 +17,9 @@
 
 审计后，`1.25.1-account-member-not-found` 已将
 `PATCH /api/team/members/{memberId}` 的运行时 `404` 明确写入 OpenAPI；API-AUD-04 的**文档
-缺项**已关闭。它不消除 API-AUD-03 的 legacy error-envelope 运行时差异，因此不能据此把 wire
-contract 判定为已完全交付。
+缺项**已关闭。随后通用 `handle()` 也已收敛到 `ErrorResponse`，使 87 个 JSON operation 的
+runtime 成功/错误主路径与 OpenAPI 同向；Presence、media 和 SVG preview 的专门 transport 仍是
+API-AUD-03 的剩余范围，因此 wire contract 仍不能判定为完全交付。
 
 ## 已验证的基线
 

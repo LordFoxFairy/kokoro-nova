@@ -119,8 +119,8 @@ fixture、组件 state、Route Handler body 和文档样本都不保存该 token
 }
 ```
 
-现有 Route Handler 仍有 `{ "error": "message" }` 兼容形状。`src/api/client.ts` 同时识别
-两种格式；OpenAPI 的后端交接 response 已统一为 `ErrorResponse`，迁移完成后删除旧形状，详见
+通用 Route Handler 已返回该形状；`src/api/client.ts` 仍同时识别 legacy/new 格式，以便 future
+adapter 和专门 transport 平滑交接。媒体、Presence 与 SVG preview 的非通用错误策略详见
 [`ERRORS.md`](ERRORS.md)。
 
 ### 后端交接授权

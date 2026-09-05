@@ -43,6 +43,6 @@ describe('GET /api/models', () => {
     const response = await GET(new Request('http://localhost/api/models?media=film'))
 
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: '未知模型媒体类型: film' })
+    expect(await response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: '未知模型媒体类型: film' }, requestId: expect.any(String) })
   })
 })

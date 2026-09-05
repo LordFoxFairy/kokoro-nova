@@ -6,19 +6,26 @@
 >
 > 审计时的 route 集合为 **55 paths / 92 operations**。其中 87 个 operation 使用
 > `handle()`，5 个 operation 使用专门 transport（media 1、presence 2、preview 2）。
+>
+> **迁移状态（2026-09-05 后续修订）**：本矩阵下方的 Legacy 描述是审计时的迁移基线。
+> `src/server/http.ts#handle` 现已把 87 个通用 JSON operation 的异常统一输出为完整
+> `ErrorResponse`（`error.code`、`error.message`、可选 `details`、fixture-stable `requestId`）。
+> 本文保留基线矩阵来锁定专门 transport 的剩余差异；media、Presence 和 SVG preview 仍不能被
+> 视为已迁移的 JSON 路径。
 
 ## Envelope vocabulary
 
 | 名称 | runtime / contract 形状 | 说明 |
 | --- | --- | --- |
-| **Legacy** | `{ "error": "message" }` | `handle()` 的全部异常分支，以及 presence 的 `HttpError` / 未分类异常实际返回的 JSON 形状。 |
+| **Pre-migration Legacy** | `{ "error": "message" }` | 审计时 `handle()` 的异常分支，以及当前 presence 的 `HttpError` / 未分类异常实际返回的 JSON 形状。 |
 | **Partial new** | `{ "error": { "code", "message", "details"? } }` | 仅 presence 的 `PresenceError` 分支会产生；它没有 `requestId`，因此还不是 OpenAPI 的完整目标。 |
 | **OpenAPI target** | `{ "error": { "code", "message", "details"? }, "requestId": "..." }` | `ErrorResponse`。`ERRORS.md` 指定为未来后端、adapter 与消费者的唯一规范化非 2xx JSON 契约。 |
 | **Non-JSON error** | 字节或文本 body | 媒体 route 当前实际如此；不应交给 JSON-only API client 解码。 |
 
-`handle()` 对成功值和异常值均调用 `NextResponse.json`。因而其成功与错误 content type
-都是 `application/json`；它不会生成 `requestId`、稳定 `code` 或 `details`。它保留显式
-`HttpError.status`，其余异常按中文 message 的正则猜测为 400 或 500。
+`handle()` 对成功值和异常值均调用 `NextResponse.json`。成功与错误 content type 都是
+`application/json`；异常现在生成稳定 `code` 和 fixture-stable `requestId`，保留显式
+`HttpError.status`，其余异常仍按中文 message 的正则猜测为 400 或 500。专门 transport 的
+错误形状没有被此改动修改。
 
 `createApiClient()` 会先读完整 response text 并强制 JSON parse。非 2xx 时它兼容 legacy
 string 与 object-shaped `error`；object 分支读取 `code`、`message`、`details`，但不读取或
@@ -74,4 +81,3 @@ SSE、预览图或任意媒体字节响应。
   Legacy body；这些是兼容窗口必须保留或有计划替换的测试证据。
 - 没有发现 media 403/404 content type 的 route test，也没有发现 presence GET/POST error-envelope
   的 route test；二者是当前最需要补足的迁移前验证缺口。
-

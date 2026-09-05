@@ -25,10 +25,13 @@ type ErrorResponse = {
 
 ### 迁移边界
 
-本轮只更新文档契约，不修改 Route Handler。当前本地 fixture 仍可能产生旧形状
-`{ "error": "message" }`，其 OpenAPI 组件名为 `LegacyErrorResponse`，并已标记 deprecated。
-`src/api/client.ts` 在兼容期同时接受旧/新 envelope、按 HTTP status 映射稳定 code，并保持
-`ApiError.status/message` 兼容现有调用方。
+`src/server/http.ts` 的通用 `handle()` 路径现已返回完整 `ErrorResponse`（稳定 code 与
+fixture-stable requestId）。`src/api/client.ts` 在兼容期仍接受旧/新 envelope，以便 future adapter
+或未迁移的专门 transport 保持 `ApiError.status/message` 兼容。
+
+专门 transport 仍是单独边界：媒体的 403/404 是浏览器资源加载用的纯文本，Presence 保留其
+SSE/JSON 专有错误分支，SVG preview 尚无受控 error response。它们不能被泛化 JSON handler 的
+迁移结果掩盖；完整剩余范围见 [`ERROR_ENVELOPE_MIGRATION_MATRIX.md`](ERROR_ENVELOPE_MIGRATION_MATRIX.md)。
 
 后端切换时先在 adapter 或服务端把上游错误归一化为 `ErrorResponse`，再逐 route 删除旧形状；
 不得让页面组件处理 legacy 分支。旧形状只描述当前 fixture 的兼容输入，不能作为新后端 response

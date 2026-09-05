@@ -68,7 +68,7 @@ describe.sequential('GET /api/materials', () => {
     expect(empty.status).toBe(200)
     expect(MaterialCatalogResponseSchema.parse(await empty.json()).items).toEqual([])
     expect(error.status).toBe(503)
-    expect(await error.json()).toEqual({ error: '本地素材目录暂时不可用' })
+    expect(await error.json()).toMatchObject({ error: { code: 'SERVICE_UNAVAILABLE', message: '本地素材目录暂时不可用' }, requestId: expect.any(String) })
     expect(invalidKind.status).toBe(400)
     expect(invalidCommercial.status).toBe(400)
     expect(invalidLimit.status).toBe(400)

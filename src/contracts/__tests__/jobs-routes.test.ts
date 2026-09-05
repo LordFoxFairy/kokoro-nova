@@ -12,14 +12,14 @@ describe('Jobs route validation', () => {
     const response = await createJob(request('http://localhost/api/jobs', '{broken'))
 
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: expect.stringContaining('JSON') })
+    expect(await response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('JSON') }, requestId: expect.any(String) })
   })
 
   it('returns 400 for missing create identifiers', async () => {
     const response = await createJob(request('http://localhost/api/jobs', JSON.stringify({ canvasId: '' })))
 
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: expect.stringContaining('canvasId') })
+    expect(await response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('canvasId') }, requestId: expect.any(String) })
   })
 
   it.each([{}, { action: 'poll' }, { action: 'future' }])(
@@ -31,7 +31,7 @@ describe('Jobs route validation', () => {
       )
 
       expect(response.status).toBe(400)
-      expect(await response.json()).toEqual({ error: expect.stringContaining('action') })
+      expect(await response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('action') }, requestId: expect.any(String) })
     },
   )
 })

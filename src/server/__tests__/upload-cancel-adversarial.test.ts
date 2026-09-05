@@ -539,7 +539,7 @@ describe('token validation', () => {
     it(`refuses ${label} on DELETE`, async () => {
       const response = await revoke(raw)
       expect(response.status).toBe(400)
-      expect(response.body.error).toContain('令牌')
+      expect(response.body.error).toMatchObject({ message: expect.stringContaining('令牌') })
     })
 
     it(`refuses ${label} on POST, before a byte is staged`, async () => {

@@ -2,10 +2,51 @@ import { NextResponse } from 'next/server'
 import type { ZodType } from 'zod'
 
 export class HttpError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+    public readonly details?: unknown,
+  ) {
     super(message)
     this.name = 'HttpError'
   }
+}
+
+function codeForStatus(status: number): string {
+  if (status === 400 || status === 422) return 'INVALID_INPUT'
+  if (status === 401) return 'UNAUTHENTICATED'
+  if (status === 403) return 'FORBIDDEN'
+  if (status === 404) return 'NOT_FOUND'
+  if (status === 409) return 'REVISION_CONFLICT'
+  if (status === 429) return 'RATE_LIMITED'
+  if (status === 500) return 'INTERNAL_ERROR'
+  if (status === 503) return 'SERVICE_UNAVAILABLE'
+  return 'HTTP_ERROR'
+}
+
+/** Stable across fixture resets without exposing request input or credentials. */
+function requestIdFor(status: number, message: string): string {
+  let hash = 2166136261
+  for (const char of `${status}:${message}`) {
+    hash ^= char.codePointAt(0) ?? 0
+    hash = Math.imul(hash, 16777619)
+  }
+  return `req_local_${(hash >>> 0).toString(36)}`
+}
+
+function errorResponse(status: number, message: string, code?: string, details?: unknown) {
+  return NextResponse.json(
+    {
+      error: {
+        code: code ?? codeForStatus(status),
+        message,
+        ...(details === undefined ? {} : { details }),
+      },
+      requestId: requestIdFor(status, message),
+    },
+    { status },
+  )
 }
 
 export function ok<T>(data: T, init?: ResponseInit) {
@@ -41,13 +82,13 @@ export async function handle<T>(fn: () => Promise<T>) {
     return NextResponse.json(await fn())
   } catch (error) {
     if (error instanceof HttpError) {
-      return NextResponse.json({ error: error.message }, { status: error.status })
+      return errorResponse(error.status, error.message, error.code, error.details)
     }
     const message = error instanceof Error ? error.message : String(error)
     // Domain guards (validation, optimistic lock, insufficient credits) are
     // client-correctable, so they are 4xx rather than 500.
     const status =
       /不存在|已存在|不接受|循环|不能|需要|未选择|已过期|积分不足|冲突/.test(message) ? 400 : 500
-    return NextResponse.json({ error: message }, { status })
+    return errorResponse(status, message)
   }
 }

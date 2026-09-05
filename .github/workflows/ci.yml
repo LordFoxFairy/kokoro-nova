@@ -54,6 +54,9 @@ jobs:
       - name: Unit and contract tests
         run: pnpm test
 
+      - name: Static container delivery contract
+        run: node --test scripts/container-contract.test.mjs
+
       - name: Production build
         run: pnpm build
 

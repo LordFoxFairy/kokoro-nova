@@ -75,7 +75,7 @@ pnpm build && pnpm start   # start 同样是 3200
 通过后，会自动将 GHCR 镜像发布到
 [`ghcr.io/lordfoxfairy/kokoro-nova`](https://github.com/LordFoxFairy/kokoro-nova/pkgs/container/kokoro-nova)。
 首次发布后，需在 GitHub Package settings 确认该包为 Public，才可作为公开镜像匿名拉取。
-完整的 tag、版本和本地运行说明见 [`docs/CONTAINER.md`](docs/CONTAINER.md)。
+完整的 tag、版本和本地运行说明见 [`docs/CONTAINER.md`](docs/CONTAINER.md)。CI 会在容器构建前运行 `node --test scripts/container-contract.test.mjs`，静态校验这里的一键拉取/运行命令、Dockerfile 运行时端口与卷，以及 tag 发布的 GHCR 镜像契约保持一致。
 
 ```bash
 docker pull ghcr.io/lordfoxfairy/kokoro-nova:latest

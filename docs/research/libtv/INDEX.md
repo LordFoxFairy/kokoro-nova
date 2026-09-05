@@ -24,6 +24,8 @@
    `1440×900` 截图配对分别见 [`PAGE_GAP_CHECKLIST.md`](PAGE_GAP_CHECKLIST.md)、
    [`PRIORITIZED_PARITY_BACKLOG.md`](PRIORITIZED_PARITY_BACKLOG.md) 和
    [`SCREENSHOT_INDEX.md`](SCREENSHOT_INDEX.md)。
+10. 线程目标逐项的已证实/未证实证据与不可降级放行顺序见
+    [`GOAL_COMPLETION_AUDIT.md`](GOAL_COMPLETION_AUDIT.md)。
 
 完整覆盖状态统一查看 [FEATURE_MATRIX.md](FEATURE_MATRIX.md)，不要仅凭页面有截图就判断能力已完成。
 

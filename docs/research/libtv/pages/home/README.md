@@ -119,6 +119,10 @@ Wan 3.0 和 Minimax H3 Max 等当前组合；这进一步验证卡片与营销�
 二级操作 enabled 语义另见
 [2026-09-04-project-empty-surface.md](2026-09-04-project-empty-surface.md)。
 
+2026-09-05 的公开首页复核进一步记录了当前快捷卡、空输入 Agent 的 disabled 语义、TV Show
+卡片索引证据，以及本地 `/showcase` 不应被误认为官网真实 URL 的边界，见
+[2026-09-05-public-home-readonly.md](2026-09-05-public-home-readonly.md)。
+
 ## 2026-09-03 当前官网复核
 
 在已有登录会话中刷新官网首页，当前版本仍保持“快速创作入口 -> 最近项目 ->

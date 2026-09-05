@@ -26,6 +26,11 @@
    [`SCREENSHOT_INDEX.md`](SCREENSHOT_INDEX.md)。
 10. 线程目标逐项的已证实/未证实证据与不可降级放行顺序见
     [`GOAL_COMPLETION_AUDIT.md`](GOAL_COMPLETION_AUDIT.md)。
+11. Clip Editor 与 Text/Script 的官网事实、本地 fixture 与未证实能力边界见
+    [`audits/clip-editor-evidence-audit.md`](audits/clip-editor-evidence-audit.md) 和
+    [`audits/text-script-evidence-audit.md`](audits/text-script-evidence-audit.md)；运行时错误
+    envelope 的跨 transport 迁移矩阵见
+    [`../api/ERROR_ENVELOPE_MIGRATION_MATRIX.md`](../api/ERROR_ENVELOPE_MIGRATION_MATRIX.md)。
 
 完整覆盖状态统一查看 [FEATURE_MATRIX.md](FEATURE_MATRIX.md)，不要仅凭页面有截图就判断能力已完成。
 

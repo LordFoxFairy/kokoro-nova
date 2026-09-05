@@ -3615,6 +3615,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ShowcaseEngagementResponse"
+                },
+                "examples": {
+                  "initialViewerState": {
+                    "$ref": "#/components/examples/ShowcaseEngagementInitialResponseExample"
+                  }
                 }
               }
             }
@@ -3676,6 +3681,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ShowcaseEngagementRequest"
+              },
+              "examples": {
+                "like": {
+                  "$ref": "#/components/examples/ShowcaseEngagementRequestExample"
+                }
               }
             }
           }
@@ -3687,6 +3697,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ShowcaseEngagementResponse"
+                },
+                "examples": {
+                  "liked": {
+                    "$ref": "#/components/examples/ShowcaseEngagementLikeResponseExample"
+                  }
                 }
               }
             }
@@ -17589,6 +17604,18 @@
       }
     },
     "examples": {
+      "ShowcaseEngagementRequestExample": {
+        "summary": "已登录 viewer 喜欢公开作品",
+        "externalValue": "./examples/showcase-engagement.request.json"
+      },
+      "ShowcaseEngagementInitialResponseExample": {
+        "summary": "匿名可读的初始 viewer-local interaction projection",
+        "externalValue": "./examples/showcase-engagement.initial.response.json"
+      },
+      "ShowcaseEngagementLikeResponseExample": {
+        "summary": "喜欢动作后的 viewer-local projection",
+        "externalValue": "./examples/showcase-engagement.like.response.json"
+      },
       "CreateTeamInviteRequestExample": {
         "summary": "以本地显示别名创建 pending 团队邀请",
         "externalValue": "./examples/team-invite.request.json"

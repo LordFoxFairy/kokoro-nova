@@ -50,6 +50,11 @@ viewer-local fixture state。`likeCount` 仅在基础公开投影上加当前 vi
 已记录的本地分享反馈。未来后端将把此 projection 替换为按 subject 聚合的 interaction 数据，仍须保持
 公开快照不可变。
 
+可执行样本：匿名可读的[初始互动 projection](examples/showcase-engagement.initial.response.json)、已登录
+viewer 的 [like 请求](examples/showcase-engagement.request.json) 与[喜欢后的 projection](examples/showcase-engagement.like.response.json)。
+匿名 POST 稳定返回 `401`；未知或已下架的 snapshot 返回 `404`；非法 `action` 返回 `400`。这些错误均为
+`ErrorResponse`，交互写入不会影响冻结公开快照。
+
 复制公开快照失败时，确认框保留已加载的只读 workflow/storyboard 与明确的“重试复制”命令。失败响应
 在成功 transaction 前不创建 project/canvas；重试只重新请求 `POST /api/publish/{snapshotId}/clone`。
 因此网络失败、刷新或重试不能使原始公开快照变为私有副本，也不能留下半创建项目。

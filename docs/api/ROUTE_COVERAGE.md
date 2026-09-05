@@ -114,6 +114,7 @@ SSE 首帧为 `snapshot`，后续为 `join`、`move` 或 `leave`；每 20 秒有
 | 项目回收站 | [`PROJECT_RECYCLE_BIN.md`](PROJECT_RECYCLE_BIN.md) |
 | Jobs / Script V2 | [`jobs-create.request.json`](examples/jobs-create.request.json), [`script-v2-run.request.json`](examples/script-v2-run.request.json) |
 | 团队邀请 / 成员角色 | [`team-invite.request.json`](examples/team-invite.request.json), [`team-invite.response.json`](examples/team-invite.response.json), [`team-member-update.request.json`](examples/team-member-update.request.json), [`team-member-update.response.json`](examples/team-member-update.response.json) |
+| TV Show 互动 | [`showcase-engagement.initial.response.json`](examples/showcase-engagement.initial.response.json), [`showcase-engagement.request.json`](examples/showcase-engagement.request.json), [`showcase-engagement.like.response.json`](examples/showcase-engagement.like.response.json) |
 
 ## 后端接手验收
 

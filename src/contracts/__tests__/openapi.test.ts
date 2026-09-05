@@ -19,6 +19,9 @@ import teamInviteRequestExample from '../../../docs/api/examples/team-invite.req
 import teamInviteResponseExample from '../../../docs/api/examples/team-invite.response.json'
 import teamMemberUpdateRequestExample from '../../../docs/api/examples/team-member-update.request.json'
 import teamMemberUpdateResponseExample from '../../../docs/api/examples/team-member-update.response.json'
+import initialEngagementExample from '../../../docs/api/examples/showcase-engagement.initial.response.json'
+import likeEngagementExample from '../../../docs/api/examples/showcase-engagement.like.response.json'
+import likeEngagementRequestExample from '../../../docs/api/examples/showcase-engagement.request.json'
 import {
   CreateScriptV2RunRequestSchema,
   OfficialPromptRecomputeEnvelopeSchema,
@@ -44,6 +47,10 @@ import {
   TeamMemberUpdateResponseSchema,
   UpdateTeamMemberRequestSchema,
 } from '@/contracts/team'
+import {
+  ShowcaseEngagementRequestSchema,
+  ShowcaseEngagementResponseSchema,
+} from '@/contracts/showcase'
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -419,6 +426,43 @@ describe('local API manifest and OpenAPI', () => {
     expect(TeamMemberUpdateResponseSchema.parse(teamMemberUpdateResponseExample)).toMatchObject({
       member: { id: 'member_liu', role: 'member' },
       team: { state: 'ready' },
+    })
+  })
+
+  it('keeps public TV Show engagement examples executable and connected to their OpenAPI operations', () => {
+    const document = openApiDocument()
+    const engagementRead = operationAt(document, 'GET', '/api/showcase/{snapshotId}/engagement')
+    const engagementWrite = operationAt(document, 'POST', '/api/showcase/{snapshotId}/engagement')
+
+    expect(engagementRead.responses?.['200']?.content?.['application/json']?.examples?.initialViewerState?.$ref).toBe(
+      '#/components/examples/ShowcaseEngagementInitialResponseExample',
+    )
+    expect(engagementWrite.requestBody?.content?.['application/json']?.examples?.like?.$ref).toBe(
+      '#/components/examples/ShowcaseEngagementRequestExample',
+    )
+    expect(engagementWrite.responses?.['200']?.content?.['application/json']?.examples?.liked?.$ref).toBe(
+      '#/components/examples/ShowcaseEngagementLikeResponseExample',
+    )
+    expect(document.components?.examples?.ShowcaseEngagementInitialResponseExample?.externalValue).toBe(
+      './examples/showcase-engagement.initial.response.json',
+    )
+    expect(document.components?.examples?.ShowcaseEngagementRequestExample?.externalValue).toBe(
+      './examples/showcase-engagement.request.json',
+    )
+    expect(document.components?.examples?.ShowcaseEngagementLikeResponseExample?.externalValue).toBe(
+      './examples/showcase-engagement.like.response.json',
+    )
+
+    expect(ShowcaseEngagementRequestSchema.parse(likeEngagementRequestExample)).toEqual({ action: 'like' })
+    expect(ShowcaseEngagementResponseSchema.parse(initialEngagementExample)).toMatchObject({
+      liked: false,
+      likeCount: 12,
+      shareCount: 0,
+    })
+    expect(ShowcaseEngagementResponseSchema.parse(likeEngagementExample)).toMatchObject({
+      liked: true,
+      likeCount: 13,
+      shareCount: 0,
     })
   })
 

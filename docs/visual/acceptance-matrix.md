@@ -21,6 +21,7 @@
 | empty | `authenticated-empty` → `/project` | `还没有项目`、开始入口 | 侧栏收起，标题栏可见 | 两列布局，文本不应推出页面宽度 | 开始第一个项目、回收站和新建文件夹均 enabled | 通过；官网空态已直接确认 |
 | empty | 空工作流 → Workflow / Storyboard | 空画布起始卡、Storyboard 空态 | 起始卡仍在可视区域 | 起始卡改为窄屏网格；画布自然裁切 | 不误报生成失败 | 通过（既有桌面/窄屏证据） |
 | populated | `authenticated-populated` → `/project` / Canvas | 四列项目卡、节点和媒体可见 | 项目三列；侧栏收起 | 项目两列；画布工具条首个按钮在视口内 | 项目/画布内容可刷新恢复 | 通过；Storyboard 初始视频列仍有发现性问题 |
+| project lifecycle | `authenticated-empty` → `/project` | 新建/重命名文件夹、创建项目、封面菜单、副本和移动动作均可操作 | 同左；动作菜单保持可达 | 同左；不引入页面级横向溢出 | 刷新后保留文件夹名、示例封面、副本和移动结果；测试结束恢复空 fixture | 通过（`e2e/project-lifecycle.spec.ts`） |
 | desktop visual baseline | `authenticated-populated` → `/` / `/project` | 首页的活动/创作/最近项目/Agent/TV Show 层级，以及项目四卡管理视图 | 不适用（桌面固定基线） | 不适用（桌面固定基线） | `e2e/home-visual-parity.spec.ts` 在临时服务上以 `toHaveScreenshot` 比较；不接触主 `:3200` 或 `.data` | 通过（2 个 1440×900 像素快照） |
 | loading / error / empty | `/`，拦截本地 `GET /api/home` | `home-loading` 状态地标、错误告警、键盘触发重试、空最近项目 | 同首页响应式守门 | 同首页响应式守门 | `e2e/home-project.spec.ts` 用一次失败后放行的本地路由拦截验证，不请求远端 | 通过（桌面交互基准） |
 | loading / error / empty | `/project`，拦截本地 `GET /api/projects` | `project-loading` 状态地标、错误重试、空工作区 CTA 与四列内容宽度 | 同项目响应式守门 | 同项目响应式守门 | `e2e/home-project.spec.ts` 用隔离 mock 验证状态转换和焦点 | 通过（桌面交互基准） |

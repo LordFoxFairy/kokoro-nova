@@ -45,7 +45,7 @@
 | --- | --- | --- | --- | --- |
 | P-01 | 活动条 + 侧栏 + `返回 → 全部项目 → 搜索 → 回收站 → 新建文件夹` | [项目页观察](pages/home/2026-09-04-project-empty-surface.md)、[项目基线](pages/home/screenshots/project-authenticated-desktop-1440x900-2026-09-03.png) | `ProjectToolbar`；`e2e/home-project.spec.ts`、`home-visual-parity.spec.ts` | `VERIFIED_LOCAL` |
 | P-02 | 四列项目/文件夹卡，空态、搜索空态、回收站空态 | [官方项目页](https://www.liblib.tv/project) | `filterProjectRows`、`getProjectListEmptyState`、`RecycleBinDialog` | `VERIFIED_LOCAL` |
-| P-03 | 项目/文件夹打开、重命名、封面、副本、移动、删除确认 | [项目卡菜单基线](pages/canvas/screenshots/project-card-actions-menu-desktop-1440x900-hires.png)、[删除确认](pages/canvas/screenshots/project-delete-confirmation-dialog-desktop-1440x900-hires.png) | `ProjectCard`、`FolderCard`、`Menu`、确认门；`home-project.spec.ts` 已覆盖菜单/重命名/确认 | `PARTIAL`：封面、移动、副本和文件夹生命周期缺少同等 E2E 证据 |
+| P-03 | 项目/文件夹打开、重命名、封面、副本、移动、删除确认 | [项目卡菜单基线](pages/canvas/screenshots/project-card-actions-menu-desktop-1440x900-hires.png)、[删除确认](pages/canvas/screenshots/project-delete-confirmation-dialog-desktop-1440x900-hires.png) | `ProjectCard`、`FolderCard`、`Menu`、确认门；`e2e/project-manager.spec.ts`、`e2e/project-lifecycle.spec.ts` 覆盖菜单、文件夹生命周期、示例封面、副本、移动与刷新恢复 | `VERIFIED_LOCAL`（deterministic mock；测试结束恢复 `authenticated-empty` fixture） |
 | P-04 | 空 workspace 中二级动作保持 enabled | [项目空态观察](pages/home/2026-09-04-project-empty-surface.md) | `ProjectToolbar`、空态按钮 | `VERIFIED_LOCAL` |
 | P-05 | 私有项目的认证、刷新恢复和错误反馈 | 官网登录态与权限提示观察 | `useHomeDiscoveryState`、`project-load-error`、`project-refresh-error` | `PARTIAL`：登录/会话是 local fixture，缺独立 `Identity` contract |
 

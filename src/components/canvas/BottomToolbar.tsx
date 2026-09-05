@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { NODE_META } from '@/domain/nodes'
 import type { NodeType } from '@/domain/types'
@@ -99,6 +100,7 @@ export function BottomToolbar({
   const addMenu = useMenuAnchor()
   const materialMenu = useMenuAnchor()
   const helpMenu = useMenuAnchor()
+  const addNodeButtonRef = useRef<HTMLButtonElement>(null)
 
   // Product names track the current menu while serialized node types remain
   // stable for local documents and the future backend contract.
@@ -202,6 +204,7 @@ export function BottomToolbar({
         className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex h-12 -translate-x-1/2 items-center gap-2 rounded-[13px] border border-white/8 bg-surface p-2 shadow-[var(--shadow-panel)]"
       >
         <button
+          ref={addNodeButtonRef}
           type="button"
           data-testid="add-node-button"
           onClick={(e) => (addMenu.anchor ? addMenu.close() : addMenu.openFrom(e, 'above'))}
@@ -269,7 +272,14 @@ export function BottomToolbar({
       </div>
 
       {addMenu.anchor && (
-        <Menu sections={addSections} anchor={addMenu.anchor} onClose={addMenu.close} placement="above" width={216} />
+        <Menu
+          sections={addSections}
+          anchor={addMenu.anchor}
+          onClose={addMenu.close}
+          restoreFocusRef={addNodeButtonRef}
+          placement="above"
+          width={216}
+        />
       )}
       {materialMenu.anchor && (
         <Menu

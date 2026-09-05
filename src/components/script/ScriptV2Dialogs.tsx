@@ -53,16 +53,21 @@ const ROLE_LABEL: Record<ScriptV2AssetRole, string> = {
 interface ScriptV2DialogFocusOptions {
   /** Floating editors can let Tab leave so their blur handlers can save drafts. */
   trap?: boolean
+  /** A trigger captured before an auto-focused child takes focus. */
+  restoreFocusTarget?: HTMLElement | null
 }
 
 /** Keep keyboard focus inside transient Script V2 surfaces and return it to the trigger. */
-export function useScriptV2DialogFocus(open: boolean, { trap = true }: ScriptV2DialogFocusOptions = {}) {
+export function useScriptV2DialogFocus(
+  open: boolean,
+  { trap = true, restoreFocusTarget = null }: ScriptV2DialogFocusOptions = {},
+) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
 
   useLayoutEffect(() => {
     if (!open) return
-    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    restoreFocusRef.current = restoreFocusTarget ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     const dialog = dialogRef.current
     if (!dialog) return
 
@@ -115,7 +120,7 @@ export function useScriptV2DialogFocus(open: boolean, { trap = true }: ScriptV2D
       if (trap) window.removeEventListener('keydown', onKeyDown, true)
       restoreFocus()
     }
-  }, [open, trap])
+  }, [open, restoreFocusTarget, trap])
 
   return dialogRef
 }

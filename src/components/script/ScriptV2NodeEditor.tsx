@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useStore } from '@xyflow/react'
 import { MODELS_BY_ID, type ModelDefinition } from '@/domain/models'
 import {
@@ -60,6 +60,7 @@ export function ScriptV2NodeEditor({
   const [characterName, setCharacterName] = useState('')
   const [characterDescription, setCharacterDescription] = useState('')
   const [characterPremise, setCharacterPremise] = useState('')
+  const generatorTriggerRef = useRef<HTMLButtonElement | null>(null)
   const models = useMemo(
     () => SCRIPT_MODEL_IDS.flatMap((id) => {
       const model = MODELS_BY_ID.get(id)
@@ -92,7 +93,8 @@ export function ScriptV2NodeEditor({
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [modelsOpen, onCloseGenerator, open])
 
-  const beginGenerator = (entry: 'screenplay' | 'character') => {
+  const beginGenerator = (entry: 'screenplay' | 'character', trigger: HTMLButtonElement) => {
+    generatorTriggerRef.current = trigger
     void onStateChange(
       { ...state, entry },
       entry === 'character' ? '角色生成分镜脚本' : '剧本生成分镜脚本',
@@ -107,6 +109,11 @@ export function ScriptV2NodeEditor({
     )
     void onStateChange(next, '自己编写分镜脚本')
     onOpenWorkspace()
+  }
+
+  const closeGenerator = () => {
+    onCloseGenerator()
+    window.requestAnimationFrame(() => generatorTriggerRef.current?.focus())
   }
 
   const persistGenerator = async (patch: Partial<ScriptV2State['generator']>, label: string) => {
@@ -186,10 +193,10 @@ export function ScriptV2NodeEditor({
 
   const card = state.rows.length === 0 ? (
     <div data-testid="script-v2-entry-list" className="flex flex-1 flex-col justify-center gap-1.5">
-      <EntryButton icon={<IconScript size={14} />} onClick={() => beginGenerator('screenplay')}>
+      <EntryButton icon={<IconScript size={14} />} onClick={(trigger) => beginGenerator('screenplay', trigger)}>
         剧本生成分镜脚本
       </EntryButton>
-      <EntryButton icon={<IconCharacter size={14} />} onClick={() => beginGenerator('character')}>
+      <EntryButton icon={<IconCharacter size={14} />} onClick={(trigger) => beginGenerator('character', trigger)}>
         角色生成分镜脚本
       </EntryButton>
       <EntryButton icon={<IconText size={14} />} onClick={beginManual}>
@@ -276,7 +283,7 @@ export function ScriptV2NodeEditor({
               <button
                 type="button"
                 aria-label="关闭脚本生成器"
-                onClick={onCloseGenerator}
+                onClick={closeGenerator}
                 className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-white/40 hover:bg-white/8 hover:text-white/80"
               >
                 <IconClose size={15} />
@@ -430,7 +437,15 @@ function GeneratorInput({
   )
 }
 
-function EntryButton({ icon, children, onClick }: { icon: ReactNode; children: ReactNode; onClick: () => void }) {
+function EntryButton({
+  icon,
+  children,
+  onClick,
+}: {
+  icon: ReactNode
+  children: ReactNode
+  onClick: (trigger: HTMLButtonElement) => void
+}) {
   return (
     <button
       type="button"
@@ -438,7 +453,7 @@ function EntryButton({ icon, children, onClick }: { icon: ReactNode; children: R
       onDoubleClick={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation()
-        onClick()
+        onClick(event.currentTarget)
       }}
       className="nodrag nowheel nopan flex h-12 items-center gap-2.5 rounded-xl border border-transparent bg-ink-50 px-3 text-left text-[12px] font-medium text-ink-700 transition-colors hover:border-ink-200 hover:bg-ink-100"
     >

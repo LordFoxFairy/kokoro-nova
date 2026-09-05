@@ -59,9 +59,9 @@ interface AnchorPoint {
 }
 
 type ActiveEditor =
-  | { kind: 'duration'; row: ScriptV2Row; anchor: AnchorPoint }
-  | { kind: 'shotSize'; row: ScriptV2Row; anchor: AnchorPoint }
-  | { kind: 'text'; row: ScriptV2Row; field: TextField; anchor: AnchorPoint }
+  | { kind: 'duration'; row: ScriptV2Row; anchor: AnchorPoint; trigger: HTMLButtonElement }
+  | { kind: 'shotSize'; row: ScriptV2Row; anchor: AnchorPoint; trigger: HTMLButtonElement }
+  | { kind: 'text'; row: ScriptV2Row; field: TextField; anchor: AnchorPoint; trigger: HTMLButtonElement }
 
 const TEXT_FIELDS: Record<TextField, { label: string; placeholder: string }> = {
   plotDescription: { label: '画面描述', placeholder: '描述镜头中发生的画面与动作' },
@@ -231,7 +231,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`镜头 ${row.shotNumber} 时长 ${row.durationSeconds} 秒`}
-                  onClick={(element) => setEditor({ kind: 'duration', row, anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'duration', row, anchor: anchorFrom(element), trigger: element })}
                 >
                   <span aria-hidden="true">{row.durationSeconds}s</span>
                   <span className="sr-only">{row.durationSeconds} 秒</span>
@@ -240,7 +240,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`编辑镜头 ${row.shotNumber} 画面描述`}
-                  onClick={(element) => setEditor({ kind: 'text', row, field: 'plotDescription', anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'text', row, field: 'plotDescription', anchor: anchorFrom(element), trigger: element })}
                   multiline
                 >
                   {row.plotDescription || '+'}
@@ -249,7 +249,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`镜头 ${row.shotNumber} 景别 ${row.shotSize}`}
-                  onClick={(element) => setEditor({ kind: 'shotSize', row, anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'shotSize', row, anchor: anchorFrom(element), trigger: element })}
                 >
                   {row.shotSize}
                 </CellButton>
@@ -257,7 +257,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`编辑镜头 ${row.shotNumber} 光影氛围`}
-                  onClick={(element) => setEditor({ kind: 'text', row, field: 'lightingAndAtmosphere', anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'text', row, field: 'lightingAndAtmosphere', anchor: anchorFrom(element), trigger: element })}
                   multiline
                 >
                   {row.lightingAndAtmosphere || '+'}
@@ -266,7 +266,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`编辑镜头 ${row.shotNumber} 对白·旁白`}
-                  onClick={(element) => setEditor({ kind: 'text', row, field: 'dialogue', anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'text', row, field: 'dialogue', anchor: anchorFrom(element), trigger: element })}
                   multiline
                 >
                   {row.dialogue || row.voiceover || '+'}
@@ -275,7 +275,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`编辑镜头 ${row.shotNumber} 音效`}
-                  onClick={(element) => setEditor({ kind: 'text', row, field: 'audioEffects', anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'text', row, field: 'audioEffects', anchor: anchorFrom(element), trigger: element })}
                   multiline
                 >
                   {row.audioEffects || row.sfx || '+'}
@@ -284,7 +284,7 @@ export function ScriptV2ShotTable({
               <Cell>
                 <CellButton
                   ariaLabel={`编辑镜头 ${row.shotNumber} 运镜`}
-                  onClick={(element) => setEditor({ kind: 'text', row, field: 'cameraMovement', anchor: anchorFrom(element) })}
+                  onClick={(element) => setEditor({ kind: 'text', row, field: 'cameraMovement', anchor: anchorFrom(element), trigger: element })}
                   multiline
                 >
                   {row.cinematics?.cameraMovement || '+'}
@@ -372,6 +372,7 @@ export function ScriptV2ShotTable({
           key={`duration-${editor.row.id}`}
           row={editor.row}
           anchor={editor.anchor}
+          restoreFocusTarget={editor.trigger}
           onCommit={(durationSeconds) =>
             onPatch(editor.row.id, { durationSeconds }, `修改镜头 ${editor.row.shotNumber} 时长`)
           }
@@ -383,6 +384,7 @@ export function ScriptV2ShotTable({
           key={`shot-size-${editor.row.id}`}
           row={editor.row}
           anchor={editor.anchor}
+          restoreFocusTarget={editor.trigger}
           onCommit={(shotSize) =>
             onPatch(editor.row.id, { shotSize }, `修改镜头 ${editor.row.shotNumber} 景别`)
           }
@@ -395,6 +397,7 @@ export function ScriptV2ShotTable({
           row={editor.row}
           field={editor.field}
           anchor={editor.anchor}
+          restoreFocusTarget={editor.trigger}
           onCommit={(value) =>
             onPatch(
               editor.row.id,
@@ -509,17 +512,22 @@ function FloatingSurface({
   width,
   ariaLabel,
   surfaceRef,
+  restoreFocusTarget,
   children,
 }: {
   anchor: AnchorPoint
   width: number
   ariaLabel: string
   surfaceRef: React.RefObject<HTMLDivElement | null>
+  restoreFocusTarget: HTMLElement
   children: ReactNode
 }) {
   // Cell editors are popovers rather than modal sheets: Tab must be able to
   // leave the control so the editor's blur handler can commit the draft.
-  const dialogRef = useScriptV2DialogFocus(true, { trap: ariaLabel === '选择景别' })
+  const dialogRef = useScriptV2DialogFocus(true, {
+    trap: ariaLabel === '选择景别',
+    restoreFocusTarget,
+  })
   const left = Math.max(12, Math.min(anchor.left, window.innerWidth - width - 12))
   const estimatedHeight = ariaLabel === '选择景别' ? 430 : 230
   const top = Math.max(12, Math.min(anchor.top, window.innerHeight - estimatedHeight - 12))
@@ -570,11 +578,13 @@ function useSurfaceSettlement(
 function DurationEditor({
   row,
   anchor,
+  restoreFocusTarget,
   onCommit,
   onClose,
 }: {
   row: ScriptV2Row
   anchor: AnchorPoint
+  restoreFocusTarget: HTMLElement
   onCommit: (value: number) => void
   onClose: () => void
 }) {
@@ -599,7 +609,7 @@ function DurationEditor({
   }
 
   return (
-    <FloatingSurface anchor={anchor} width={252} ariaLabel="设置镜头时长" surfaceRef={surfaceRef}>
+    <FloatingSurface anchor={anchor} width={252} ariaLabel="设置镜头时长" surfaceRef={surfaceRef} restoreFocusTarget={restoreFocusTarget}>
       <div
         onPointerDownCapture={() => {
           internalPointerRef.current = true
@@ -658,11 +668,13 @@ function DurationEditor({
 function ShotSizeEditor({
   row,
   anchor,
+  restoreFocusTarget,
   onCommit,
   onClose,
 }: {
   row: ScriptV2Row
   anchor: AnchorPoint
+  restoreFocusTarget: HTMLElement
   onCommit: (value: ScriptV2ShotSize) => void
   onClose: () => void
 }) {
@@ -680,7 +692,7 @@ function ShotSizeEditor({
   }
 
   return (
-    <FloatingSurface anchor={anchor} width={184} ariaLabel="选择景别" surfaceRef={surfaceRef}>
+    <FloatingSurface anchor={anchor} width={184} ariaLabel="选择景别" surfaceRef={surfaceRef} restoreFocusTarget={restoreFocusTarget}>
       <div role="listbox" aria-label="选择景别" className="max-h-[400px] overflow-y-auto" onKeyDown={onKeyDown}>
         {SCRIPT_V2_SHOT_SIZES.map((shotSize) => (
           <button
@@ -711,12 +723,14 @@ function TextEditor({
   row,
   field,
   anchor,
+  restoreFocusTarget,
   onCommit,
   onClose,
 }: {
   row: ScriptV2Row
   field: TextField
   anchor: AnchorPoint
+  restoreFocusTarget: HTMLElement
   onCommit: (value: string) => void
   onClose: () => void
 }) {
@@ -736,7 +750,7 @@ function TextEditor({
   useSurfaceSettlement(surfaceRef, settle)
 
   return (
-    <FloatingSurface anchor={anchor} width={340} ariaLabel={`编辑${config.label}`} surfaceRef={surfaceRef}>
+    <FloatingSurface anchor={anchor} width={340} ariaLabel={`编辑${config.label}`} surfaceRef={surfaceRef} restoreFocusTarget={restoreFocusTarget}>
       <div className="mb-2 flex items-center justify-between">
         <label htmlFor={`${field}-${row.id}`} className="text-[12px] font-medium text-white/88">
           {config.label}

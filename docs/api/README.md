@@ -63,6 +63,17 @@ OpenAPI: 3.1.0
 
 当前实现只向本地 Next.js mock 发请求；真实后端接入时以部署层 base URL 切换，不要求页面组件改路径或直接读取环境变量，也不把凭证下沉到组件。
 
+`createApiClient()` 的第二参数是仅限 transport 的 header seam；它在本地相对路径校验通过后才读取 header provider，
+并合并调用方已显式传入的 header。生产 adapter 可在应用外层注入一次，组件仍只调用 typed client：
+
+```ts
+const backendClient = createApiClient(fetch, {
+  getHeaders: async () => ({ Authorization: `Bearer ${await readAccessToken()}` }),
+})
+```
+
+fixture、组件 state、Route Handler body 和文档样本都不保存该 token；调用方 header（例如 idempotency key）优先于 adapter 的同名默认值。
+
 ## 传输约定
 
 ### JSON

@@ -63,6 +63,15 @@ import {
 
 export type JsonTransport = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
+/**
+ * Transport-only seam for a future backend. Components keep using local `/api/*`
+ * paths; the deployment adapter may supply fresh headers (for example a Bearer
+ * token) without placing credentials in React state, fixtures, or route input.
+ */
+export type ApiClientOptions = {
+  getHeaders?: () => HeadersInit | Promise<HeadersInit>
+}
+
 export type ApiErrorCode =
   | 'INVALID_INPUT'
   | 'UNAUTHENTICATED'
@@ -140,9 +149,19 @@ function localApiPath(url: string): string {
   return url
 }
 
-export function createApiClient(transport: JsonTransport = fetch) {
+export function createApiClient(transport: JsonTransport = fetch, options: ApiClientOptions = {}) {
+  async function withTransportHeaders(init?: RequestInit): Promise<RequestInit | undefined> {
+    if (!options.getHeaders) return init
+    const headers = new Headers(await options.getHeaders())
+    for (const [key, value] of new Headers(init?.headers)) headers.set(key, value)
+    return { ...init, headers }
+  }
+
   async function requestUnknown<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await transport(localApiPath(url), init)
+    // Validate before asking a credential provider for headers: an invalid URL
+    // must never trigger token refresh or transport-side effects.
+    const localPath = localApiPath(url)
+    const response = await transport(localPath, await withTransportHeaders(init))
     const body = await parseBody(response)
     if (!response.ok) throw errorFromBody(body, response.status)
     return body as T

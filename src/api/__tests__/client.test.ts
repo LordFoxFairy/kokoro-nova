@@ -99,6 +99,32 @@ describe('createApiClient', () => {
     expect(calls).toBe(0)
   })
 
+  it('injects transport headers after validating the local path and lets a caller override them', async () => {
+    const seen: Array<{ url: string; headers: Headers }> = []
+    const transport: JsonTransport = async (input, init) => {
+      seen.push({ url: String(input), headers: new Headers(init?.headers) })
+      return json({ ok: true })
+    }
+    let headerReads = 0
+    const api = createApiClient(transport, {
+      getHeaders: () => {
+        headerReads += 1
+        return { Authorization: 'Bearer fixture-token', 'X-Transport': 'backend-adapter' }
+      },
+    })
+
+    await api.raw.post('/api/example', { value: 1 }, { Authorization: 'Bearer caller-token', 'X-Scenario': 'video-running' })
+    await expect(api.raw.get('https://HOST/not-local')).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+
+    expect(headerReads).toBe(1)
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.url).toBe('/api/example')
+    expect(seen[0]?.headers.get('Authorization')).toBe('Bearer caller-token')
+    expect(seen[0]?.headers.get('X-Transport')).toBe('backend-adapter')
+    expect(seen[0]?.headers.get('X-Scenario')).toBe('video-running')
+    expect(seen[0]?.headers.get('Content-Type')).toBe('application/json')
+  })
+
   it('sends JSON content type and preserves caller headers', async () => {
     let captured: RequestInit | undefined
     const transport: JsonTransport = async (_input, init) => {

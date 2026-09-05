@@ -3,6 +3,20 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 const PROJECT_URL = '/canvas?projectId=prj_video_demo&canvasId=can_video_main'
 const VIDEO_SOURCE_ID = 'art_video_01'
 
+const VISUAL_COMPOSE_ARTIFACT = {
+  id: 'art_visual_compose_success',
+  jobId: 'compose_task_visual_success',
+  kind: 'video' as const,
+  url: '/api/media/composites/visual/composite.mp4',
+  thumbnailUrl: '/fixtures/libtv/media/city-night-poster.webp',
+  width: 1280,
+  height: 720,
+  durationSeconds: 15,
+  createdAt: '2026-09-05T00:00:00.000Z',
+  modelId: 'local-compose',
+  assetId: 'asset_visual_compose_success',
+}
+
 async function openDeterministicClipEditor(page: Page, request: APIRequestContext) {
   const scenario = await request.post('/api/dev/scenario', { data: { scenarioId: 'authenticated-populated' } })
   expect(scenario.ok()).toBe(true)
@@ -114,4 +128,64 @@ test('succeeded video fixture reopens a seeded mixed-media composite timeline', 
   await page.getByTestId('open-clip-editor').click()
   await expect(page.locator('[data-testid^="timeline-clip-"]')).toHaveCount(2)
   await expect(page.locator('[data-testid^="timeline-audio-"]')).toHaveCount(1)
+})
+
+test('local export success keeps the editor open with terminal feedback at desktop baseline', async ({ page, request }) => {
+  await openDeterministicClipEditor(page, request)
+  await addDeterministicVideo(page)
+
+  const task = {
+    id: 'compose_task_visual_success',
+    status: 'succeeded',
+    artifact: VISUAL_COMPOSE_ARTIFACT,
+    assetId: 'asset_visual_compose_success',
+    subtitleMode: 'none',
+    notes: ['deterministic visual export fixture'],
+    failure: null,
+    createdAt: '2026-09-05T00:00:00.000Z',
+    updatedAt: '2026-09-05T00:00:01.000Z',
+  }
+  await page.route('**/api/compose', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task }) })
+  })
+
+  await page.getByTestId('clip-export-trigger').click()
+  const download = page.waitForEvent('download')
+  await page.getByTestId('export-to-local').click()
+  await download
+  await expect(page.getByTestId('compose-success')).toContainText('合成完成')
+  await expect(page.getByTestId('toast')).toContainText('已导出到本地')
+  await expectVisualBaseline(page, 'video-clip-editor-export-success-1440x900.png')
+})
+
+test('failed export keeps an actionable error state at desktop baseline', async ({ page, request }) => {
+  await openDeterministicClipEditor(page, request)
+  await addDeterministicVideo(page)
+
+  const queuedTask = {
+    id: 'compose_task_visual_failed',
+    status: 'queued',
+    artifact: null,
+    assetId: null,
+    subtitleMode: null,
+    notes: [],
+    failure: null,
+    createdAt: '2026-09-05T00:00:00.000Z',
+    updatedAt: '2026-09-05T00:00:00.000Z',
+  }
+  await page.route('**/api/compose', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ task: queuedTask }) })
+  })
+  await page.route('**/api/compose/compose_task_visual_failed**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ task: { ...queuedTask, status: 'failed', failure: '本地视觉 fixture 渲染失败' } }),
+    })
+  })
+
+  await page.getByTestId('clip-export-trigger').click()
+  await page.getByTestId('export-to-local').click()
+  await expect(page.getByTestId('compose-error')).toContainText('本地视觉 fixture 渲染失败')
+  await expectVisualBaseline(page, 'video-clip-editor-export-failed-1440x900.png')
 })
